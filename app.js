@@ -401,22 +401,14 @@ function renderObrasSociales() {
     rnosSortDirection
   );
 
-  tbody.innerHTML = filtradas.map(os => {
-    const ubicacion = separarLocalidadDomicilio(os.localidad, os.domicilio);
-    return `
-    <tr>
+  tbody.innerHTML = filtradas.map(os => `
+    <tr class="os-row" data-edit-os="${os.id}" tabindex="0" role="button" title="Clic para ver o editar todos los datos">
       <td><strong>${escaparHtml(os.rnos)}</strong></td>
       <td class="denominacion-cell" title="${escaparHtml(os.denominacion)}">${escaparHtml(os.denominacion)}</td>
       <td>${escaparHtml(os.sigla || "—")}</td>
-      <td class="location-cell" title="${escaparHtml(ubicacion.localidad || "")}">${escaparHtml(ubicacion.localidad || "—")}</td>
-      <td class="location-cell" title="${escaparHtml(ubicacion.domicilio || "")}">${escaparHtml(ubicacion.domicilio || "—")}</td>
-      <td>${escaparHtml(os.provincia || "—")}</td>
       <td class="date-cell">${mostrarDiaMes(os.inicio_ejercicio)}</td>
-      <td><span class="badge ${os.estado === "ACTIVA" ? "active" : "inactive"}">${escaparHtml(os.estado || "—")}</span></td>
-      <td class="actions-col"><button class="edit-button" type="button" data-edit-os="${os.id}" ${authSession ? "" : 'title="Ingresá para editar"'}>✎ Editar</button></td>
     </tr>
-  `;
-  }).join("");
+  `).join("");
 
   const count = document.getElementById("os-count");
   if (count) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "Obra Social" : "Obras Sociales"}`;
@@ -427,8 +419,16 @@ function renderObrasSociales() {
     if (!filtradas.length) empty.textContent = "No se encontraron Obras Sociales con ese criterio.";
   }
 
-  document.querySelectorAll("[data-edit-os]").forEach(btn => {
-    btn.addEventListener("click", () => requiereAutenticacion(() => abrirModalEdicion(Number(btn.dataset.editOs))));
+  document.querySelectorAll(".os-row[data-edit-os]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicion(Number(row.dataset.editOs)));
+
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        editar();
+      }
+    });
   });
 
   actualizarIndicadorOrden();

@@ -261,7 +261,7 @@ button{cursor:pointer}
 }
 .table-meta span{font-size:12px;color:var(--muted)}
 .table-scroll{overflow:auto}
-.data-table{width:100%;border-collapse:collapse;min-width:1420px}
+.data-table{width:100%;border-collapse:collapse;min-width:680px}
 .data-table th,.data-table td{
   text-align:left;
   padding:9px 12px;
@@ -467,3 +467,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   .module-actions .primary{width:100%}
   .toast{left:16px;right:16px;bottom:16px;max-width:none}
 }
+
+.os-row{cursor:pointer}
+.os-row:hover{background:#f5f9fd!important}
+.os-row:focus{outline:2px solid #7f98b3;outline-offset:-2px;background:#f5f9fd}

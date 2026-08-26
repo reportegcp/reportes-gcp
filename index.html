@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
   <div class="app-shell">
@@ -59,7 +59,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V12</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V13</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -117,7 +117,7 @@
         <div class="table-card">
           <div class="table-meta">
             <strong id="os-count">Cargando Obras Sociales...</strong>
-            <span id="os-source-status">Conectando con Supabase...</span>
+            <span><span id="os-source-status">Conectando con Supabase...</span> · Clic en una fila para ver o editar todos los datos</span>
           </div>
           <div class="table-scroll">
             <table class="data-table">
@@ -130,12 +130,7 @@
                   </th>
                   <th>Denominación</th>
                   <th>Sigla</th>
-                  <th>Localidad</th>
-                  <th>Domicilio</th>
-                  <th>Provincia</th>
                   <th>Inicio ejercicio</th>
-                  <th>Estado</th>
-                  <th class="actions-col">Acción</th>
                 </tr>
               </thead>
               <tbody id="os-table-body"></tbody>
@@ -278,6 +273,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
