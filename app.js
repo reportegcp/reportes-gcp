@@ -109,7 +109,7 @@ function ordenarObrasSocialesPorRnos(lista, direction = "asc") {
 function buildObrasSocialesUrl() {
   const fields = [
     "id", "rnos", "denominacion", "sigla", "domicilio", "localidad", "provincia",
-    "telefono", "email", "web", "fecha_inicio", "inicio_ejercicio", "estado", "observaciones"
+    "telefono", "email", "web", "inicio_ejercicio", "estado", "observaciones"
   ].join(",");
 
   const params = new URLSearchParams();
@@ -411,7 +411,6 @@ function renderObrasSociales() {
       <td class="location-cell" title="${escaparHtml(ubicacion.localidad || "")}">${escaparHtml(ubicacion.localidad || "—")}</td>
       <td class="location-cell" title="${escaparHtml(ubicacion.domicilio || "")}">${escaparHtml(ubicacion.domicilio || "—")}</td>
       <td>${escaparHtml(os.provincia || "—")}</td>
-      <td class="date-cell">${mostrarDiaMes(os.fecha_inicio)}</td>
       <td class="date-cell">${mostrarDiaMes(os.inicio_ejercicio)}</td>
       <td><span class="badge ${os.estado === "ACTIVA" ? "active" : "inactive"}">${escaparHtml(os.estado || "—")}</span></td>
       <td class="actions-col"><button class="edit-button" type="button" data-edit-os="${os.id}" ${authSession ? "" : 'title="Ingresá para editar"'}>✎ Editar</button></td>
@@ -543,7 +542,6 @@ function abrirModalEdicion(id) {
     "os-telefono": os.telefono,
     "os-email": os.email,
     "os-web": os.web,
-    "os-fecha-inicio": os.fecha_inicio,
     "os-inicio-ejercicio": os.inicio_ejercicio,
     "os-estado": os.estado,
     "os-observaciones": os.observaciones
@@ -721,15 +719,10 @@ async function handleOsSubmit(event) {
   const rnos = (document.getElementById("os-rnos")?.value || "").replace(/\D/g, "");
   const denominacion = document.getElementById("os-denominacion")?.value.trim() || "";
   const sigla = document.getElementById("os-sigla")?.value.trim().toUpperCase() || "";
-  const fechaInicioRaw = document.getElementById("os-fecha-inicio")?.value.trim() || "";
   const inicioEjercicioRaw = document.getElementById("os-inicio-ejercicio")?.value.trim() || "";
 
   if (!rnos || !denominacion) {
     setFormMessage("os-form-message", "RNOS y Denominación son obligatorios.");
-    return;
-  }
-  if (fechaInicioRaw && !normalizarDiaMes(fechaInicioRaw)) {
-    setFormMessage("os-form-message", "Fecha Inicio debe tener formato DD-MM, por ejemplo 08-04.");
     return;
   }
   if (inicioEjercicioRaw && !normalizarDiaMes(inicioEjercicioRaw)) {
@@ -747,7 +740,6 @@ async function handleOsSubmit(event) {
     telefono: document.getElementById("os-telefono")?.value.trim() || null,
     email: document.getElementById("os-email")?.value.trim() || null,
     web: document.getElementById("os-web")?.value.trim() || null,
-    fecha_inicio: fechaInicioRaw ? normalizarDiaMes(fechaInicioRaw) : null,
     inicio_ejercicio: inicioEjercicioRaw ? normalizarDiaMes(inicioEjercicioRaw) : null,
     estado: document.getElementById("os-estado")?.value || "ACTIVA",
     observaciones: document.getElementById("os-observaciones")?.value.trim() || null
@@ -827,7 +819,7 @@ function initBrowser() {
   document.getElementById("forgot-form")?.addEventListener("submit", handleForgotSubmit);
   document.getElementById("password-form")?.addEventListener("submit", handlePasswordSubmit);
 
-  ["os-fecha-inicio", "os-inicio-ejercicio"].forEach(id => {
+  ["os-inicio-ejercicio"].forEach(id => {
     document.getElementById(id)?.addEventListener("blur", event => {
       const normalizado = normalizarDiaMes(event.target.value);
       if (normalizado) event.target.value = normalizado;
