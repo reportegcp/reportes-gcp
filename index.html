@@ -51,7 +51,7 @@
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
           <div class="hero-badge">
-            <strong>V5</strong>
+            <strong>V7</strong>
             <span>Estructura inicial</span>
           </div>
         </div>
@@ -137,7 +137,7 @@
         <div class="table-card">
           <div class="table-meta">
             <strong id="os-count">0 Obras Sociales</strong>
-            <span>Datos de ejemplo · todavía sin conexión a Supabase</span>
+            <span>Todavía sin conexión a Supabase</span>
           </div>
 
           <div class="table-scroll">
@@ -147,8 +147,10 @@
                   <th>RNOS</th>
                   <th>Denominación</th>
                   <th>Sigla</th>
+                  <th>Localidad</th>
+                  <th>Provincia</th>
+                  <th>Fecha inicio</th>
                   <th>Inicio ejercicio</th>
-                  <th>Fin ejercicio</th>
                   <th>Estado</th>
                   <th class="actions-col">Acción</th>
                 </tr>
@@ -236,12 +238,12 @@
         <div class="form-grid">
           <label>
             <span>RNOS</span>
-            <input id="os-rnos" type="text" inputmode="numeric" maxlength="20" required>
+            <input id="os-rnos" type="text" maxlength="20" required>
           </label>
 
           <label>
             <span>Sigla</span>
-            <input id="os-sigla" type="text" maxlength="30">
+            <input id="os-sigla" type="text" maxlength="40">
           </label>
 
           <label class="full">
@@ -249,14 +251,44 @@
             <input id="os-denominacion" type="text" maxlength="250" required>
           </label>
 
-          <label>
-            <span>Inicio ejercicio</span>
-            <input id="os-inicio-ejercicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD/MM" required>
+          <label class="full">
+            <span>Domicilio</span>
+            <input id="os-domicilio" type="text" maxlength="250">
           </label>
 
           <label>
-            <span>Fin ejercicio</span>
-            <input id="os-fin-ejercicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD/MM" required>
+            <span>Localidad</span>
+            <input id="os-localidad" type="text" maxlength="120">
+          </label>
+
+          <label>
+            <span>Provincia</span>
+            <input id="os-provincia" type="text" maxlength="120">
+          </label>
+
+          <label>
+            <span>Teléfono</span>
+            <input id="os-telefono" type="text" maxlength="100">
+          </label>
+
+          <label>
+            <span>E-mail</span>
+            <input id="os-email" type="email" maxlength="180">
+          </label>
+
+          <label class="full">
+            <span>Web</span>
+            <input id="os-web" type="text" maxlength="250">
+          </label>
+
+          <label>
+            <span>Fecha Inicio</span>
+            <input id="os-fecha-inicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD-MM">
+          </label>
+
+          <label>
+            <span>Inicio ejercicio</span>
+            <input id="os-inicio-ejercicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD-MM">
           </label>
 
           <label>

@@ -49,64 +49,25 @@ document.querySelectorAll("[data-go]").forEach(btn => {
    Todavía no conectado a Supabase.
    ========================================================= */
 
-const STORAGE_KEY = "gcp-obras-sociales-demo-v2";
+const STORAGE_KEY = "gcp-obras-sociales-v1";
 
-const obrasSocialesDemo = [
-  {
-    id: 1,
-    rnos: "100106",
-    denominacion: "OBRA SOCIAL DEMO DEL PERSONAL ADMINISTRATIVO",
-    sigla: "OSDPA",
-    inicioEjercicio: "01/01",
-    finEjercicio: "31/12",
-    estado: "ACTIVA",
-    observaciones: ""
-  },
-  {
-    id: 2,
-    rnos: "105606",
-    denominacion: "OBRA SOCIAL DEMO DE LA INDUSTRIA Y AFINES",
-    sigla: "OSDIA",
-    inicioEjercicio: "01/01",
-    finEjercicio: "31/12",
-    estado: "ACTIVA",
-    observaciones: ""
-  },
-  {
-    id: 3,
-    rnos: "106708",
-    denominacion: "OBRA SOCIAL DEMO DE TRABAJADORES REGIONALES",
-    sigla: "OSDTR",
-    inicioEjercicio: "01/01",
-    finEjercicio: "31/12",
-    estado: "ACTIVA",
-    observaciones: ""
-  },
-  {
-    id: 4,
-    rnos: "401001",
-    denominacion: "OBRA SOCIAL DEMO DEL PERSONAL DE DIRECCIÓN",
-    sigla: "OSDPD",
-    inicioEjercicio: "01/01",
-    finEjercicio: "31/12",
-    estado: "INACTIVA",
-    observaciones: "Registro de ejemplo para visualizar el estado inactivo."
-  }
+const OLD_DEMO_KEYS = [
+  "gcp-obras-sociales-demo-v1",
+  "gcp-obras-sociales-demo-v2",
+  "gcp-obras-sociales-demo-v3"
 ];
+
+OLD_DEMO_KEYS.forEach(key => localStorage.removeItem(key));
 
 function cargarObrasSociales() {
   try {
     const guardadas = localStorage.getItem(STORAGE_KEY);
-    if (!guardadas) return [...obrasSocialesDemo];
+    if (!guardadas) return [];
+
     const parsed = JSON.parse(guardadas);
-    if (!Array.isArray(parsed)) return [...obrasSocialesDemo];
-    return parsed.map(os => ({
-      ...os,
-      inicioEjercicio: os.inicioEjercicio || "",
-      finEjercicio: os.finEjercicio || ""
-    }));
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [...obrasSocialesDemo];
+    return [];
   }
 }
 
@@ -135,7 +96,7 @@ function escaparHtml(valor) {
 
 function normalizarDiaMes(valor) {
   const texto = String(valor || "").trim();
-  const match = texto.match(/^(\d{1,2})\/(\d{1,2})$/);
+  const match = texto.match(/^(\d{1,2})[-/](\d{1,2})$/);
   if (!match) return "";
 
   const dia = Number(match[1]);
@@ -145,11 +106,7 @@ function normalizarDiaMes(valor) {
   if (mes < 1 || mes > 12) return "";
   if (dia < 1 || dia > diasPorMes[mes - 1]) return "";
 
-  return `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}`;
-}
-
-function validarDiaMes(valor) {
-  return normalizarDiaMes(valor) !== "";
+  return `${String(dia).padStart(2, "0")}-${String(mes).padStart(2, "0")}`;
 }
 
 function mostrarDiaMes(valor) {
@@ -165,7 +122,18 @@ function filtrarObrasSociales(lista, busqueda, estado) {
 
     if (!termino) return true;
 
-    const bolsa = normalizar(`${os.rnos} ${os.denominacion} ${os.sigla}`);
+    const bolsa = normalizar([
+      os.rnos,
+      os.denominacion,
+      os.sigla,
+      os.domicilio,
+      os.localidad,
+      os.provincia,
+      os.telefono,
+      os.email,
+      os.web
+    ].join(" "));
+
     return bolsa.includes(termino);
   });
 }
@@ -183,8 +151,10 @@ function renderObrasSociales() {
       <td><strong>${escaparHtml(os.rnos)}</strong></td>
       <td>${escaparHtml(os.denominacion)}</td>
       <td>${escaparHtml(os.sigla || "—")}</td>
-      <td>${escaparHtml(mostrarDiaMes(os.inicioEjercicio))}</td>
-      <td>${escaparHtml(mostrarDiaMes(os.finEjercicio))}</td>
+      <td>${escaparHtml(os.localidad || "—")}</td>
+      <td>${escaparHtml(os.provincia || "—")}</td>
+      <td>${mostrarDiaMes(os.fechaInicio)}</td>
+      <td>${mostrarDiaMes(os.inicioEjercicio)}</td>
       <td>
         <span class="badge ${os.estado === "ACTIVA" ? "active" : "inactive"}">
           ${escaparHtml(os.estado)}
@@ -223,13 +193,20 @@ function abrirModalEdicion(id) {
   if (!os) return;
 
   document.getElementById("os-id").value = os.id;
-  document.getElementById("os-rnos").value = os.rnos;
-  document.getElementById("os-denominacion").value = os.denominacion;
+  document.getElementById("os-rnos").value = os.rnos || "";
+  document.getElementById("os-denominacion").value = os.denominacion || "";
   document.getElementById("os-sigla").value = os.sigla || "";
+  document.getElementById("os-domicilio").value = os.domicilio || "";
+  document.getElementById("os-localidad").value = os.localidad || "";
+  document.getElementById("os-provincia").value = os.provincia || "";
+  document.getElementById("os-telefono").value = os.telefono || "";
+  document.getElementById("os-email").value = os.email || "";
+  document.getElementById("os-web").value = os.web || "";
+  document.getElementById("os-fecha-inicio").value = os.fechaInicio || "";
   document.getElementById("os-inicio-ejercicio").value = os.inicioEjercicio || "";
-  document.getElementById("os-fin-ejercicio").value = os.finEjercicio || "";
-  document.getElementById("os-estado").value = os.estado;
+  document.getElementById("os-estado").value = os.estado || "ACTIVA";
   document.getElementById("os-observaciones").value = os.observaciones || "";
+
   document.getElementById("os-modal-title").textContent = "Editar Obra Social";
   ocultarMensajeFormulario();
   abrirModal();
@@ -270,23 +247,34 @@ function guardarDesdeFormulario(event) {
   const rnos = document.getElementById("os-rnos").value.trim();
   const denominacion = document.getElementById("os-denominacion").value.trim();
   const sigla = document.getElementById("os-sigla").value.trim().toUpperCase();
+  const domicilio = document.getElementById("os-domicilio").value.trim();
+  const localidad = document.getElementById("os-localidad").value.trim();
+  const provincia = document.getElementById("os-provincia").value.trim();
+  const telefono = document.getElementById("os-telefono").value.trim();
+  const email = document.getElementById("os-email").value.trim();
+  const web = document.getElementById("os-web").value.trim();
+  let fechaInicio = document.getElementById("os-fecha-inicio").value.trim();
   let inicioEjercicio = document.getElementById("os-inicio-ejercicio").value.trim();
-  let finEjercicio = document.getElementById("os-fin-ejercicio").value.trim();
   const estado = document.getElementById("os-estado").value;
   const observaciones = document.getElementById("os-observaciones").value.trim();
 
-  if (!rnos || !denominacion || !inicioEjercicio || !finEjercicio) {
-    mostrarMensajeFormulario("RNOS, Denominación, Inicio ejercicio y Fin ejercicio son obligatorios.");
+  if (!rnos || !denominacion) {
+    mostrarMensajeFormulario("RNOS y Denominación son obligatorios.");
     return;
   }
 
-  if (!validarDiaMes(inicioEjercicio) || !validarDiaMes(finEjercicio)) {
-    mostrarMensajeFormulario("Inicio ejercicio y Fin ejercicio deben tener formato DD/MM, por ejemplo 01/06 y 31/05.");
+  if (fechaInicio && !normalizarDiaMes(fechaInicio)) {
+    mostrarMensajeFormulario("Fecha Inicio debe tener formato DD-MM, por ejemplo 15-03.");
     return;
   }
 
-  inicioEjercicio = normalizarDiaMes(inicioEjercicio);
-  finEjercicio = normalizarDiaMes(finEjercicio);
+  if (inicioEjercicio && !normalizarDiaMes(inicioEjercicio)) {
+    mostrarMensajeFormulario("Inicio ejercicio debe tener formato DD-MM, por ejemplo 01-07.");
+    return;
+  }
+
+  fechaInicio = fechaInicio ? normalizarDiaMes(fechaInicio) : "";
+  inicioEjercicio = inicioEjercicio ? normalizarDiaMes(inicioEjercicio) : "";
 
   const duplicado = obrasSociales.some(os =>
     normalizar(os.rnos) === normalizar(rnos) && Number(os.id) !== id
@@ -297,31 +285,28 @@ function guardarDesdeFormulario(event) {
     return;
   }
 
+  const registro = {
+    rnos,
+    denominacion,
+    sigla,
+    domicilio,
+    localidad,
+    provincia,
+    telefono,
+    email,
+    web,
+    fechaInicio,
+    inicioEjercicio,
+    estado,
+    observaciones
+  };
+
   if (id) {
     const index = obrasSociales.findIndex(os => Number(os.id) === id);
     if (index === -1) return;
-
-    obrasSociales[index] = {
-      ...obrasSociales[index],
-      rnos,
-      denominacion,
-      sigla,
-      inicioEjercicio,
-      finEjercicio,
-      estado,
-      observaciones
-    };
+    obrasSociales[index] = { ...obrasSociales[index], ...registro };
   } else {
-    obrasSociales.push({
-      id: siguienteId(),
-      rnos,
-      denominacion,
-      sigla,
-      inicioEjercicio,
-      finEjercicio,
-      estado,
-      observaciones
-    });
+    obrasSociales.push({ id: siguienteId(), ...registro });
   }
 
   guardarObrasSociales();
@@ -353,13 +338,12 @@ document.addEventListener("keydown", event => {
   }
 });
 
-renderObrasSociales();
-
-
-["os-inicio-ejercicio", "os-fin-ejercicio"].forEach(id => {
+["os-fecha-inicio", "os-inicio-ejercicio"].forEach(id => {
   const campo = document.getElementById(id);
   campo?.addEventListener("blur", () => {
     const normalizado = normalizarDiaMes(campo.value);
     if (normalizado) campo.value = normalizado;
   });
 });
+
+renderObrasSociales();
