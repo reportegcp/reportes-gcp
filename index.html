@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GCP | Reportes</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">GCP</div>
+        <div>
+          <strong>Gerencia de Control Prestacional</strong>
+          <span>Sistema de Reportes</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="inicio">Inicio</button>
+        <button class="nav-item" data-view="obras-sociales">Obras Sociales</button>
+        <button class="nav-item" data-view="pma">PMA</button>
+        <button class="nav-item" data-view="cartillas">Cartillas</button>
+        <button class="nav-item" data-view="reportes">Reportes</button>
+      </nav>
+      <div class="sidebar-footer">
+        <span>Versión inicial</span>
+        <small>GCP · 2026</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="page-title">Inicio</h1>
+          <p id="page-subtitle">Panel general de seguimiento prestacional</p>
+        </div>
+        <div class="status-pill"><span class="dot"></span>Sitio en construcción</div>
+      </header>
+
+      <section id="inicio" class="view active">
+        <div class="hero">
+          <div>
+            <span class="eyebrow">GERENCIA DE CONTROL PRESTACIONAL</span>
+            <h2>Reportes GCP</h2>
+            <p>Espacio único para consulta rápida de Obras Sociales, presentaciones de PMA, Cartillas e indicadores de gestión.</p>
+          </div>
+          <div class="hero-badge"><strong>V1</strong><span>Estructura inicial</span></div>
+        </div>
+
+        <div class="cards">
+          <article class="card">
+            <span class="card-kicker">MAESTRO</span>
+            <h3>Obras Sociales</h3>
+            <p>Base única de RNOS, denominación, sigla y estado.</p>
+            <button data-go="obras-sociales">Abrir módulo</button>
+          </article>
+          <article class="card">
+            <span class="card-kicker">SEGUIMIENTO</span>
+            <h3>PMA</h3>
+            <p>Presentaciones, ejercicios, expedientes, analistas y condiciones.</p>
+            <button data-go="pma">Abrir módulo</button>
+          </article>
+          <article class="card">
+            <span class="card-kicker">SEGUIMIENTO</span>
+            <h3>Cartillas</h3>
+            <p>Registro y consulta de presentaciones de cartillas por Obra Social.</p>
+            <button data-go="cartillas">Abrir módulo</button>
+          </article>
+          <article class="card">
+            <span class="card-kicker">ANÁLISIS</span>
+            <h3>Reportes</h3>
+            <p>Consultas, comparaciones y exportaciones. Se incorporará por etapas.</p>
+            <button data-go="reportes">Abrir módulo</button>
+          </article>
+        </div>
+
+        <div class="roadmap">
+          <div><span class="step done">1</span><div><strong>Estructura web</strong><small>Lista para publicar</small></div></div>
+          <div><span class="step">2</span><div><strong>Base Supabase</strong><small>Obras Sociales, PMA y Cartillas</small></div></div>
+          <div><span class="step">3</span><div><strong>Conexión de datos</strong><small>Formularios, búsquedas y filtros</small></div></div>
+          <div><span class="step">4</span><div><strong>Reportes</strong><small>Indicadores y comparaciones</small></div></div>
+        </div>
+      </section>
+
+      <section id="obras-sociales" class="view">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">MAESTRO PRINCIPAL</span>
+            <h2>Obras Sociales</h2>
+            <p>Este módulo tomará los RNOS desde una única tabla maestra.</p>
+          </div>
+          <button class="primary" disabled>+ Nueva Obra Social</button>
+        </div>
+        <div class="toolbar">
+          <input type="search" placeholder="Buscar por RNOS, denominación o sigla..." disabled>
+          <select disabled><option>Estado: Todas</option></select>
+        </div>
+        <div class="empty-state">
+          <strong>La estructura está lista.</strong>
+          <p>El próximo paso es crear la tabla <code>obras_sociales</code> en Supabase y cargar el maestro inicial.</p>
+        </div>
+      </section>
+
+      <section id="pma" class="view">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">PRESENTACIONES</span>
+            <h2>PMA</h2>
+            <p>Seguimiento por ejercicio, expediente, analista, condición y disposición.</p>
+          </div>
+          <button class="primary" disabled>+ Nueva presentación</button>
+        </div>
+        <div class="placeholder-grid">
+          <div><strong>Ejercicio</strong><span>Filtro</span></div>
+          <div><strong>Analista</strong><span>Filtro</span></div>
+          <div><strong>Condición</strong><span>Filtro</span></div>
+          <div><strong>Resolución 170/09</strong><span>Filtro</span></div>
+        </div>
+        <div class="empty-state">
+          <strong>Módulo preparado.</strong>
+          <p>Después de crear la base, acá veremos las presentaciones de PMA sin repetir los datos de la Obra Social.</p>
+        </div>
+      </section>
+
+      <section id="cartillas" class="view">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">PRESENTACIONES</span>
+            <h2>Cartillas</h2>
+            <p>Seguimiento de presentaciones de cartillas relacionadas con la misma tabla maestra de Obras Sociales.</p>
+          </div>
+          <button class="primary" disabled>+ Nueva presentación</button>
+        </div>
+        <div class="empty-state">
+          <strong>Módulo preparado.</strong>
+          <p>Vamos a definir sus campos definitivos tomando como base la información que hoy manejan en Teams.</p>
+        </div>
+      </section>
+
+      <section id="reportes" class="view">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">CONSULTA Y ANÁLISIS</span>
+            <h2>Reportes</h2>
+            <p>Esta sección crecerá con el uso real del sistema.</p>
+          </div>
+        </div>
+        <div class="cards report-cards">
+          <article class="card"><h3>PMA por ejercicio</h3><p>Presentados, aprobados, observados y en estudio.</p></article>
+          <article class="card"><h3>Por analista</h3><p>Cantidad asignada y estado de cada presentación.</p></article>
+          <article class="card"><h3>Comparaciones</h3><p>Series históricas y cruces entre Obras Sociales.</p></article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
