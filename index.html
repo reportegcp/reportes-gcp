@@ -16,6 +16,7 @@
           <span>Sistema de Reportes</span>
         </div>
       </div>
+
       <nav class="nav">
         <button class="nav-item active" data-view="inicio">Inicio</button>
         <button class="nav-item" data-view="obras-sociales">Obras Sociales</button>
@@ -23,6 +24,7 @@
         <button class="nav-item" data-view="cartillas">Cartillas</button>
         <button class="nav-item" data-view="reportes">Reportes</button>
       </nav>
+
       <div class="sidebar-footer">
         <span>Versión inicial</span>
         <small>GCP · 2026</small>
@@ -35,7 +37,10 @@
           <h1 id="page-title">Inicio</h1>
           <p id="page-subtitle">Panel general de seguimiento prestacional</p>
         </div>
-        <div class="status-pill"><span class="dot"></span>Sitio en construcción</div>
+        <div class="status-pill">
+          <span class="dot"></span>
+          Sitio en construcción
+        </div>
       </header>
 
       <section id="inicio" class="view active">
@@ -45,7 +50,10 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V1</strong><span>Estructura inicial</span></div>
+          <div class="hero-badge">
+            <strong>V3</strong>
+            <span>Estructura inicial</span>
+          </div>
         </div>
 
         <div class="cards">
@@ -55,18 +63,21 @@
             <p>Base única de RNOS, denominación, sigla y estado.</p>
             <button data-go="obras-sociales">Abrir módulo</button>
           </article>
+
           <article class="card">
             <span class="card-kicker">SEGUIMIENTO</span>
             <h3>PMA</h3>
             <p>Presentaciones, ejercicios, expedientes, analistas y condiciones.</p>
             <button data-go="pma">Abrir módulo</button>
           </article>
+
           <article class="card">
             <span class="card-kicker">SEGUIMIENTO</span>
             <h3>Cartillas</h3>
             <p>Registro y consulta de presentaciones de cartillas por Obra Social.</p>
             <button data-go="cartillas">Abrir módulo</button>
           </article>
+
           <article class="card">
             <span class="card-kicker">ANÁLISIS</span>
             <h3>Reportes</h3>
@@ -76,10 +87,22 @@
         </div>
 
         <div class="roadmap">
-          <div><span class="step done">1</span><div><strong>Estructura web</strong><small>Lista para publicar</small></div></div>
-          <div><span class="step">2</span><div><strong>Base Supabase</strong><small>Obras Sociales, PMA y Cartillas</small></div></div>
-          <div><span class="step">3</span><div><strong>Conexión de datos</strong><small>Formularios, búsquedas y filtros</small></div></div>
-          <div><span class="step">4</span><div><strong>Reportes</strong><small>Indicadores y comparaciones</small></div></div>
+          <div>
+            <span class="step done">1</span>
+            <div><strong>Estructura web</strong><small>Lista para publicar</small></div>
+          </div>
+          <div>
+            <span class="step">2</span>
+            <div><strong>Base Supabase</strong><small>Obras Sociales, PMA y Cartillas</small></div>
+          </div>
+          <div>
+            <span class="step">3</span>
+            <div><strong>Conexión de datos</strong><small>Formularios, búsquedas y filtros</small></div>
+          </div>
+          <div>
+            <span class="step">4</span>
+            <div><strong>Reportes</strong><small>Indicadores y comparaciones</small></div>
+          </div>
         </div>
       </section>
 
@@ -88,17 +111,53 @@
           <div>
             <span class="eyebrow">MAESTRO PRINCIPAL</span>
             <h2>Obras Sociales</h2>
-            <p>Este módulo tomará los RNOS desde una única tabla maestra.</p>
+            <p>Maestro único para seleccionar la Obra Social en los distintos trámites.</p>
           </div>
-          <button class="primary" disabled>+ Nueva Obra Social</button>
+          <button class="primary" id="btn-nueva-os">+ Nueva Obra Social</button>
         </div>
-        <div class="toolbar">
-          <input type="search" placeholder="Buscar por RNOS, denominación o sigla..." disabled>
-          <select disabled><option>Estado: Todas</option></select>
+
+        <div class="toolbar os-toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input
+              id="os-search"
+              type="search"
+              placeholder="Buscar por RNOS, denominación o sigla..."
+              autocomplete="off"
+            >
+          </div>
+
+          <select id="os-estado-filter" aria-label="Filtrar por estado">
+            <option value="TODAS">Estado: Todas</option>
+            <option value="ACTIVA">Activas</option>
+            <option value="INACTIVA">Inactivas</option>
+          </select>
         </div>
-        <div class="empty-state">
-          <strong>La estructura está lista.</strong>
-          <p>El próximo paso es crear la tabla <code>obras_sociales</code> en Supabase y cargar el maestro inicial.</p>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="os-count">0 Obras Sociales</strong>
+            <span>Datos de ejemplo · todavía sin conexión a Supabase</span>
+          </div>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>RNOS</th>
+                  <th>Denominación</th>
+                  <th>Sigla</th>
+                  <th>Estado</th>
+                  <th class="actions-col">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="os-table-body"></tbody>
+            </table>
+          </div>
+
+          <div class="table-empty" id="os-empty" hidden>
+            No se encontraron Obras Sociales con ese criterio.
+          </div>
         </div>
       </section>
 
@@ -111,12 +170,14 @@
           </div>
           <button class="primary" disabled>+ Nueva presentación</button>
         </div>
+
         <div class="placeholder-grid">
           <div><strong>Ejercicio</strong><span>Filtro</span></div>
           <div><strong>Analista</strong><span>Filtro</span></div>
           <div><strong>Condición</strong><span>Filtro</span></div>
           <div><strong>Resolución 170/09</strong><span>Filtro</span></div>
         </div>
+
         <div class="empty-state">
           <strong>Módulo preparado.</strong>
           <p>Después de crear la base, acá veremos las presentaciones de PMA sin repetir los datos de la Obra Social.</p>
@@ -132,6 +193,7 @@
           </div>
           <button class="primary" disabled>+ Nueva presentación</button>
         </div>
+
         <div class="empty-state">
           <strong>Módulo preparado.</strong>
           <p>Vamos a definir sus campos definitivos tomando como base la información que hoy manejan en Teams.</p>
@@ -146,6 +208,7 @@
             <p>Esta sección crecerá con el uso real del sistema.</p>
           </div>
         </div>
+
         <div class="cards report-cards">
           <article class="card"><h3>PMA por ejercicio</h3><p>Presentados, aprobados, observados y en estudio.</p></article>
           <article class="card"><h3>Por analista</h3><p>Cantidad asignada y estado de cada presentación.</p></article>
@@ -154,6 +217,60 @@
       </section>
     </main>
   </div>
+
+  <div class="modal-backdrop" id="os-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="os-modal-title">
+      <div class="modal-header">
+        <div>
+          <span class="eyebrow">OBRA SOCIAL</span>
+          <h2 id="os-modal-title">Nueva Obra Social</h2>
+        </div>
+        <button class="icon-button" type="button" id="os-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="os-form">
+        <input type="hidden" id="os-id">
+
+        <div class="form-grid">
+          <label>
+            <span>RNOS</span>
+            <input id="os-rnos" type="text" inputmode="numeric" maxlength="20" required>
+          </label>
+
+          <label>
+            <span>Sigla</span>
+            <input id="os-sigla" type="text" maxlength="30">
+          </label>
+
+          <label class="full">
+            <span>Denominación</span>
+            <input id="os-denominacion" type="text" maxlength="250" required>
+          </label>
+
+          <label>
+            <span>Estado</span>
+            <select id="os-estado" required>
+              <option value="ACTIVA">ACTIVA</option>
+              <option value="INACTIVA">INACTIVA</option>
+            </select>
+          </label>
+
+          <label class="full">
+            <span>Observaciones</span>
+            <textarea id="os-observaciones" rows="4" maxlength="1000"></textarea>
+          </label>
+        </div>
+
+        <div class="form-message" id="os-form-message" hidden></div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="os-cancelar">Cancelar</button>
+          <button type="submit" class="primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
