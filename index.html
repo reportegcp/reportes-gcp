@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
   <div class="app-shell">
@@ -51,7 +51,7 @@
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
           <div class="hero-badge">
-            <strong>V8</strong>
+            <strong>V9</strong>
             <span>Estructura inicial</span>
           </div>
         </div>
@@ -315,17 +315,7 @@
     </div>
   </div>
 
-  <script>
-window.fetch = async function(url, options) {
-  if (String(url).includes('/rest/v1/obras_sociales')) {
-    return {ok:true,status:200,json:async()=>[
-      {id:1,rnos:'100108',denominacion:'OBRA SOCIAL UNO',sigla:'OS1',domicilio:'A 1',localidad:'CABA',provincia:'CABA',telefono:'111',email:'a@a.com',web:'a.com',fecha_inicio:'15-03',inicio_ejercicio:'01-01',estado:'ACTIVA',observaciones:''},
-      {id:2,rnos:'200208',denominacion:'OBRA SOCIAL DOS',sigla:'OS2',domicilio:'B 2',localidad:'Rosario',provincia:'Santa Fe',telefono:'222',email:'b@b.com',web:'b.com',fecha_inicio:'20-04',inicio_ejercicio:'01-07',estado:'INACTIVA',observaciones:''}
-    ]};
-  }
-  throw new Error('Unexpected fetch '+url);
-};
-</script>
-  <script src="app.js?v=8"></script>
+  
+  <script src="app.js?v=9"></script>
 </body>
 </html>
