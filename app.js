@@ -19,17 +19,54 @@ function buildObrasSocialesUrl() {
     "id", "rnos", "denominacion", "sigla", "domicilio", "localidad", "provincia",
     "telefono", "email", "web", "fecha_inicio", "inicio_ejercicio", "estado", "observaciones"
   ].join(",");
-  return `${SUPABASE_URL}/rest/v1/obras_sociales?select=${fields}&order=denominacion.asc`;
+
+  const params = new URLSearchParams();
+  params.set("select", fields);
+  params.set("order", "denominacion.asc");
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+
+  return `${SUPABASE_URL}/rest/v1/obras_sociales?${params.toString()}`;
+}
+
+async function fetchConTimeout(url, options = {}, timeoutMs = 10000, fetchImpl = fetch) {
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let timer;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      if (controller) controller.abort();
+      const error = new Error(`Tiempo de espera agotado después de ${timeoutMs / 1000} segundos.`);
+      error.name = "TimeoutError";
+      reject(error);
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      fetchImpl(url, {
+        ...options,
+        ...(controller ? { signal: controller.signal } : {})
+      }),
+      timeoutPromise
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function cargarObrasSocialesDesdeSupabase(fetchImpl = fetch) {
-  const response = await fetchImpl(buildObrasSocialesUrl(), {
-    method: "GET",
-    headers: {
-      apikey: SUPABASE_PUBLISHABLE_KEY,
-      Accept: "application/json"
-    }
-  });
+  const response = await fetchConTimeout(
+    buildObrasSocialesUrl(),
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json"
+      },
+      cache: "no-store"
+    },
+    10000,
+    fetchImpl
+  );
 
   if (!response.ok) {
     let detalle = "";
@@ -167,13 +204,18 @@ async function cargarYRenderizarObrasSociales() {
     obrasSociales = [];
     renderObrasSociales();
     if (count) count.textContent = "0 Obras Sociales";
-    setEstadoCarga("Error de conexión con Supabase");
+
+    const esTimeout = error && error.name === "TimeoutError";
+    setEstadoCarga(esTimeout ? "Supabase no respondió en 10 segundos" : "Error de conexión con Supabase");
+
     const empty = document.getElementById("os-empty");
     if (empty) {
       empty.hidden = false;
-      empty.textContent = "No se pudieron cargar las Obras Sociales. Revisá la conexión o la política de lectura de Supabase.";
+      empty.textContent = esTimeout
+        ? "Supabase no respondió dentro del tiempo esperado. Actualizá la página o revisá la conexión."
+        : `No se pudieron cargar las Obras Sociales.${error?.message ? " " + error.message : ""}`;
     }
-    console.error(error);
+    console.error("Error cargando Obras Sociales:", error);
   }
 }
 
@@ -261,6 +303,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     getInitialView,
     buildObrasSocialesUrl,
+    fetchConTimeout,
     cargarObrasSocialesDesdeSupabase,
     filtrarObrasSociales,
     normalizarDiaMes
