@@ -56,6 +56,28 @@ function mostrarDiaMes(valor) {
   return normalizarDiaMes(valor) || "—";
 }
 
+function separarLocalidadDomicilio(localidad, domicilio) {
+  const localidadTexto = String(localidad || "").trim();
+  const domicilioTexto = String(domicilio || "").trim();
+  const separador = " - ";
+  const pos = localidadTexto.indexOf(separador);
+
+  if (pos === -1) {
+    return {
+      localidad: localidadTexto,
+      domicilio: domicilioTexto
+    };
+  }
+
+  const localidadLimpia = localidadTexto.slice(0, pos).trim();
+  const detalle = localidadTexto.slice(pos + separador.length).trim();
+
+  return {
+    localidad: localidadLimpia,
+    domicilio: domicilioTexto || detalle
+  };
+}
+
 function filtrarObrasSociales(lista, busqueda, estado) {
   const termino = normalizar(busqueda);
   return lista.filter(os => {
@@ -379,19 +401,23 @@ function renderObrasSociales() {
     rnosSortDirection
   );
 
-  tbody.innerHTML = filtradas.map(os => `
+  tbody.innerHTML = filtradas.map(os => {
+    const ubicacion = separarLocalidadDomicilio(os.localidad, os.domicilio);
+    return `
     <tr>
       <td><strong>${escaparHtml(os.rnos)}</strong></td>
-      <td>${escaparHtml(os.denominacion)}</td>
+      <td class="denominacion-cell" title="${escaparHtml(os.denominacion)}">${escaparHtml(os.denominacion)}</td>
       <td>${escaparHtml(os.sigla || "—")}</td>
-      <td>${escaparHtml(os.localidad || "—")}</td>
+      <td class="location-cell" title="${escaparHtml(ubicacion.localidad || "")}">${escaparHtml(ubicacion.localidad || "—")}</td>
+      <td class="location-cell" title="${escaparHtml(ubicacion.domicilio || "")}">${escaparHtml(ubicacion.domicilio || "—")}</td>
       <td>${escaparHtml(os.provincia || "—")}</td>
-      <td>${mostrarDiaMes(os.fecha_inicio)}</td>
-      <td>${mostrarDiaMes(os.inicio_ejercicio)}</td>
+      <td class="date-cell">${mostrarDiaMes(os.fecha_inicio)}</td>
+      <td class="date-cell">${mostrarDiaMes(os.inicio_ejercicio)}</td>
       <td><span class="badge ${os.estado === "ACTIVA" ? "active" : "inactive"}">${escaparHtml(os.estado || "—")}</span></td>
       <td class="actions-col"><button class="edit-button" type="button" data-edit-os="${os.id}" ${authSession ? "" : 'title="Ingresá para editar"'}>✎ Editar</button></td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   const count = document.getElementById("os-count");
   if (count) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "Obra Social" : "Obras Sociales"}`;
@@ -505,13 +531,14 @@ function abrirModalEdicion(id) {
   const os = obrasSociales.find(item => Number(item.id) === Number(id));
   if (!os) return;
 
+  const ubicacion = separarLocalidadDomicilio(os.localidad, os.domicilio);
   const values = {
     "os-id": os.id,
     "os-rnos": os.rnos,
     "os-denominacion": os.denominacion,
     "os-sigla": os.sigla,
-    "os-domicilio": os.domicilio,
-    "os-localidad": os.localidad,
+    "os-domicilio": ubicacion.domicilio,
+    "os-localidad": ubicacion.localidad,
     "os-provincia": os.provincia,
     "os-telefono": os.telefono,
     "os-email": os.email,
@@ -834,6 +861,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     getInitialView,
     normalizarDiaMes,
+    separarLocalidadDomicilio,
     filtrarObrasSociales,
     ordenarObrasSocialesPorRnos,
     buildObrasSocialesUrl,
