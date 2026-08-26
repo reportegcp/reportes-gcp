@@ -51,7 +51,7 @@
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
           <div class="hero-badge">
-            <strong>V3</strong>
+            <strong>V4</strong>
             <span>Estructura inicial</span>
           </div>
         </div>
@@ -147,6 +147,8 @@
                   <th>RNOS</th>
                   <th>Denominación</th>
                   <th>Sigla</th>
+                  <th>Inicio ejercicio</th>
+                  <th>Fin ejercicio</th>
                   <th>Estado</th>
                   <th class="actions-col">Acción</th>
                 </tr>
@@ -245,6 +247,16 @@
           <label class="full">
             <span>Denominación</span>
             <input id="os-denominacion" type="text" maxlength="250" required>
+          </label>
+
+          <label>
+            <span>Inicio ejercicio</span>
+            <input id="os-inicio-ejercicio" type="month" required>
+          </label>
+
+          <label>
+            <span>Fin ejercicio</span>
+            <input id="os-fin-ejercicio" type="month" required>
           </label>
 
           <label>

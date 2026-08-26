@@ -57,6 +57,8 @@ const obrasSocialesDemo = [
     rnos: "100106",
     denominacion: "OBRA SOCIAL DEMO DEL PERSONAL ADMINISTRATIVO",
     sigla: "OSDPA",
+    inicioEjercicio: "2026-01",
+    finEjercicio: "2026-12",
     estado: "ACTIVA",
     observaciones: ""
   },
@@ -65,6 +67,8 @@ const obrasSocialesDemo = [
     rnos: "105606",
     denominacion: "OBRA SOCIAL DEMO DE LA INDUSTRIA Y AFINES",
     sigla: "OSDIA",
+    inicioEjercicio: "2026-01",
+    finEjercicio: "2026-12",
     estado: "ACTIVA",
     observaciones: ""
   },
@@ -73,6 +77,8 @@ const obrasSocialesDemo = [
     rnos: "106708",
     denominacion: "OBRA SOCIAL DEMO DE TRABAJADORES REGIONALES",
     sigla: "OSDTR",
+    inicioEjercicio: "2026-01",
+    finEjercicio: "2026-12",
     estado: "ACTIVA",
     observaciones: ""
   },
@@ -81,6 +87,8 @@ const obrasSocialesDemo = [
     rnos: "401001",
     denominacion: "OBRA SOCIAL DEMO DEL PERSONAL DE DIRECCIÓN",
     sigla: "OSDPD",
+    inicioEjercicio: "2025-01",
+    finEjercicio: "2025-12",
     estado: "INACTIVA",
     observaciones: "Registro de ejemplo para visualizar el estado inactivo."
   }
@@ -91,7 +99,12 @@ function cargarObrasSociales() {
     const guardadas = localStorage.getItem(STORAGE_KEY);
     if (!guardadas) return [...obrasSocialesDemo];
     const parsed = JSON.parse(guardadas);
-    return Array.isArray(parsed) ? parsed : [...obrasSocialesDemo];
+    if (!Array.isArray(parsed)) return [...obrasSocialesDemo];
+    return parsed.map(os => ({
+      ...os,
+      inicioEjercicio: os.inicioEjercicio || "",
+      finEjercicio: os.finEjercicio || ""
+    }));
   } catch {
     return [...obrasSocialesDemo];
   }
@@ -118,6 +131,12 @@ function escaparHtml(valor) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function formatearMesAnio(valor) {
+  const match = String(valor || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "—";
+  return `${match[2]}/${match[1]}`;
 }
 
 function filtrarObrasSociales(lista, busqueda, estado) {
@@ -147,6 +166,8 @@ function renderObrasSociales() {
       <td><strong>${escaparHtml(os.rnos)}</strong></td>
       <td>${escaparHtml(os.denominacion)}</td>
       <td>${escaparHtml(os.sigla || "—")}</td>
+      <td>${escaparHtml(formatearMesAnio(os.inicioEjercicio))}</td>
+      <td>${escaparHtml(formatearMesAnio(os.finEjercicio))}</td>
       <td>
         <span class="badge ${os.estado === "ACTIVA" ? "active" : "inactive"}">
           ${escaparHtml(os.estado)}
@@ -188,6 +209,8 @@ function abrirModalEdicion(id) {
   document.getElementById("os-rnos").value = os.rnos;
   document.getElementById("os-denominacion").value = os.denominacion;
   document.getElementById("os-sigla").value = os.sigla || "";
+  document.getElementById("os-inicio-ejercicio").value = os.inicioEjercicio || "";
+  document.getElementById("os-fin-ejercicio").value = os.finEjercicio || "";
   document.getElementById("os-estado").value = os.estado;
   document.getElementById("os-observaciones").value = os.observaciones || "";
   document.getElementById("os-modal-title").textContent = "Editar Obra Social";
@@ -230,11 +253,18 @@ function guardarDesdeFormulario(event) {
   const rnos = document.getElementById("os-rnos").value.trim();
   const denominacion = document.getElementById("os-denominacion").value.trim();
   const sigla = document.getElementById("os-sigla").value.trim().toUpperCase();
+  const inicioEjercicio = document.getElementById("os-inicio-ejercicio").value;
+  const finEjercicio = document.getElementById("os-fin-ejercicio").value;
   const estado = document.getElementById("os-estado").value;
   const observaciones = document.getElementById("os-observaciones").value.trim();
 
-  if (!rnos || !denominacion) {
-    mostrarMensajeFormulario("RNOS y Denominación son obligatorios.");
+  if (!rnos || !denominacion || !inicioEjercicio || !finEjercicio) {
+    mostrarMensajeFormulario("RNOS, Denominación, Inicio ejercicio y Fin ejercicio son obligatorios.");
+    return;
+  }
+
+  if (finEjercicio < inicioEjercicio) {
+    mostrarMensajeFormulario("Fin ejercicio no puede ser anterior a Inicio ejercicio.");
     return;
   }
 
@@ -256,6 +286,8 @@ function guardarDesdeFormulario(event) {
       rnos,
       denominacion,
       sigla,
+      inicioEjercicio,
+      finEjercicio,
       estado,
       observaciones
     };
@@ -265,6 +297,8 @@ function guardarDesdeFormulario(event) {
       rnos,
       denominacion,
       sigla,
+      inicioEjercicio,
+      finEjercicio,
       estado,
       observaciones
     });
