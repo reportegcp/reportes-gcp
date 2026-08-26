@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
   <div class="app-shell">
@@ -26,20 +26,29 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión inicial</span>
+        <span>Versión 10</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <h1 id="page-title">Inicio</h1>
-          <p id="page-subtitle">Panel general de seguimiento prestacional</p>
+      <header class="topbar" id="topbar">
+        <div class="topbar-copy" id="topbar-copy">
+          <h1 id="page-title"></h1>
+          <p id="page-subtitle"></p>
         </div>
-        <div class="status-pill">
-          <span class="dot"></span>
-          Sitio en construcción
+
+        <div class="topbar-actions">
+          <div class="status-pill"><span class="dot"></span>Sitio en construcción</div>
+
+          <div class="auth-area">
+            <button class="secondary auth-login-button" id="btn-login" type="button">Ingresar</button>
+            <div class="auth-session" id="auth-session" hidden>
+              <span class="auth-user" id="auth-user-label"></span>
+              <button class="text-button" id="btn-change-password" type="button">Cambiar contraseña</button>
+              <button class="secondary" id="btn-logout" type="button">Cerrar sesión</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -50,10 +59,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge">
-            <strong>V9</strong>
-            <span>Estructura inicial</span>
-          </div>
+          <div class="hero-badge"><strong>V10</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -63,21 +69,18 @@
             <p>Base única de RNOS, denominación, sigla y estado.</p>
             <button data-go="obras-sociales">Abrir módulo</button>
           </article>
-
           <article class="card">
             <span class="card-kicker">SEGUIMIENTO</span>
             <h3>PMA</h3>
             <p>Presentaciones, ejercicios, expedientes, analistas y condiciones.</p>
             <button data-go="pma">Abrir módulo</button>
           </article>
-
           <article class="card">
             <span class="card-kicker">SEGUIMIENTO</span>
             <h3>Cartillas</h3>
             <p>Registro y consulta de presentaciones de cartillas por Obra Social.</p>
             <button data-go="cartillas">Abrir módulo</button>
           </article>
-
           <article class="card">
             <span class="card-kicker">ANÁLISIS</span>
             <h3>Reportes</h3>
@@ -87,46 +90,23 @@
         </div>
 
         <div class="roadmap">
-          <div>
-            <span class="step done">1</span>
-            <div><strong>Estructura web</strong><small>Lista para publicar</small></div>
-          </div>
-          <div>
-            <span class="step">2</span>
-            <div><strong>Base Supabase</strong><small>Obras Sociales, PMA y Cartillas</small></div>
-          </div>
-          <div>
-            <span class="step">3</span>
-            <div><strong>Conexión de datos</strong><small>Formularios, búsquedas y filtros</small></div>
-          </div>
-          <div>
-            <span class="step">4</span>
-            <div><strong>Reportes</strong><small>Indicadores y comparaciones</small></div>
-          </div>
+          <div><span class="step done">1</span><div><strong>Estructura web</strong><small>Publicada</small></div></div>
+          <div><span class="step done">2</span><div><strong>Base Supabase</strong><small>Obras Sociales conectadas</small></div></div>
+          <div><span class="step done">3</span><div><strong>Acceso</strong><small>Login y edición segura</small></div></div>
+          <div><span class="step">4</span><div><strong>Reportes</strong><small>Indicadores y comparaciones</small></div></div>
         </div>
       </section>
 
       <section id="obras-sociales" class="view">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">MAESTRO PRINCIPAL</span>
-            <h2>Obras Sociales</h2>
-            <p>Maestro único para seleccionar la Obra Social en los distintos trámites.</p>
-          </div>
-          <button class="primary" id="btn-nueva-os" disabled title="Se habilitará con acceso de usuarios">+ Nueva Obra Social</button>
+        <div class="module-actions">
+          <button class="primary" id="btn-nueva-os" type="button">+ Nueva Obra Social</button>
         </div>
 
         <div class="toolbar os-toolbar">
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input
-              id="os-search"
-              type="search"
-              placeholder="Buscar por RNOS, denominación o sigla..."
-              autocomplete="off"
-            >
+            <input id="os-search" type="search" placeholder="Buscar por RNOS, denominación o sigla..." autocomplete="off">
           </div>
-
           <select id="os-estado-filter" aria-label="Filtrar por estado">
             <option value="TODAS">Estado: Todas</option>
             <option value="ACTIVA">Activas</option>
@@ -136,15 +116,18 @@
 
         <div class="table-card">
           <div class="table-meta">
-            <strong id="os-count">0 Obras Sociales</strong>
+            <strong id="os-count">Cargando Obras Sociales...</strong>
             <span id="os-source-status">Conectando con Supabase...</span>
           </div>
-
           <div class="table-scroll">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>RNOS</th>
+                  <th>
+                    <button class="sort-button" id="rnos-sort" type="button" title="Ordenar RNOS de menor a mayor">
+                      RNOS <span id="rnos-sort-arrow" aria-hidden="true">↑</span>
+                    </button>
+                  </th>
                   <th>Denominación</th>
                   <th>Sigla</th>
                   <th>Localidad</th>
@@ -158,62 +141,32 @@
               <tbody id="os-table-body"></tbody>
             </table>
           </div>
-
-          <div class="table-empty" id="os-empty" hidden>
-            No se encontraron Obras Sociales con ese criterio.
-          </div>
+          <div class="table-empty" id="os-empty" hidden>No se encontraron Obras Sociales con ese criterio.</div>
         </div>
       </section>
 
       <section id="pma" class="view">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">PRESENTACIONES</span>
-            <h2>PMA</h2>
-            <p>Seguimiento por ejercicio, expediente, analista, condición y disposición.</p>
-          </div>
+        <div class="module-actions">
           <button class="primary" disabled>+ Nueva presentación</button>
         </div>
-
         <div class="placeholder-grid">
           <div><strong>Ejercicio</strong><span>Filtro</span></div>
           <div><strong>Analista</strong><span>Filtro</span></div>
           <div><strong>Condición</strong><span>Filtro</span></div>
           <div><strong>Resolución 170/09</strong><span>Filtro</span></div>
         </div>
-
-        <div class="empty-state">
-          <strong>Módulo preparado.</strong>
-          <p>Después de crear la base, acá veremos las presentaciones de PMA sin repetir los datos de la Obra Social.</p>
-        </div>
+        <div class="empty-state"><strong>Módulo preparado.</strong><p>Acá veremos las presentaciones de PMA relacionadas con la Obra Social.</p></div>
       </section>
 
       <section id="cartillas" class="view">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">PRESENTACIONES</span>
-            <h2>Cartillas</h2>
-            <p>Seguimiento de presentaciones de cartillas relacionadas con la misma tabla maestra de Obras Sociales.</p>
-          </div>
+        <div class="module-actions">
           <button class="primary" disabled>+ Nueva presentación</button>
         </div>
-
-        <div class="empty-state">
-          <strong>Módulo preparado.</strong>
-          <p>Vamos a definir sus campos definitivos tomando como base la información que hoy manejan en Teams.</p>
-        </div>
+        <div class="empty-state"><strong>Módulo preparado.</strong><p>El próximo paso será definir y conectar las presentaciones de Cartillas.</p></div>
       </section>
 
       <section id="reportes" class="view">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">CONSULTA Y ANÁLISIS</span>
-            <h2>Reportes</h2>
-            <p>Esta sección crecerá con el uso real del sistema.</p>
-          </div>
-        </div>
-
-        <div class="cards report-cards">
+        <div class="cards report-cards no-top-margin">
           <article class="card"><h3>PMA por ejercicio</h3><p>Presentados, aprobados, observados y en estudio.</p></article>
           <article class="card"><h3>Por analista</h3><p>Cantidad asignada y estado de cada presentación.</p></article>
           <article class="card"><h3>Comparaciones</h3><p>Series históricas y cruces entre Obras Sociales.</p></article>
@@ -225,97 +178,107 @@
   <div class="modal-backdrop" id="os-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="os-modal-title">
       <div class="modal-header">
-        <div>
-          <span class="eyebrow">OBRA SOCIAL</span>
-          <h2 id="os-modal-title">Nueva Obra Social</h2>
-        </div>
+        <div><span class="eyebrow">OBRA SOCIAL</span><h2 id="os-modal-title">Nueva Obra Social</h2></div>
         <button class="icon-button" type="button" id="os-modal-close" aria-label="Cerrar">×</button>
       </div>
 
       <form id="os-form">
         <input type="hidden" id="os-id">
-
         <div class="form-grid">
-          <label>
-            <span>RNOS</span>
-            <input id="os-rnos" type="text" maxlength="20" required>
-          </label>
-
-          <label>
-            <span>Sigla</span>
-            <input id="os-sigla" type="text" maxlength="40">
-          </label>
-
-          <label class="full">
-            <span>Denominación</span>
-            <input id="os-denominacion" type="text" maxlength="250" required>
-          </label>
-
-          <label class="full">
-            <span>Domicilio</span>
-            <input id="os-domicilio" type="text" maxlength="250">
-          </label>
-
-          <label>
-            <span>Localidad</span>
-            <input id="os-localidad" type="text" maxlength="120">
-          </label>
-
-          <label>
-            <span>Provincia</span>
-            <input id="os-provincia" type="text" maxlength="120">
-          </label>
-
-          <label>
-            <span>Teléfono</span>
-            <input id="os-telefono" type="text" maxlength="100">
-          </label>
-
-          <label>
-            <span>E-mail</span>
-            <input id="os-email" type="email" maxlength="180">
-          </label>
-
-          <label class="full">
-            <span>Web</span>
-            <input id="os-web" type="text" maxlength="250">
-          </label>
-
-          <label>
-            <span>Fecha Inicio</span>
-            <input id="os-fecha-inicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD-MM">
-          </label>
-
-          <label>
-            <span>Inicio ejercicio</span>
-            <input id="os-inicio-ejercicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD-MM">
-          </label>
-
-          <label>
-            <span>Estado</span>
-            <select id="os-estado" required>
-              <option value="ACTIVA">ACTIVA</option>
-              <option value="INACTIVA">INACTIVA</option>
-            </select>
-          </label>
-
-          <label class="full">
-            <span>Observaciones</span>
-            <textarea id="os-observaciones" rows="4" maxlength="1000"></textarea>
-          </label>
+          <label><span>RNOS</span><input id="os-rnos" type="text" inputmode="numeric" maxlength="20" required></label>
+          <label><span>Sigla</span><input id="os-sigla" type="text" maxlength="40"></label>
+          <label class="full"><span>Denominación</span><input id="os-denominacion" type="text" maxlength="250" required></label>
+          <label class="full"><span>Domicilio</span><input id="os-domicilio" type="text" maxlength="250"></label>
+          <label><span>Localidad</span><input id="os-localidad" type="text" maxlength="120"></label>
+          <label><span>Provincia</span><input id="os-provincia" type="text" maxlength="120"></label>
+          <label><span>Teléfono</span><input id="os-telefono" type="text" maxlength="100"></label>
+          <label><span>E-mail</span><input id="os-email" type="text" maxlength="180"></label>
+          <label class="full"><span>Web</span><input id="os-web" type="text" maxlength="250"></label>
+          <label><span>Fecha Inicio</span><input id="os-fecha-inicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD-MM"></label>
+          <label><span>Inicio ejercicio</span><input id="os-inicio-ejercicio" type="text" inputmode="numeric" maxlength="5" placeholder="DD-MM"></label>
+          <label><span>Estado</span><select id="os-estado" required><option value="ACTIVA">ACTIVA</option><option value="INACTIVA">INACTIVA</option></select></label>
+          <label class="full"><span>Observaciones</span><textarea id="os-observaciones" rows="4" maxlength="1000"></textarea></label>
         </div>
-
         <div class="form-message" id="os-form-message" hidden></div>
-
         <div class="modal-actions">
           <button type="button" class="secondary" id="os-cancelar">Cancelar</button>
-          <button type="submit" class="primary">Guardar</button>
+          <button type="submit" class="primary" id="os-save">Guardar</button>
         </div>
       </form>
     </div>
   </div>
 
-  
-  <script src="app.js?v=9"></script>
+  <div class="modal-backdrop" id="login-modal" hidden>
+    <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">ACCESO</span><h2 id="login-title">Ingresar</h2></div>
+        <button class="icon-button" type="button" data-close-modal="login-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="login-form">
+        <div class="form-grid one-column">
+          <label><span>Usuario</span><input id="auth-user" type="text" autocomplete="username" placeholder="Correo registrado" required></label>
+          <label>
+            <span>Contraseña</span>
+            <div class="password-field">
+              <input id="auth-password" type="password" autocomplete="current-password" required>
+              <button class="password-toggle" type="button" data-toggle-password="auth-password" aria-label="Mostrar contraseña">👁</button>
+            </div>
+          </label>
+        </div>
+        <div class="form-message" id="login-message" hidden></div>
+        <div class="auth-link-row"><button type="button" class="text-button" id="btn-forgot-password">Olvidé mi contraseña</button></div>
+        <div class="modal-actions"><button type="button" class="secondary" data-close-modal="login-modal">Cancelar</button><button type="submit" class="primary" id="login-submit">Ingresar</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="forgot-modal" hidden>
+    <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">RECUPERACIÓN</span><h2 id="forgot-title">Olvidé mi contraseña</h2></div>
+        <button class="icon-button" type="button" data-close-modal="forgot-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="forgot-form">
+        <div class="form-grid one-column">
+          <label><span>Usuario</span><input id="forgot-email" type="email" autocomplete="email" placeholder="Correo registrado" required></label>
+        </div>
+        <p class="helper-text">Te enviaremos un enlace al correo registrado para crear una nueva contraseña.</p>
+        <div class="form-message neutral" id="forgot-message" hidden></div>
+        <div class="modal-actions"><button type="button" class="secondary" data-close-modal="forgot-modal">Cancelar</button><button type="submit" class="primary" id="forgot-submit">Enviar enlace</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="password-modal" hidden>
+    <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="password-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">SEGURIDAD</span><h2 id="password-title">Cambiar contraseña</h2></div>
+        <button class="icon-button" type="button" data-close-modal="password-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="password-form">
+        <div class="form-grid one-column">
+          <label>
+            <span>Nueva contraseña</span>
+            <div class="password-field">
+              <input id="new-password" type="password" autocomplete="new-password" required>
+              <button class="password-toggle" type="button" data-toggle-password="new-password" aria-label="Mostrar contraseña">👁</button>
+            </div>
+          </label>
+          <label>
+            <span>Repetir contraseña</span>
+            <div class="password-field">
+              <input id="confirm-password" type="password" autocomplete="new-password" required>
+              <button class="password-toggle" type="button" data-toggle-password="confirm-password" aria-label="Mostrar contraseña">👁</button>
+            </div>
+          </label>
+        </div>
+        <div class="form-message" id="password-message" hidden></div>
+        <div class="modal-actions"><button type="button" class="secondary" data-close-modal="password-modal">Cancelar</button><button type="submit" class="primary" id="password-submit">Guardar contraseña</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
