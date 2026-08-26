@@ -49,7 +49,7 @@ document.querySelectorAll("[data-go]").forEach(btn => {
    Todavía no conectado a Supabase.
    ========================================================= */
 
-const STORAGE_KEY = "gcp-obras-sociales-demo-v1";
+const STORAGE_KEY = "gcp-obras-sociales-demo-v2";
 
 const obrasSocialesDemo = [
   {
@@ -57,8 +57,8 @@ const obrasSocialesDemo = [
     rnos: "100106",
     denominacion: "OBRA SOCIAL DEMO DEL PERSONAL ADMINISTRATIVO",
     sigla: "OSDPA",
-    inicioEjercicio: "2026-01",
-    finEjercicio: "2026-12",
+    inicioEjercicio: "01/01",
+    finEjercicio: "31/12",
     estado: "ACTIVA",
     observaciones: ""
   },
@@ -67,8 +67,8 @@ const obrasSocialesDemo = [
     rnos: "105606",
     denominacion: "OBRA SOCIAL DEMO DE LA INDUSTRIA Y AFINES",
     sigla: "OSDIA",
-    inicioEjercicio: "2026-01",
-    finEjercicio: "2026-12",
+    inicioEjercicio: "01/01",
+    finEjercicio: "31/12",
     estado: "ACTIVA",
     observaciones: ""
   },
@@ -77,8 +77,8 @@ const obrasSocialesDemo = [
     rnos: "106708",
     denominacion: "OBRA SOCIAL DEMO DE TRABAJADORES REGIONALES",
     sigla: "OSDTR",
-    inicioEjercicio: "2026-01",
-    finEjercicio: "2026-12",
+    inicioEjercicio: "01/01",
+    finEjercicio: "31/12",
     estado: "ACTIVA",
     observaciones: ""
   },
@@ -87,8 +87,8 @@ const obrasSocialesDemo = [
     rnos: "401001",
     denominacion: "OBRA SOCIAL DEMO DEL PERSONAL DE DIRECCIÓN",
     sigla: "OSDPD",
-    inicioEjercicio: "2025-01",
-    finEjercicio: "2025-12",
+    inicioEjercicio: "01/01",
+    finEjercicio: "31/12",
     estado: "INACTIVA",
     observaciones: "Registro de ejemplo para visualizar el estado inactivo."
   }
@@ -133,10 +133,27 @@ function escaparHtml(valor) {
     .replaceAll("'", "&#039;");
 }
 
-function formatearMesAnio(valor) {
-  const match = String(valor || "").match(/^(\d{4})-(\d{2})$/);
-  if (!match) return "—";
-  return `${match[2]}/${match[1]}`;
+function normalizarDiaMes(valor) {
+  const texto = String(valor || "").trim();
+  const match = texto.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return "";
+
+  const dia = Number(match[1]);
+  const mes = Number(match[2]);
+  const diasPorMes = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (mes < 1 || mes > 12) return "";
+  if (dia < 1 || dia > diasPorMes[mes - 1]) return "";
+
+  return `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}`;
+}
+
+function validarDiaMes(valor) {
+  return normalizarDiaMes(valor) !== "";
+}
+
+function mostrarDiaMes(valor) {
+  return normalizarDiaMes(valor) || "—";
 }
 
 function filtrarObrasSociales(lista, busqueda, estado) {
@@ -166,8 +183,8 @@ function renderObrasSociales() {
       <td><strong>${escaparHtml(os.rnos)}</strong></td>
       <td>${escaparHtml(os.denominacion)}</td>
       <td>${escaparHtml(os.sigla || "—")}</td>
-      <td>${escaparHtml(formatearMesAnio(os.inicioEjercicio))}</td>
-      <td>${escaparHtml(formatearMesAnio(os.finEjercicio))}</td>
+      <td>${escaparHtml(mostrarDiaMes(os.inicioEjercicio))}</td>
+      <td>${escaparHtml(mostrarDiaMes(os.finEjercicio))}</td>
       <td>
         <span class="badge ${os.estado === "ACTIVA" ? "active" : "inactive"}">
           ${escaparHtml(os.estado)}
@@ -253,8 +270,8 @@ function guardarDesdeFormulario(event) {
   const rnos = document.getElementById("os-rnos").value.trim();
   const denominacion = document.getElementById("os-denominacion").value.trim();
   const sigla = document.getElementById("os-sigla").value.trim().toUpperCase();
-  const inicioEjercicio = document.getElementById("os-inicio-ejercicio").value;
-  const finEjercicio = document.getElementById("os-fin-ejercicio").value;
+  let inicioEjercicio = document.getElementById("os-inicio-ejercicio").value.trim();
+  let finEjercicio = document.getElementById("os-fin-ejercicio").value.trim();
   const estado = document.getElementById("os-estado").value;
   const observaciones = document.getElementById("os-observaciones").value.trim();
 
@@ -263,10 +280,13 @@ function guardarDesdeFormulario(event) {
     return;
   }
 
-  if (finEjercicio < inicioEjercicio) {
-    mostrarMensajeFormulario("Fin ejercicio no puede ser anterior a Inicio ejercicio.");
+  if (!validarDiaMes(inicioEjercicio) || !validarDiaMes(finEjercicio)) {
+    mostrarMensajeFormulario("Inicio ejercicio y Fin ejercicio deben tener formato DD/MM, por ejemplo 01/06 y 31/05.");
     return;
   }
+
+  inicioEjercicio = normalizarDiaMes(inicioEjercicio);
+  finEjercicio = normalizarDiaMes(finEjercicio);
 
   const duplicado = obrasSociales.some(os =>
     normalizar(os.rnos) === normalizar(rnos) && Number(os.id) !== id
@@ -334,3 +354,12 @@ document.addEventListener("keydown", event => {
 });
 
 renderObrasSociales();
+
+
+["os-inicio-ejercicio", "os-fin-ejercicio"].forEach(id => {
+  const campo = document.getElementById(id);
+  campo?.addEventListener("blur", () => {
+    const normalizado = normalizarDiaMes(campo.value);
+    if (normalizado) campo.value = normalizado;
+  });
+});
