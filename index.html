@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 10</span>
+        <span>Versión 14</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -59,7 +59,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V13</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V14</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -155,9 +155,49 @@
 
       <section id="cartillas" class="view">
         <div class="module-actions">
-          <button class="primary" disabled>+ Nueva presentación</button>
+          <button class="primary" id="btn-nueva-cartilla" type="button">+ Nueva presentación</button>
         </div>
-        <div class="empty-state"><strong>Módulo preparado.</strong><p>El próximo paso será definir y conectar las presentaciones de Cartillas.</p></div>
+
+        <div class="toolbar cartillas-toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="cartilla-search" type="search" placeholder="Buscar por RNOS, Obra Social, EE o disposición..." autocomplete="off">
+          </div>
+          <select id="cartilla-ejercicio-filter" aria-label="Filtrar por ejercicio">
+            <option value="TODOS">Ejercicio: Todos</option>
+          </select>
+          <select id="cartilla-plazo-filter" aria-label="Filtrar por cumplimiento">
+            <option value="TODOS">Plazo: Todos</option>
+            <option value="EN_TERMINO">En término</option>
+            <option value="FUERA_DE_TERMINO">Fuera de término</option>
+            <option value="SIN_DATOS">Sin datos</option>
+          </select>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="cartilla-count">Cargando presentaciones...</strong>
+            <span id="cartilla-source-status">Conectando con Supabase...</span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table cartillas-table">
+              <thead>
+                <tr>
+                  <th>RNOS</th>
+                  <th>Denominación</th>
+                  <th>Ejercicio</th>
+                  <th>Ingreso</th>
+                  <th>Fecha límite</th>
+                  <th>Plazo</th>
+                  <th>Condición</th>
+                  <th>Analista</th>
+                </tr>
+              </thead>
+              <tbody id="cartilla-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="cartilla-empty" hidden>No se encontraron presentaciones con ese criterio.</div>
+        </div>
       </section>
 
       <section id="reportes" class="view">
@@ -197,6 +237,73 @@
         <div class="modal-actions">
           <button type="button" class="secondary" id="os-cancelar">Cancelar</button>
           <button type="submit" class="primary" id="os-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="modal-backdrop" id="cartilla-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="cartilla-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">CARTILLA</span><h2 id="cartilla-modal-title">Nueva presentación</h2></div>
+        <button class="icon-button" type="button" data-close-modal="cartilla-modal" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="cartilla-form">
+        <input type="hidden" id="cartilla-id">
+        <input type="hidden" id="cartilla-os-id">
+
+        <div class="form-grid">
+          <label class="full">
+            <span>Obra Social</span>
+            <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Escribí RNOS, sigla o denominación..." autocomplete="off" required>
+            <datalist id="cartilla-os-list"></datalist>
+          </label>
+
+          <label><span>Inicio ejercicio</span><input id="cartilla-inicio-ejercicio" type="text" placeholder="DD-MM" readonly></label>
+          <label><span>Año de inicio</span><input id="cartilla-anio-inicio" type="number" min="2000" max="2100" step="1" required></label>
+          <label><span>Ejercicio</span><input id="cartilla-ejercicio" type="text" readonly></label>
+          <label><span>Fecha inicio ejercicio</span><input id="cartilla-fecha-inicio-ejercicio" type="date" readonly></label>
+
+          <label>
+            <span>Analista</span>
+            <input id="cartilla-analista" type="text" list="cartilla-analistas" maxlength="40">
+            <datalist id="cartilla-analistas">
+              <option value="MR"></option><option value="MJR"></option><option value="MIQ"></option><option value="S/A"></option>
+            </datalist>
+          </label>
+
+          <label>
+            <span>Condición</span>
+            <select id="cartilla-condicion">
+              <option value=""></option>
+              <option value="APROBADO">APROBADO</option>
+              <option value="EN ESTUDIO">EN ESTUDIO</option>
+              <option value="ARCHIVO">ARCHIVO</option>
+              <option value="OBSERVADO">OBSERVADO</option>
+              <option value="PROYECTO DE DISPO">PROYECTO DE DISPO</option>
+            </select>
+          </label>
+
+          <label class="full"><span>Nº EE</span><input id="cartilla-ee" type="text" maxlength="180"></label>
+          <label><span>Fecha de ingreso</span><input id="cartilla-fecha-ingreso" type="date"></label>
+          <label><span>Res. Nº 170/2009</span><select id="cartilla-res-170"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+          <label class="full"><span>Nº Disposición</span><input id="cartilla-disposicion" type="text" maxlength="300"></label>
+          <label><span>Fecha Disposición</span><input id="cartilla-fecha-disposicion" type="date"></label>
+          <label class="full"><span>Observaciones</span><textarea id="cartilla-observaciones" rows="4" maxlength="2000"></textarea></label>
+        </div>
+
+        <div class="deadline-card neutral" id="cartilla-deadline-card">
+          <div><span>Fecha límite</span><strong id="cartilla-fecha-limite">—</strong></div>
+          <div><span>Cumplimiento</span><strong id="cartilla-cumplimiento">SIN DATOS</strong></div>
+          <p id="cartilla-cumplimiento-detalle">Seleccioná una Obra Social, el año de inicio y la fecha de ingreso.</p>
+        </div>
+
+        <div class="form-message" id="cartilla-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary" data-close-modal="cartilla-modal">Cancelar</button>
+          <button type="submit" class="primary" id="cartilla-save">Guardar</button>
         </div>
       </form>
     </div>
@@ -273,6 +380,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

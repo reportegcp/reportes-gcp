@@ -6,7 +6,7 @@ const views = {
   inicio: { title: "", subtitle: "" },
   "obras-sociales": { title: "Obras Sociales", subtitle: "Maestro único de RNOS y denominaciones" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
-  cartillas: { title: "Cartillas", subtitle: "Seguimiento de presentaciones" },
+  cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" }
 };
 
@@ -15,6 +15,8 @@ let rnosSortDirection = "asc";
 let authSession = null;
 let accionPendienteTrasLogin = null;
 let passwordRecoveryPending = false;
+let cartillas = [];
+let cartillasCargadas = false;
 
 function getInitialView(hash) {
   const id = String(hash || "").replace(/^#/, "");
@@ -54,6 +56,72 @@ function normalizarDiaMes(valor) {
 
 function mostrarDiaMes(valor) {
   return normalizarDiaMes(valor) || "—";
+}
+
+function parseIsoDateUtc(valor) {
+  const match = String(valor || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null;
+  return d;
+}
+
+function formatIsoDateUtc(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+function formatFechaPantalla(valor) {
+  const d = parseIsoDateUtc(valor);
+  if (!d) return "—";
+  return `${String(d.getUTCDate()).padStart(2, "0")}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${d.getUTCFullYear()}`;
+}
+
+function fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio) {
+  const normalizado = normalizarDiaMes(inicioEjercicio);
+  const year = Number(anioInicio);
+  if (!normalizado || !Number.isInteger(year) || year < 2000 || year > 2100) return "";
+  const [dia, mes] = normalizado.split("-").map(Number);
+  const d = new Date(Date.UTC(year, mes - 1, dia));
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return "";
+  return formatIsoDateUtc(d);
+}
+
+function derivarEjercicio(inicioEjercicio, anioInicio) {
+  const normalizado = normalizarDiaMes(inicioEjercicio);
+  const year = Number(anioInicio);
+  if (!normalizado || !Number.isInteger(year)) return "";
+  return normalizado === "01-01" ? String(year) : `${year}/${String(year + 1).slice(-2)}`;
+}
+
+function calcularCumplimiento90(fechaInicioEjercicio, fechaIngreso) {
+  const inicio = parseIsoDateUtc(fechaInicioEjercicio);
+  const ingreso = parseIsoDateUtc(fechaIngreso);
+  const limite = inicio ? new Date(inicio.getTime() - 90 * 86400000) : null;
+
+  if (!inicio || !ingreso) {
+    return { estado: "SIN_DATOS", fechaLimite: limite ? formatIsoDateUtc(limite) : "", diasAnticipacion: null, diferenciaLimite: null };
+  }
+
+  const diasAnticipacion = Math.round((inicio.getTime() - ingreso.getTime()) / 86400000);
+  const diferenciaLimite = Math.round((limite.getTime() - ingreso.getTime()) / 86400000);
+  return {
+    estado: ingreso.getTime() <= limite.getTime() ? "EN_TERMINO" : "FUERA_DE_TERMINO",
+    fechaLimite: formatIsoDateUtc(limite),
+    diasAnticipacion,
+    diferenciaLimite
+  };
+}
+
+function textoCumplimiento90(resultado) {
+  if (!resultado || resultado.estado === "SIN_DATOS") return "Sin datos para calcular el plazo.";
+  if (resultado.estado === "EN_TERMINO") {
+    const margen = Math.max(0, resultado.diferenciaLimite || 0);
+    return margen === 0 ? "Presentada exactamente en la fecha límite." : `Presentada en término, ${margen} ${margen === 1 ? "día" : "días"} antes de la fecha límite.`;
+  }
+  const tarde = Math.abs(resultado.diferenciaLimite || 0);
+  return `Fuera de término, ${tarde} ${tarde === 1 ? "día" : "días"} después de la fecha límite.`;
 }
 
 function separarLocalidadDomicilio(localidad, domicilio) {
@@ -387,6 +455,7 @@ function showView(id, updateHistory = true) {
   }
 
   if (updateHistory && typeof history !== "undefined") history.pushState(null, "", `#${resolved}`);
+  if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
 }
 
 function renderObrasSociales() {
@@ -462,6 +531,7 @@ async function cargarYRenderizarObrasSociales() {
   try {
     obrasSociales = await cargarObrasSocialesDesdeSupabase();
     renderObrasSociales();
+    poblarObrasSocialesCartilla();
     setEstadoCarga("Conectado a Supabase");
   } catch (error) {
     obrasSociales = [];
@@ -762,6 +832,278 @@ async function handleOsSubmit(event) {
   }
 }
 
+
+function getObraSocialDisplay(os) {
+  return os ? `${os.rnos || ""} · ${os.sigla || "S/S"} · ${os.denominacion || ""}` : "";
+}
+
+function poblarObrasSocialesCartilla() {
+  if (typeof document === "undefined") return;
+  const list = document.getElementById("cartilla-os-list");
+  if (!list) return;
+  list.innerHTML = obrasSociales.filter(os => os.estado !== "INACTIVA").map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+function resolverObraSocialCartilla(valor) {
+  const texto = normalizar(valor);
+  if (!texto) return null;
+  return obrasSociales.find(os => normalizar(getObraSocialDisplay(os)) === texto || normalizar(os.rnos) === texto || normalizar(os.sigla) === texto) || null;
+}
+
+function actualizarAlertaCartilla() {
+  if (typeof document === "undefined") return calcularCumplimiento90("", "");
+  const fechaInicio = document.getElementById("cartilla-fecha-inicio-ejercicio")?.value || "";
+  const fechaIngreso = document.getElementById("cartilla-fecha-ingreso")?.value || "";
+  const resultado = calcularCumplimiento90(fechaInicio, fechaIngreso);
+  const card = document.getElementById("cartilla-deadline-card");
+  const limite = document.getElementById("cartilla-fecha-limite");
+  const estado = document.getElementById("cartilla-cumplimiento");
+  const detalle = document.getElementById("cartilla-cumplimiento-detalle");
+  if (limite) limite.textContent = formatFechaPantalla(resultado.fechaLimite);
+  if (estado) estado.textContent = resultado.estado === "EN_TERMINO" ? "EN TÉRMINO" : resultado.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
+  if (detalle) detalle.textContent = textoCumplimiento90(resultado);
+  if (card) {
+    card.classList.remove("success", "danger", "neutral");
+    card.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
+  }
+  return resultado;
+}
+
+function recalcularDatosCartilla() {
+  if (typeof document === "undefined") return;
+  const os = resolverObraSocialCartilla(document.getElementById("cartilla-os-search")?.value || "");
+  const anio = Number(document.getElementById("cartilla-anio-inicio")?.value || 0);
+  const inicio = os?.inicio_ejercicio || "";
+  document.getElementById("cartilla-os-id").value = os?.id || "";
+  document.getElementById("cartilla-inicio-ejercicio").value = inicio;
+  document.getElementById("cartilla-ejercicio").value = derivarEjercicio(inicio, anio);
+  document.getElementById("cartilla-fecha-inicio-ejercicio").value = fechaInicioEjercicioDesdeDiaMes(inicio, anio);
+  actualizarAlertaCartilla();
+}
+
+function buildCartillasUrl(offset = 0, limit = 1000) {
+  const fields = [
+    "id","obra_social_id","anio_inicio","ejercicio","fecha_inicio_ejercicio","analista","numero_ee","condicion",
+    "fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
+    "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio)"
+  ].join(",");
+  const params = new URLSearchParams();
+  params.set("select", fields);
+  params.set("order", "fecha_ingreso.desc.nullslast,id.desc");
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  return `${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`;
+}
+
+async function cargarCartillasDesdeSupabase(fetchImpl = fetch) {
+  const pageSize = 1000;
+  const all = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await fetchConTimeout(buildCartillasUrl(offset, pageSize), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+    }
+    const rows = await response.json();
+    const page = Array.isArray(rows) ? rows : [];
+    all.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return all;
+}
+
+function cumplimientoCartillaRegistro(row) {
+  return calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
+}
+
+function llenarFiltroEjercicios() {
+  if (typeof document === "undefined") return;
+  const select = document.getElementById("cartilla-ejercicio-filter");
+  if (!select) return;
+  const actual = select.value || "TODOS";
+  const ejercicios = [...new Set(cartillas.map(c => c.ejercicio).filter(Boolean))].sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
+  select.innerHTML = '<option value="TODOS">Ejercicio: Todos</option>' + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
+  select.value = ejercicios.includes(actual) ? actual : "TODOS";
+}
+
+function filtrarCartillas() {
+  if (typeof document === "undefined") return cartillas;
+  const termino = normalizar(document.getElementById("cartilla-search")?.value || "");
+  const ejercicio = document.getElementById("cartilla-ejercicio-filter")?.value || "TODOS";
+  const plazo = document.getElementById("cartilla-plazo-filter")?.value || "TODOS";
+  return cartillas.filter(c => {
+    const os = c.obras_sociales || {};
+    if (ejercicio !== "TODOS" && c.ejercicio !== ejercicio) return false;
+    const cumplimiento = cumplimientoCartillaRegistro(c).estado;
+    if (plazo !== "TODOS" && cumplimiento !== plazo) return false;
+    if (!termino) return true;
+    return normalizar([os.rnos,os.denominacion,os.sigla,c.ejercicio,c.analista,c.numero_ee,c.condicion,c.numero_disposicion,c.observaciones].join(" ")).includes(termino);
+  });
+}
+
+function renderCartillas() {
+  if (typeof document === "undefined") return;
+  const tbody = document.getElementById("cartilla-table-body");
+  if (!tbody) return;
+  const filtradas = filtrarCartillas();
+  tbody.innerHTML = filtradas.map(c => {
+    const os = c.obras_sociales || {};
+    const plazo = cumplimientoCartillaRegistro(c);
+    const plazoTexto = plazo.estado === "EN_TERMINO" ? "EN TÉRMINO" : plazo.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
+    const clase = plazo.estado === "EN_TERMINO" ? "active" : plazo.estado === "FUERA_DE_TERMINO" ? "inactive" : "neutral-badge";
+    return `<tr class="cartilla-row" data-cartilla-id="${c.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
+      <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
+      <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
+      <td>${escaparHtml(c.ejercicio || "—")}</td>
+      <td class="date-cell">${formatFechaPantalla(c.fecha_ingreso)}</td>
+      <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
+      <td><span class="badge ${clase}">${plazoTexto}</span></td>
+      <td>${escaparHtml(c.condicion || "—")}</td>
+      <td>${escaparHtml(c.analista || "—")}</td>
+    </tr>`;
+  }).join("");
+  const count = document.getElementById("cartilla-count");
+  if (count) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "presentación" : "presentaciones"}`;
+  const empty = document.getElementById("cartilla-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+
+  document.querySelectorAll(".cartilla-row[data-cartilla-id]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalCartillaEdicion(Number(row.dataset.cartillaId)));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+async function cargarYRenderizarCartillas() {
+  if (typeof document === "undefined") return;
+  const status = document.getElementById("cartilla-source-status");
+  if (status) status.textContent = "Conectando con Supabase...";
+  try {
+    cartillas = await cargarCartillasDesdeSupabase();
+    cartillasCargadas = true;
+    llenarFiltroEjercicios();
+    renderCartillas();
+    if (status) status.textContent = "Conectado a Supabase";
+  } catch (error) {
+    cartillas = [];
+    cartillasCargadas = false;
+    renderCartillas();
+    if (status) status.textContent = "Error de conexión con Supabase";
+    const empty = document.getElementById("cartilla-empty");
+    if (empty) { empty.hidden = false; empty.textContent = error?.message || "No se pudieron cargar las presentaciones."; }
+  }
+}
+
+function limpiarFormularioCartilla() {
+  document.getElementById("cartilla-form")?.reset();
+  document.getElementById("cartilla-id").value = "";
+  document.getElementById("cartilla-os-id").value = "";
+  document.getElementById("cartilla-inicio-ejercicio").value = "";
+  document.getElementById("cartilla-ejercicio").value = "";
+  document.getElementById("cartilla-fecha-inicio-ejercicio").value = "";
+  document.getElementById("cartilla-anio-inicio").value = String(new Date().getFullYear());
+  setFormMessage("cartilla-form-message", "");
+  actualizarAlertaCartilla();
+}
+
+function abrirModalCartillaNueva() {
+  limpiarFormularioCartilla();
+  poblarObrasSocialesCartilla();
+  document.getElementById("cartilla-modal-title").textContent = "Nueva presentación de Cartilla";
+  abrirModal("cartilla-modal");
+  document.getElementById("cartilla-os-search")?.focus();
+}
+
+function abrirModalCartillaEdicion(id) {
+  const c = cartillas.find(item => Number(item.id) === Number(id));
+  if (!c) return;
+  poblarObrasSocialesCartilla();
+  document.getElementById("cartilla-modal-title").textContent = "Editar presentación de Cartilla";
+  document.getElementById("cartilla-id").value = c.id;
+  document.getElementById("cartilla-os-id").value = c.obra_social_id || "";
+  document.getElementById("cartilla-os-search").value = getObraSocialDisplay(c.obras_sociales || {});
+  document.getElementById("cartilla-inicio-ejercicio").value = c.obras_sociales?.inicio_ejercicio || "";
+  document.getElementById("cartilla-anio-inicio").value = c.anio_inicio || (c.fecha_inicio_ejercicio ? Number(c.fecha_inicio_ejercicio.slice(0,4)) : "");
+  document.getElementById("cartilla-ejercicio").value = c.ejercicio || "";
+  document.getElementById("cartilla-fecha-inicio-ejercicio").value = c.fecha_inicio_ejercicio || "";
+  document.getElementById("cartilla-analista").value = c.analista || "";
+  document.getElementById("cartilla-ee").value = c.numero_ee || "";
+  document.getElementById("cartilla-condicion").value = c.condicion || "";
+  document.getElementById("cartilla-fecha-ingreso").value = c.fecha_ingreso || "";
+  document.getElementById("cartilla-res-170").value = c.res_170_2009 || "";
+  document.getElementById("cartilla-disposicion").value = c.numero_disposicion || "";
+  document.getElementById("cartilla-fecha-disposicion").value = c.fecha_disposicion || "";
+  document.getElementById("cartilla-observaciones").value = c.observaciones || "";
+  setFormMessage("cartilla-form-message", "");
+  actualizarAlertaCartilla();
+  abrirModal("cartilla-modal");
+}
+
+function buildCartillaWriteUrl(id = null) {
+  const params = new URLSearchParams();
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (id !== null && id !== undefined && id !== "") params.set("id", `eq.${id}`);
+  return `${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`;
+}
+
+async function guardarCartillaEnSupabase(registro, id, accessToken, fetchImpl = fetch) {
+  const editando = id !== null && id !== undefined && id !== "";
+  const payload = editando ? {...registro, updated_at:new Date().toISOString()} : registro;
+  const response = await fetchConTimeout(buildCartillaWriteUrl(editando ? id : null), {
+    method: editando ? "PATCH" : "POST",
+    headers: {...authHeaders(accessToken), Prefer:"return=representation"},
+    body: JSON.stringify(payload)
+  }, 10000, fetchImpl);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(detalle || `Supabase respondió ${response.status}.`);
+  }
+  return response.json();
+}
+
+async function handleCartillaSubmit(event) {
+  event.preventDefault();
+  setFormMessage("cartilla-form-message", "");
+  const save = document.getElementById("cartilla-save");
+  if (save) save.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const os = resolverObraSocialCartilla(document.getElementById("cartilla-os-search")?.value || "");
+    const anioInicio = Number(document.getElementById("cartilla-anio-inicio")?.value || 0);
+    const inicioEjercicio = os?.inicio_ejercicio || "";
+    const fechaInicioEjercicio = fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio);
+    const ejercicio = derivarEjercicio(inicioEjercicio, anioInicio);
+    if (!os) throw new Error("Seleccioná una Obra Social del maestro.");
+    if (!inicioEjercicio) throw new Error("La Obra Social no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
+    if (!fechaInicioEjercicio || !ejercicio) throw new Error("Revisá el Inicio ejercicio y el Año de inicio.");
+
+    const registro = {
+      obra_social_id:Number(os.id), anio_inicio:anioInicio, ejercicio, fecha_inicio_ejercicio:fechaInicioEjercicio,
+      analista:document.getElementById("cartilla-analista")?.value.trim() || null,
+      numero_ee:document.getElementById("cartilla-ee")?.value.trim() || null,
+      condicion:document.getElementById("cartilla-condicion")?.value || null,
+      fecha_ingreso:document.getElementById("cartilla-fecha-ingreso")?.value || null,
+      res_170_2009:document.getElementById("cartilla-res-170")?.value || null,
+      numero_disposicion:document.getElementById("cartilla-disposicion")?.value.trim() || null,
+      fecha_disposicion:document.getElementById("cartilla-fecha-disposicion")?.value || null,
+      observaciones:document.getElementById("cartilla-observaciones")?.value.trim() || null
+    };
+    const id = document.getElementById("cartilla-id")?.value || "";
+    await guardarCartillaEnSupabase(registro, id || null, session.access_token);
+    cerrarModal("cartilla-modal");
+    mostrarToast(id ? "Presentación de Cartilla actualizada." : "Presentación de Cartilla creada.");
+    await cargarYRenderizarCartillas();
+  } catch (error) {
+    const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una presentación con esa Obra Social, ejercicio y Nº EE." : error.message || "No se pudo guardar la presentación.";
+    setFormMessage("cartilla-form-message", mensaje);
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
 function procesarRecuperacionDesdeUrl() {
   if (typeof location === "undefined") return false;
   const recovery = parseRecoveryHash(location.hash);
@@ -805,6 +1147,16 @@ function initBrowser() {
   document.getElementById("os-modal-close")?.addEventListener("click", () => cerrarModal("os-modal"));
   document.getElementById("os-cancelar")?.addEventListener("click", () => cerrarModal("os-modal"));
   document.getElementById("os-form")?.addEventListener("submit", handleOsSubmit);
+
+  document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
+  document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
+  document.getElementById("cartilla-search")?.addEventListener("input", renderCartillas);
+  document.getElementById("cartilla-ejercicio-filter")?.addEventListener("change", renderCartillas);
+  document.getElementById("cartilla-plazo-filter")?.addEventListener("change", renderCartillas);
+  document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
+  document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
+  document.getElementById("cartilla-anio-inicio")?.addEventListener("input", recalcularDatosCartilla);
+  document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
 
   document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
@@ -864,6 +1216,11 @@ if (typeof module !== "undefined" && module.exports) {
     authRecover,
     authUpdatePassword,
     guardarObraSocialEnSupabase,
+    derivarEjercicio,
+    fechaInicioEjercicioDesdeDiaMes,
+    calcularCumplimiento90,
+    buildCartillasUrl,
+    cargarCartillasDesdeSupabase,
     parseRecoveryHash,
     normalizarSesion
   };
