@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=18">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 18</span>
+        <span>Versión 19</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -61,7 +61,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V18</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V19</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -203,66 +203,113 @@
       </section>
 
       <section id="reportes" class="view">
-        <div class="report-panel">
-          <div class="report-heading">
-            <div>
-              <span class="eyebrow">CARTILLAS</span>
-              <h2>Obras Sociales sin presentación</h2>
-              <p>Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Obra Social.</p>
-            </div>
+        <div class="report-workspace">
+          <div class="report-switcher-card">
+            <label class="report-type-field">
+              <span>Reporte</span>
+              <select id="report-type-select" aria-label="Elegir reporte">
+                <option value="cartillas">Cartillas - Presentaciones</option>
+                <option value="pma">PMA - Próximamente</option>
+              </select>
+            </label>
+            <button class="primary report-export-button" id="btn-export-report" type="button">Exportar Excel</button>
           </div>
 
-          <div class="report-filters">
-            <div class="period-filter">
-              <div class="period-filter-label">
-                <strong>Período de control</strong>
-                <details class="report-help">
-                  <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
-                  <div class="report-help-popover">
-                    <strong>¿Cómo se determina el período?</strong>
-                    <p>El sistema usa el <b>Inicio ejercicio</b> de cada Obra Social para saber qué Cartilla debe buscar.</p>
-                    <p>Ejemplo: para el período de control <b>2026</b>, una OS con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
+          <div class="report-panel" id="report-cartillas-panel" data-report-panel="cartillas">
+            <div class="report-heading">
+              <div>
+                <span class="eyebrow">CARTILLAS</span>
+                <h2>Obras Sociales sin presentación</h2>
+                <p>Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Obra Social.</p>
+              </div>
+            </div>
+
+            <div class="report-filters">
+              <div class="period-filter">
+                <div class="period-filter-label">
+                  <strong>Período de control</strong>
+                  <details class="report-help">
+                    <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
+                    <div class="report-help-popover">
+                      <strong>¿Cómo se determina el período?</strong>
+                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Obra Social para saber qué Cartilla debe buscar.</p>
+                      <p>Ejemplo: para el período de control <b>2026</b>, una OS con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
+                    </div>
+                  </details>
+                </div>
+                <details class="period-select" id="report-period-select">
+                  <summary>
+                    <span id="report-period-summary">Seleccionar períodos</span>
+                    <span class="period-select-arrow" aria-hidden="true">▾</span>
+                  </summary>
+                  <div class="period-select-menu">
+                    <div class="period-select-actions">
+                      <button type="button" id="report-period-all">Todos</button>
+                      <button type="button" id="report-period-clear">Limpiar</button>
+                    </div>
+                    <div class="period-options" id="report-periodos"></div>
                   </div>
                 </details>
               </div>
-              <details class="period-select" id="report-period-select">
-                <summary>
-                  <span id="report-period-summary">Seleccionar períodos</span>
-                  <span class="period-select-arrow" aria-hidden="true">▾</span>
-                </summary>
-                <div class="period-select-menu">
-                  <div class="period-select-actions">
-                    <button type="button" id="report-period-all">Todos</button>
-                    <button type="button" id="report-period-clear">Limpiar</button>
-                  </div>
-                  <div class="period-options" id="report-periodos"></div>
+
+              <div class="search-box report-search">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input id="report-cartillas-search" type="search" placeholder="Buscar por RNOS o denominación..." autocomplete="off">
+              </div>
+
+              <label class="check-option">
+                <input id="report-solo-faltantes" type="checkbox" checked>
+                <span>Mostrar sólo OS con faltantes</span>
+              </label>
+            </div>
+
+            <div class="report-chart-card">
+              <div class="report-chart-header">
+                <div>
+                  <h3>Presentaciones por período</h3>
+                  <p>Resumen sobre todas las Obras Sociales activas evaluadas.</p>
                 </div>
-              </details>
+                <div class="report-chart-legend" id="report-chart-legend" aria-label="Leyenda del gráfico">
+                  <span><i class="legend-dot presented"></i>Presentaron</span>
+                  <span><i class="legend-dot missing"></i>No presentaron</span>
+                  <span><i class="legend-dot unknown"></i>Sin Inicio ejercicio</span>
+                </div>
+              </div>
+              <div class="report-cartillas-chart" id="report-cartillas-chart" aria-live="polite"></div>
             </div>
 
-            <div class="search-box report-search">
-              <span class="search-icon" aria-hidden="true">⌕</span>
-              <input id="report-cartillas-search" type="search" placeholder="Buscar por RNOS o denominación..." autocomplete="off">
+            <div class="table-card">
+              <div class="table-meta">
+                <strong id="report-cartillas-count">Preparando reporte...</strong>
+                <span id="report-cartillas-status">Cargando datos...</span>
+              </div>
+              <div class="report-symbol-legend" aria-label="Leyenda de estados">
+                <span><b class="report-icon ok">✓</b> Presentó</span>
+                <span><b class="report-icon missing">✕</b> No presentó</span>
+                <span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
+              </div>
+              <div class="table-scroll">
+                <table class="data-table report-missing-table">
+                  <thead id="report-cartillas-head"></thead>
+                  <tbody id="report-cartillas-body"></tbody>
+                </table>
+              </div>
+              <div class="table-empty" id="report-cartillas-empty" hidden>No hay Obras Sociales para mostrar con los filtros seleccionados.</div>
             </div>
-
-            <label class="check-option">
-              <input id="report-solo-faltantes" type="checkbox" checked>
-              <span>Mostrar sólo OS con faltantes</span>
-            </label>
           </div>
 
-          <div class="table-card">
-            <div class="table-meta">
-              <strong id="report-cartillas-count">Preparando reporte...</strong>
-              <span id="report-cartillas-status">Cargando datos...</span>
+          <div class="report-panel" id="report-pma-panel" data-report-panel="pma" hidden>
+            <div class="report-heading">
+              <div>
+                <span class="eyebrow">PMA</span>
+                <h2>Reportes de PMA</h2>
+                <p>La estructura ya está preparada para incorporar filtros, gráfico, tabla y exportación específicos de PMA.</p>
+              </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table report-missing-table">
-                <thead id="report-cartillas-head"></thead>
-                <tbody id="report-cartillas-body"></tbody>
-              </table>
+            <div class="empty-state report-coming-soon">
+              <strong>Próximo reporte.</strong>
+              <p>Cuando incorporemos PMA, se abrirá desde este mismo selector sin agregar nuevas opciones al menú lateral.</p>
             </div>
-            <div class="table-empty" id="report-cartillas-empty" hidden>No hay Obras Sociales para mostrar con los filtros seleccionados.</div>
           </div>
         </div>
       </section>
@@ -439,6 +486,7 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=18"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>

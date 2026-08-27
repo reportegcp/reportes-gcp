@@ -18,6 +18,7 @@ let passwordRecoveryPending = false;
 let cartillas = [];
 let cartillasCargadas = false;
 let reporteCartillasCargado = false;
+let reporteActivo = "cartillas";
 
 function getInitialView(hash) {
   const id = String(hash || "").replace(/^#/, "");
@@ -158,6 +159,53 @@ function generarReporteFaltantesCartillas(obras, registrosCartillas, periodos) {
       const br = Number(String(b.rnos).replace(/\D/g, "")) || 0;
       return ar - br;
     });
+}
+
+function simboloEstadoReporte(estado) {
+  if (estado === "PRESENTO") return "✓";
+  if (estado === "NO_PRESENTO") return "✕";
+  return "?";
+}
+
+function resumirCartillasPorPeriodo(reporte, periodos) {
+  const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
+
+  return periodosValidos.map(periodo => {
+    let presentaron = 0;
+    let noPresentaron = 0;
+    let sinInicio = 0;
+
+    for (const row of reporte || []) {
+      const estado = row?.periodos?.[periodo]?.estado;
+      if (estado === "PRESENTO") presentaron += 1;
+      else if (estado === "NO_PRESENTO") noPresentaron += 1;
+      else sinInicio += 1;
+    }
+
+    return { periodo, presentaron, noPresentaron, sinInicio };
+  });
+}
+
+function construirMatrizExcelCartillas(filas, periodos, metadata = {}) {
+  const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
+  const matriz = [
+    ["Reporte", metadata.reporte || "Cartillas - Presentaciones"],
+    ["Períodos de control", periodosValidos.join(", ")],
+    ["Generado", metadata.generado || ""],
+    ["Leyenda", "✓ Presentó | ✕ No presentó | ? Sin Inicio ejercicio"],
+    ["RNOS", "Denominación", "Inicio ejercicio", ...periodosValidos.map(String)]
+  ];
+
+  for (const row of filas || []) {
+    matriz.push([
+      String(row?.rnos || ""),
+      String(row?.denominacion || ""),
+      String(row?.inicioEjercicio || ""),
+      ...periodosValidos.map(periodo => simboloEstadoReporte(row?.periodos?.[periodo]?.estado))
+    ]);
+  }
+
+  return matriz;
 }
 
 function periodosControlDisponibles(registrosCartillas, anioActual = new Date().getFullYear()) {
@@ -573,7 +621,7 @@ function showView(id, updateHistory = true) {
 
   if (updateHistory && typeof history !== "undefined") history.pushState(null, "", `#${resolved}`);
   if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
-  if (resolved === "reportes") cargarYRenderizarReporteCartillas();
+  if (resolved === "reportes") cargarReporteActivo();
 }
 
 function renderObrasSociales() {
@@ -1225,6 +1273,68 @@ function reporteTieneFaltante(row, periodos) {
   });
 }
 
+function obtenerFilasReporteCartillas(reporte, periodos) {
+  if (typeof document === "undefined") return [...(reporte || [])];
+  const termino = normalizar(document.getElementById("report-cartillas-search")?.value || "");
+  const soloFaltantes = Boolean(document.getElementById("report-solo-faltantes")?.checked);
+
+  return (reporte || []).filter(row => {
+    if (soloFaltantes && !reporteTieneFaltante(row, periodos)) return false;
+    if (!termino) return true;
+    return normalizar(`${row.rnos} ${row.denominacion}`).includes(termino);
+  });
+}
+
+function etiquetaEstadoReporte(estado) {
+  if (estado === "PRESENTO") return "Presentó";
+  if (estado === "NO_PRESENTO") return "No presentó";
+  return "Sin Inicio ejercicio";
+}
+
+function claseEstadoReporte(estado) {
+  if (estado === "PRESENTO") return "ok";
+  if (estado === "NO_PRESENTO") return "missing";
+  return "unknown";
+}
+
+function renderGraficoCartillas(resumen) {
+  if (typeof document === "undefined") return;
+  const container = document.getElementById("report-cartillas-chart");
+  if (!container) return;
+
+  if (!Array.isArray(resumen) || !resumen.length) {
+    container.innerHTML = '<div class="chart-empty">Seleccioná al menos un período para ver el gráfico.</div>';
+    return;
+  }
+
+  const maximo = Math.max(
+    1,
+    ...resumen.flatMap(item => [item.presentaron, item.noPresentaron, item.sinInicio])
+  );
+  const altoMaximo = 170;
+
+  const bar = (valor, clase, etiqueta) => {
+    const alto = valor === 0 ? 2 : Math.max(6, Math.round((valor / maximo) * altoMaximo));
+    return `<div class="chart-bar-wrap" title="${escaparHtml(etiqueta)}: ${valor}">
+      <span class="chart-value">${valor}</span>
+      <div class="chart-bar ${clase}" style="height:${alto}px" aria-label="${escaparHtml(etiqueta)}: ${valor}"></div>
+    </div>`;
+  };
+
+  container.innerHTML = `<div class="chart-groups">
+    ${resumen.map(item => `
+      <div class="chart-period-group">
+        <div class="chart-bars">
+          ${bar(item.presentaron, "presented", "Presentaron")}
+          ${bar(item.noPresentaron, "missing", "No presentaron")}
+          ${bar(item.sinInicio, "unknown", "Sin Inicio ejercicio")}
+        </div>
+        <strong>${item.periodo}</strong>
+      </div>
+    `).join("")}
+  </div>`;
+}
+
 function renderReporteFaltantesCartillas() {
   if (typeof document === "undefined") return;
 
@@ -1235,8 +1345,6 @@ function renderReporteFaltantesCartillas() {
   if (!head || !body) return;
 
   const periodos = getPeriodosReporteSeleccionados();
-  const termino = normalizar(document.getElementById("report-cartillas-search")?.value || "");
-  const soloFaltantes = Boolean(document.getElementById("report-solo-faltantes")?.checked);
 
   head.innerHTML = `<tr>
     <th>RNOS</th>
@@ -1247,6 +1355,7 @@ function renderReporteFaltantesCartillas() {
 
   if (!periodos.length) {
     body.innerHTML = "";
+    renderGraficoCartillas([]);
     if (count) count.textContent = "Seleccioná al menos un período";
     if (empty) {
       empty.hidden = false;
@@ -1256,12 +1365,8 @@ function renderReporteFaltantesCartillas() {
   }
 
   const reporte = generarReporteFaltantesCartillas(obrasSociales, cartillas, periodos);
-
-  const filtrado = reporte.filter(row => {
-    if (soloFaltantes && !reporteTieneFaltante(row, periodos)) return false;
-    if (!termino) return true;
-    return normalizar(`${row.rnos} ${row.denominacion}`).includes(termino);
-  });
+  const filtrado = obtenerFilasReporteCartillas(reporte, periodos);
+  renderGraficoCartillas(resumirCartillasPorPeriodo(reporte, periodos));
 
   body.innerHTML = filtrado.map(row => `
     <tr>
@@ -1270,21 +1375,13 @@ function renderReporteFaltantesCartillas() {
       <td class="date-cell">${escaparHtml(row.inicioEjercicio || "—")}</td>
       ${periodos.map(periodo => {
         const resultado = row.periodos[periodo] || { estado: "SIN_INICIO", ejercicioEsperado: "" };
-
-        if (resultado.estado === "PRESENTO") {
-          return `<td class="report-status-cell" title="Ejercicio esperado: ${escaparHtml(resultado.ejercicioEsperado)}">
-            <span class="report-status ok">PRESENTÓ</span>
-          </td>`;
-        }
-
-        if (resultado.estado === "NO_PRESENTO") {
-          return `<td class="report-status-cell" title="Ejercicio esperado: ${escaparHtml(resultado.ejercicioEsperado)}">
-            <span class="report-status missing">NO PRESENTÓ</span>
-          </td>`;
-        }
-
+        const estado = resultado.estado || "SIN_INICIO";
+        const simbolo = simboloEstadoReporte(estado);
+        const etiqueta = etiquetaEstadoReporte(estado);
+        const clase = claseEstadoReporte(estado);
+        const detalle = resultado.ejercicioEsperado ? ` · Ejercicio esperado: ${resultado.ejercicioEsperado}` : "";
         return `<td class="report-status-cell">
-          <span class="report-status unknown">SIN INICIO EJ.</span>
+          <span class="report-icon ${clase}" title="${escaparHtml(etiqueta + detalle)}" aria-label="${escaparHtml(etiqueta + detalle)}">${simbolo}</span>
         </td>`;
       }).join("")}
     </tr>
@@ -1306,6 +1403,77 @@ function renderReporteFaltantesCartillas() {
     empty.hidden = filtrado.length !== 0;
     empty.textContent = "No hay Obras Sociales para mostrar con los filtros seleccionados.";
   }
+}
+
+function formatearFechaHoraExportacion(fecha = new Date()) {
+  const pad = value => String(value).padStart(2, "0");
+  return `${pad(fecha.getDate())}-${pad(fecha.getMonth() + 1)}-${fecha.getFullYear()} ${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`;
+}
+
+function exportarReporteCartillasExcel() {
+  if (typeof document === "undefined") return;
+
+  const periodos = getPeriodosReporteSeleccionados();
+  if (!periodos.length) {
+    mostrarToast("Seleccioná al menos un período para exportar.", "error");
+    return;
+  }
+
+  if (!window.XLSX) {
+    mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error");
+    return;
+  }
+
+  const reporte = generarReporteFaltantesCartillas(obrasSociales, cartillas, periodos);
+  const filas = obtenerFilasReporteCartillas(reporte, periodos);
+  const matriz = construirMatrizExcelCartillas(filas, periodos, {
+    reporte: "Cartillas - Presentaciones",
+    generado: formatearFechaHoraExportacion()
+  });
+
+  const hoja = window.XLSX.utils.aoa_to_sheet(matriz);
+  hoja["!cols"] = [
+    { wch: 12 },
+    { wch: 55 },
+    { wch: 16 },
+    ...periodos.map(() => ({ wch: 12 }))
+  ];
+
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Cartillas");
+  window.XLSX.writeFile(libro, `reporte_cartillas_${periodos.join("-")}.xlsx`);
+}
+
+function actualizarSelectorReporte() {
+  if (typeof document === "undefined") return;
+  const select = document.getElementById("report-type-select");
+  reporteActivo = select?.value || "cartillas";
+
+  document.querySelectorAll("[data-report-panel]").forEach(panel => {
+    panel.hidden = panel.dataset.reportPanel !== reporteActivo;
+  });
+
+  const exportButton = document.getElementById("btn-export-report");
+  if (exportButton) {
+    const disponible = reporteActivo === "cartillas";
+    exportButton.disabled = !disponible;
+    exportButton.title = disponible ? "Descargar el reporte actual en Excel" : "La exportación se habilitará cuando incorporemos este reporte";
+  }
+
+  if (reporteActivo === "cartillas") cargarYRenderizarReporteCartillas();
+}
+
+function cargarReporteActivo() {
+  if (typeof document === "undefined") return;
+  actualizarSelectorReporte();
+}
+
+function exportarReporteActivo() {
+  if (reporteActivo === "cartillas") {
+    exportarReporteCartillasExcel();
+    return;
+  }
+  mostrarToast("Este reporte todavía no está disponible.", "error");
 }
 
 async function cargarYRenderizarReporteCartillas() {
@@ -1342,6 +1510,7 @@ async function cargarYRenderizarReporteCartillas() {
     }
   } catch (error) {
     reporteCartillasCargado = false;
+    renderGraficoCartillas([]);
     if (count) count.textContent = "No se pudo generar el reporte";
     if (status) status.textContent = "Error de conexión con Supabase";
     const empty = document.getElementById("report-cartillas-empty");
@@ -1523,6 +1692,8 @@ function initBrowser() {
   document.getElementById("report-solo-faltantes")?.addEventListener("change", renderReporteFaltantesCartillas);
   document.getElementById("report-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(true));
   document.getElementById("report-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(false));
+  document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
+  document.getElementById("btn-export-report")?.addEventListener("click", exportarReporteActivo);
 
   document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
@@ -1586,6 +1757,9 @@ if (typeof module !== "undefined" && module.exports) {
     calcularCumplimiento90,
     ejercicioEsperadoPeriodoControl,
     generarReporteFaltantesCartillas,
+    simboloEstadoReporte,
+    resumirCartillasPorPeriodo,
+    construirMatrizExcelCartillas,
     periodosControlDisponibles,
     resumenPeriodosSeleccionados,
     buildCartillasUrl,
