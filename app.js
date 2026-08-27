@@ -713,14 +713,14 @@ async function cargarYRenderizarObrasSociales() {
   if (typeof document === "undefined") return;
   const count = document.getElementById("os-count");
   if (count) count.textContent = "Cargando Obras Sociales...";
-  setEstadoCarga("Conectando con Supabase...");
+
 
   try {
     obrasSociales = await cargarObrasSocialesDesdeSupabase();
     renderObrasSociales();
     poblarObrasSocialesCartilla();
     poblarObrasSocialesPma();
-    setEstadoCarga("Conectado a Supabase");
+
   } catch (error) {
     obrasSociales = [];
     renderObrasSociales();
@@ -1217,8 +1217,8 @@ function renderPma() {
 async function cargarYRenderizarPma() {
   if(typeof document==="undefined")return;
   const status=document.getElementById("pma-source-status"), count=document.getElementById("pma-count");
-  if(count)count.textContent="Cargando presentaciones..."; if(status)status.textContent="Conectando con Supabase...";
-  try{pma=await cargarPmaDesdeSupabase();pmaCargadas=true;llenarFiltrosPma();renderPma();if(status)status.textContent="Conectado a Supabase";}
+  if(count)count.textContent="Cargando presentaciones...";
+  try{pma=await cargarPmaDesdeSupabase();pmaCargadas=true;llenarFiltrosPma();renderPma();}
   catch(error){pma=[];pmaCargadas=false;renderPma();if(count)count.textContent="0 presentaciones";if(status)status.textContent="Error de conexión con Supabase";
     const empty=document.getElementById("pma-empty");if(empty){empty.hidden=false;empty.textContent=error?.message||"No se pudieron cargar las presentaciones de PMA.";}}
 }
@@ -1290,13 +1290,13 @@ function renderCartillas() {
 async function cargarYRenderizarCartillas() {
   if (typeof document === "undefined") return;
   const status = document.getElementById("cartilla-source-status");
-  if (status) status.textContent = "Conectando con Supabase...";
+
   try {
     cartillas = await cargarCartillasDesdeSupabase();
     cartillasCargadas = true;
     llenarFiltroEjercicios();
     renderCartillas();
-    if (status) status.textContent = "Conectado a Supabase";
+
   } catch (error) {
     cartillas = [];
     cartillasCargadas = false;
