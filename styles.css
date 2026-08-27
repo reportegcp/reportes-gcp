@@ -988,3 +988,27 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   .report-top-controls,.report-filters-compact{grid-template-columns:1fr}.report-export-button,.report-chart-toggle{grid-column:auto}
   .single-chart-row{grid-template-columns:1fr 52px}.single-chart-label{grid-column:1/-1}.single-chart-track{grid-column:1}
 }
+
+/* V24 - formularios de trámites */
+.transaction-header{align-items:flex-start;gap:18px}
+.transaction-header-side{display:flex;align-items:flex-start;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin-left:auto}
+.modal-mini-info{font-size:10px;font-weight:800;color:var(--muted);padding:6px 9px;border-radius:8px;background:#f5f7fa;white-space:nowrap}
+.deadline-inline{display:flex;align-items:stretch;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+.deadline-inline>div{display:grid;gap:1px;padding:5px 10px;min-width:94px}
+.deadline-inline>div+div{border-left:1px solid var(--line)}
+.deadline-inline span{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800}
+.deadline-inline strong{font-size:11px;color:var(--navy);white-space:nowrap}
+.deadline-inline.success{background:#f0faf5;border-color:#b9dfcf}.deadline-inline.success strong{color:#226d53}
+.deadline-inline.danger{background:#fff5f6;border-color:#ecc8ce}.deadline-inline.danger strong{color:#8d3543}
+.transaction-form-grid{gap:14px}
+.master-info-line{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;margin-top:-5px;padding:7px 10px;border-radius:9px;background:#f4f7fb;color:#5a6879;font-size:10px;line-height:1.3}
+.master-info-line b{color:#35485e;font-weight:800}
+.form-inline-grid{display:grid;gap:12px;min-width:0}
+.form-inline-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.form-inline-grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.form-inline-grid label{min-width:0}
+@media(max-width:800px){
+  .transaction-header{flex-wrap:wrap}.transaction-header-side{width:100%;justify-content:flex-start;margin-left:0}
+  .form-inline-grid.cols-3,.form-inline-grid.cols-2{grid-template-columns:1fr}
+  .master-info-line{align-items:flex-start;flex-direction:column;gap:4px}
+}

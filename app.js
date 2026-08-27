@@ -1072,12 +1072,27 @@ function resolverObraSocialCartilla(valor) {
   return obrasSociales.find(os => normalizar(getObraSocialDisplay(os)) === texto || normalizar(os.rnos) === texto || normalizar(os.sigla) === texto) || null;
 }
 
+function actualizarMasterInfo(prefix, os) {
+  if (typeof document === "undefined") return;
+  const valor = value => value || "—";
+  const set = (suffix, value) => {
+    const node = document.getElementById(`${prefix}-master-${suffix}`);
+    if (node) node.textContent = valor(value);
+  };
+  set("inicio", os?.inicio_ejercicio);
+  set("domicilio", os?.domicilio);
+  set("localidad", os?.localidad);
+  set("provincia", os?.provincia);
+}
+function actualizarMasterInfoCartilla(os) { actualizarMasterInfo("cartilla", os); }
+function actualizarMasterInfoPma(os) { actualizarMasterInfo("pma", os); }
+
 function actualizarAlertaCartilla() {
   if (typeof document === "undefined") return calcularCumplimiento90("", "");
   const fechaInicio = document.getElementById("cartilla-fecha-inicio-ejercicio")?.value || "";
   const fechaIngreso = document.getElementById("cartilla-fecha-ingreso")?.value || "";
   const resultado = calcularCumplimiento90(fechaInicio, fechaIngreso);
-  const card = document.getElementById("cartilla-deadline-card");
+  const card = document.getElementById("cartilla-deadline-top");
   const limite = document.getElementById("cartilla-fecha-limite");
   const estado = document.getElementById("cartilla-cumplimiento");
   const detalle = document.getElementById("cartilla-cumplimiento-detalle");
@@ -1100,6 +1115,7 @@ function recalcularDatosCartilla() {
   document.getElementById("cartilla-inicio-ejercicio").value = inicio;
   document.getElementById("cartilla-ejercicio").value = derivarEjercicio(inicio, anio);
   document.getElementById("cartilla-fecha-inicio-ejercicio").value = fechaInicioEjercicioDesdeDiaMes(inicio, anio);
+  actualizarMasterInfoCartilla(os);
   actualizarAlertaCartilla();
 }
 
@@ -1107,7 +1123,7 @@ function buildCartillasUrl(offset = 0, limit = 1000) {
   const fields = [
     "id","obra_social_id","anio_inicio","ejercicio","fecha_inicio_ejercicio","analista","numero_ee","condicion",
     "fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
-    "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio)"
+    "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio,domicilio,localidad,provincia)"
   ].join(",");
   const params = new URLSearchParams();
   params.set("select", fields);
@@ -1139,7 +1155,7 @@ function buildPmaUrl(offset = 0, limit = 1000) {
   const fields = [
     "id","obra_social_id","anio_inicio","ejercicio","inicio_periodo","fin_periodo","fecha_inicio_ejercicio","fecha_fin_ejercicio",
     "analista","numero_ee","condicion","fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
-    "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio)"
+    "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio,domicilio,localidad,provincia)"
   ].join(",");
   const params = new URLSearchParams();
   params.set("select", fields);
@@ -1886,6 +1902,22 @@ function resolverObraSocialPma(valor) {
   const buscado=normalizar(valor);
   return obrasSociales.find(os=>normalizar(getObraSocialDisplay(os))===buscado)||null;
 }
+function actualizarAlertaPma() {
+  if (typeof document === "undefined") return calcularCumplimiento90("", "");
+  const fechaInicio = document.getElementById("pma-fecha-inicio-ejercicio")?.value || "";
+  const fechaIngreso = document.getElementById("pma-fecha-ingreso")?.value || "";
+  const resultado = calcularCumplimiento90(fechaInicio, fechaIngreso);
+  const card = document.getElementById("pma-deadline-top");
+  const limite = document.getElementById("pma-fecha-limite");
+  const estado = document.getElementById("pma-cumplimiento");
+  if (limite) limite.textContent = formatFechaPantalla(resultado.fechaLimite);
+  if (estado) estado.textContent = resultado.estado === "EN_TERMINO" ? "EN TÉRMINO" : resultado.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
+  if (card) {
+    card.classList.remove("success", "danger", "neutral");
+    card.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
+  }
+  return resultado;
+}
 function recalcularDatosPma() {
   if(typeof document==="undefined")return;
   const os=resolverObraSocialPma(document.getElementById("pma-os-search")?.value||"");
@@ -1897,12 +1929,17 @@ function recalcularDatosPma() {
   document.getElementById("pma-ejercicio").value=derivarEjercicio(inicio,anio);
   document.getElementById("pma-fecha-inicio-ejercicio").value=fechaInicio;
   document.getElementById("pma-fecha-fin-ejercicio").value=fechaFin;
+  actualizarMasterInfoPma(os);
+  actualizarAlertaPma();
 }
 function limpiarFormularioPma() {
   document.getElementById("pma-form")?.reset();
   ["pma-id","pma-os-id","pma-inicio-periodo","pma-fin-periodo","pma-ejercicio","pma-fecha-inicio-ejercicio","pma-fecha-fin-ejercicio"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pma-anio-inicio").value=String(new Date().getFullYear());
+  document.getElementById("pma-res-170").value="SI";
+  actualizarMasterInfoPma(null);
   setFormMessage("pma-form-message","");
+  actualizarAlertaPma();
 }
 function abrirModalPmaNueva() {
   limpiarFormularioPma();poblarObrasSocialesPma();
@@ -1922,7 +1959,11 @@ function abrirModalPmaEdicion(id) {
   document.getElementById("pma-ee").value=r.numero_ee||"";document.getElementById("pma-condicion").value=r.condicion||"";
   document.getElementById("pma-fecha-ingreso").value=r.fecha_ingreso||"";document.getElementById("pma-res-170").value=r.res_170_2009||"";
   document.getElementById("pma-disposicion").value=r.numero_disposicion||"";document.getElementById("pma-fecha-disposicion").value=r.fecha_disposicion||"";
-  document.getElementById("pma-observaciones").value=r.observaciones||"";setFormMessage("pma-form-message","");abrirModal("pma-modal");
+  document.getElementById("pma-observaciones").value=r.observaciones||"";
+  actualizarMasterInfoPma(resolverObraSocialPma(document.getElementById("pma-os-search").value) || r.obras_sociales);
+  setFormMessage("pma-form-message","");
+  actualizarAlertaPma();
+  abrirModal("pma-modal");
 }
 function buildPmaWriteUrl(id=null){const p=new URLSearchParams();if(id!==null&&id!==undefined&&id!=="")p.set("id",`eq.${id}`);return `${SUPABASE_URL}/rest/v1/pma?${p.toString()}`;}
 async function guardarPmaEnSupabase(registro,id,accessToken,fetchImpl=fetch){
@@ -1958,6 +1999,8 @@ function limpiarFormularioCartilla() {
   document.getElementById("cartilla-ejercicio").value = "";
   document.getElementById("cartilla-fecha-inicio-ejercicio").value = "";
   document.getElementById("cartilla-anio-inicio").value = String(new Date().getFullYear());
+  document.getElementById("cartilla-res-170").value = "SI";
+  actualizarMasterInfoCartilla(null);
   setFormMessage("cartilla-form-message", "");
   actualizarAlertaCartilla();
 }
@@ -1990,6 +2033,7 @@ function abrirModalCartillaEdicion(id) {
   document.getElementById("cartilla-disposicion").value = c.numero_disposicion || "";
   document.getElementById("cartilla-fecha-disposicion").value = c.fecha_disposicion || "";
   document.getElementById("cartilla-observaciones").value = c.observaciones || "";
+  actualizarMasterInfoCartilla(resolverObraSocialCartilla(document.getElementById("cartilla-os-search").value) || c.obras_sociales);
   setFormMessage("cartilla-form-message", "");
   actualizarAlertaCartilla();
   abrirModal("cartilla-modal");
@@ -2118,6 +2162,7 @@ function initBrowser() {
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-os-search")?.addEventListener("change", recalcularDatosPma);
   document.getElementById("pma-anio-inicio")?.addEventListener("input", recalcularDatosPma);
+  document.getElementById("pma-fecha-ingreso")?.addEventListener("change", actualizarAlertaPma);
 
   document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
   document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
