@@ -4,7 +4,7 @@ const SESSION_KEY = "gcp-auth-session-v1";
 
 const views = {
   inicio: { title: "", subtitle: "" },
-  "obras-sociales": { title: "Obras Sociales", subtitle: "Maestro único de RNOS y denominaciones" },
+  "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNOS y denominaciones" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" }
@@ -36,13 +36,15 @@ function perfilPuedeVerVista(perfil, vista) {
   const id = Object.prototype.hasOwnProperty.call(views, vista) ? vista : "inicio";
   const p = normalizarPerfilAcceso(perfil);
 
-  if (p === "administrador" || p === "admin") return true;
+  if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
+  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes"].includes(id);
-  return id === "inicio";
+  return false;
 }
 
 function primeraVistaPermitida(perfil) {
   const p = normalizarPerfilAcceso(perfil);
+  if (p === "admin presentaciones") return "obras-sociales";
   if (p === "carga presentaciones") return "pma";
   return "inicio";
 }
@@ -58,14 +60,15 @@ function vistaPermitidaParaSesion(vista) {
 
 function aplicarPermisosNavegacion() {
   if (typeof document === "undefined") return;
-  const perfil = perfilSesionActual();
-  const esAdmin = ["administrador", "admin"].includes(normalizarPerfilAcceso(perfil));
-  const esCarga = normalizarPerfilAcceso(perfil) === "carga presentaciones";
+  const p = normalizarPerfilAcceso(perfilSesionActual());
+  const esAdminPrestacional = ["admin prestacional", "administrador", "admin"].includes(p);
+  const esAdminPresentaciones = p === "admin presentaciones";
+  const esCargaPresentaciones = p === "carga presentaciones";
 
-  document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", esCarga);
-  document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !esAdmin);
-  document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdmin || esCarga));
-  document.querySelector('[data-nav-access="reportes"]')?.toggleAttribute("hidden", !(esAdmin || esCarga));
+  document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
+  document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
+  document.querySelector('[data-nav-access="reportes"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
 }
 
 function normalizar(texto) {
@@ -629,16 +632,23 @@ function getSessionIdentity(session) {
   const userMetadata = user.user_metadata || payload.user_metadata || {};
   const appMetadata = user.app_metadata || payload.app_metadata || {};
 
+  const perfilOriginal = appMetadata.perfil || appMetadata.role_name || "Perfil no definido";
+  const perfilNormalizado = normalizarPerfilAcceso(perfilOriginal);
+  const perfilVisible = ["administrador", "admin", "admin prestacional"].includes(perfilNormalizado)
+    ? "Admin Prestacional"
+    : perfilNormalizado === "admin presentaciones"
+      ? "Admin Presentaciones"
+      : perfilNormalizado === "carga presentaciones"
+        ? "Carga Presentaciones"
+        : perfilOriginal;
+
   return {
     nombre:
       userMetadata.nombre ||
       userMetadata.full_name ||
       userMetadata.name ||
       "Usuario autorizado",
-    perfil:
-      appMetadata.perfil ||
-      appMetadata.role_name ||
-      "Perfil no definido"
+    perfil: perfilVisible
   };
 }
 
@@ -896,7 +906,7 @@ function resetFormularioOS() {
 
 function abrirModalNueva() {
   resetFormularioOS();
-  document.getElementById("os-modal-title").textContent = "Nueva Obra Social";
+  document.getElementById("os-modal-title").textContent = "Nuevo Agente de Seguro";
   abrirModal("os-modal");
   setTimeout(() => document.getElementById("os-rnos")?.focus(), 0);
 }
@@ -927,7 +937,7 @@ function abrirModalEdicion(id) {
     if (campo) campo.value = value ?? "";
   });
   setFormMessage("os-form-message");
-  document.getElementById("os-modal-title").textContent = "Editar Obra Social";
+  document.getElementById("os-modal-title").textContent = "Editar Agente de Seguro";
   abrirModal("os-modal");
 }
 
@@ -942,7 +952,10 @@ function requiereAutenticacion(accion) {
 
 function abrirLogin() {
   setFormMessage("login-message");
-  abrirModal("login-modal");
+  const gate = document.getElementById("login-gate");
+  const shell = document.getElementById("app-shell");
+  if (gate) gate.hidden = false;
+  if (shell) shell.hidden = true;
   setTimeout(() => document.getElementById("auth-user")?.focus(), 0);
 }
 
@@ -952,10 +965,14 @@ function actualizarAuthUI() {
   const sessionBox = document.getElementById("auth-session");
   const nombre = document.getElementById("auth-user-name");
   const perfil = document.getElementById("auth-user-profile");
+  const gate = document.getElementById("login-gate");
+  const shell = document.getElementById("app-shell");
 
   const conectado = Boolean(authSession?.access_token);
   if (login) login.hidden = conectado;
   if (sessionBox) sessionBox.hidden = !conectado;
+  if (gate) gate.hidden = conectado;
+  if (shell) shell.hidden = !conectado;
 
   if (conectado) {
     const identidad = getSessionIdentity(authSession);
@@ -967,10 +984,11 @@ function actualizarAuthUI() {
   }
 
   aplicarPermisosNavegacion();
-  const vistaActiva = document.querySelector(".view.active")?.id || "inicio";
-  if (!vistaPermitidaParaSesion(vistaActiva)) showView(primeraVistaPermitida(perfilSesionActual()), false);
-
-  renderObrasSociales();
+  if (conectado) {
+    const vistaActiva = document.querySelector(".view.active")?.id || "inicio";
+    if (!vistaPermitidaParaSesion(vistaActiva)) showView(primeraVistaPermitida(perfilSesionActual()), false);
+    renderObrasSociales();
+  }
 }
 
 async function refrescarDatosUsuarioSesion() {
@@ -1016,8 +1034,8 @@ async function handleLoginSubmit(event) {
     if (submit) submit.disabled = true;
     guardarSesion(await authSignIn(email, password));
     await refrescarDatosUsuarioSesion();
-    cerrarModal("login-modal");
     document.getElementById("login-form")?.reset();
+    await cargarYRenderizarObrasSociales();
     mostrarToast("Sesión iniciada.");
 
     const accion = accionPendienteTrasLogin;
@@ -1039,7 +1057,7 @@ async function handleLogout() {
     guardarSesion(null);
     accionPendienteTrasLogin = null;
     cerrarTodosLosModales();
-    mostrarToast("Sesión cerrada.", "neutral");
+    abrirLogin();
   }
 }
 
@@ -2092,7 +2110,7 @@ async function handlePmaSubmit(event){
   try{
     const session=await asegurarSesionVigente(),os=resolverObraSocialPma(document.getElementById("pma-os-search")?.value||"");
     if(!os)throw new Error("Seleccioná un Agente de Seguro de Salud del maestro.");
-    const inicio=os.inicio_ejercicio||"";if(!inicio)throw new Error("El Agente de Seguro de Salud no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
+    const inicio=os.inicio_ejercicio||"";if(!inicio)throw new Error("El Agente de Seguro de Salud no tiene Inicio ejercicio cargado. Completalo primero en Agentes de Seguro.");
     const ejercicio=ejercicioCanonico(document.getElementById("pma-ejercicio")?.value||"");
     const anio=anioInicioDesdeEjercicio(ejercicio);
     const fechaInicio=anio?fechaInicioEjercicioDesdeDiaMes(inicio,anio):"",fechaFin=anio?finPeriodoDesdeInicio(inicio,anio):"";
@@ -2193,7 +2211,7 @@ async function handleCartillaSubmit(event) {
     const os = resolverObraSocialCartilla(document.getElementById("cartilla-os-search")?.value || "");
     if (!os) throw new Error("Seleccioná un Agente de Seguro de Salud del maestro.");
     const inicioEjercicio = os?.inicio_ejercicio || "";
-    if (!inicioEjercicio) throw new Error("El Agente de Seguro de Salud no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
+    if (!inicioEjercicio) throw new Error("El Agente de Seguro de Salud no tiene Inicio ejercicio cargado. Completalo primero en Agentes de Seguro.");
     const ejercicio = ejercicioCanonico(document.getElementById("cartilla-ejercicio")?.value || "");
     const anioInicio = anioInicioDesdeEjercicio(ejercicio);
     const fechaInicioEjercicio = anioInicio ? fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio) : "";
@@ -2257,7 +2275,7 @@ async function restaurarSesion() {
   }
 }
 
-function initBrowser() {
+async function initBrowser() {
   const recoveryDetected = procesarRecuperacionDesdeUrl();
 
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
@@ -2320,12 +2338,10 @@ function initBrowser() {
   document.getElementById("report-cartillas-chart-period")?.addEventListener("change", renderReporteFaltantesCartillas);
   document.getElementById("report-pma-chart-period")?.addEventListener("change", renderReporteFaltantesPma);
 
-  document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
   document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
   document.getElementById("btn-forgot-password")?.addEventListener("click", () => {
     const email = document.getElementById("auth-user")?.value.trim() || "";
-    cerrarModal("login-modal");
     document.getElementById("forgot-email").value = email;
     abrirModal("forgot-modal");
   });
@@ -2358,9 +2374,13 @@ function initBrowser() {
 
   window.addEventListener("popstate", () => showView(getInitialView(location.hash), false));
 
-  restaurarSesion();
-  showView(recoveryDetected ? "obras-sociales" : getInitialView(location.hash), false);
-  cargarYRenderizarObrasSociales();
+  await restaurarSesion();
+  if (authSession?.access_token) {
+    showView(recoveryDetected ? "obras-sociales" : getInitialView(location.hash), false);
+    await cargarYRenderizarObrasSociales();
+  } else {
+    abrirLogin();
+  }
 
   if (recoveryDetected) abrirCambioPassword(true);
 }
