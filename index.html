@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 24</span>
+        <span>Versión 25</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -403,15 +403,14 @@
   <div class="modal-backdrop" id="pma-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pma-modal-title">
       <div class="modal-header transaction-header">
-        <div><span class="eyebrow">PMA</span><h2 id="pma-modal-title">Nueva presentación</h2></div>
-        <div class="transaction-header-side">
-          <div class="modal-mini-info" id="pma-resolucion-info"><span>Resolución Nº 170/2009</span></div>
-          <div class="deadline-inline neutral" id="pma-deadline-top">
-            <div><span>Fecha límite</span><strong id="pma-fecha-limite">—</strong></div>
-            <div><span>Cumplimiento</span><strong id="pma-cumplimiento">SIN DATOS</strong></div>
+        <div class="transaction-header-main">
+          <div class="transaction-header-kickers">
+            <span class="eyebrow">PMA</span>
+            <div class="modal-mini-info" id="pma-resolucion-info"><span>Resolución Nº 170/2009</span></div>
           </div>
-          <button class="icon-button" type="button" data-close-modal="pma-modal" aria-label="Cerrar">×</button>
+          <h2 id="pma-modal-title">Nueva presentación</h2>
         </div>
+        <button class="icon-button" type="button" data-close-modal="pma-modal" aria-label="Cerrar">×</button>
       </div>
       <form id="pma-form">
         <input type="hidden" id="pma-id">
@@ -421,23 +420,22 @@
         <input type="hidden" id="pma-fin-periodo">
         <input type="hidden" id="pma-fecha-inicio-ejercicio">
         <input type="hidden" id="pma-fecha-fin-ejercicio">
+        <input type="hidden" id="pma-anio-inicio">
 
         <div class="form-grid transaction-form-grid">
-          <label class="full"><span>Obra Social / EMP</span>
-            <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
-            <datalist id="pma-os-list"></datalist>
-          </label>
-
-          <div class="master-info-line full" id="pma-master-info">
-            <span><b>Inicio ejercicio:</b> <span id="pma-master-inicio">—</span></span>
-            <span><b>Domicilio:</b> <span id="pma-master-domicilio">—</span></span>
-            <span><b>Localidad:</b> <span id="pma-master-localidad">—</span></span>
-            <span><b>Provincia:</b> <span id="pma-master-provincia">—</span></span>
+          <div class="transaction-agent-row full">
+            <label><span>Agente de Seguro de Salud</span>
+              <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+              <datalist id="pma-os-list"></datalist>
+            </label>
+            <label><span>Ejercicio</span>
+              <select id="pma-ejercicio" disabled required><option value="">Seleccioná un agente</option></select>
+            </label>
           </div>
 
-          <div class="form-inline-grid cols-2 full">
-            <label><span>Año de inicio</span><input id="pma-anio-inicio" type="number" min="2000" max="2100" required></label>
-            <label><span>Ejercicio</span><input id="pma-ejercicio" type="text" readonly></label>
+          <div class="master-info-line full transaction-master-line" id="pma-master-info">
+            <span><b>Inicio ejercicio:</b> <span id="pma-master-inicio">—</span></span>
+            <span><b>Fecha límite:</b> <span class="deadline-value neutral" id="pma-fecha-limite">—</span></span>
           </div>
 
           <div class="form-inline-grid cols-3 full">
@@ -470,15 +468,14 @@
   <div class="modal-backdrop" id="cartilla-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="cartilla-modal-title">
       <div class="modal-header transaction-header">
-        <div><span class="eyebrow">CARTILLA</span><h2 id="cartilla-modal-title">Nueva presentación</h2></div>
-        <div class="transaction-header-side">
-          <div class="modal-mini-info" id="cartilla-resolucion-info"><span>Resolución Nº 170/2009</span></div>
-          <div class="deadline-inline neutral" id="cartilla-deadline-top">
-            <div><span>Fecha límite</span><strong id="cartilla-fecha-limite">—</strong></div>
-            <div><span>Cumplimiento</span><strong id="cartilla-cumplimiento">SIN DATOS</strong></div>
+        <div class="transaction-header-main">
+          <div class="transaction-header-kickers">
+            <span class="eyebrow">CARTILLA</span>
+            <div class="modal-mini-info" id="cartilla-resolucion-info"><span>Resolución Nº 170/2009</span></div>
           </div>
-          <button class="icon-button" type="button" data-close-modal="cartilla-modal" aria-label="Cerrar">×</button>
+          <h2 id="cartilla-modal-title">Nueva presentación</h2>
         </div>
+        <button class="icon-button" type="button" data-close-modal="cartilla-modal" aria-label="Cerrar">×</button>
       </div>
 
       <form id="cartilla-form">
@@ -487,23 +484,22 @@
         <input id="cartilla-res-170" type="hidden" value="SI">
         <input type="hidden" id="cartilla-inicio-ejercicio">
         <input type="hidden" id="cartilla-fecha-inicio-ejercicio">
+        <input type="hidden" id="cartilla-anio-inicio">
 
         <div class="form-grid transaction-form-grid">
-          <label class="full"><span>Obra Social / EMP</span>
-            <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
-            <datalist id="cartilla-os-list"></datalist>
-          </label>
-
-          <div class="master-info-line full" id="cartilla-master-info">
-            <span><b>Inicio ejercicio:</b> <span id="cartilla-master-inicio">—</span></span>
-            <span><b>Domicilio:</b> <span id="cartilla-master-domicilio">—</span></span>
-            <span><b>Localidad:</b> <span id="cartilla-master-localidad">—</span></span>
-            <span><b>Provincia:</b> <span id="cartilla-master-provincia">—</span></span>
+          <div class="transaction-agent-row full">
+            <label><span>Agente de Seguro de Salud</span>
+              <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+              <datalist id="cartilla-os-list"></datalist>
+            </label>
+            <label><span>Ejercicio</span>
+              <select id="cartilla-ejercicio" disabled required><option value="">Seleccioná un agente</option></select>
+            </label>
           </div>
 
-          <div class="form-inline-grid cols-2 full">
-            <label><span>Año de inicio</span><input id="cartilla-anio-inicio" type="number" min="2000" max="2100" step="1" required></label>
-            <label><span>Ejercicio</span><input id="cartilla-ejercicio" type="text" readonly></label>
+          <div class="master-info-line full transaction-master-line" id="cartilla-master-info">
+            <span><b>Inicio ejercicio:</b> <span id="cartilla-master-inicio">—</span></span>
+            <span><b>Fecha límite:</b> <span class="deadline-value neutral" id="cartilla-fecha-limite">—</span></span>
           </div>
 
           <div class="form-inline-grid cols-3 full">
@@ -606,6 +602,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

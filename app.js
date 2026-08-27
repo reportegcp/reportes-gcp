@@ -100,6 +100,69 @@ function derivarEjercicio(inicioEjercicio, anioInicio) {
   return normalizado === "01-01" ? String(year) : `${year}/${String(year + 1).slice(-2)}`;
 }
 
+function ejercicioCanonico(valor) {
+  const texto = String(valor || "").trim();
+  const simple = texto.match(/^(\d{4})$/);
+  if (simple) return simple[1];
+  const rango = texto.match(/^(\d{4})\s*\/\s*(\d{2}|\d{4})$/);
+  if (!rango) return "";
+  const inicio = Number(rango[1]);
+  const fin = Number(rango[2].length === 2 ? `${String(inicio).slice(0, 2)}${rango[2]}` : rango[2]);
+  if (fin !== inicio + 1) return "";
+  return `${inicio}/${String(fin).slice(-2)}`;
+}
+
+function ejercicioVisible(valor) {
+  const canonico = ejercicioCanonico(valor);
+  if (!canonico || !canonico.includes("/")) return canonico;
+  const [inicio, finCorto] = canonico.split("/");
+  const fin = Number(inicio) + 1;
+  return `${inicio}/${fin}`;
+}
+
+function anioInicioDesdeEjercicio(valor) {
+  const canonico = ejercicioCanonico(valor);
+  if (!canonico) return null;
+  const anio = Number(canonico.slice(0, 4));
+  return Number.isInteger(anio) ? anio : null;
+}
+
+function opcionesEjercicioParaInicio(inicioEjercicio, anioReferencia = new Date().getFullYear(), atras = 10, adelante = 3) {
+  const inicio = normalizarDiaMes(inicioEjercicio);
+  const ref = Number(anioReferencia);
+  if (!inicio || !Number.isInteger(ref)) return [];
+  const opciones = [];
+  for (let anio = ref - atras; anio <= ref + adelante; anio += 1) {
+    const value = derivarEjercicio(inicio, anio);
+    opciones.push({ value, label: ejercicioVisible(value), anioInicio: anio });
+  }
+  return opciones;
+}
+
+function poblarSelectorEjercicio(prefix, inicioEjercicio, seleccionado = "") {
+  if (typeof document === "undefined") return;
+  const select = document.getElementById(`${prefix}-ejercicio`);
+  if (!select) return;
+  const canonicoSeleccionado = ejercicioCanonico(seleccionado);
+  const anioSeleccionado = anioInicioDesdeEjercicio(canonicoSeleccionado);
+  const referencia = anioSeleccionado || new Date().getFullYear();
+  const opciones = opcionesEjercicioParaInicio(inicioEjercicio, referencia, 10, 3);
+  if (!opciones.length) {
+    select.innerHTML = '<option value="">Seleccioná un agente</option>';
+    select.disabled = true;
+    return;
+  }
+  if (canonicoSeleccionado && !opciones.some(o => o.value === canonicoSeleccionado)) {
+    opciones.push({ value: canonicoSeleccionado, label: ejercicioVisible(canonicoSeleccionado), anioInicio: anioSeleccionado });
+  }
+  opciones.sort((a, b) => a.anioInicio - b.anioInicio);
+  select.innerHTML = opciones.map(o => `<option value="${o.value}">${o.label}</option>`).join("");
+  select.disabled = false;
+  select.value = canonicoSeleccionado && opciones.some(o => o.value === canonicoSeleccionado)
+    ? canonicoSeleccionado
+    : derivarEjercicio(inicioEjercicio, new Date().getFullYear());
+}
+
 function finPeriodoDesdeInicio(inicioEjercicio, anioInicio) {
   const fechaInicio = fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio);
   const inicio = parseIsoDateUtc(fechaInicio);
@@ -1074,15 +1137,8 @@ function resolverObraSocialCartilla(valor) {
 
 function actualizarMasterInfo(prefix, os) {
   if (typeof document === "undefined") return;
-  const valor = value => value || "—";
-  const set = (suffix, value) => {
-    const node = document.getElementById(`${prefix}-master-${suffix}`);
-    if (node) node.textContent = valor(value);
-  };
-  set("inicio", os?.inicio_ejercicio);
-  set("domicilio", os?.domicilio);
-  set("localidad", os?.localidad);
-  set("provincia", os?.provincia);
+  const node = document.getElementById(`${prefix}-master-inicio`);
+  if (node) node.textContent = os?.inicio_ejercicio || "—";
 }
 function actualizarMasterInfoCartilla(os) { actualizarMasterInfo("cartilla", os); }
 function actualizarMasterInfoPma(os) { actualizarMasterInfo("pma", os); }
@@ -1092,16 +1148,11 @@ function actualizarAlertaCartilla() {
   const fechaInicio = document.getElementById("cartilla-fecha-inicio-ejercicio")?.value || "";
   const fechaIngreso = document.getElementById("cartilla-fecha-ingreso")?.value || "";
   const resultado = calcularCumplimiento90(fechaInicio, fechaIngreso);
-  const card = document.getElementById("cartilla-deadline-top");
   const limite = document.getElementById("cartilla-fecha-limite");
-  const estado = document.getElementById("cartilla-cumplimiento");
-  const detalle = document.getElementById("cartilla-cumplimiento-detalle");
-  if (limite) limite.textContent = formatFechaPantalla(resultado.fechaLimite);
-  if (estado) estado.textContent = resultado.estado === "EN_TERMINO" ? "EN TÉRMINO" : resultado.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
-  if (detalle) detalle.textContent = textoCumplimiento90(resultado);
-  if (card) {
-    card.classList.remove("success", "danger", "neutral");
-    card.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
+  if (limite) {
+    limite.textContent = formatFechaPantalla(resultado.fechaLimite);
+    limite.classList.remove("success", "danger", "neutral");
+    limite.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
   }
   return resultado;
 }
@@ -1109,13 +1160,17 @@ function actualizarAlertaCartilla() {
 function recalcularDatosCartilla() {
   if (typeof document === "undefined") return;
   const os = resolverObraSocialCartilla(document.getElementById("cartilla-os-search")?.value || "");
-  const anio = Number(document.getElementById("cartilla-anio-inicio")?.value || 0);
   const inicio = os?.inicio_ejercicio || "";
+  const select = document.getElementById("cartilla-ejercicio");
+  const previo = select?.value || "";
   document.getElementById("cartilla-os-id").value = os?.id || "";
   document.getElementById("cartilla-inicio-ejercicio").value = inicio;
-  document.getElementById("cartilla-ejercicio").value = derivarEjercicio(inicio, anio);
-  document.getElementById("cartilla-fecha-inicio-ejercicio").value = fechaInicioEjercicioDesdeDiaMes(inicio, anio);
   actualizarMasterInfoCartilla(os);
+  poblarSelectorEjercicio("cartilla", inicio, previo);
+  const ejercicio = select?.value || "";
+  const anio = anioInicioDesdeEjercicio(ejercicio);
+  document.getElementById("cartilla-anio-inicio").value = anio || "";
+  document.getElementById("cartilla-fecha-inicio-ejercicio").value = anio ? fechaInicioEjercicioDesdeDiaMes(inicio, anio) : "";
   actualizarAlertaCartilla();
 }
 
@@ -1907,36 +1962,40 @@ function actualizarAlertaPma() {
   const fechaInicio = document.getElementById("pma-fecha-inicio-ejercicio")?.value || "";
   const fechaIngreso = document.getElementById("pma-fecha-ingreso")?.value || "";
   const resultado = calcularCumplimiento90(fechaInicio, fechaIngreso);
-  const card = document.getElementById("pma-deadline-top");
   const limite = document.getElementById("pma-fecha-limite");
-  const estado = document.getElementById("pma-cumplimiento");
-  if (limite) limite.textContent = formatFechaPantalla(resultado.fechaLimite);
-  if (estado) estado.textContent = resultado.estado === "EN_TERMINO" ? "EN TÉRMINO" : resultado.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
-  if (card) {
-    card.classList.remove("success", "danger", "neutral");
-    card.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
+  if (limite) {
+    limite.textContent = formatFechaPantalla(resultado.fechaLimite);
+    limite.classList.remove("success", "danger", "neutral");
+    limite.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
   }
   return resultado;
 }
 function recalcularDatosPma() {
-  if(typeof document==="undefined")return;
-  const os=resolverObraSocialPma(document.getElementById("pma-os-search")?.value||"");
-  const anio=Number(document.getElementById("pma-anio-inicio")?.value||0), inicio=os?.inicio_ejercicio||"";
-  const fechaInicio=fechaInicioEjercicioDesdeDiaMes(inicio,anio), fechaFin=finPeriodoDesdeInicio(inicio,anio);
-  document.getElementById("pma-os-id").value=os?.id||"";
-  document.getElementById("pma-inicio-periodo").value=inicio;
-  document.getElementById("pma-fin-periodo").value=diaMesDesdeFechaIso(fechaFin);
-  document.getElementById("pma-ejercicio").value=derivarEjercicio(inicio,anio);
-  document.getElementById("pma-fecha-inicio-ejercicio").value=fechaInicio;
-  document.getElementById("pma-fecha-fin-ejercicio").value=fechaFin;
+  if (typeof document === "undefined") return;
+  const os = resolverObraSocialPma(document.getElementById("pma-os-search")?.value || "");
+  const inicio = os?.inicio_ejercicio || "";
+  const select = document.getElementById("pma-ejercicio");
+  const previo = select?.value || "";
+  document.getElementById("pma-os-id").value = os?.id || "";
+  document.getElementById("pma-inicio-periodo").value = inicio;
   actualizarMasterInfoPma(os);
+  poblarSelectorEjercicio("pma", inicio, previo);
+  const ejercicio = select?.value || "";
+  const anio = anioInicioDesdeEjercicio(ejercicio);
+  const fechaInicio = anio ? fechaInicioEjercicioDesdeDiaMes(inicio, anio) : "";
+  const fechaFin = anio ? finPeriodoDesdeInicio(inicio, anio) : "";
+  document.getElementById("pma-anio-inicio").value = anio || "";
+  document.getElementById("pma-fin-periodo").value = diaMesDesdeFechaIso(fechaFin);
+  document.getElementById("pma-fecha-inicio-ejercicio").value = fechaInicio;
+  document.getElementById("pma-fecha-fin-ejercicio").value = fechaFin;
   actualizarAlertaPma();
 }
 function limpiarFormularioPma() {
   document.getElementById("pma-form")?.reset();
-  ["pma-id","pma-os-id","pma-inicio-periodo","pma-fin-periodo","pma-ejercicio","pma-fecha-inicio-ejercicio","pma-fecha-fin-ejercicio"].forEach(id=>document.getElementById(id).value="");
-  document.getElementById("pma-anio-inicio").value=String(new Date().getFullYear());
-  document.getElementById("pma-res-170").value="SI";
+  ["pma-id","pma-os-id","pma-inicio-periodo","pma-fin-periodo","pma-fecha-inicio-ejercicio","pma-fecha-fin-ejercicio","pma-anio-inicio"].forEach(id => document.getElementById(id).value = "");
+  const ejercicio = document.getElementById("pma-ejercicio");
+  if (ejercicio) { ejercicio.innerHTML = '<option value="">Seleccioná un agente</option>'; ejercicio.disabled = true; }
+  document.getElementById("pma-res-170").value = "SI";
   actualizarMasterInfoPma(null);
   setFormMessage("pma-form-message","");
   actualizarAlertaPma();
@@ -1953,8 +2012,10 @@ function abrirModalPmaEdicion(id) {
   document.getElementById("pma-os-search").value=getObraSocialDisplay(r.obras_sociales||{});
   document.getElementById("pma-inicio-periodo").value=r.inicio_periodo||r.obras_sociales?.inicio_ejercicio||"";
   document.getElementById("pma-fin-periodo").value=r.fin_periodo||diaMesDesdeFechaIso(r.fecha_fin_ejercicio);
-  document.getElementById("pma-anio-inicio").value=r.anio_inicio||(r.fecha_inicio_ejercicio?Number(r.fecha_inicio_ejercicio.slice(0,4)):"");
-  document.getElementById("pma-ejercicio").value=r.ejercicio||"";document.getElementById("pma-fecha-inicio-ejercicio").value=r.fecha_inicio_ejercicio||"";
+  const inicioPma = r.inicio_periodo || r.obras_sociales?.inicio_ejercicio || "";
+  poblarSelectorEjercicio("pma", inicioPma, r.ejercicio || derivarEjercicio(inicioPma, r.anio_inicio));
+  document.getElementById("pma-anio-inicio").value = r.anio_inicio || anioInicioDesdeEjercicio(document.getElementById("pma-ejercicio").value) || "";
+  document.getElementById("pma-fecha-inicio-ejercicio").value=r.fecha_inicio_ejercicio||"";
   document.getElementById("pma-fecha-fin-ejercicio").value=r.fecha_fin_ejercicio||"";document.getElementById("pma-analista").value=r.analista||"";
   document.getElementById("pma-ee").value=r.numero_ee||"";document.getElementById("pma-condicion").value=r.condicion||"";
   document.getElementById("pma-fecha-ingreso").value=r.fecha_ingreso||"";document.getElementById("pma-res-170").value=r.res_170_2009||"";
@@ -1975,10 +2036,12 @@ async function handlePmaSubmit(event){
   event.preventDefault();setFormMessage("pma-form-message","");const save=document.getElementById("pma-save");if(save)save.disabled=true;
   try{
     const session=await asegurarSesionVigente(),os=resolverObraSocialPma(document.getElementById("pma-os-search")?.value||"");
-    const anio=Number(document.getElementById("pma-anio-inicio")?.value||0);if(!os)throw new Error("Seleccioná una Obra Social del maestro.");
-    const inicio=os.inicio_ejercicio||"";if(!inicio)throw new Error("La Obra Social no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
-    const fechaInicio=fechaInicioEjercicioDesdeDiaMes(inicio,anio),fechaFin=finPeriodoDesdeInicio(inicio,anio),ejercicio=derivarEjercicio(inicio,anio);
-    if(!fechaInicio||!fechaFin||!ejercicio)throw new Error("Revisá el Inicio ejercicio y el Año de inicio.");
+    if(!os)throw new Error("Seleccioná un Agente de Seguro de Salud del maestro.");
+    const inicio=os.inicio_ejercicio||"";if(!inicio)throw new Error("El Agente de Seguro de Salud no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
+    const ejercicio=ejercicioCanonico(document.getElementById("pma-ejercicio")?.value||"");
+    const anio=anioInicioDesdeEjercicio(ejercicio);
+    const fechaInicio=anio?fechaInicioEjercicioDesdeDiaMes(inicio,anio):"",fechaFin=anio?finPeriodoDesdeInicio(inicio,anio):"";
+    if(!fechaInicio||!fechaFin||!ejercicio)throw new Error("Seleccioná el Ejercicio de la presentación.");
     const registro={obra_social_id:Number(os.id),anio_inicio:anio,ejercicio,inicio_periodo:inicio,fin_periodo:diaMesDesdeFechaIso(fechaFin),
       fecha_inicio_ejercicio:fechaInicio,fecha_fin_ejercicio:fechaFin,analista:document.getElementById("pma-analista")?.value.trim()||null,
       numero_ee:document.getElementById("pma-ee")?.value.trim()||null,condicion:document.getElementById("pma-condicion")?.value||null,
@@ -1996,9 +2059,10 @@ function limpiarFormularioCartilla() {
   document.getElementById("cartilla-id").value = "";
   document.getElementById("cartilla-os-id").value = "";
   document.getElementById("cartilla-inicio-ejercicio").value = "";
-  document.getElementById("cartilla-ejercicio").value = "";
   document.getElementById("cartilla-fecha-inicio-ejercicio").value = "";
-  document.getElementById("cartilla-anio-inicio").value = String(new Date().getFullYear());
+  document.getElementById("cartilla-anio-inicio").value = "";
+  const ejercicio = document.getElementById("cartilla-ejercicio");
+  if (ejercicio) { ejercicio.innerHTML = '<option value="">Seleccioná un agente</option>'; ejercicio.disabled = true; }
   document.getElementById("cartilla-res-170").value = "SI";
   actualizarMasterInfoCartilla(null);
   setFormMessage("cartilla-form-message", "");
@@ -2021,9 +2085,10 @@ function abrirModalCartillaEdicion(id) {
   document.getElementById("cartilla-id").value = c.id;
   document.getElementById("cartilla-os-id").value = c.obra_social_id || "";
   document.getElementById("cartilla-os-search").value = getObraSocialDisplay(c.obras_sociales || {});
-  document.getElementById("cartilla-inicio-ejercicio").value = c.obras_sociales?.inicio_ejercicio || "";
-  document.getElementById("cartilla-anio-inicio").value = c.anio_inicio || (c.fecha_inicio_ejercicio ? Number(c.fecha_inicio_ejercicio.slice(0,4)) : "");
-  document.getElementById("cartilla-ejercicio").value = c.ejercicio || "";
+  const inicioCartilla = c.obras_sociales?.inicio_ejercicio || "";
+  document.getElementById("cartilla-inicio-ejercicio").value = inicioCartilla;
+  poblarSelectorEjercicio("cartilla", inicioCartilla, c.ejercicio || derivarEjercicio(inicioCartilla, c.anio_inicio));
+  document.getElementById("cartilla-anio-inicio").value = c.anio_inicio || anioInicioDesdeEjercicio(document.getElementById("cartilla-ejercicio").value) || "";
   document.getElementById("cartilla-fecha-inicio-ejercicio").value = c.fecha_inicio_ejercicio || "";
   document.getElementById("cartilla-analista").value = c.analista || "";
   document.getElementById("cartilla-ee").value = c.numero_ee || "";
@@ -2069,13 +2134,13 @@ async function handleCartillaSubmit(event) {
   try {
     const session = await asegurarSesionVigente();
     const os = resolverObraSocialCartilla(document.getElementById("cartilla-os-search")?.value || "");
-    const anioInicio = Number(document.getElementById("cartilla-anio-inicio")?.value || 0);
+    if (!os) throw new Error("Seleccioná un Agente de Seguro de Salud del maestro.");
     const inicioEjercicio = os?.inicio_ejercicio || "";
-    const fechaInicioEjercicio = fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio);
-    const ejercicio = derivarEjercicio(inicioEjercicio, anioInicio);
-    if (!os) throw new Error("Seleccioná una Obra Social del maestro.");
-    if (!inicioEjercicio) throw new Error("La Obra Social no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
-    if (!fechaInicioEjercicio || !ejercicio) throw new Error("Revisá el Inicio ejercicio y el Año de inicio.");
+    if (!inicioEjercicio) throw new Error("El Agente de Seguro de Salud no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
+    const ejercicio = ejercicioCanonico(document.getElementById("cartilla-ejercicio")?.value || "");
+    const anioInicio = anioInicioDesdeEjercicio(ejercicio);
+    const fechaInicioEjercicio = anioInicio ? fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio) : "";
+    if (!fechaInicioEjercicio || !ejercicio) throw new Error("Seleccioná el Ejercicio de la presentación.");
 
     const registro = {
       obra_social_id:Number(os.id), anio_inicio:anioInicio, ejercicio, fecha_inicio_ejercicio:fechaInicioEjercicio,
@@ -2161,7 +2226,7 @@ function initBrowser() {
   document.getElementById("pma-res170-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-os-search")?.addEventListener("change", recalcularDatosPma);
-  document.getElementById("pma-anio-inicio")?.addEventListener("input", recalcularDatosPma);
+  document.getElementById("pma-ejercicio")?.addEventListener("change", recalcularDatosPma);
   document.getElementById("pma-fecha-ingreso")?.addEventListener("change", actualizarAlertaPma);
 
   document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
@@ -2171,7 +2236,7 @@ function initBrowser() {
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", renderCartillas);
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
-  document.getElementById("cartilla-anio-inicio")?.addEventListener("input", recalcularDatosCartilla);
+  document.getElementById("cartilla-ejercicio")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
 
   document.getElementById("report-cartillas-search")?.addEventListener("input", renderReporteFaltantesCartillas);
@@ -2257,6 +2322,10 @@ if (typeof module !== "undefined" && module.exports) {
     authUpdatePassword,
     guardarObraSocialEnSupabase,
     derivarEjercicio,
+    ejercicioCanonico,
+    ejercicioVisible,
+    anioInicioDesdeEjercicio,
+    opcionesEjercicioParaInicio,
     fechaInicioEjercicioDesdeDiaMes,
     finPeriodoDesdeInicio,
     diaMesDesdeFechaIso,
