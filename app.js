@@ -100,6 +100,20 @@ function derivarEjercicio(inicioEjercicio, anioInicio) {
   return normalizado === "01-01" ? String(year) : `${year}/${String(year + 1).slice(-2)}`;
 }
 
+function finPeriodoDesdeInicio(inicioEjercicio, anioInicio) {
+  const fechaInicio = fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio);
+  const inicio = parseIsoDateUtc(fechaInicio);
+  if (!inicio) return "";
+  const fin = new Date(Date.UTC(inicio.getUTCFullYear() + 1, inicio.getUTCMonth(), inicio.getUTCDate()));
+  fin.setUTCDate(fin.getUTCDate() - 1);
+  return formatIsoDateUtc(fin);
+}
+function diaMesDesdeFechaIso(fechaIso) {
+  const d = parseIsoDateUtc(fechaIso);
+  if (!d) return "";
+  return `${String(d.getUTCDate()).padStart(2,"0")}-${String(d.getUTCMonth()+1).padStart(2,"0")}`;
+}
+
 
 function ejercicioEsperadoPeriodoControl(inicioEjercicio, periodoControl) {
   const normalizado = normalizarDiaMes(inicioEjercicio);
@@ -287,17 +301,16 @@ function separarLocalidadDomicilio(localidad, domicilio) {
   };
 }
 
-function filtrarObrasSociales(lista, busqueda, estado) {
+function filtrarObrasSociales(lista, busqueda, estado, inicioEstado = "TODOS") {
   const termino = normalizar(busqueda);
   return lista.filter(os => {
     const coincideEstado = estado === "TODAS" || os.estado === estado;
     if (!coincideEstado) return false;
+    const tieneInicio = Boolean(normalizarDiaMes(os.inicio_ejercicio));
+    if (inicioEstado === "INFORMADO" && !tieneInicio) return false;
+    if (inicioEstado === "SIN_INICIO" && tieneInicio) return false;
     if (!termino) return true;
-
-    return normalizar([
-      os.rnos, os.denominacion, os.sigla, os.domicilio, os.localidad,
-      os.provincia, os.telefono, os.email, os.web
-    ].join(" ")).includes(termino);
+    return normalizar([os.rnos,os.denominacion,os.sigla,os.domicilio,os.localidad,os.provincia,os.telefono,os.email,os.web].join(" ")).includes(termino);
   });
 }
 
@@ -626,6 +639,7 @@ function showView(id, updateHistory = true) {
   }
 
   if (updateHistory && typeof history !== "undefined") history.pushState(null, "", `#${resolved}`);
+  if (resolved === "pma" && !pmaCargadas) cargarYRenderizarPma();
   if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
   if (resolved === "reportes") cargarReporteActivo();
 }
@@ -637,8 +651,9 @@ function renderObrasSociales() {
 
   const busqueda = document.getElementById("os-search")?.value || "";
   const estado = document.getElementById("os-estado-filter")?.value || "TODAS";
+  const inicioEstado = document.getElementById("os-inicio-filter")?.value || "TODOS";
   const filtradas = ordenarObrasSocialesPorRnos(
-    filtrarObrasSociales(obrasSociales, busqueda, estado),
+    filtrarObrasSociales(obrasSociales, busqueda, estado, inicioEstado),
     rnosSortDirection
   );
 
@@ -704,6 +719,7 @@ async function cargarYRenderizarObrasSociales() {
     obrasSociales = await cargarObrasSocialesDesdeSupabase();
     renderObrasSociales();
     poblarObrasSocialesCartilla();
+    poblarObrasSocialesPma();
     setEstadoCarga("Conectado a Supabase");
   } catch (error) {
     obrasSociales = [];
@@ -1143,6 +1159,68 @@ async function cargarPmaDesdeSupabase(fetchImpl = fetch) {
     if (page.length < pageSize) break;
   }
   return all;
+}
+
+
+function filtrarPmaRegistros(lista, filtros = {}) {
+  const busqueda = normalizar(filtros.busqueda || "");
+  const ejercicio = filtros.ejercicio || "TODOS", analista = filtros.analista || "TODOS";
+  const condicion = filtros.condicion || "TODOS", res170 = filtros.res170 || "TODOS";
+  return (lista || []).filter(row => {
+    if (ejercicio !== "TODOS" && String(row.ejercicio || "") !== ejercicio) return false;
+    if (analista !== "TODOS" && String(row.analista || "") !== analista) return false;
+    if (condicion !== "TODOS" && String(row.condicion || "") !== condicion) return false;
+    const res = String(row.res_170_2009 || "");
+    if (res170 === "SIN_DATO" && res) return false;
+    if (!["TODOS","SIN_DATO"].includes(res170) && res !== res170) return false;
+    if (!busqueda) return true;
+    return normalizar([row.obras_sociales?.rnos,row.obras_sociales?.denominacion,row.obras_sociales?.sigla,row.numero_ee,row.numero_disposicion,row.ejercicio,row.analista,row.condicion].join(" ")).includes(busqueda);
+  });
+}
+function llenarFiltrosPma() {
+  if (typeof document === "undefined") return;
+  const fill = (id, label, vals) => {
+    const s=document.getElementById(id); if(!s)return; const prev=s.value||"TODOS";
+    s.innerHTML=`<option value="TODOS">${label}: Todos</option>`+vals.map(v=>`<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
+    s.value=vals.includes(prev)?prev:"TODOS";
+  };
+  fill("pma-ejercicio-filter","Ejercicio",[...new Set(pma.map(x=>x.ejercicio).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a),"es",{numeric:true})));
+  fill("pma-analista-filter","Analista",[...new Set(pma.map(x=>x.analista).filter(Boolean))].sort());
+  fill("pma-condicion-filter","Condición",[...new Set(pma.map(x=>x.condicion).filter(Boolean))].sort());
+}
+function obtenerPmaFiltradas() {
+  return filtrarPmaRegistros(pma,{
+    busqueda:document.getElementById("pma-search")?.value||"",
+    ejercicio:document.getElementById("pma-ejercicio-filter")?.value||"TODOS",
+    analista:document.getElementById("pma-analista-filter")?.value||"TODOS",
+    condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS",
+    res170:document.getElementById("pma-res170-filter")?.value||"TODOS"
+  });
+}
+function renderPma() {
+  if(typeof document==="undefined")return;
+  const tbody=document.getElementById("pma-table-body"); if(!tbody)return;
+  const rows=obtenerPmaFiltradas();
+  tbody.innerHTML=rows.map(r=>`<tr class="pma-row" data-pma-id="${r.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
+    <td><strong>${escaparHtml(r.obras_sociales?.rnos||"—")}</strong></td>
+    <td class="denominacion-cell">${escaparHtml(r.obras_sociales?.denominacion||"—")}</td>
+    <td>${escaparHtml(r.ejercicio||"—")}</td><td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td>
+    <td>${escaparHtml(r.condicion||"—")}</td><td>${escaparHtml(r.analista||"—")}</td>
+    <td>${escaparHtml(r.numero_ee||"—")}</td><td>${escaparHtml(r.numero_disposicion||"—")}</td></tr>`).join("");
+  const count=document.getElementById("pma-count"); if(count)count.textContent=`${rows.length} ${rows.length===1?"presentación":"presentaciones"}`;
+  const empty=document.getElementById("pma-empty"); if(empty){empty.hidden=rows.length!==0;}
+  document.querySelectorAll(".pma-row[data-pma-id]").forEach(tr=>{
+    const edit=()=>requiereAutenticacion(()=>abrirModalPmaEdicion(Number(tr.dataset.pmaId)));
+    tr.addEventListener("click",edit); tr.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();edit();}});
+  });
+}
+async function cargarYRenderizarPma() {
+  if(typeof document==="undefined")return;
+  const status=document.getElementById("pma-source-status"), count=document.getElementById("pma-count");
+  if(count)count.textContent="Cargando presentaciones..."; if(status)status.textContent="Conectando con Supabase...";
+  try{pma=await cargarPmaDesdeSupabase();pmaCargadas=true;llenarFiltrosPma();renderPma();if(status)status.textContent="Conectado a Supabase";}
+  catch(error){pma=[];pmaCargadas=false;renderPma();if(count)count.textContent="0 presentaciones";if(status)status.textContent="Error de conexión con Supabase";
+    const empty=document.getElementById("pma-empty");if(empty){empty.hidden=false;empty.textContent=error?.message||"No se pudieron cargar las presentaciones de PMA.";}}
 }
 
 function cumplimientoCartillaRegistro(row) {
@@ -1781,6 +1859,80 @@ function debeCerrarSelectorPeriodoPorClick(selector, target) {
   return Boolean(selector?.open && target && typeof selector.contains === "function" && !selector.contains(target));
 }
 
+
+function poblarObrasSocialesPma() {
+  if(typeof document==="undefined")return;
+  const list=document.getElementById("pma-os-list"); if(!list)return;
+  list.innerHTML=obrasSociales.map(os=>`<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+function resolverObraSocialPma(valor) {
+  const buscado=normalizar(valor);
+  return obrasSociales.find(os=>normalizar(getObraSocialDisplay(os))===buscado)||null;
+}
+function recalcularDatosPma() {
+  if(typeof document==="undefined")return;
+  const os=resolverObraSocialPma(document.getElementById("pma-os-search")?.value||"");
+  const anio=Number(document.getElementById("pma-anio-inicio")?.value||0), inicio=os?.inicio_ejercicio||"";
+  const fechaInicio=fechaInicioEjercicioDesdeDiaMes(inicio,anio), fechaFin=finPeriodoDesdeInicio(inicio,anio);
+  document.getElementById("pma-os-id").value=os?.id||"";
+  document.getElementById("pma-inicio-periodo").value=inicio;
+  document.getElementById("pma-fin-periodo").value=diaMesDesdeFechaIso(fechaFin);
+  document.getElementById("pma-ejercicio").value=derivarEjercicio(inicio,anio);
+  document.getElementById("pma-fecha-inicio-ejercicio").value=fechaInicio;
+  document.getElementById("pma-fecha-fin-ejercicio").value=fechaFin;
+}
+function limpiarFormularioPma() {
+  document.getElementById("pma-form")?.reset();
+  ["pma-id","pma-os-id","pma-inicio-periodo","pma-fin-periodo","pma-ejercicio","pma-fecha-inicio-ejercicio","pma-fecha-fin-ejercicio"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("pma-anio-inicio").value=String(new Date().getFullYear());
+  setFormMessage("pma-form-message","");
+}
+function abrirModalPmaNueva() {
+  limpiarFormularioPma();poblarObrasSocialesPma();
+  document.getElementById("pma-modal-title").textContent="Nueva presentación de PMA";
+  abrirModal("pma-modal");document.getElementById("pma-os-search")?.focus();
+}
+function abrirModalPmaEdicion(id) {
+  const r=pma.find(x=>Number(x.id)===Number(id));if(!r)return;poblarObrasSocialesPma();
+  document.getElementById("pma-modal-title").textContent="Editar presentación de PMA";
+  document.getElementById("pma-id").value=r.id;document.getElementById("pma-os-id").value=r.obra_social_id||"";
+  document.getElementById("pma-os-search").value=getObraSocialDisplay(r.obras_sociales||{});
+  document.getElementById("pma-inicio-periodo").value=r.inicio_periodo||r.obras_sociales?.inicio_ejercicio||"";
+  document.getElementById("pma-fin-periodo").value=r.fin_periodo||diaMesDesdeFechaIso(r.fecha_fin_ejercicio);
+  document.getElementById("pma-anio-inicio").value=r.anio_inicio||(r.fecha_inicio_ejercicio?Number(r.fecha_inicio_ejercicio.slice(0,4)):"");
+  document.getElementById("pma-ejercicio").value=r.ejercicio||"";document.getElementById("pma-fecha-inicio-ejercicio").value=r.fecha_inicio_ejercicio||"";
+  document.getElementById("pma-fecha-fin-ejercicio").value=r.fecha_fin_ejercicio||"";document.getElementById("pma-analista").value=r.analista||"";
+  document.getElementById("pma-ee").value=r.numero_ee||"";document.getElementById("pma-condicion").value=r.condicion||"";
+  document.getElementById("pma-fecha-ingreso").value=r.fecha_ingreso||"";document.getElementById("pma-res-170").value=r.res_170_2009||"";
+  document.getElementById("pma-disposicion").value=r.numero_disposicion||"";document.getElementById("pma-fecha-disposicion").value=r.fecha_disposicion||"";
+  document.getElementById("pma-observaciones").value=r.observaciones||"";setFormMessage("pma-form-message","");abrirModal("pma-modal");
+}
+function buildPmaWriteUrl(id=null){const p=new URLSearchParams();if(id!==null&&id!==undefined&&id!=="")p.set("id",`eq.${id}`);return `${SUPABASE_URL}/rest/v1/pma?${p.toString()}`;}
+async function guardarPmaEnSupabase(registro,id,accessToken,fetchImpl=fetch){
+  const editando=id!==null&&id!==undefined&&id!=="";
+  const response=await fetchConTimeout(buildPmaWriteUrl(editando?id:null),{method:editando?"PATCH":"POST",headers:{...authHeaders(accessToken),Prefer:"return=representation"},body:JSON.stringify(registro)},10000,fetchImpl);
+  if(!response.ok){const detalle=await leerErrorApi(response);throw new Error(detalle||`Supabase respondió ${response.status}.`);}return response.json();
+}
+async function handlePmaSubmit(event){
+  event.preventDefault();setFormMessage("pma-form-message","");const save=document.getElementById("pma-save");if(save)save.disabled=true;
+  try{
+    const session=await asegurarSesionVigente(),os=resolverObraSocialPma(document.getElementById("pma-os-search")?.value||"");
+    const anio=Number(document.getElementById("pma-anio-inicio")?.value||0);if(!os)throw new Error("Seleccioná una Obra Social del maestro.");
+    const inicio=os.inicio_ejercicio||"";if(!inicio)throw new Error("La Obra Social no tiene Inicio ejercicio cargado. Completalo primero en Obras Sociales.");
+    const fechaInicio=fechaInicioEjercicioDesdeDiaMes(inicio,anio),fechaFin=finPeriodoDesdeInicio(inicio,anio),ejercicio=derivarEjercicio(inicio,anio);
+    if(!fechaInicio||!fechaFin||!ejercicio)throw new Error("Revisá el Inicio ejercicio y el Año de inicio.");
+    const registro={obra_social_id:Number(os.id),anio_inicio:anio,ejercicio,inicio_periodo:inicio,fin_periodo:diaMesDesdeFechaIso(fechaFin),
+      fecha_inicio_ejercicio:fechaInicio,fecha_fin_ejercicio:fechaFin,analista:document.getElementById("pma-analista")?.value.trim()||null,
+      numero_ee:document.getElementById("pma-ee")?.value.trim()||null,condicion:document.getElementById("pma-condicion")?.value||null,
+      fecha_ingreso:document.getElementById("pma-fecha-ingreso")?.value||null,res_170_2009:document.getElementById("pma-res-170")?.value||null,
+      numero_disposicion:document.getElementById("pma-disposicion")?.value.trim()||null,fecha_disposicion:document.getElementById("pma-fecha-disposicion")?.value||null,
+      observaciones:document.getElementById("pma-observaciones")?.value.trim()||null};
+    const id=document.getElementById("pma-id")?.value||"";await guardarPmaEnSupabase(registro,id||null,session.access_token);
+    cerrarModal("pma-modal");mostrarToast(id?"Presentación de PMA actualizada.":"Presentación de PMA creada.");await cargarYRenderizarPma();reportePmaCargado=false;
+  }catch(error){setFormMessage("pma-form-message",error.message||"No se pudo guardar la presentación de PMA.");}
+  finally{if(save)save.disabled=false;}
+}
+
 function limpiarFormularioCartilla() {
   document.getElementById("cartilla-form")?.reset();
   document.getElementById("cartilla-id").value = "";
@@ -1932,11 +2084,23 @@ function initBrowser() {
 
   document.getElementById("os-search")?.addEventListener("input", renderObrasSociales);
   document.getElementById("os-estado-filter")?.addEventListener("change", renderObrasSociales);
+  document.getElementById("os-inicio-filter")?.addEventListener("change", renderObrasSociales);
   document.getElementById("rnos-sort")?.addEventListener("click", toggleRnosSort);
   document.getElementById("btn-nueva-os")?.addEventListener("click", () => requiereAutenticacion(abrirModalNueva));
   document.getElementById("os-modal-close")?.addEventListener("click", () => cerrarModal("os-modal"));
   document.getElementById("os-cancelar")?.addEventListener("click", () => cerrarModal("os-modal"));
   document.getElementById("os-form")?.addEventListener("submit", handleOsSubmit);
+
+  document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
+  document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
+  document.getElementById("pma-search")?.addEventListener("input", renderPma);
+  document.getElementById("pma-ejercicio-filter")?.addEventListener("change", renderPma);
+  document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
+  document.getElementById("pma-condicion-filter")?.addEventListener("change", renderPma);
+  document.getElementById("pma-res170-filter")?.addEventListener("change", renderPma);
+  document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
+  document.getElementById("pma-os-search")?.addEventListener("change", recalcularDatosPma);
+  document.getElementById("pma-anio-inicio")?.addEventListener("input", recalcularDatosPma);
 
   document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
   document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
@@ -2026,6 +2190,9 @@ if (typeof module !== "undefined" && module.exports) {
     guardarObraSocialEnSupabase,
     derivarEjercicio,
     fechaInicioEjercicioDesdeDiaMes,
+    finPeriodoDesdeInicio,
+    diaMesDesdeFechaIso,
+    filtrarPmaRegistros,
     calcularCumplimiento90,
     ejercicioEsperadoPeriodoControl,
     generarReporteFaltantesPresentaciones,

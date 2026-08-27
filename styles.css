@@ -943,3 +943,10 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   .report-type-field{min-width:0}
   .report-export-button{width:100%}
 }
+
+.os-toolbar{grid-template-columns:minmax(280px,1fr) 180px 230px}
+.pma-toolbar{grid-template-columns:minmax(280px,1.35fr) repeat(4,minmax(145px,.7fr))}
+.pma-table{min-width:1180px}
+.pma-row{cursor:pointer}.pma-row:hover{background:#f8fafc}
+@media(max-width:1180px){.pma-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.pma-toolbar .search-box{grid-column:1/-1}}
+@media(max-width:760px){.os-toolbar,.pma-toolbar{grid-template-columns:1fr}.pma-toolbar .search-box{grid-column:auto}}

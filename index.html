@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 20</span>
+        <span>Versión 21</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -114,6 +114,11 @@
             <option value="ACTIVA">Activas</option>
             <option value="INACTIVA">Inactivas</option>
           </select>
+          <select id="os-inicio-filter" aria-label="Filtrar por Inicio ejercicio">
+            <option value="TODOS">Inicio ejercicio: Todos</option>
+            <option value="INFORMADO">Inicio ejercicio: Informado</option>
+            <option value="SIN_INICIO">Inicio ejercicio: Sin informar</option>
+          </select>
         </div>
 
         <div class="table-card">
@@ -144,15 +149,39 @@
 
       <section id="pma" class="view">
         <div class="module-actions">
-          <button class="primary" disabled>+ Nueva presentación</button>
+          <button class="primary" id="btn-nueva-pma" type="button">+ Nueva presentación</button>
         </div>
-        <div class="placeholder-grid">
-          <div><strong>Ejercicio</strong><span>Filtro</span></div>
-          <div><strong>Analista</strong><span>Filtro</span></div>
-          <div><strong>Condición</strong><span>Filtro</span></div>
-          <div><strong>Resolución 170/09</strong><span>Filtro</span></div>
+
+        <div class="toolbar pma-toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="pma-search" type="search" placeholder="Buscar por RNOS, Obra Social, EE o disposición..." autocomplete="off">
+          </div>
+          <select id="pma-ejercicio-filter"><option value="TODOS">Ejercicio: Todos</option></select>
+          <select id="pma-analista-filter"><option value="TODOS">Analista: Todos</option></select>
+          <select id="pma-condicion-filter"><option value="TODOS">Condición: Todas</option></select>
+          <select id="pma-res170-filter">
+            <option value="TODOS">Res. 170/09: Todas</option>
+            <option value="SI">SI</option><option value="NO">NO</option><option value="SIN_DATO">Sin dato</option>
+          </select>
         </div>
-        <div class="empty-state"><strong>Módulo preparado.</strong><p>Acá veremos las presentaciones de PMA relacionadas con la Obra Social.</p></div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="pma-count">Cargando presentaciones...</strong>
+            <span id="pma-source-status">Conectando con Supabase...</span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table pma-table">
+              <thead><tr>
+                <th>RNOS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th>
+                <th>Condición</th><th>Analista</th><th>Nº EE</th><th>Nº Disposición</th>
+              </tr></thead>
+              <tbody id="pma-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="pma-empty" hidden>No se encontraron presentaciones de PMA con ese criterio.</div>
+        </div>
       </section>
 
       <section id="cartillas" class="view">
@@ -418,6 +447,49 @@
   </div>
 
 
+
+  <div class="modal-backdrop" id="pma-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pma-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PMA</span><h2 id="pma-modal-title">Nueva presentación</h2></div>
+        <button class="icon-button" type="button" data-close-modal="pma-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="pma-form">
+        <input type="hidden" id="pma-id"><input type="hidden" id="pma-os-id">
+        <div class="form-grid">
+          <label class="full"><span>Obra Social</span>
+            <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Escribí RNOS, sigla o denominación..." autocomplete="off" required>
+            <datalist id="pma-os-list"></datalist>
+          </label>
+          <label><span>Inicio período</span><input id="pma-inicio-periodo" type="text" readonly></label>
+          <label><span>Fin período</span><input id="pma-fin-periodo" type="text" readonly></label>
+          <label><span>Año de inicio</span><input id="pma-anio-inicio" type="number" min="2000" max="2100" required></label>
+          <label><span>Ejercicio</span><input id="pma-ejercicio" type="text" readonly></label>
+          <label><span>Fecha inicio ejercicio</span><input id="pma-fecha-inicio-ejercicio" type="date" readonly></label>
+          <label><span>Fecha fin ejercicio</span><input id="pma-fecha-fin-ejercicio" type="date" readonly></label>
+          <label><span>Analista</span><input id="pma-analista" type="text" list="pma-analistas">
+            <datalist id="pma-analistas"><option value="MR"><option value="MJR"><option value="MIQ"><option value="S/A"></datalist>
+          </label>
+          <label><span>Condición</span><select id="pma-condicion">
+            <option value=""></option><option value="APROBADO">APROBADO</option><option value="EN ESTUDIO">EN ESTUDIO</option>
+            <option value="ARCHIVO">ARCHIVO</option><option value="OBSERVADO">OBSERVADO</option><option value="PROYECTO DE DISPO">PROYECTO DE DISPO</option>
+          </select></label>
+          <label class="full"><span>Nº EE</span><input id="pma-ee" type="text" maxlength="180"></label>
+          <label><span>Fecha de ingreso</span><input id="pma-fecha-ingreso" type="date"></label>
+          <label><span>Res. Nº 170/2009</span><select id="pma-res-170"><option value=""></option><option value="SI">SI</option><option value="NO">NO</option></select></label>
+          <label class="full"><span>Nº Disposición</span><input id="pma-disposicion" type="text" maxlength="300"></label>
+          <label><span>Fecha Disposición</span><input id="pma-fecha-disposicion" type="date"></label>
+          <label class="full"><span>Observaciones PMA</span><textarea id="pma-observaciones" rows="4" maxlength="2000"></textarea></label>
+        </div>
+        <div class="form-message" id="pma-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary" data-close-modal="pma-modal">Cancelar</button>
+          <button type="submit" class="primary" id="pma-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="cartilla-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="cartilla-modal-title">
       <div class="modal-header">
@@ -556,6 +628,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
