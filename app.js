@@ -1144,12 +1144,34 @@ async function cargarYRenderizarCartillas() {
 }
 
 
+function resumenPeriodosSeleccionados(periodos) {
+  const ordenados = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
+  if (!ordenados.length) return "Seleccionar períodos";
+  if (ordenados.length === 1) return String(ordenados[0]);
+  return `${ordenados.length} períodos seleccionados: ${ordenados.join(", ")}`;
+}
+
 function getPeriodosReporteSeleccionados() {
   if (typeof document === "undefined") return [];
   return [...document.querySelectorAll('input[name="report-periodo"]:checked')]
     .map(input => Number(input.value))
     .filter(Number.isInteger)
     .sort((a, b) => a - b);
+}
+
+function actualizarResumenPeriodosReporte() {
+  if (typeof document === "undefined") return;
+  const resumen = document.getElementById("report-period-summary");
+  if (resumen) resumen.textContent = resumenPeriodosSeleccionados(getPeriodosReporteSeleccionados());
+}
+
+function seleccionarTodosPeriodosReporte(seleccionar) {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll('input[name="report-periodo"]').forEach(input => {
+    input.checked = Boolean(seleccionar);
+  });
+  actualizarResumenPeriodosReporte();
+  renderReporteFaltantesCartillas();
 }
 
 function poblarPeriodosReporte() {
@@ -1166,15 +1188,20 @@ function poblarPeriodosReporte() {
       ? seleccionadosAntes.has(periodo)
       : periodo === actual;
 
-    return `<label class="period-chip">
+    return `<label class="period-check">
       <input type="checkbox" name="report-periodo" value="${periodo}" ${checked ? "checked" : ""}>
       <span>${periodo}</span>
     </label>`;
   }).join("");
 
   container.querySelectorAll('input[name="report-periodo"]').forEach(input => {
-    input.addEventListener("change", renderReporteFaltantesCartillas);
+    input.addEventListener("change", () => {
+      actualizarResumenPeriodosReporte();
+      renderReporteFaltantesCartillas();
+    });
   });
+
+  actualizarResumenPeriodosReporte();
 }
 
 function reporteTieneFaltante(row, periodos) {
@@ -1480,6 +1507,8 @@ function initBrowser() {
 
   document.getElementById("report-cartillas-search")?.addEventListener("input", renderReporteFaltantesCartillas);
   document.getElementById("report-solo-faltantes")?.addEventListener("change", renderReporteFaltantesCartillas);
+  document.getElementById("report-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(true));
+  document.getElementById("report-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(false));
 
   document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
@@ -1544,6 +1573,7 @@ if (typeof module !== "undefined" && module.exports) {
     ejercicioEsperadoPeriodoControl,
     generarReporteFaltantesCartillas,
     periodosControlDisponibles,
+    resumenPeriodosSeleccionados,
     buildCartillasUrl,
     cargarCartillasDesdeSupabase,
     parseRecoveryHash,

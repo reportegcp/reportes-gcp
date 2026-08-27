@@ -610,3 +610,86 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   .report-filters{grid-template-columns:1fr}
   .check-option{grid-column:auto}
 }
+
+.period-filter{position:relative}
+.period-select{position:relative}
+.period-select summary{
+  list-style:none;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:0 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  color:var(--navy);
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  user-select:none
+}
+.period-select summary::-webkit-details-marker{display:none}
+.period-select[open] summary{
+  border-color:#98a8bb;
+  box-shadow:0 0 0 3px rgba(29,59,94,.06)
+}
+.period-select-arrow{
+  font-size:12px;
+  transition:transform .15s ease
+}
+.period-select[open] .period-select-arrow{transform:rotate(180deg)}
+.period-select-menu{
+  position:absolute;
+  z-index:30;
+  left:0;
+  right:0;
+  top:calc(100% + 7px);
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow:0 14px 35px rgba(20,43,68,.15);
+  overflow:hidden
+}
+.period-select-actions{
+  display:flex;
+  gap:8px;
+  padding:10px;
+  border-bottom:1px solid var(--line);
+  background:#f8fafc
+}
+.period-select-actions button{
+  border:0;
+  background:transparent;
+  color:var(--navy);
+  padding:4px 7px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer
+}
+.period-select-actions button:hover{text-decoration:underline}
+.period-select .period-options{
+  display:grid;
+  gap:0;
+  max-height:260px;
+  overflow:auto;
+  padding:5px 0
+}
+.period-check{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:8px 12px;
+  cursor:pointer;
+  font-size:12px;
+  color:var(--navy)
+}
+.period-check:hover{background:#f4f7fb}
+.period-check input{
+  width:16px;
+  height:16px;
+  margin:0;
+  accent-color:var(--navy)
+}
+.period-check span{font-weight:750}

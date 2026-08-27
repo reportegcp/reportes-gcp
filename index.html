@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=16">
+  <link rel="stylesheet" href="styles.css?v=17">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 16</span>
+        <span>Versión 17</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -61,7 +61,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V16</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V17</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -215,7 +215,19 @@
           <div class="report-filters">
             <div class="period-filter">
               <strong>Período de control</strong>
-              <div class="period-options" id="report-periodos"></div>
+              <details class="period-select" id="report-period-select">
+                <summary>
+                  <span id="report-period-summary">Seleccionar períodos</span>
+                  <span class="period-select-arrow" aria-hidden="true">▾</span>
+                </summary>
+                <div class="period-select-menu">
+                  <div class="period-select-actions">
+                    <button type="button" id="report-period-all">Todos</button>
+                    <button type="button" id="report-period-clear">Limpiar</button>
+                  </div>
+                  <div class="period-options" id="report-periodos"></div>
+                </div>
+              </details>
             </div>
 
             <div class="search-box report-search">
@@ -422,6 +434,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
