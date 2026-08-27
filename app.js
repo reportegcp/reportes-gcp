@@ -201,6 +201,12 @@ function resumirCartillasPorPeriodo(reporte, periodos) {
   return resumirPresentacionesPorPeriodo(reporte, periodos);
 }
 
+function obtenerResumenPeriodoGrafico(resumen, periodo) {
+  const objetivo = Number(periodo);
+  if (!Number.isInteger(objetivo)) return null;
+  return (resumen || []).find(item => Number(item?.periodo) === objetivo) || null;
+}
+
 function construirMatrizExcelPresentaciones(filas, periodos, metadata = {}) {
   const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
   const matriz = [
@@ -1413,42 +1419,48 @@ function claseEstadoReporte(estado) {
   return "unknown";
 }
 
-function renderGraficoCartillas(resumen) {
+function renderGraficoUnPeriodo(containerId, item) {
   if (typeof document === "undefined") return;
-  const container = document.getElementById("report-cartillas-chart");
+  const container = document.getElementById(containerId);
   if (!container) return;
-
-  if (!Array.isArray(resumen) || !resumen.length) {
-    container.innerHTML = '<div class="chart-empty">Seleccioná al menos un período para ver el gráfico.</div>';
+  if (!item) {
+    container.innerHTML = '<div class="chart-empty">Seleccioná un período para ver el gráfico.</div>';
     return;
   }
 
-  const maximo = Math.max(
-    1,
-    ...resumen.flatMap(item => [item.presentaron, item.noPresentaron, item.sinInicio])
-  );
-  const altoMaximo = 170;
+  const valores = [
+    { etiqueta: "Presentaron", valor: Number(item.presentaron) || 0, clase: "presented" },
+    { etiqueta: "No presentaron", valor: Number(item.noPresentaron) || 0, clase: "missing" },
+    { etiqueta: "Sin Inicio ejercicio", valor: Number(item.sinInicio) || 0, clase: "unknown" }
+  ];
+  const maximo = Math.max(1, ...valores.map(x => x.valor));
 
-  const bar = (valor, clase, etiqueta) => {
-    const alto = valor === 0 ? 2 : Math.max(6, Math.round((valor / maximo) * altoMaximo));
-    return `<div class="chart-bar-wrap" title="${escaparHtml(etiqueta)}: ${valor}">
-      <span class="chart-value">${valor}</span>
-      <div class="chart-bar ${clase}" style="height:${alto}px" aria-label="${escaparHtml(etiqueta)}: ${valor}"></div>
+  container.innerHTML = `<div class="single-chart-title">Período ${item.periodo}</div>
+    <div class="single-chart-bars">
+      ${valores.map(x => `<div class="single-chart-row">
+        <span class="single-chart-label">${escaparHtml(x.etiqueta)}</span>
+        <div class="single-chart-track"><div class="single-chart-fill ${x.clase}" style="width:${Math.max(1, Math.round((x.valor / maximo) * 100))}%"></div></div>
+        <strong>${x.valor}</strong>
+      </div>`).join("")}
     </div>`;
-  };
+}
 
-  container.innerHTML = `<div class="chart-groups">
-    ${resumen.map(item => `
-      <div class="chart-period-group">
-        <div class="chart-bars">
-          ${bar(item.presentaron, "presented", "Presentaron")}
-          ${bar(item.noPresentaron, "missing", "No presentaron")}
-          ${bar(item.sinInicio, "unknown", "Sin Inicio ejercicio")}
-        </div>
-        <strong>${item.periodo}</strong>
-      </div>
-    `).join("")}
-  </div>`;
+function sincronizarPeriodoGrafico(selectId, periodos) {
+  if (typeof document === "undefined") return null;
+  const select = document.getElementById(selectId);
+  if (!select) return null;
+  const validos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a,b) => b-a);
+  const anterior = Number(select.value);
+  select.innerHTML = validos.map(p => `<option value="${p}">${p}</option>`).join("");
+  const elegido = validos.includes(anterior) ? anterior : (validos[0] || null);
+  if (elegido !== null) select.value = String(elegido);
+  return elegido;
+}
+
+function renderGraficoCartillas(resumen) {
+  const periodos = getPeriodosReporteSeleccionados();
+  const elegido = sincronizarPeriodoGrafico("report-cartillas-chart-period", periodos);
+  renderGraficoUnPeriodo("report-cartillas-chart", obtenerResumenPeriodoGrafico(resumen, elegido));
 }
 
 function renderReporteFaltantesCartillas() {
@@ -1482,7 +1494,10 @@ function renderReporteFaltantesCartillas() {
 
   const reporte = generarReporteFaltantesCartillas(obrasSociales, cartillas, periodos);
   const filtrado = obtenerFilasReporteCartillas(reporte, periodos);
-  renderGraficoCartillas(resumirCartillasPorPeriodo(reporte, periodos));
+  const sectorGraficoCartillas = document.getElementById("report-cartillas-chart-sector");
+  if (sectorGraficoCartillas && !sectorGraficoCartillas.hidden) {
+    renderGraficoCartillas(resumirCartillasPorPeriodo(reporte, periodos));
+  }
 
   body.innerHTML = filtrado.map(row => `
     <tr>
@@ -1560,6 +1575,30 @@ function exportarReporteCartillasExcel() {
   window.XLSX.writeFile(libro, `reporte_cartillas_${periodos.join("-")}.xlsx`);
 }
 
+function mostrarGraficoReporte(tipo, mostrar = true) {
+  if (typeof document === "undefined") return;
+  const sector = document.getElementById(tipo === "pma" ? "report-pma-chart-sector" : "report-cartillas-chart-sector");
+  if (!sector) return;
+  sector.hidden = !mostrar;
+  if (!mostrar) return;
+  if (tipo === "pma") renderReporteFaltantesPma();
+  else renderReporteFaltantesCartillas();
+}
+
+function actualizarCabeceraReporte(tipo) {
+  if (typeof document === "undefined") return;
+  const eyebrow = document.getElementById("report-current-eyebrow");
+  const title = document.getElementById("report-current-title");
+  const description = document.getElementById("report-current-description");
+  if (eyebrow) eyebrow.textContent = tipo === "pma" ? "PMA" : "CARTILLAS";
+  if (title) title.textContent = "Obras Sociales sin presentación";
+  if (description) description.textContent = "Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Obra Social.";
+  const cartSearch = document.getElementById("report-cartillas-search-wrap");
+  const pmaSearch = document.getElementById("report-pma-search-wrap");
+  if (cartSearch) cartSearch.hidden = tipo !== "cartillas";
+  if (pmaSearch) pmaSearch.hidden = tipo !== "pma";
+}
+
 function actualizarSelectorReporte() {
   if (typeof document === "undefined") return;
   const select = document.getElementById("report-type-select");
@@ -1568,6 +1607,7 @@ function actualizarSelectorReporte() {
   document.querySelectorAll("[data-report-panel]").forEach(panel => {
     panel.hidden = panel.dataset.reportPanel !== reporteActivo;
   });
+  actualizarCabeceraReporte(reporteActivo);
 
   const exportButton = document.getElementById("btn-export-report");
   if (exportButton) {
@@ -1706,35 +1746,9 @@ function obtenerFilasReportePma(reporte, periodos) {
 }
 
 function renderGraficoPma(resumen) {
-  if (typeof document === "undefined") return;
-  const container = document.getElementById("report-pma-chart");
-  if (!container) return;
-
-  if (!Array.isArray(resumen) || !resumen.length) {
-    container.innerHTML = '<div class="chart-empty">Seleccioná al menos un período para ver el gráfico.</div>';
-    return;
-  }
-
-  const maximo = Math.max(1, ...resumen.flatMap(item => [item.presentaron, item.noPresentaron, item.sinInicio]));
-  const altoMaximo = 170;
-  const bar = (valor, clase, etiqueta) => {
-    const alto = valor === 0 ? 2 : Math.max(6, Math.round((valor / maximo) * altoMaximo));
-    return `<div class="chart-bar-wrap" title="${escaparHtml(etiqueta)}: ${valor}">
-      <span class="chart-value">${valor}</span>
-      <div class="chart-bar ${clase}" style="height:${alto}px" aria-label="${escaparHtml(etiqueta)}: ${valor}"></div>
-    </div>`;
-  };
-
-  container.innerHTML = `<div class="chart-groups">
-    ${resumen.map(item => `<div class="chart-period-group">
-      <div class="chart-bars">
-        ${bar(item.presentaron, "presented", "Presentaron")}
-        ${bar(item.noPresentaron, "missing", "No presentaron")}
-        ${bar(item.sinInicio, "unknown", "Sin Inicio ejercicio")}
-      </div>
-      <strong>${item.periodo}</strong>
-    </div>`).join("")}
-  </div>`;
+  const periodos = getPeriodosPmaSeleccionados();
+  const elegido = sincronizarPeriodoGrafico("report-pma-chart-period", periodos);
+  renderGraficoUnPeriodo("report-pma-chart", obtenerResumenPeriodoGrafico(resumen, elegido));
 }
 
 function renderReporteFaltantesPma() {
@@ -1764,7 +1778,10 @@ function renderReporteFaltantesPma() {
 
   const reporte = generarReporteFaltantesPresentaciones(obrasSociales, pma, periodos);
   const filtrado = obtenerFilasReportePma(reporte, periodos);
-  renderGraficoPma(resumirPresentacionesPorPeriodo(reporte, periodos));
+  const sectorGraficoPma = document.getElementById("report-pma-chart-sector");
+  if (sectorGraficoPma && !sectorGraficoPma.hidden) {
+    renderGraficoPma(resumirPresentacionesPorPeriodo(reporte, periodos));
+  }
 
   body.innerHTML = filtrado.map(row => `<tr>
     <td><strong>${escaparHtml(row.rnos || "—")}</strong></td>
@@ -2122,6 +2139,12 @@ function initBrowser() {
   document.getElementById("report-pma-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosPma(false));
   document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
   document.getElementById("btn-export-report")?.addEventListener("click", exportarReporteActivo);
+  document.getElementById("btn-report-cartillas-chart")?.addEventListener("click", () => mostrarGraficoReporte("cartillas", true));
+  document.getElementById("btn-hide-cartillas-chart")?.addEventListener("click", () => mostrarGraficoReporte("cartillas", false));
+  document.getElementById("btn-report-pma-chart")?.addEventListener("click", () => mostrarGraficoReporte("pma", true));
+  document.getElementById("btn-hide-pma-chart")?.addEventListener("click", () => mostrarGraficoReporte("pma", false));
+  document.getElementById("report-cartillas-chart-period")?.addEventListener("change", renderReporteFaltantesCartillas);
+  document.getElementById("report-pma-chart-period")?.addEventListener("change", renderReporteFaltantesPma);
 
   document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
@@ -2200,6 +2223,7 @@ if (typeof module !== "undefined" && module.exports) {
     simboloEstadoReporte,
     resumirPresentacionesPorPeriodo,
     resumirCartillasPorPeriodo,
+    obtenerResumenPeriodoGrafico,
     construirMatrizExcelPresentaciones,
     construirMatrizExcelCartillas,
     periodosControlDisponibles,
