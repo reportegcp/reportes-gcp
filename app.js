@@ -19,6 +19,9 @@ let cartillas = [];
 let cartillasCargadas = false;
 let reporteCartillasCargado = false;
 let reporteActivo = "cartillas";
+let pma = [];
+let pmaCargadas = false;
+let reportePmaCargado = false;
 
 function getInitialView(hash) {
   const id = String(hash || "").replace(/^#/, "");
@@ -115,10 +118,10 @@ function ejercicioEsperadoPeriodoControl(inicioEjercicio, periodoControl) {
   };
 }
 
-function generarReporteFaltantesCartillas(obras, registrosCartillas, periodos) {
+function generarReporteFaltantesPresentaciones(obras, registrosPresentaciones, periodos) {
   const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
   const indexPresentaciones = new Set(
-    (registrosCartillas || [])
+    (registrosPresentaciones || [])
       .filter(c => c && c.obra_social_id !== null && c.obra_social_id !== undefined && Number.isInteger(Number(c.anio_inicio)))
       .map(c => `${Number(c.obra_social_id)}|${Number(c.anio_inicio)}`)
   );
@@ -127,25 +130,18 @@ function generarReporteFaltantesCartillas(obras, registrosCartillas, periodos) {
     .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
     .map(os => {
       const periodosResultado = {};
-
       for (const periodo of periodosValidos) {
         const esperado = ejercicioEsperadoPeriodoControl(os?.inicio_ejercicio || "", periodo);
-
         if (!esperado) {
-          periodosResultado[periodo] = {
-            estado: "SIN_INICIO",
-            ejercicioEsperado: ""
-          };
+          periodosResultado[periodo] = { estado: "SIN_INICIO", ejercicioEsperado: "" };
           continue;
         }
-
         const presento = indexPresentaciones.has(`${Number(os.id)}|${esperado.anioInicio}`);
         periodosResultado[periodo] = {
           estado: presento ? "PRESENTO" : "NO_PRESENTO",
           ejercicioEsperado: esperado.ejercicio
         };
       }
-
       return {
         id: os.id,
         rnos: os.rnos || "",
@@ -161,41 +157,45 @@ function generarReporteFaltantesCartillas(obras, registrosCartillas, periodos) {
     });
 }
 
+function generarReporteFaltantesCartillas(obras, registrosCartillas, periodos) {
+  return generarReporteFaltantesPresentaciones(obras, registrosCartillas, periodos);
+}
+
 function simboloEstadoReporte(estado) {
   if (estado === "PRESENTO") return "✓";
   if (estado === "NO_PRESENTO") return "✕";
   return "?";
 }
 
-function resumirCartillasPorPeriodo(reporte, periodos) {
+function resumirPresentacionesPorPeriodo(reporte, periodos) {
   const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
-
   return periodosValidos.map(periodo => {
     let presentaron = 0;
     let noPresentaron = 0;
     let sinInicio = 0;
-
     for (const row of reporte || []) {
       const estado = row?.periodos?.[periodo]?.estado;
       if (estado === "PRESENTO") presentaron += 1;
       else if (estado === "NO_PRESENTO") noPresentaron += 1;
       else sinInicio += 1;
     }
-
     return { periodo, presentaron, noPresentaron, sinInicio };
   });
 }
 
-function construirMatrizExcelCartillas(filas, periodos, metadata = {}) {
+function resumirCartillasPorPeriodo(reporte, periodos) {
+  return resumirPresentacionesPorPeriodo(reporte, periodos);
+}
+
+function construirMatrizExcelPresentaciones(filas, periodos, metadata = {}) {
   const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
   const matriz = [
-    ["Reporte", metadata.reporte || "Cartillas - Presentaciones"],
+    ["Reporte", metadata.reporte || "Presentaciones"],
     ["Períodos de control", periodosValidos.join(", ")],
     ["Generado", metadata.generado || ""],
     ["Leyenda", "✓ Presentó | ✕ No presentó | ? Sin Inicio ejercicio"],
     ["RNOS", "Denominación", "Inicio ejercicio", ...periodosValidos.map(String)]
   ];
-
   for (const row of filas || []) {
     matriz.push([
       String(row?.rnos || ""),
@@ -204,8 +204,14 @@ function construirMatrizExcelCartillas(filas, periodos, metadata = {}) {
       ...periodosValidos.map(periodo => simboloEstadoReporte(row?.periodos?.[periodo]?.estado))
     ]);
   }
-
   return matriz;
+}
+
+function construirMatrizExcelCartillas(filas, periodos, metadata = {}) {
+  return construirMatrizExcelPresentaciones(filas, periodos, {
+    reporte: metadata.reporte || "Cartillas - Presentaciones",
+    generado: metadata.generado || ""
+  });
 }
 
 function periodosControlDisponibles(registrosCartillas, anioActual = new Date().getFullYear()) {
@@ -1107,6 +1113,38 @@ async function cargarCartillasDesdeSupabase(fetchImpl = fetch) {
   return all;
 }
 
+function buildPmaUrl(offset = 0, limit = 1000) {
+  const fields = [
+    "id","obra_social_id","anio_inicio","ejercicio","inicio_periodo","fin_periodo","fecha_inicio_ejercicio","fecha_fin_ejercicio",
+    "analista","numero_ee","condicion","fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
+    "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio)"
+  ].join(",");
+  const params = new URLSearchParams();
+  params.set("select", fields);
+  params.set("order", "fecha_ingreso.desc.nullslast,id.desc");
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  return `${SUPABASE_URL}/rest/v1/pma?${params.toString()}`;
+}
+
+async function cargarPmaDesdeSupabase(fetchImpl = fetch) {
+  const pageSize = 1000;
+  const all = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await fetchConTimeout(buildPmaUrl(offset, pageSize), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+    }
+    const rows = await response.json();
+    const page = Array.isArray(rows) ? rows : [];
+    all.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return all;
+}
+
 function cumplimientoCartillaRegistro(row) {
   return calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
 }
@@ -1455,12 +1493,12 @@ function actualizarSelectorReporte() {
 
   const exportButton = document.getElementById("btn-export-report");
   if (exportButton) {
-    const disponible = reporteActivo === "cartillas";
-    exportButton.disabled = !disponible;
-    exportButton.title = disponible ? "Descargar el reporte actual en Excel" : "La exportación se habilitará cuando incorporemos este reporte";
+    exportButton.disabled = false;
+    exportButton.title = "Descargar el reporte actual en Excel";
   }
 
   if (reporteActivo === "cartillas") cargarYRenderizarReporteCartillas();
+  if (reporteActivo === "pma") cargarYRenderizarReportePma();
 }
 
 function cargarReporteActivo() {
@@ -1471,6 +1509,10 @@ function cargarReporteActivo() {
 function exportarReporteActivo() {
   if (reporteActivo === "cartillas") {
     exportarReporteCartillasExcel();
+    return;
+  }
+  if (reporteActivo === "pma") {
+    exportarReportePmaExcel();
     return;
   }
   mostrarToast("Este reporte todavía no está disponible.", "error");
@@ -1519,6 +1561,224 @@ async function cargarYRenderizarReporteCartillas() {
       empty.textContent = error?.message || "No se pudieron cargar los datos del reporte.";
     }
   }
+}
+
+
+function getPeriodosPmaSeleccionados() {
+  if (typeof document === "undefined") return [];
+  return [...document.querySelectorAll('input[name="report-pma-periodo"]:checked')]
+    .map(input => Number(input.value))
+    .filter(Number.isInteger)
+    .sort((a, b) => a - b);
+}
+
+function actualizarResumenPeriodosPma() {
+  if (typeof document === "undefined") return;
+  const resumen = document.getElementById("report-pma-period-summary");
+  const disponibles = [...document.querySelectorAll('input[name="report-pma-periodo"]')]
+    .map(input => Number(input.value))
+    .filter(Number.isInteger);
+  if (resumen) resumen.textContent = resumenPeriodosSeleccionados(getPeriodosPmaSeleccionados(), disponibles);
+}
+
+function seleccionarTodosPeriodosPma(seleccionar) {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll('input[name="report-pma-periodo"]').forEach(input => {
+    input.checked = Boolean(seleccionar);
+  });
+  actualizarResumenPeriodosPma();
+  renderReporteFaltantesPma();
+}
+
+function poblarPeriodosPma() {
+  if (typeof document === "undefined") return;
+  const container = document.getElementById("report-pma-periodos");
+  if (!container) return;
+
+  const seleccionadosAntes = new Set(getPeriodosPmaSeleccionados());
+  const periodos = periodosControlDisponibles(pma);
+  const actual = new Date().getFullYear();
+
+  container.innerHTML = periodos.map(periodo => {
+    const checked = seleccionadosAntes.size ? seleccionadosAntes.has(periodo) : periodo === actual;
+    return `<label class="period-check">
+      <input type="checkbox" name="report-pma-periodo" value="${periodo}" ${checked ? "checked" : ""}>
+      <span>${periodo}</span>
+    </label>`;
+  }).join("");
+
+  container.querySelectorAll('input[name="report-pma-periodo"]').forEach(input => {
+    input.addEventListener("change", () => {
+      actualizarResumenPeriodosPma();
+      renderReporteFaltantesPma();
+    });
+  });
+  actualizarResumenPeriodosPma();
+}
+
+function obtenerFilasReportePma(reporte, periodos) {
+  if (typeof document === "undefined") return [...(reporte || [])];
+  const termino = normalizar(document.getElementById("report-pma-search")?.value || "");
+  const soloFaltantes = Boolean(document.getElementById("report-pma-solo-faltantes")?.checked);
+  return (reporte || []).filter(row => {
+    if (soloFaltantes && !reporteTieneFaltante(row, periodos)) return false;
+    if (!termino) return true;
+    return normalizar(`${row.rnos} ${row.denominacion}`).includes(termino);
+  });
+}
+
+function renderGraficoPma(resumen) {
+  if (typeof document === "undefined") return;
+  const container = document.getElementById("report-pma-chart");
+  if (!container) return;
+
+  if (!Array.isArray(resumen) || !resumen.length) {
+    container.innerHTML = '<div class="chart-empty">Seleccioná al menos un período para ver el gráfico.</div>';
+    return;
+  }
+
+  const maximo = Math.max(1, ...resumen.flatMap(item => [item.presentaron, item.noPresentaron, item.sinInicio]));
+  const altoMaximo = 170;
+  const bar = (valor, clase, etiqueta) => {
+    const alto = valor === 0 ? 2 : Math.max(6, Math.round((valor / maximo) * altoMaximo));
+    return `<div class="chart-bar-wrap" title="${escaparHtml(etiqueta)}: ${valor}">
+      <span class="chart-value">${valor}</span>
+      <div class="chart-bar ${clase}" style="height:${alto}px" aria-label="${escaparHtml(etiqueta)}: ${valor}"></div>
+    </div>`;
+  };
+
+  container.innerHTML = `<div class="chart-groups">
+    ${resumen.map(item => `<div class="chart-period-group">
+      <div class="chart-bars">
+        ${bar(item.presentaron, "presented", "Presentaron")}
+        ${bar(item.noPresentaron, "missing", "No presentaron")}
+        ${bar(item.sinInicio, "unknown", "Sin Inicio ejercicio")}
+      </div>
+      <strong>${item.periodo}</strong>
+    </div>`).join("")}
+  </div>`;
+}
+
+function renderReporteFaltantesPma() {
+  if (typeof document === "undefined") return;
+  const head = document.getElementById("report-pma-head");
+  const body = document.getElementById("report-pma-body");
+  const count = document.getElementById("report-pma-count");
+  const empty = document.getElementById("report-pma-empty");
+  if (!head || !body) return;
+
+  const periodos = getPeriodosPmaSeleccionados();
+  head.innerHTML = `<tr>
+    <th>RNOS</th><th>Denominación</th><th>Inicio ejercicio</th>
+    ${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}
+  </tr>`;
+
+  if (!periodos.length) {
+    body.innerHTML = "";
+    renderGraficoPma([]);
+    if (count) count.textContent = "Seleccioná al menos un período";
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = "Seleccioná uno o más períodos de control para generar el reporte.";
+    }
+    return;
+  }
+
+  const reporte = generarReporteFaltantesPresentaciones(obrasSociales, pma, periodos);
+  const filtrado = obtenerFilasReportePma(reporte, periodos);
+  renderGraficoPma(resumirPresentacionesPorPeriodo(reporte, periodos));
+
+  body.innerHTML = filtrado.map(row => `<tr>
+    <td><strong>${escaparHtml(row.rnos || "—")}</strong></td>
+    <td class="denominacion-cell">${escaparHtml(row.denominacion || "—")}</td>
+    <td class="date-cell">${escaparHtml(row.inicioEjercicio || "—")}</td>
+    ${periodos.map(periodo => {
+      const resultado = row.periodos[periodo] || { estado: "SIN_INICIO", ejercicioEsperado: "" };
+      const estado = resultado.estado || "SIN_INICIO";
+      const simbolo = simboloEstadoReporte(estado);
+      const etiqueta = etiquetaEstadoReporte(estado);
+      const clase = claseEstadoReporte(estado);
+      const detalle = resultado.ejercicioEsperado ? ` · Ejercicio esperado: ${resultado.ejercicioEsperado}` : "";
+      return `<td class="report-status-cell"><span class="report-icon ${clase}" title="${escaparHtml(etiqueta + detalle)}" aria-label="${escaparHtml(etiqueta + detalle)}">${simbolo}</span></td>`;
+    }).join("")}
+  </tr>`).join("");
+
+  const faltantes = reporte.filter(row => reporteTieneFaltante(row, periodos)).length;
+  const sinInicio = reporte.filter(row => periodos.some(periodo => row.periodos[periodo]?.estado === "SIN_INICIO")).length;
+  if (count) count.textContent = `${filtrado.length} ${filtrado.length === 1 ? "Obra Social" : "Obras Sociales"} mostradas`;
+  const status = document.getElementById("report-pma-status");
+  if (status) status.textContent = `${faltantes} con faltantes · ${sinInicio} sin Inicio ejercicio · ${reporte.length} OS activas evaluadas`;
+  if (empty) {
+    empty.hidden = filtrado.length !== 0;
+    empty.textContent = "No hay Obras Sociales para mostrar con los filtros seleccionados.";
+  }
+}
+
+function exportarReportePmaExcel() {
+  if (typeof document === "undefined") return;
+  const periodos = getPeriodosPmaSeleccionados();
+  if (!periodos.length) {
+    mostrarToast("Seleccioná al menos un período para exportar.", "error");
+    return;
+  }
+  if (!window.XLSX) {
+    mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error");
+    return;
+  }
+
+  const reporte = generarReporteFaltantesPresentaciones(obrasSociales, pma, periodos);
+  const filas = obtenerFilasReportePma(reporte, periodos);
+  const matriz = construirMatrizExcelPresentaciones(filas, periodos, {
+    reporte: "PMA - Presentaciones",
+    generado: formatearFechaHoraExportacion()
+  });
+  const hoja = window.XLSX.utils.aoa_to_sheet(matriz);
+  hoja["!cols"] = [{ wch: 12 }, { wch: 55 }, { wch: 16 }, ...periodos.map(() => ({ wch: 12 }))];
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "PMA");
+  window.XLSX.writeFile(libro, `reporte_pma_${periodos.join("-")}.xlsx`);
+}
+
+async function cargarYRenderizarReportePma() {
+  if (typeof document === "undefined") return;
+  const status = document.getElementById("report-pma-status");
+  const count = document.getElementById("report-pma-count");
+
+  if (reportePmaCargado && obrasSociales.length && pmaCargadas) {
+    renderReporteFaltantesPma();
+    return;
+  }
+
+  if (status) status.textContent = "Cargando Obras Sociales y PMA...";
+  if (count) count.textContent = "Preparando reporte...";
+
+  try {
+    if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
+    if (!pmaCargadas) {
+      pma = await cargarPmaDesdeSupabase();
+      pmaCargadas = true;
+    }
+    reportePmaCargado = true;
+    poblarPeriodosPma();
+    renderReporteFaltantesPma();
+    if (document.getElementById("report-pma-status")?.textContent === "Cargando Obras Sociales y PMA...") {
+      document.getElementById("report-pma-status").textContent = "Reporte listo";
+    }
+  } catch (error) {
+    reportePmaCargado = false;
+    renderGraficoPma([]);
+    if (count) count.textContent = "No se pudo generar el reporte";
+    if (status) status.textContent = "Error de conexión con Supabase";
+    const empty = document.getElementById("report-pma-empty");
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = error?.message || "No se pudieron cargar los datos del reporte.";
+    }
+  }
+}
+
+function debeCerrarSelectorPeriodoPorClick(selector, target) {
+  return Boolean(selector?.open && target && typeof selector.contains === "function" && !selector.contains(target));
 }
 
 function limpiarFormularioCartilla() {
@@ -1692,6 +1952,10 @@ function initBrowser() {
   document.getElementById("report-solo-faltantes")?.addEventListener("change", renderReporteFaltantesCartillas);
   document.getElementById("report-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(true));
   document.getElementById("report-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(false));
+  document.getElementById("report-pma-search")?.addEventListener("input", renderReporteFaltantesPma);
+  document.getElementById("report-pma-solo-faltantes")?.addEventListener("change", renderReporteFaltantesPma);
+  document.getElementById("report-pma-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosPma(true));
+  document.getElementById("report-pma-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosPma(false));
   document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
   document.getElementById("btn-export-report")?.addEventListener("click", exportarReporteActivo);
 
@@ -1717,8 +1981,16 @@ function initBrowser() {
   document.querySelectorAll(".modal-backdrop").forEach(modal => {
     modal.addEventListener("click", event => { if (event.target === modal) cerrarModal(modal.id); });
   });
+
+  document.addEventListener("click", event => {
+    document.querySelectorAll(".period-select[open]").forEach(selector => {
+      if (debeCerrarSelectorPeriodoPorClick(selector, event.target)) selector.open = false;
+    });
+  });
+
   document.addEventListener("keydown", event => {
     if (event.key !== "Escape") return;
+    document.querySelectorAll(".period-select[open]").forEach(selector => { selector.open = false; });
     const abierto = [...document.querySelectorAll(".modal-backdrop")].reverse().find(m => !m.hidden);
     if (abierto) cerrarModal(abierto.id);
   });
@@ -1756,14 +2028,20 @@ if (typeof module !== "undefined" && module.exports) {
     fechaInicioEjercicioDesdeDiaMes,
     calcularCumplimiento90,
     ejercicioEsperadoPeriodoControl,
+    generarReporteFaltantesPresentaciones,
     generarReporteFaltantesCartillas,
     simboloEstadoReporte,
+    resumirPresentacionesPorPeriodo,
     resumirCartillasPorPeriodo,
+    construirMatrizExcelPresentaciones,
     construirMatrizExcelCartillas,
     periodosControlDisponibles,
     resumenPeriodosSeleccionados,
     buildCartillasUrl,
     cargarCartillasDesdeSupabase,
+    buildPmaUrl,
+    cargarPmaDesdeSupabase,
+    debeCerrarSelectorPeriodoPorClick,
     parseRecoveryHash,
     normalizarSesion
   };
