@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=17">
+  <link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 17</span>
+        <span>Versión 18</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -61,7 +61,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V17</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V18</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -214,7 +214,17 @@
 
           <div class="report-filters">
             <div class="period-filter">
-              <strong>Período de control</strong>
+              <div class="period-filter-label">
+                <strong>Período de control</strong>
+                <details class="report-help">
+                  <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
+                  <div class="report-help-popover">
+                    <strong>¿Cómo se determina el período?</strong>
+                    <p>El sistema usa el <b>Inicio ejercicio</b> de cada Obra Social para saber qué Cartilla debe buscar.</p>
+                    <p>Ejemplo: para el período de control <b>2026</b>, una OS con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
+                  </div>
+                </details>
+              </div>
               <details class="period-select" id="report-period-select">
                 <summary>
                   <span id="report-period-summary">Seleccionar períodos</span>
@@ -239,11 +249,6 @@
               <input id="report-solo-faltantes" type="checkbox" checked>
               <span>Mostrar sólo OS con faltantes</span>
             </label>
-          </div>
-
-          <div class="report-note">
-            <strong>Equivalencia automática:</strong>
-            <span>para el período 2026, una OS con inicio 01-01 busca ejercicio 2026; una OS con inicio distinto de 01-01 busca 2025/26.</span>
           </div>
 
           <div class="table-card">
@@ -434,6 +439,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=17"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

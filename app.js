@@ -1144,11 +1144,16 @@ async function cargarYRenderizarCartillas() {
 }
 
 
-function resumenPeriodosSeleccionados(periodos) {
-  const ordenados = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
-  if (!ordenados.length) return "Seleccionar períodos";
-  if (ordenados.length === 1) return String(ordenados[0]);
-  return `${ordenados.length} períodos seleccionados: ${ordenados.join(", ")}`;
+function resumenPeriodosSeleccionados(periodosSeleccionados, periodosDisponibles = []) {
+  const seleccionados = [...new Set((periodosSeleccionados || []).map(Number).filter(Number.isInteger))];
+  const disponibles = [...new Set((periodosDisponibles || []).map(Number).filter(Number.isInteger))];
+
+  if (!seleccionados.length) return "Seleccionar períodos";
+  if (disponibles.length && seleccionados.length === disponibles.length) {
+    return "Todos los períodos seleccionados";
+  }
+  if (seleccionados.length === 1) return "1 período seleccionado";
+  return `${seleccionados.length} períodos seleccionados`;
 }
 
 function getPeriodosReporteSeleccionados() {
@@ -1162,7 +1167,16 @@ function getPeriodosReporteSeleccionados() {
 function actualizarResumenPeriodosReporte() {
   if (typeof document === "undefined") return;
   const resumen = document.getElementById("report-period-summary");
-  if (resumen) resumen.textContent = resumenPeriodosSeleccionados(getPeriodosReporteSeleccionados());
+  const disponibles = [...document.querySelectorAll('input[name="report-periodo"]')]
+    .map(input => Number(input.value))
+    .filter(Number.isInteger);
+
+  if (resumen) {
+    resumen.textContent = resumenPeriodosSeleccionados(
+      getPeriodosReporteSeleccionados(),
+      disponibles
+    );
+  }
 }
 
 function seleccionarTodosPeriodosReporte(seleccionar) {
