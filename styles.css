@@ -488,3 +488,33 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .deadline-card.neutral{background:#f7f9fb;color:var(--text)}
 .neutral-badge{background:#edf1f5;color:#5e6876}
 @media(max-width:760px){.cartillas-toolbar{grid-template-columns:1fr}.deadline-card{grid-template-columns:1fr}.deadline-card p{grid-column:auto}}
+
+.auth-session{
+  display:flex;
+  align-items:center;
+  gap:12px
+}
+.auth-session[hidden]{display:none}
+.auth-identity{
+  display:grid;
+  gap:2px;
+  min-width:130px;
+  text-align:right
+}
+.auth-user-name{
+  font-size:13px;
+  line-height:1.2;
+  font-weight:800;
+  color:var(--navy);
+  white-space:nowrap
+}
+.auth-user-profile{
+  font-size:11px;
+  line-height:1.2;
+  color:var(--muted);
+  font-weight:650;
+  white-space:nowrap
+}
+@media(max-width:760px){
+  .auth-identity{text-align:left;min-width:0}
+}

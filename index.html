@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
   <div class="app-shell">
@@ -44,8 +44,10 @@
           <div class="auth-area">
             <button class="secondary auth-login-button" id="btn-login" type="button">Ingresar</button>
             <div class="auth-session" id="auth-session" hidden>
-              <span class="auth-user" id="auth-user-label"></span>
-              <button class="text-button" id="btn-change-password" type="button">Cambiar contraseña</button>
+              <div class="auth-identity">
+                <span class="auth-user-name" id="auth-user-name"></span>
+                <span class="auth-user-profile" id="auth-user-profile"></span>
+              </div>
               <button class="secondary" id="btn-logout" type="button">Cerrar sesión</button>
             </div>
           </div>
@@ -59,7 +61,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V14</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V15</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -380,6 +382,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>

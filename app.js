@@ -262,6 +262,21 @@ async function authSignIn(email, password, fetchImpl = fetch) {
   return normalizarSesion(session);
 }
 
+async function authGetUser(accessToken, fetchImpl = fetch) {
+  const response = await fetchConTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+    method: "GET",
+    headers: authHeaders(accessToken),
+    cache: "no-store"
+  }, 10000, fetchImpl);
+
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(detalle || "No se pudieron obtener los datos del usuario.");
+  }
+
+  return response.json();
+}
+
 async function authRefresh(refreshToken, fetchImpl = fetch) {
   const url = `${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`;
   const response = await fetchConTimeout(url, {
@@ -345,8 +360,23 @@ function normalizarSesion(session) {
   };
 }
 
-function getSessionEmail(session) {
-  return session?.user?.email || decodeJwtPayload(session?.access_token).email || "Usuario autorizado";
+function getSessionIdentity(session) {
+  const payload = decodeJwtPayload(session?.access_token);
+  const user = session?.user || {};
+  const userMetadata = user.user_metadata || payload.user_metadata || {};
+  const appMetadata = user.app_metadata || payload.app_metadata || {};
+
+  return {
+    nombre:
+      userMetadata.nombre ||
+      userMetadata.full_name ||
+      userMetadata.name ||
+      "Usuario autorizado",
+    perfil:
+      appMetadata.perfil ||
+      appMetadata.role_name ||
+      "Perfil no definido"
+  };
 }
 
 function guardarSesion(session) {
@@ -645,13 +675,40 @@ function actualizarAuthUI() {
   if (typeof document === "undefined") return;
   const login = document.getElementById("btn-login");
   const sessionBox = document.getElementById("auth-session");
-  const label = document.getElementById("auth-user-label");
+  const nombre = document.getElementById("auth-user-name");
+  const perfil = document.getElementById("auth-user-profile");
 
   const conectado = Boolean(authSession?.access_token);
   if (login) login.hidden = conectado;
   if (sessionBox) sessionBox.hidden = !conectado;
-  if (label) label.textContent = conectado ? getSessionEmail(authSession) : "";
+
+  if (conectado) {
+    const identidad = getSessionIdentity(authSession);
+    if (nombre) nombre.textContent = identidad.nombre;
+    if (perfil) perfil.textContent = identidad.perfil;
+  } else {
+    if (nombre) nombre.textContent = "";
+    if (perfil) perfil.textContent = "";
+  }
+
   renderObrasSociales();
+}
+
+async function refrescarDatosUsuarioSesion() {
+  if (!authSession?.access_token) return authSession;
+
+  try {
+    const user = await authGetUser(authSession.access_token);
+    authSession = normalizarSesion({ ...authSession, user });
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(authSession));
+    }
+    actualizarAuthUI();
+  } catch (error) {
+    console.warn("No se pudieron refrescar los datos del usuario:", error);
+  }
+
+  return authSession;
 }
 
 function mostrarToast(texto, tipo = "success") {
@@ -679,6 +736,7 @@ async function handleLoginSubmit(event) {
   try {
     if (submit) submit.disabled = true;
     guardarSesion(await authSignIn(email, password));
+    await refrescarDatosUsuarioSesion();
     cerrarModal("login-modal");
     document.getElementById("login-form")?.reset();
     mostrarToast("Sesión iniciada.");
@@ -1121,14 +1179,20 @@ function procesarRecuperacionDesdeUrl() {
 
 async function restaurarSesion() {
   authSession = cargarSesionGuardada();
+
   if (authSession && sessionNecesitaRefresh(authSession) && authSession.refresh_token) {
     try {
       guardarSesion(await authRefresh(authSession.refresh_token));
     } catch (_) {
       guardarSesion(null);
+      return;
     }
   } else {
     actualizarAuthUI();
+  }
+
+  if (authSession?.access_token) {
+    await refrescarDatosUsuarioSesion();
   }
 }
 
@@ -1161,7 +1225,6 @@ function initBrowser() {
   document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
   document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
-  document.getElementById("btn-change-password")?.addEventListener("click", () => requiereAutenticacion(() => abrirCambioPassword(false)));
   document.getElementById("btn-forgot-password")?.addEventListener("click", () => {
     const email = document.getElementById("auth-user")?.value.trim() || "";
     cerrarModal("login-modal");
