@@ -1086,3 +1086,27 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   .login-brand h1{font-size:23px}.login-actions{align-items:stretch;flex-direction:column-reverse}
   .login-actions .primary{width:100%}.login-actions .text-button{align-self:flex-start}
 }
+
+/* V29: filtros múltiples, historial y ayuda contextual */
+.module-actions{gap:10px;align-items:center}
+.exercise-multi-select{min-width:190px}
+.exercise-multi-select > summary{height:52px;background:#fff}
+.pma-toolbar{grid-template-columns:minmax(280px,1.45fr) minmax(185px,.75fr) minmax(170px,.7fr) minmax(180px,.75fr)}
+.cartillas-toolbar{grid-template-columns:minmax(300px,1fr) minmax(190px,.65fr) minmax(190px,.65fr)}
+.report-agent-row{cursor:pointer}
+.report-agent-row:hover td{background:#f5f8fc}
+.history-modal{max-width:1120px}
+.history-agent-meta{margin:7px 0 0;color:var(--muted);line-height:1.45}
+.history-summary{padding:0 0 14px;font-size:15px}
+.history-table th,.history-table td{white-space:nowrap}
+.title-with-help{display:flex;align-items:center;gap:10px}
+.section-help{position:relative;display:inline-flex}
+.section-help summary{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1px solid #c7d2e2;background:#fff;color:#183153;font-weight:800;cursor:pointer;list-style:none;box-shadow:0 4px 14px rgba(24,49,83,.08)}
+.section-help summary::-webkit-details-marker{display:none}
+.section-help[open] summary{background:#183153;color:#fff;border-color:#183153}
+.section-help-popover{position:absolute;z-index:70;top:36px;left:0;width:min(390px,calc(100vw - 52px));padding:16px 18px;border:1px solid #d8e0eb;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(24,49,83,.18);font-size:14px;line-height:1.5;color:#34465f}
+.section-help-popover strong{display:block;color:#183153;margin-bottom:6px;font-size:15px}
+.section-help-popover ul{margin:8px 0 0;padding-left:19px}
+.section-help-popover li+li{margin-top:5px}
+@media(max-width:1180px){.pma-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.pma-toolbar .search-box{grid-column:1/-1}}
+@media(max-width:760px){.pma-toolbar,.cartillas-toolbar{grid-template-columns:1fr}.exercise-multi-select{min-width:0}.section-help-popover{left:auto;right:-20px}}

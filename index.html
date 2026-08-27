@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=28">
+  <link rel="stylesheet" href="styles.css?v=29">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 28</span>
+        <span>Versión 29</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -72,7 +72,13 @@
     <main class="main">
       <header class="topbar" id="topbar">
         <div class="topbar-copy" id="topbar-copy">
-          <h1 id="page-title"></h1>
+          <div class="title-with-help">
+            <h1 id="page-title"></h1>
+            <details class="section-help" id="section-help">
+              <summary aria-label="Abrir manual de esta sección" title="Manual de esta sección">?</summary>
+              <div class="section-help-popover" id="section-help-content"></div>
+            </details>
+          </div>
           <p id="page-subtitle"></p>
         </div>
 
@@ -98,14 +104,14 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V19</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V29</strong><span>Presentaciones y reportes</span></div>
         </div>
 
         <div class="cards">
           <article class="card">
             <span class="card-kicker">MAESTRO</span>
             <h3>Agentes de Seguro</h3>
-            <p>Base única de RNOS, denominación, sigla y estado.</p>
+            <p>Base única de RNAS, denominación, sigla y estado.</p>
             <button data-go="obras-sociales">Abrir módulo</button>
           </article>
           <article class="card">
@@ -117,7 +123,7 @@
           <article class="card">
             <span class="card-kicker">SEGUIMIENTO</span>
             <h3>Cartillas</h3>
-            <p>Registro y consulta de presentaciones de cartillas por Obra Social.</p>
+            <p>Registro y consulta de presentaciones de cartillas por Agente de Seguro.</p>
             <button data-go="cartillas">Abrir módulo</button>
           </article>
           <article class="card">
@@ -130,7 +136,7 @@
 
         <div class="roadmap">
           <div><span class="step done">1</span><div><strong>Estructura web</strong><small>Publicada</small></div></div>
-          <div><span class="step done">2</span><div><strong>Base Supabase</strong><small>Obras Sociales conectadas</small></div></div>
+          <div><span class="step done">2</span><div><strong>Base Supabase</strong><small>Agentes de Seguro conectadas</small></div></div>
           <div><span class="step done">3</span><div><strong>Acceso</strong><small>Login y edición segura</small></div></div>
           <div><span class="step">4</span><div><strong>Reportes</strong><small>Indicadores y comparaciones</small></div></div>
         </div>
@@ -144,7 +150,7 @@
         <div class="toolbar os-toolbar">
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="os-search" type="search" placeholder="Buscar por RNOS, denominación o sigla..." autocomplete="off">
+            <input id="os-search" type="search" placeholder="Buscar por RNAS, denominación o sigla..." autocomplete="off">
           </div>
           <select id="os-estado-filter" aria-label="Filtrar por estado">
             <option value="TODAS">Estado: Todas</option>
@@ -160,7 +166,7 @@
 
         <div class="table-card">
           <div class="table-meta">
-            <strong id="os-count">Cargando Obras Sociales...</strong>
+            <strong id="os-count">Cargando Agentes de Seguro...</strong>
             <span>Clic en una fila para ver o editar todos los datos</span>
           </div>
           <div class="table-scroll">
@@ -168,8 +174,8 @@
               <thead>
                 <tr>
                   <th>
-                    <button class="sort-button" id="rnos-sort" type="button" title="Ordenar RNOS de menor a mayor">
-                      RNOS <span id="rnos-sort-arrow" aria-hidden="true">↑</span>
+                    <button class="sort-button" id="rnos-sort" type="button" title="Ordenar RNAS de menor a mayor">
+                      RNAS <span id="rnos-sort-arrow" aria-hidden="true">↑</span>
                     </button>
                   </th>
                   <th>Denominación</th>
@@ -180,27 +186,30 @@
               <tbody id="os-table-body"></tbody>
             </table>
           </div>
-          <div class="table-empty" id="os-empty" hidden>No se encontraron Obras Sociales con ese criterio.</div>
+          <div class="table-empty" id="os-empty" hidden>No se encontraron Agentes de Seguro con ese criterio.</div>
         </div>
       </section>
 
       <section id="pma" class="view">
         <div class="module-actions">
+          <button class="secondary" id="btn-export-pma" type="button">Exportar Excel</button>
           <button class="primary" id="btn-nueva-pma" type="button">+ Nueva presentación</button>
         </div>
 
         <div class="toolbar pma-toolbar">
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="pma-search" type="search" placeholder="Buscar por RNOS, Obra Social, EE o disposición..." autocomplete="off">
+            <input id="pma-search" type="search" placeholder="Buscar por RNAS, Agente de Seguro, EE o disposición..." autocomplete="off">
           </div>
-          <select id="pma-ejercicio-filter"><option value="TODOS">Ejercicio: Todos</option></select>
+          <details class="period-select exercise-multi-select" id="pma-ejercicio-select">
+            <summary><span id="pma-ejercicio-summary">Ejercicio: Todos</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="pma-ejercicio-all">Todos</button><button type="button" id="pma-ejercicio-clear">Limpiar</button></div>
+              <div class="period-options" id="pma-ejercicio-options"></div>
+            </div>
+          </details>
           <select id="pma-analista-filter"><option value="TODOS">Analista: Todos</option></select>
           <select id="pma-condicion-filter"><option value="TODOS">Condición: Todas</option></select>
-          <select id="pma-res170-filter">
-            <option value="TODOS">Res. 170/09: Todas</option>
-            <option value="SI">SI</option><option value="NO">NO</option><option value="SIN_DATO">Sin dato</option>
-          </select>
         </div>
 
         <div class="table-card">
@@ -210,7 +219,7 @@
           <div class="table-scroll">
             <table class="data-table pma-table">
               <thead><tr>
-                <th>RNOS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th>
+                <th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th>
                 <th>Condición</th><th>Analista</th><th>Nº EE</th><th>Nº Disposición</th>
               </tr></thead>
               <tbody id="pma-table-body"></tbody>
@@ -222,22 +231,26 @@
 
       <section id="cartillas" class="view">
         <div class="module-actions">
+          <button class="secondary" id="btn-export-cartillas" type="button">Exportar Excel</button>
           <button class="primary" id="btn-nueva-cartilla" type="button">+ Nueva presentación</button>
         </div>
 
         <div class="toolbar cartillas-toolbar">
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="cartilla-search" type="search" placeholder="Buscar por RNOS, Obra Social, EE o disposición..." autocomplete="off">
+            <input id="cartilla-search" type="search" placeholder="Buscar por RNAS, Agente de Seguro, EE o disposición..." autocomplete="off">
           </div>
-          <select id="cartilla-ejercicio-filter" aria-label="Filtrar por ejercicio">
-            <option value="TODOS">Ejercicio: Todos</option>
-          </select>
+          <details class="period-select exercise-multi-select" id="cartilla-ejercicio-select">
+            <summary><span id="cartilla-ejercicio-summary">Ejercicio: Todos</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="cartilla-ejercicio-all">Todos</button><button type="button" id="cartilla-ejercicio-clear">Limpiar</button></div>
+              <div class="period-options" id="cartilla-ejercicio-options"></div>
+            </div>
+          </details>
           <select id="cartilla-plazo-filter" aria-label="Filtrar por cumplimiento">
             <option value="TODOS">Plazo: Todos</option>
             <option value="EN_TERMINO">En término</option>
             <option value="FUERA_DE_TERMINO">Fuera de término</option>
-            <option value="SIN_DATOS">Sin datos</option>
           </select>
         </div>
 
@@ -249,7 +262,7 @@
             <table class="data-table cartillas-table">
               <thead>
                 <tr>
-                  <th>RNOS</th>
+                  <th>RNAS</th>
                   <th>Denominación</th>
                   <th>Ejercicio</th>
                   <th>Ingreso</th>
@@ -270,8 +283,8 @@
         <div class="report-workspace">
           <div class="report-current-heading">
             <span class="eyebrow" id="report-current-eyebrow">CARTILLAS</span>
-            <h2 id="report-current-title">Obras Sociales sin presentación</h2>
-            <p id="report-current-description">Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Obra Social.</p>
+            <h2 id="report-current-title">Agentes de Seguro sin presentación</h2>
+            <p id="report-current-description">Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Agente de Seguro.</p>
           </div>
 
           <div class="report-switcher-card report-top-controls">
@@ -285,11 +298,11 @@
 
             <div class="search-box report-search report-main-search" id="report-cartillas-search-wrap">
               <span class="search-icon" aria-hidden="true">⌕</span>
-              <input id="report-cartillas-search" type="search" placeholder="Buscar por RNOS o denominación..." autocomplete="off">
+              <input id="report-cartillas-search" type="search" placeholder="Buscar por RNAS o denominación..." autocomplete="off">
             </div>
             <div class="search-box report-search report-main-search" id="report-pma-search-wrap" hidden>
               <span class="search-icon" aria-hidden="true">⌕</span>
-              <input id="report-pma-search" type="search" placeholder="Buscar por RNOS o denominación..." autocomplete="off">
+              <input id="report-pma-search" type="search" placeholder="Buscar por RNAS o denominación..." autocomplete="off">
             </div>
 
             <button class="primary report-export-button" id="btn-export-report" type="button">Exportar Excel</button>
@@ -304,8 +317,8 @@
                     <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
                     <div class="report-help-popover">
                       <strong>¿Cómo se determina el período?</strong>
-                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Obra Social para saber qué Cartilla debe buscar.</p>
-                      <p>Ejemplo: para el período de control <b>2026</b>, una OS con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
+                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Agente de Seguro para saber qué Cartilla debe buscar.</p>
+                      <p>Ejemplo: para el período de control <b>2026</b>, un agente con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
                     </div>
                   </details>
                 </div>
@@ -342,8 +355,8 @@
               <div class="report-symbol-legend" aria-label="Leyenda de estados">
                 <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span><span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
               </div>
-              <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-cartillas-head"></thead><tbody id="report-cartillas-body"></tbody></table></div>
-              <div class="table-empty" id="report-cartillas-empty" hidden>No hay Obras Sociales para mostrar con los filtros seleccionados.</div>
+              <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-cartillas-head" data-rnas-sort-id="report-cartillas-rnas-sort"></thead><tbody id="report-cartillas-body"></tbody></table></div>
+              <div class="table-empty" id="report-cartillas-empty" hidden>No hay Agentes de Seguro para mostrar con los filtros seleccionados.</div>
             </div>
           </div>
 
@@ -356,8 +369,8 @@
                     <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
                     <div class="report-help-popover">
                       <strong>¿Cómo se determina el período?</strong>
-                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Obra Social para saber qué PMA debe buscar.</p>
-                      <p>Ejemplo: para el período de control <b>2026</b>, una OS con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
+                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Agente de Seguro para saber qué PMA debe buscar.</p>
+                      <p>Ejemplo: para el período de control <b>2026</b>, un agente con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
                     </div>
                   </details>
                 </div>
@@ -394,8 +407,8 @@
               <div class="report-symbol-legend" aria-label="Leyenda de estados">
                 <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span><span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
               </div>
-              <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-pma-head"></thead><tbody id="report-pma-body"></tbody></table></div>
-              <div class="table-empty" id="report-pma-empty" hidden>No hay Obras Sociales para mostrar con los filtros seleccionados.</div>
+              <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-pma-head" data-rnas-sort-id="report-pma-rnas-sort"></thead><tbody id="report-pma-body"></tbody></table></div>
+              <div class="table-empty" id="report-pma-empty" hidden>No hay Agentes de Seguro para mostrar con los filtros seleccionados.</div>
             </div>
           </div>
         </div>
@@ -406,14 +419,14 @@
   <div class="modal-backdrop" id="os-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="os-modal-title">
       <div class="modal-header">
-        <div><span class="eyebrow">OBRA SOCIAL</span><h2 id="os-modal-title">Nueva Obra Social</h2></div>
+        <div><span class="eyebrow">AGENTE DE SEGURO</span><h2 id="os-modal-title">Nuevo Agente de Seguro</h2></div>
         <button class="icon-button" type="button" id="os-modal-close" aria-label="Cerrar">×</button>
       </div>
 
       <form id="os-form">
         <input type="hidden" id="os-id">
         <div class="form-grid">
-          <label><span>RNOS</span><input id="os-rnos" type="text" inputmode="numeric" maxlength="20" required></label>
+          <label><span>RNAS</span><input id="os-rnos" type="text" inputmode="numeric" maxlength="20" required></label>
           <label><span>Sigla</span><input id="os-sigla" type="text" maxlength="40"></label>
           <label class="full"><span>Denominación</span><input id="os-denominacion" type="text" maxlength="250" required></label>
           <label class="full"><span>Domicilio</span><input id="os-domicilio" type="text" maxlength="250"></label>
@@ -464,7 +477,7 @@
             <label><span>Agente de Seguro de Salud</span>
               <div class="search-box transaction-agent-search">
                 <span class="search-icon" aria-hidden="true">⌕</span>
-                <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+                <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Buscar por RNAS, sigla o denominación..." autocomplete="off" required>
               </div>
               <datalist id="pma-os-list"></datalist>
             </label>
@@ -531,7 +544,7 @@
             <label><span>Agente de Seguro de Salud</span>
               <div class="search-box transaction-agent-search">
                 <span class="search-icon" aria-hidden="true">⌕</span>
-                <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+                <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Buscar por RNAS, sigla o denominación..." autocomplete="off" required>
               </div>
               <datalist id="cartilla-os-list"></datalist>
             </label>
@@ -571,6 +584,28 @@
           <button type="submit" class="primary" id="cartilla-save">Guardar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="history-modal" hidden>
+    <div class="modal modal-wide history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title">
+      <div class="modal-header">
+        <div>
+          <span class="eyebrow" id="history-eyebrow">PRESENTACIONES</span>
+          <h2 id="history-title">Historial de presentaciones</h2>
+          <p class="history-agent-meta" id="history-agent-meta"></p>
+        </div>
+        <button class="icon-button" type="button" data-close-modal="history-modal" aria-label="Cerrar">×</button>
+      </div>
+      <div class="history-summary"><strong id="history-count">0 presentaciones</strong></div>
+      <div class="table-scroll">
+        <table class="data-table history-table">
+          <thead><tr><th>AÑO</th><th>Nº EE</th><th>FECHA INGRESO</th><th>FECHA DISPOSICIÓN</th><th>Nº DISPO</th><th>PLAZO</th></tr></thead>
+          <tbody id="history-table-body"></tbody>
+        </table>
+      </div>
+      <div class="table-empty" id="history-empty" hidden>No hay presentaciones registradas para este Agente de Seguro.</div>
+      <div class="modal-actions"><button type="button" class="secondary" data-close-modal="history-modal">Cerrar</button></div>
     </div>
   </div>
 
@@ -622,6 +657,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="app.js?v=28"></script>
+  <script src="app.js?v=29"></script>
 </body>
 </html>

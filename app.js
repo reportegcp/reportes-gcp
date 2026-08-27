@@ -4,14 +4,23 @@ const SESSION_KEY = "gcp-auth-session-v1";
 
 const views = {
   inicio: { title: "", subtitle: "" },
-  "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNOS y denominaciones" },
+  "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" }
 };
 
+const manualesSeccion = {
+  "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
+  pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Analista y Condición.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
+  cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
+  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí Cartillas o PMA y uno o varios períodos de control.</li><li>✓ indica que presentó, ✕ que no presentó y ? que falta Inicio ejercicio para calcularlo.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo de presentaciones.</li><li>Podés ordenar por RNAS y exportar un Excel con resumen y detalle.</li></ul>`
+};
+
 let obrasSociales = [];
 let rnosSortDirection = "asc";
+let reportCartillasRnasSortDirection = "asc";
+let reportPmaRnasSortDirection = "asc";
 let authSession = null;
 let accionPendienteTrasLogin = null;
 let passwordRecoveryPending = false;
@@ -320,7 +329,7 @@ function construirMatrizExcelPresentaciones(filas, periodos, metadata = {}) {
     ["Períodos de control", periodosValidos.join(", ")],
     ["Generado", metadata.generado || ""],
     ["Leyenda", "✓ Presentó | ✕ No presentó | ? Sin Inicio ejercicio"],
-    ["RNOS", "Denominación", "Inicio ejercicio", ...periodosValidos.map(String)]
+    ["RNAS", "Denominación", "Inicio ejercicio", ...periodosValidos.map(String)]
   ];
   for (const row of filas || []) {
     matriz.push([
@@ -521,7 +530,10 @@ async function authSignIn(email, password, fetchImpl = fetch) {
 
   if (!response.ok) {
     const detalle = await leerErrorApi(response);
-    throw new Error(detalle || "Usuario o contraseña incorrectos.");
+    const mensaje = /invalid login credentials/i.test(detalle || "")
+      ? "Usuario o contraseña incorrectos."
+      : (detalle || "No se pudo iniciar sesión.");
+    throw new Error(mensaje);
   }
 
   const session = await response.json();
@@ -763,6 +775,10 @@ function showView(id, updateHistory = true) {
     if (copy) copy.hidden = false;
     if (title) title.textContent = meta.title;
     if (subtitle) subtitle.textContent = meta.subtitle;
+    const helpContent = document.getElementById("section-help-content");
+    const help = document.getElementById("section-help");
+    if (helpContent) helpContent.innerHTML = manualesSeccion[resolved] || "";
+    if (help) help.hidden = !manualesSeccion[resolved];
   }
 
   if (updateHistory && typeof history !== "undefined") history.pushState(null, "", `#${resolved}`);
@@ -794,12 +810,12 @@ function renderObrasSociales() {
   `).join("");
 
   const count = document.getElementById("os-count");
-  if (count) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "Obra Social" : "Obras Sociales"}`;
+  if (count) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "Agente de Seguro" : "Agentes de Seguro"}`;
 
   const empty = document.getElementById("os-empty");
   if (empty) {
     empty.hidden = filtradas.length !== 0;
-    if (!filtradas.length) empty.textContent = "No se encontraron Obras Sociales con ese criterio.";
+    if (!filtradas.length) empty.textContent = "No se encontraron Agentes de Seguro con ese criterio.";
   }
 
   document.querySelectorAll(".os-row[data-edit-os]").forEach(row => {
@@ -839,7 +855,7 @@ function setEstadoCarga(texto) {
 async function cargarYRenderizarObrasSociales() {
   if (typeof document === "undefined") return;
   const count = document.getElementById("os-count");
-  if (count) count.textContent = "Cargando Obras Sociales...";
+  if (count) count.textContent = "Cargando Agentes de Seguro...";
 
 
   try {
@@ -851,7 +867,7 @@ async function cargarYRenderizarObrasSociales() {
   } catch (error) {
     obrasSociales = [];
     renderObrasSociales();
-    if (count) count.textContent = "0 Obras Sociales";
+    if (count) count.textContent = "0 Agentes de Seguro";
     const esTimeout = error?.name === "TimeoutError";
     setEstadoCarga(esTimeout ? "Supabase no respondió en 10 segundos" : "Error de conexión con Supabase");
     const empty = document.getElementById("os-empty");
@@ -859,9 +875,9 @@ async function cargarYRenderizarObrasSociales() {
       empty.hidden = false;
       empty.textContent = esTimeout
         ? "Supabase no respondió dentro del tiempo esperado. Actualizá la página o revisá la conexión."
-        : `No se pudieron cargar las Obras Sociales.${error?.message ? " " + error.message : ""}`;
+        : `No se pudieron cargar las Agentes de Seguro.${error?.message ? " " + error.message : ""}`;
     }
-    console.error("Error cargando Obras Sociales:", error);
+    console.error("Error cargando Agentes de Seguro:", error);
   }
 }
 
@@ -1147,7 +1163,7 @@ async function handleOsSubmit(event) {
   const inicioEjercicioRaw = document.getElementById("os-inicio-ejercicio")?.value.trim() || "";
 
   if (!rnos || !denominacion) {
-    setFormMessage("os-form-message", "RNOS y Denominación son obligatorios.");
+    setFormMessage("os-form-message", "RNAS y Denominación son obligatorios.");
     return;
   }
   if (inicioEjercicioRaw && !normalizarDiaMes(inicioEjercicioRaw)) {
@@ -1175,12 +1191,12 @@ async function handleOsSubmit(event) {
     const session = await asegurarSesionVigente();
     await guardarObraSocialEnSupabase(registro, id || null, session.access_token);
     cerrarModal("os-modal");
-    mostrarToast(id ? "Obra Social actualizada." : "Obra Social creada.");
+    mostrarToast(id ? "Agente de Seguro actualizada." : "Agente de Seguro creada.");
     await cargarYRenderizarObrasSociales();
   } catch (error) {
     const mensaje = /duplicate|unique|23505/i.test(error.message || "")
-      ? "Ya existe una Obra Social con ese RNOS."
-      : error.message || "No se pudo guardar la Obra Social.";
+      ? "Ya existe una Agente de Seguro con ese RNAS."
+      : error.message || "No se pudo guardar la Agente de Seguro.";
     setFormMessage("os-form-message", mensaje);
   } finally {
     if (save) save.disabled = false;
@@ -1310,39 +1326,168 @@ async function cargarPmaDesdeSupabase(fetchImpl = fetch) {
 }
 
 
+
+function ejerciciosFiltroSeleccionados(prefix) {
+  if (typeof document === "undefined") return [];
+  return [...document.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]:checked`)].map(input => input.value);
+}
+
+function actualizarResumenEjercicios(prefix) {
+  if (typeof document === "undefined") return;
+  const inputs = [...document.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`)];
+  const seleccionados = inputs.filter(input => input.checked).map(input => input.value);
+  const resumen = document.getElementById(`${prefix}-ejercicio-summary`);
+  if (!resumen) return;
+  if (!inputs.length || !seleccionados.length || seleccionados.length === inputs.length) resumen.textContent = "Ejercicio: Todos";
+  else if (seleccionados.length === 1) resumen.textContent = `Ejercicio: ${seleccionados[0]}`;
+  else resumen.textContent = `${seleccionados.length} ejercicios`;
+}
+
+function seleccionarEjerciciosFiltro(prefix, seleccionar, renderFn) {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).forEach(input => { input.checked = Boolean(seleccionar); });
+  actualizarResumenEjercicios(prefix);
+  if (typeof renderFn === "function") renderFn();
+}
+
+function poblarSelectorMultipleEjercicios(prefix, valores, renderFn) {
+  if (typeof document === "undefined") return;
+  const container = document.getElementById(`${prefix}-ejercicio-options`);
+  if (!container) return;
+  const anteriores = new Set(ejerciciosFiltroSeleccionados(prefix));
+  const teniaOpciones = container.querySelectorAll('input').length > 0;
+  const ejercicios = [...new Set((valores || []).filter(Boolean).map(String))]
+    .sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
+  container.innerHTML = ejercicios.map(e => {
+    const checked = teniaOpciones ? anteriores.has(e) : true;
+    return `<label class="period-check"><input type="checkbox" name="${prefix}-ejercicio-opcion" value="${escaparHtml(e)}" ${checked ? "checked" : ""}><span>${escaparHtml(e)}</span></label>`;
+  }).join("");
+  container.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).forEach(input => {
+    input.addEventListener("change", () => { actualizarResumenEjercicios(prefix); if (typeof renderFn === "function") renderFn(); });
+  });
+  const all = document.getElementById(`${prefix}-ejercicio-all`);
+  const clear = document.getElementById(`${prefix}-ejercicio-clear`);
+  if (all) all.onclick = () => seleccionarEjerciciosFiltro(prefix, true, renderFn);
+  if (clear) clear.onclick = () => seleccionarEjerciciosFiltro(prefix, false, renderFn);
+  actualizarResumenEjercicios(prefix);
+}
+
+function filtrarCartillasRegistros(lista, filtros = {}) {
+  const busqueda = normalizar(filtros.busqueda || "");
+  const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : []).map(String));
+  const plazo = filtros.plazo || "TODOS";
+  return (lista || []).filter(c => {
+    const os = c.obras_sociales || {};
+    if (ejercicios.size && !ejercicios.has(String(c.ejercicio || ""))) return false;
+    const cumplimiento = calcularCumplimiento90(c?.fecha_inicio_ejercicio || "", c?.fecha_ingreso || "").estado;
+    if (plazo !== "TODOS" && cumplimiento !== plazo) return false;
+    if (!busqueda) return true;
+    return normalizar([os.rnos,os.denominacion,os.sigla,c.ejercicio,c.analista,c.numero_ee,c.condicion,c.numero_disposicion,c.observaciones].join(" ")).includes(busqueda);
+  });
+}
+
+function ordenarReportePorRnas(filas, direccion = "asc") {
+  const mult = direccion === "desc" ? -1 : 1;
+  return [...(filas || [])].sort((a,b) => {
+    const ar = Number(String(a?.rnos || "").replace(/\D/g,"")) || 0;
+    const br = Number(String(b?.rnos || "").replace(/\D/g,"")) || 0;
+    return (ar - br) * mult;
+  });
+}
+
+function construirHistorialPresentaciones(lista, obraSocialId) {
+  const objetivo = String(obraSocialId ?? "");
+  return (lista || [])
+    .filter(row => String(row?.obra_social_id ?? "") === objetivo)
+    .map(row => {
+      const cumplimiento = calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
+      const plazoTexto = cumplimiento.estado === "EN_TERMINO" ? "EN TÉRMINO" : cumplimiento.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
+      return { ...row, plazoEstado: cumplimiento.estado, plazoTexto, fechaLimite: cumplimiento.fechaLimite || "" };
+    })
+    .sort((a,b) => {
+      const ay = Number(String(a?.ejercicio || "").slice(0,4)) || 0;
+      const by = Number(String(b?.ejercicio || "").slice(0,4)) || 0;
+      if (ay !== by) return by - ay;
+      return String(b?.fecha_ingreso || "").localeCompare(String(a?.fecha_ingreso || ""));
+    });
+}
+
+function construirMatrizExcelDetallePresentaciones(filas, metadata = {}) {
+  const tipo = metadata.tipo || "Presentaciones";
+  const generado = metadata.generado || "";
+  const matriz = [
+    [tipo],
+    ["Generado", generado],
+    [],
+    ["RNAS","DENOMINACIÓN","SIGLA","INICIO EJERCICIO","DOMICILIO","LOCALIDAD","PROVINCIA","EJERCICIO","AÑO INICIO","FECHA INICIO EJERCICIO","FECHA FIN EJERCICIO","INICIO PERÍODO","FIN PERÍODO","FECHA INGRESO","FECHA LÍMITE","PLAZO","ANALISTA","CONDICIÓN","Nº EE","RES. 170/09","Nº DISPO","FECHA DISPOSICIÓN","OBSERVACIONES","ID PRESENTACIÓN"]
+  ];
+  for (const row of filas || []) {
+    const os = row?.obras_sociales || {};
+    const cumplimiento = calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
+    const plazo = cumplimiento.estado === "EN_TERMINO" ? "EN TÉRMINO" : cumplimiento.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
+    matriz.push([
+      String(os.rnos || ""), String(os.denominacion || ""), String(os.sigla || ""), String(os.inicio_ejercicio || ""),
+      String(os.domicilio || ""), String(os.localidad || ""), String(os.provincia || ""), String(row.ejercicio || ""),
+      row.anio_inicio ?? "", formatFechaPantalla(row.fecha_inicio_ejercicio), formatFechaPantalla(row.fecha_fin_ejercicio),
+      String(row.inicio_periodo || ""), String(row.fin_periodo || ""), formatFechaPantalla(row.fecha_ingreso),
+      formatFechaPantalla(cumplimiento.fechaLimite), plazo, String(row.analista || ""), String(row.condicion || ""),
+      String(row.numero_ee || ""), String(row.res_170_2009 || ""), String(row.numero_disposicion || ""),
+      formatFechaPantalla(row.fecha_disposicion), String(row.observaciones || ""), row.id ?? ""
+    ]);
+  }
+  return matriz;
+}
+
+function crearHojaExcelConDiseno(matriz, titulo = "Reporte", filaEncabezado = 3) {
+  if (typeof window === "undefined" || !window.XLSX) return null;
+  const hoja = window.XLSX.utils.aoa_to_sheet(matriz);
+  const maxCols = Math.max(1, ...(matriz || []).map(r => r.length));
+  hoja["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:Math.max(0,maxCols-1)} }];
+  hoja["!cols"] = Array.from({length:maxCols}, (_,i) => ({ wch: i === 1 ? 46 : (i === 22 ? 42 : 18) }));
+  const lastRow = Math.max(filaEncabezado, (matriz || []).length - 1);
+  hoja["!autofilter"] = { ref: window.XLSX.utils.encode_range({s:{r:filaEncabezado,c:0},e:{r:lastRow,c:maxCols-1}}) };
+  hoja["!freeze"] = { xSplit: 0, ySplit: filaEncabezado + 1, topLeftCell: `A${filaEncabezado+2}`, activePane: "bottomLeft", state: "frozen" };
+  // Los estilos son aprovechados por versiones de SheetJS que los soportan; anchos/filtros/estructura funcionan en todas.
+  const titleCell = hoja.A1;
+  if (titleCell) titleCell.s = { font:{bold:true,sz:16,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"183153"}}, alignment:{horizontal:"left"} };
+  for (let c=0;c<maxCols;c++) {
+    const addr = window.XLSX.utils.encode_cell({r:filaEncabezado,c});
+    if (hoja[addr]) hoja[addr].s = { font:{bold:true,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"183153"}}, alignment:{vertical:"center",wrapText:true} };
+  }
+  return hoja;
+}
+
 function filtrarPmaRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
-  const ejercicio = filtros.ejercicio || "TODOS", analista = filtros.analista || "TODOS";
-  const condicion = filtros.condicion || "TODOS", res170 = filtros.res170 || "TODOS";
+  const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : (filtros.ejercicio && filtros.ejercicio !== "TODOS" ? [filtros.ejercicio] : [])).map(String));
+  const analista = filtros.analista || "TODOS";
+  const condicion = filtros.condicion || "TODOS";
   return (lista || []).filter(row => {
-    if (ejercicio !== "TODOS" && String(row.ejercicio || "") !== ejercicio) return false;
+    if (ejercicios.size && !ejercicios.has(String(row.ejercicio || ""))) return false;
     if (analista !== "TODOS" && String(row.analista || "") !== analista) return false;
     if (condicion !== "TODOS" && String(row.condicion || "") !== condicion) return false;
-    const res = String(row.res_170_2009 || "");
-    if (res170 === "SIN_DATO" && res) return false;
-    if (!["TODOS","SIN_DATO"].includes(res170) && res !== res170) return false;
     if (!busqueda) return true;
     return normalizar([row.obras_sociales?.rnos,row.obras_sociales?.denominacion,row.obras_sociales?.sigla,row.numero_ee,row.numero_disposicion,row.ejercicio,row.analista,row.condicion].join(" ")).includes(busqueda);
   });
 }
 function llenarFiltrosPma() {
   if (typeof document === "undefined") return;
+  poblarSelectorMultipleEjercicios("pma", pma.map(x => x.ejercicio).filter(Boolean), renderPma);
   const fill = (id, label, vals) => {
-    const s=document.getElementById(id); if(!s)return; const prev=s.value||"TODOS";
-    s.innerHTML=`<option value="TODOS">${label}: Todos</option>`+vals.map(v=>`<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
-    s.value=vals.includes(prev)?prev:"TODOS";
+    const select = document.getElementById(id); if (!select) return;
+    const prev = select.value || "TODOS";
+    select.innerHTML = `<option value="TODOS">${label}: Todos</option>` + vals.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
+    select.value = vals.includes(prev) ? prev : "TODOS";
   };
-  fill("pma-ejercicio-filter","Ejercicio",[...new Set(pma.map(x=>x.ejercicio).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a),"es",{numeric:true})));
   fill("pma-analista-filter","Analista",[...new Set(pma.map(x=>x.analista).filter(Boolean))].sort());
   fill("pma-condicion-filter","Condición",[...new Set(pma.map(x=>x.condicion).filter(Boolean))].sort());
 }
 function obtenerPmaFiltradas() {
   return filtrarPmaRegistros(pma,{
     busqueda:document.getElementById("pma-search")?.value||"",
-    ejercicio:document.getElementById("pma-ejercicio-filter")?.value||"TODOS",
+    ejercicios:ejerciciosFiltroSeleccionados("pma"),
     analista:document.getElementById("pma-analista-filter")?.value||"TODOS",
-    condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS",
-    res170:document.getElementById("pma-res170-filter")?.value||"TODOS"
+    condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS"
   });
 }
 function renderPma() {
@@ -1377,26 +1522,15 @@ function cumplimientoCartillaRegistro(row) {
 
 function llenarFiltroEjercicios() {
   if (typeof document === "undefined") return;
-  const select = document.getElementById("cartilla-ejercicio-filter");
-  if (!select) return;
-  const actual = select.value || "TODOS";
-  const ejercicios = [...new Set(cartillas.map(c => c.ejercicio).filter(Boolean))].sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
-  select.innerHTML = '<option value="TODOS">Ejercicio: Todos</option>' + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
-  select.value = ejercicios.includes(actual) ? actual : "TODOS";
+  poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => c.ejercicio).filter(Boolean), renderCartillas);
 }
 
 function filtrarCartillas() {
   if (typeof document === "undefined") return cartillas;
-  const termino = normalizar(document.getElementById("cartilla-search")?.value || "");
-  const ejercicio = document.getElementById("cartilla-ejercicio-filter")?.value || "TODOS";
-  const plazo = document.getElementById("cartilla-plazo-filter")?.value || "TODOS";
-  return cartillas.filter(c => {
-    const os = c.obras_sociales || {};
-    if (ejercicio !== "TODOS" && c.ejercicio !== ejercicio) return false;
-    const cumplimiento = cumplimientoCartillaRegistro(c).estado;
-    if (plazo !== "TODOS" && cumplimiento !== plazo) return false;
-    if (!termino) return true;
-    return normalizar([os.rnos,os.denominacion,os.sigla,c.ejercicio,c.analista,c.numero_ee,c.condicion,c.numero_disposicion,c.observaciones].join(" ")).includes(termino);
+  return filtrarCartillasRegistros(cartillas, {
+    busqueda: document.getElementById("cartilla-search")?.value || "",
+    ejercicios: ejerciciosFiltroSeleccionados("cartilla"),
+    plazo: document.getElementById("cartilla-plazo-filter")?.value || "TODOS"
   });
 }
 
@@ -1538,15 +1672,15 @@ function reporteTieneFaltante(row, periodos) {
 }
 
 function obtenerFilasReporteCartillas(reporte, periodos) {
-  if (typeof document === "undefined") return [...(reporte || [])];
+  if (typeof document === "undefined") return ordenarReportePorRnas(reporte || [], reportCartillasRnasSortDirection);
   const termino = normalizar(document.getElementById("report-cartillas-search")?.value || "");
   const soloFaltantes = Boolean(document.getElementById("report-solo-faltantes")?.checked);
-
-  return (reporte || []).filter(row => {
+  const filtradas = (reporte || []).filter(row => {
     if (soloFaltantes && !reporteTieneFaltante(row, periodos)) return false;
     if (!termino) return true;
     return normalizar(`${row.rnos} ${row.denominacion}`).includes(termino);
   });
+  return ordenarReportePorRnas(filtradas, reportCartillasRnasSortDirection);
 }
 
 function etiquetaEstadoReporte(estado) {
@@ -1605,77 +1739,103 @@ function renderGraficoCartillas(resumen) {
   renderGraficoUnPeriodo("report-cartillas-chart", obtenerResumenPeriodoGrafico(resumen, elegido));
 }
 
+
+function abrirHistorialPresentaciones(tipo, obraSocialId) {
+  if (typeof document === "undefined") return;
+  const esPma = tipo === "pma";
+  const fuente = esPma ? pma : cartillas;
+  const os = obrasSociales.find(item => String(item?.id) === String(obraSocialId));
+  if (!os) return;
+  const historial = construirHistorialPresentaciones(fuente, obraSocialId);
+  const title = document.getElementById("history-title");
+  const meta = document.getElementById("history-agent-meta");
+  const count = document.getElementById("history-count");
+  const body = document.getElementById("history-table-body");
+  const empty = document.getElementById("history-empty");
+  if (title) title.textContent = esPma ? "Presentación de PMA" : "Presentación de Cartilla";
+  const sigla = os.sigla ? ` (${os.sigla})` : "";
+  if (meta) meta.innerHTML = `<b>RNAS ${escaparHtml(os.rnos || "—")}</b> · ${escaparHtml(os.denominacion || "—")}${escaparHtml(sigla)} · <b>Inicio ejercicio:</b> ${escaparHtml(os.inicio_ejercicio || "—")}`;
+  if (count) count.textContent = `${historial.length} ${historial.length === 1 ? "presentación realizada" : "presentaciones realizadas"}`;
+  if (body) body.innerHTML = historial.map(row => {
+    const clase = row.plazoEstado === "EN_TERMINO" ? "active" : row.plazoEstado === "FUERA_DE_TERMINO" ? "inactive" : "neutral-badge";
+    return `<tr><td><strong>${escaparHtml(row.ejercicio || "—")}</strong></td><td>${escaparHtml(row.numero_ee || "—")}</td><td class="date-cell">${formatFechaPantalla(row.fecha_ingreso)}</td><td class="date-cell">${formatFechaPantalla(row.fecha_disposicion)}</td><td>${escaparHtml(row.numero_disposicion || "—")}</td><td><span class="badge ${clase}">${escaparHtml(row.plazoTexto)}</span></td></tr>`;
+  }).join("");
+  if (empty) empty.hidden = historial.length !== 0;
+  abrirModal("history-modal");
+}
+
+function activarFilasHistorialReporte(tipo, selector) {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll(selector).forEach(row => {
+    const abrir = () => abrirHistorialPresentaciones(tipo, row.dataset.historyOsId);
+    row.addEventListener("click", abrir);
+    row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); abrir(); } });
+  });
+}
+
+function registrosDetalleParaReporte(tipo, filasReporte, periodos) {
+  const fuente = tipo === "pma" ? pma : cartillas;
+  const claves = new Set();
+  for (const row of filasReporte || []) {
+    const os = obrasSociales.find(item => String(item?.id) === String(row?.id));
+    if (!os) continue;
+    for (const periodo of periodos || []) {
+      const esperado = ejercicioEsperadoPeriodoControl(os.inicio_ejercicio || "", periodo);
+      if (esperado) claves.add(`${os.id}|${esperado.anioInicio}`);
+    }
+  }
+  return fuente.filter(reg => claves.has(`${reg.obra_social_id}|${Number(reg.anio_inicio)}`));
+}
+
+function matrizResumenReporte(filas, periodos, titulo) {
+  const matriz = [[titulo],["Generado",formatearFechaHoraExportacion()],[],["RNAS","DENOMINACIÓN","SIGLA","INICIO EJERCICIO",...(periodos||[]).map(String)]];
+  for (const row of filas || []) {
+    const os = obrasSociales.find(item => String(item?.id) === String(row?.id)) || {};
+    matriz.push([String(row.rnos||""),String(row.denominacion||""),String(os.sigla||""),String(os.inicio_ejercicio||""),...(periodos||[]).map(p=>etiquetaEstadoReporte(row?.periodos?.[p]?.estado))]);
+  }
+  return matriz;
+}
+
+function exportarModuloPresentacionesExcel(tipo) {
+  if (typeof document === "undefined") return;
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.","error"); return; }
+  const esPma = tipo === "pma";
+  const filas = esPma ? obtenerPmaFiltradas() : filtrarCartillas();
+  const nombre = esPma ? "PMA" : "Cartillas";
+  const matriz = construirMatrizExcelDetallePresentaciones(filas,{tipo:`${nombre} - Presentaciones`,generado:formatearFechaHoraExportacion()});
+  const hoja = crearHojaExcelConDiseno(matriz, nombre, 3);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro,hoja,nombre);
+  window.XLSX.writeFile(libro,`${nombre.toLowerCase()}_presentaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 function renderReporteFaltantesCartillas() {
   if (typeof document === "undefined") return;
-
   const head = document.getElementById("report-cartillas-head");
   const body = document.getElementById("report-cartillas-body");
   const count = document.getElementById("report-cartillas-count");
   const empty = document.getElementById("report-cartillas-empty");
   if (!head || !body) return;
-
   const periodos = getPeriodosReporteSeleccionados();
-
-  head.innerHTML = `<tr>
-    <th>RNOS</th>
-    <th>Denominación</th>
-    <th>Inicio ejercicio</th>
-    ${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}
-  </tr>`;
-
+  const arrow = reportCartillasRnasSortDirection === "asc" ? "↑" : "↓";
+  head.innerHTML = `<tr><th><button class="sort-button" id="report-cartillas-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th>${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}</tr>`;
+  head.querySelector("#report-cartillas-rnas-sort")?.addEventListener("click", () => { reportCartillasRnasSortDirection = reportCartillasRnasSortDirection === "asc" ? "desc" : "asc"; renderReporteFaltantesCartillas(); });
   if (!periodos.length) {
-    body.innerHTML = "";
-    renderGraficoCartillas([]);
-    if (count) count.textContent = "Seleccioná al menos un período";
-    if (empty) {
-      empty.hidden = false;
-      empty.textContent = "Seleccioná uno o más períodos de control para generar el reporte.";
-    }
+    body.innerHTML = ""; renderGraficoCartillas([]); if (count) count.textContent = "Seleccioná al menos un período";
+    if (empty) { empty.hidden = false; empty.textContent = "Seleccioná uno o más períodos de control para generar el reporte."; }
     return;
   }
-
   const reporte = generarReporteFaltantesCartillas(obrasSociales, cartillas, periodos);
   const filtrado = obtenerFilasReporteCartillas(reporte, periodos);
-  const sectorGraficoCartillas = document.getElementById("report-cartillas-chart-sector");
-  if (sectorGraficoCartillas && !sectorGraficoCartillas.hidden) {
-    renderGraficoCartillas(resumirCartillasPorPeriodo(reporte, periodos));
-  }
-
-  body.innerHTML = filtrado.map(row => `
-    <tr>
-      <td><strong>${escaparHtml(row.rnos || "—")}</strong></td>
-      <td class="denominacion-cell">${escaparHtml(row.denominacion || "—")}</td>
-      <td class="date-cell">${escaparHtml(row.inicioEjercicio || "—")}</td>
-      ${periodos.map(periodo => {
-        const resultado = row.periodos[periodo] || { estado: "SIN_INICIO", ejercicioEsperado: "" };
-        const estado = resultado.estado || "SIN_INICIO";
-        const simbolo = simboloEstadoReporte(estado);
-        const etiqueta = etiquetaEstadoReporte(estado);
-        const clase = claseEstadoReporte(estado);
-        const detalle = resultado.ejercicioEsperado ? ` · Ejercicio esperado: ${resultado.ejercicioEsperado}` : "";
-        return `<td class="report-status-cell">
-          <span class="report-icon ${clase}" title="${escaparHtml(etiqueta + detalle)}" aria-label="${escaparHtml(etiqueta + detalle)}">${simbolo}</span>
-        </td>`;
-      }).join("")}
-    </tr>
-  `).join("");
-
+  const sector = document.getElementById("report-cartillas-chart-sector");
+  if (sector && !sector.hidden) renderGraficoCartillas(resumirCartillasPorPeriodo(reporte, periodos));
+  body.innerHTML = filtrado.map(row => `<tr class="report-agent-row report-cartillas-history-row" data-history-os-id="${escaparHtml(row.id)}" tabindex="0" role="button" title="Ver historial completo de presentaciones"><td><strong>${escaparHtml(row.rnos||"—")}</strong></td><td class="denominacion-cell">${escaparHtml(row.denominacion||"—")}</td>${periodos.map(periodo=>{const resultado=row.periodos[periodo]||{estado:"SIN_INICIO",ejercicioEsperado:""};const estado=resultado.estado||"SIN_INICIO";const detalle=resultado.ejercicioEsperado?` · Ejercicio esperado: ${resultado.ejercicioEsperado}`:"";return `<td class="report-status-cell"><span class="report-icon ${claseEstadoReporte(estado)}" title="${escaparHtml(etiquetaEstadoReporte(estado)+detalle)}" aria-label="${escaparHtml(etiquetaEstadoReporte(estado)+detalle)}">${simboloEstadoReporte(estado)}</span></td>`;}).join("")}</tr>`).join("");
+  activarFilasHistorialReporte("cartillas", ".report-cartillas-history-row");
   const faltantes = reporte.filter(row => reporteTieneFaltante(row, periodos)).length;
   const sinInicio = reporte.filter(row => periodos.some(p => row.periodos[p]?.estado === "SIN_INICIO")).length;
-
-  if (count) {
-    count.textContent = `${filtrado.length} ${filtrado.length === 1 ? "Obra Social" : "Obras Sociales"} mostradas`;
-  }
-
-  const status = document.getElementById("report-cartillas-status");
-  if (status) {
-    status.textContent = `${faltantes} con faltantes · ${sinInicio} sin Inicio ejercicio · ${reporte.length} OS activas evaluadas`;
-  }
-
-  if (empty) {
-    empty.hidden = filtrado.length !== 0;
-    empty.textContent = "No hay Obras Sociales para mostrar con los filtros seleccionados.";
-  }
+  if (count) count.textContent = `${filtrado.length} ${filtrado.length===1?"Agente de Seguro":"Agentes de Seguro"} mostrados`;
+  const status=document.getElementById("report-cartillas-status"); if(status) status.textContent=`${faltantes} con faltantes · ${sinInicio} sin Inicio ejercicio · ${reporte.length} agentes activos evaluados`;
+  if(empty){empty.hidden=filtrado.length!==0;empty.textContent="No hay Agentes de Seguro para mostrar con los filtros seleccionados.";}
 }
 
 function formatearFechaHoraExportacion(fecha = new Date()) {
@@ -1685,36 +1845,13 @@ function formatearFechaHoraExportacion(fecha = new Date()) {
 
 function exportarReporteCartillasExcel() {
   if (typeof document === "undefined") return;
-
-  const periodos = getPeriodosReporteSeleccionados();
-  if (!periodos.length) {
-    mostrarToast("Seleccioná al menos un período para exportar.", "error");
-    return;
-  }
-
-  if (!window.XLSX) {
-    mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error");
-    return;
-  }
-
-  const reporte = generarReporteFaltantesCartillas(obrasSociales, cartillas, periodos);
-  const filas = obtenerFilasReporteCartillas(reporte, periodos);
-  const matriz = construirMatrizExcelCartillas(filas, periodos, {
-    reporte: "Cartillas - Presentaciones",
-    generado: formatearFechaHoraExportacion()
-  });
-
-  const hoja = window.XLSX.utils.aoa_to_sheet(matriz);
-  hoja["!cols"] = [
-    { wch: 12 },
-    { wch: 55 },
-    { wch: 16 },
-    ...periodos.map(() => ({ wch: 12 }))
-  ];
-
-  const libro = window.XLSX.utils.book_new();
-  window.XLSX.utils.book_append_sheet(libro, hoja, "Cartillas");
-  window.XLSX.writeFile(libro, `reporte_cartillas_${periodos.join("-")}.xlsx`);
+  const periodos=getPeriodosReporteSeleccionados(); if(!periodos.length){mostrarToast("Seleccioná al menos un período para exportar.","error");return;}
+  if(!window.XLSX){mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.","error");return;}
+  const reporte=generarReporteFaltantesCartillas(obrasSociales,cartillas,periodos); const filas=obtenerFilasReporteCartillas(reporte,periodos);
+  const resumen=matrizResumenReporte(filas,periodos,"Cartillas - Presentaciones");
+  const detalle=construirMatrizExcelDetallePresentaciones(registrosDetalleParaReporte("cartillas",filas,periodos),{tipo:"Cartillas - Detalle de presentaciones",generado:formatearFechaHoraExportacion()});
+  const libro=window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(libro,crearHojaExcelConDiseno(resumen,"Cartillas",3),"Reporte"); window.XLSX.utils.book_append_sheet(libro,crearHojaExcelConDiseno(detalle,"Detalle",3),"Presentaciones");
+  window.XLSX.writeFile(libro,`reporte_cartillas_${periodos.join("-")}.xlsx`);
 }
 
 function mostrarGraficoReporte(tipo, mostrar = true) {
@@ -1733,8 +1870,8 @@ function actualizarCabeceraReporte(tipo) {
   const title = document.getElementById("report-current-title");
   const description = document.getElementById("report-current-description");
   if (eyebrow) eyebrow.textContent = tipo === "pma" ? "PMA" : "CARTILLAS";
-  if (title) title.textContent = "Obras Sociales sin presentación";
-  if (description) description.textContent = "Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Obra Social.";
+  if (title) title.textContent = "Agentes de Seguro sin presentación";
+  if (description) description.textContent = "Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Agente de Seguro.";
   const cartSearch = document.getElementById("report-cartillas-search-wrap");
   const pmaSearch = document.getElementById("report-pma-search-wrap");
   if (cartSearch) cartSearch.hidden = tipo !== "cartillas";
@@ -1789,7 +1926,7 @@ async function cargarYRenderizarReporteCartillas() {
     return;
   }
 
-  if (status) status.textContent = "Cargando Obras Sociales y Cartillas...";
+  if (status) status.textContent = "Cargando Agentes de Seguro y Cartillas...";
   if (count) count.textContent = "Preparando reporte...";
 
   try {
@@ -1807,7 +1944,7 @@ async function cargarYRenderizarReporteCartillas() {
     poblarPeriodosReporte();
     renderReporteFaltantesCartillas();
 
-    if (document.getElementById("report-cartillas-status")?.textContent === "Cargando Obras Sociales y Cartillas...") {
+    if (document.getElementById("report-cartillas-status")?.textContent === "Cargando Agentes de Seguro y Cartillas...") {
       document.getElementById("report-cartillas-status").textContent = "Reporte listo";
     }
   } catch (error) {
@@ -1877,14 +2014,15 @@ function poblarPeriodosPma() {
 }
 
 function obtenerFilasReportePma(reporte, periodos) {
-  if (typeof document === "undefined") return [...(reporte || [])];
+  if (typeof document === "undefined") return ordenarReportePorRnas(reporte || [], reportPmaRnasSortDirection);
   const termino = normalizar(document.getElementById("report-pma-search")?.value || "");
   const soloFaltantes = Boolean(document.getElementById("report-pma-solo-faltantes")?.checked);
-  return (reporte || []).filter(row => {
+  const filtradas = (reporte || []).filter(row => {
     if (soloFaltantes && !reporteTieneFaltante(row, periodos)) return false;
     if (!termino) return true;
     return normalizar(`${row.rnos} ${row.denominacion}`).includes(termino);
   });
+  return ordenarReportePorRnas(filtradas, reportPmaRnasSortDirection);
 }
 
 function renderGraficoPma(resumen) {
@@ -1895,85 +2033,32 @@ function renderGraficoPma(resumen) {
 
 function renderReporteFaltantesPma() {
   if (typeof document === "undefined") return;
-  const head = document.getElementById("report-pma-head");
-  const body = document.getElementById("report-pma-body");
-  const count = document.getElementById("report-pma-count");
-  const empty = document.getElementById("report-pma-empty");
-  if (!head || !body) return;
-
-  const periodos = getPeriodosPmaSeleccionados();
-  head.innerHTML = `<tr>
-    <th>RNOS</th><th>Denominación</th><th>Inicio ejercicio</th>
-    ${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}
-  </tr>`;
-
-  if (!periodos.length) {
-    body.innerHTML = "";
-    renderGraficoPma([]);
-    if (count) count.textContent = "Seleccioná al menos un período";
-    if (empty) {
-      empty.hidden = false;
-      empty.textContent = "Seleccioná uno o más períodos de control para generar el reporte.";
-    }
-    return;
-  }
-
-  const reporte = generarReporteFaltantesPresentaciones(obrasSociales, pma, periodos);
-  const filtrado = obtenerFilasReportePma(reporte, periodos);
-  const sectorGraficoPma = document.getElementById("report-pma-chart-sector");
-  if (sectorGraficoPma && !sectorGraficoPma.hidden) {
-    renderGraficoPma(resumirPresentacionesPorPeriodo(reporte, periodos));
-  }
-
-  body.innerHTML = filtrado.map(row => `<tr>
-    <td><strong>${escaparHtml(row.rnos || "—")}</strong></td>
-    <td class="denominacion-cell">${escaparHtml(row.denominacion || "—")}</td>
-    <td class="date-cell">${escaparHtml(row.inicioEjercicio || "—")}</td>
-    ${periodos.map(periodo => {
-      const resultado = row.periodos[periodo] || { estado: "SIN_INICIO", ejercicioEsperado: "" };
-      const estado = resultado.estado || "SIN_INICIO";
-      const simbolo = simboloEstadoReporte(estado);
-      const etiqueta = etiquetaEstadoReporte(estado);
-      const clase = claseEstadoReporte(estado);
-      const detalle = resultado.ejercicioEsperado ? ` · Ejercicio esperado: ${resultado.ejercicioEsperado}` : "";
-      return `<td class="report-status-cell"><span class="report-icon ${clase}" title="${escaparHtml(etiqueta + detalle)}" aria-label="${escaparHtml(etiqueta + detalle)}">${simbolo}</span></td>`;
-    }).join("")}
-  </tr>`).join("");
-
-  const faltantes = reporte.filter(row => reporteTieneFaltante(row, periodos)).length;
-  const sinInicio = reporte.filter(row => periodos.some(periodo => row.periodos[periodo]?.estado === "SIN_INICIO")).length;
-  if (count) count.textContent = `${filtrado.length} ${filtrado.length === 1 ? "Obra Social" : "Obras Sociales"} mostradas`;
-  const status = document.getElementById("report-pma-status");
-  if (status) status.textContent = `${faltantes} con faltantes · ${sinInicio} sin Inicio ejercicio · ${reporte.length} OS activas evaluadas`;
-  if (empty) {
-    empty.hidden = filtrado.length !== 0;
-    empty.textContent = "No hay Obras Sociales para mostrar con los filtros seleccionados.";
-  }
+  const head=document.getElementById("report-pma-head"), body=document.getElementById("report-pma-body"), count=document.getElementById("report-pma-count"), empty=document.getElementById("report-pma-empty");
+  if(!head||!body)return;
+  const periodos=getPeriodosPmaSeleccionados();
+  const arrow=reportPmaRnasSortDirection==="asc"?"↑":"↓";
+  head.innerHTML=`<tr><th><button class="sort-button" id="report-pma-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th>${periodos.map(p=>`<th class="period-head">${p}</th>`).join("")}</tr>`;
+  head.querySelector("#report-pma-rnas-sort")?.addEventListener("click",()=>{reportPmaRnasSortDirection=reportPmaRnasSortDirection==="asc"?"desc":"asc";renderReporteFaltantesPma();});
+  if(!periodos.length){body.innerHTML="";renderGraficoPma([]);if(count)count.textContent="Seleccioná al menos un período";if(empty){empty.hidden=false;empty.textContent="Seleccioná uno o más períodos de control para generar el reporte.";}return;}
+  const reporte=generarReporteFaltantesPresentaciones(obrasSociales,pma,periodos); const filtrado=obtenerFilasReportePma(reporte,periodos);
+  const sector=document.getElementById("report-pma-chart-sector");if(sector&&!sector.hidden)renderGraficoPma(resumirPresentacionesPorPeriodo(reporte,periodos));
+  body.innerHTML=filtrado.map(row=>`<tr class="report-agent-row report-pma-history-row" data-history-os-id="${escaparHtml(row.id)}" tabindex="0" role="button" title="Ver historial completo de presentaciones"><td><strong>${escaparHtml(row.rnos||"—")}</strong></td><td class="denominacion-cell">${escaparHtml(row.denominacion||"—")}</td>${periodos.map(p=>{const resultado=row.periodos[p]||{estado:"SIN_INICIO",ejercicioEsperado:""};const estado=resultado.estado||"SIN_INICIO";const detalle=resultado.ejercicioEsperado?` · Ejercicio esperado: ${resultado.ejercicioEsperado}`:"";return `<td class="report-status-cell"><span class="report-icon ${claseEstadoReporte(estado)}" title="${escaparHtml(etiquetaEstadoReporte(estado)+detalle)}" aria-label="${escaparHtml(etiquetaEstadoReporte(estado)+detalle)}">${simboloEstadoReporte(estado)}</span></td>`;}).join("")}</tr>`).join("");
+  activarFilasHistorialReporte("pma",".report-pma-history-row");
+  const faltantes=reporte.filter(row=>reporteTieneFaltante(row,periodos)).length;const sinInicio=reporte.filter(row=>periodos.some(p=>row.periodos[p]?.estado==="SIN_INICIO")).length;
+  if(count)count.textContent=`${filtrado.length} ${filtrado.length===1?"Agente de Seguro":"Agentes de Seguro"} mostrados`;
+  const status=document.getElementById("report-pma-status");if(status)status.textContent=`${faltantes} con faltantes · ${sinInicio} sin Inicio ejercicio · ${reporte.length} agentes activos evaluados`;
+  if(empty){empty.hidden=filtrado.length!==0;empty.textContent="No hay Agentes de Seguro para mostrar con los filtros seleccionados.";}
 }
 
 function exportarReportePmaExcel() {
   if (typeof document === "undefined") return;
-  const periodos = getPeriodosPmaSeleccionados();
-  if (!periodos.length) {
-    mostrarToast("Seleccioná al menos un período para exportar.", "error");
-    return;
-  }
-  if (!window.XLSX) {
-    mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error");
-    return;
-  }
-
-  const reporte = generarReporteFaltantesPresentaciones(obrasSociales, pma, periodos);
-  const filas = obtenerFilasReportePma(reporte, periodos);
-  const matriz = construirMatrizExcelPresentaciones(filas, periodos, {
-    reporte: "PMA - Presentaciones",
-    generado: formatearFechaHoraExportacion()
-  });
-  const hoja = window.XLSX.utils.aoa_to_sheet(matriz);
-  hoja["!cols"] = [{ wch: 12 }, { wch: 55 }, { wch: 16 }, ...periodos.map(() => ({ wch: 12 }))];
-  const libro = window.XLSX.utils.book_new();
-  window.XLSX.utils.book_append_sheet(libro, hoja, "PMA");
-  window.XLSX.writeFile(libro, `reporte_pma_${periodos.join("-")}.xlsx`);
+  const periodos=getPeriodosPmaSeleccionados(); if(!periodos.length){mostrarToast("Seleccioná al menos un período para exportar.","error");return;}
+  if(!window.XLSX){mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.","error");return;}
+  const reporte=generarReporteFaltantesPresentaciones(obrasSociales,pma,periodos); const filas=obtenerFilasReportePma(reporte,periodos);
+  const resumen=matrizResumenReporte(filas,periodos,"PMA - Presentaciones");
+  const detalle=construirMatrizExcelDetallePresentaciones(registrosDetalleParaReporte("pma",filas,periodos),{tipo:"PMA - Detalle de presentaciones",generado:formatearFechaHoraExportacion()});
+  const libro=window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(libro,crearHojaExcelConDiseno(resumen,"PMA",3),"Reporte"); window.XLSX.utils.book_append_sheet(libro,crearHojaExcelConDiseno(detalle,"Detalle",3),"Presentaciones");
+  window.XLSX.writeFile(libro,`reporte_pma_${periodos.join("-")}.xlsx`);
 }
 
 async function cargarYRenderizarReportePma() {
@@ -1986,7 +2071,7 @@ async function cargarYRenderizarReportePma() {
     return;
   }
 
-  if (status) status.textContent = "Cargando Obras Sociales y PMA...";
+  if (status) status.textContent = "Cargando Agentes de Seguro y PMA...";
   if (count) count.textContent = "Preparando reporte...";
 
   try {
@@ -1998,7 +2083,7 @@ async function cargarYRenderizarReportePma() {
     reportePmaCargado = true;
     poblarPeriodosPma();
     renderReporteFaltantesPma();
-    if (document.getElementById("report-pma-status")?.textContent === "Cargando Obras Sociales y PMA...") {
+    if (document.getElementById("report-pma-status")?.textContent === "Cargando Agentes de Seguro y PMA...") {
       document.getElementById("report-pma-status").textContent = "Reporte listo";
     }
   } catch (error) {
@@ -2234,7 +2319,7 @@ async function handleCartillaSubmit(event) {
     mostrarToast(id ? "Presentación de Cartilla actualizada." : "Presentación de Cartilla creada.");
     await cargarYRenderizarCartillas();
   } catch (error) {
-    const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una presentación con esa Obra Social, ejercicio y Nº EE." : error.message || "No se pudo guardar la presentación.";
+    const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una presentación con esa Agente de Seguro, ejercicio y Nº EE." : error.message || "No se pudo guardar la presentación.";
     setFormMessage("cartilla-form-message", mensaje);
   } finally {
     if (save) save.disabled = false;
@@ -2300,10 +2385,8 @@ async function initBrowser() {
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
   document.getElementById("pma-search")?.addEventListener("input", renderPma);
-  document.getElementById("pma-ejercicio-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-condicion-filter")?.addEventListener("change", renderPma);
-  document.getElementById("pma-res170-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-os-search")?.addEventListener("change", recalcularDatosPma);
   document.getElementById("pma-ejercicio")?.addEventListener("input", recalcularDatosPma);
@@ -2313,8 +2396,9 @@ async function initBrowser() {
   document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
   document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
   document.getElementById("cartilla-search")?.addEventListener("input", renderCartillas);
-  document.getElementById("cartilla-ejercicio-filter")?.addEventListener("change", renderCartillas);
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", renderCartillas);
+  document.getElementById("btn-export-pma")?.addEventListener("click", () => exportarModuloPresentacionesExcel("pma"));
+  document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
@@ -2362,6 +2446,9 @@ async function initBrowser() {
   document.addEventListener("click", event => {
     document.querySelectorAll(".period-select[open]").forEach(selector => {
       if (debeCerrarSelectorPeriodoPorClick(selector, event.target)) selector.open = false;
+    });
+    document.querySelectorAll(".section-help[open]").forEach(help => {
+      if (!help.contains(event.target)) help.open = false;
     });
   });
 
@@ -2414,6 +2501,10 @@ if (typeof module !== "undefined" && module.exports) {
     finPeriodoDesdeInicio,
     diaMesDesdeFechaIso,
     filtrarPmaRegistros,
+    filtrarCartillasRegistros,
+    ordenarReportePorRnas,
+    construirHistorialPresentaciones,
+    construirMatrizExcelDetallePresentaciones,
     calcularCumplimiento90,
     ejercicioEsperadoPeriodoControl,
     generarReporteFaltantesPresentaciones,
