@@ -28,6 +28,46 @@ function getInitialView(hash) {
   return Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
 }
 
+function normalizarPerfilAcceso(perfil) {
+  return normalizar(perfil).replace(/\s+/g, " ");
+}
+
+function perfilPuedeVerVista(perfil, vista) {
+  const id = Object.prototype.hasOwnProperty.call(views, vista) ? vista : "inicio";
+  const p = normalizarPerfilAcceso(perfil);
+
+  if (p === "administrador" || p === "admin") return true;
+  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes"].includes(id);
+  return id === "inicio";
+}
+
+function primeraVistaPermitida(perfil) {
+  const p = normalizarPerfilAcceso(perfil);
+  if (p === "carga presentaciones") return "pma";
+  return "inicio";
+}
+
+function perfilSesionActual() {
+  if (!authSession?.access_token) return "";
+  return getSessionIdentity(authSession).perfil || "";
+}
+
+function vistaPermitidaParaSesion(vista) {
+  return perfilPuedeVerVista(perfilSesionActual(), vista);
+}
+
+function aplicarPermisosNavegacion() {
+  if (typeof document === "undefined") return;
+  const perfil = perfilSesionActual();
+  const esAdmin = ["administrador", "admin"].includes(normalizarPerfilAcceso(perfil));
+  const esCarga = normalizarPerfilAcceso(perfil) === "carga presentaciones";
+
+  document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", esCarga);
+  document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !esAdmin);
+  document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdmin || esCarga));
+  document.querySelector('[data-nav-access="reportes"]')?.toggleAttribute("hidden", !(esAdmin || esCarga));
+}
+
 function normalizar(texto) {
   return String(texto || "")
     .normalize("NFD")
@@ -684,12 +724,20 @@ async function guardarObraSocialEnSupabase(registro, id, accessToken, fetchImpl 
 
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
-  const resolved = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
+  const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
+  const resolved = vistaPermitidaParaSesion(requested) ? requested : primeraVistaPermitida(perfilSesionActual());
 
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".nav-item,.nav-subitem").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".nav-group").forEach(g => g.classList.remove("active"));
   document.getElementById(resolved)?.classList.add("active");
   document.querySelector(`[data-view="${resolved}"]`)?.classList.add("active");
+  if (["pma", "cartillas"].includes(resolved)) {
+    const group = document.querySelector('[data-nav-group="presentaciones"]');
+    group?.classList.add("active");
+    group?.classList.remove("collapsed");
+    group?.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "true");
+  }
 
   const meta = views[resolved];
   const topbar = document.getElementById("topbar");
@@ -917,6 +965,10 @@ function actualizarAuthUI() {
     if (nombre) nombre.textContent = "";
     if (perfil) perfil.textContent = "";
   }
+
+  aplicarPermisosNavegacion();
+  const vistaActiva = document.querySelector(".view.active")?.id || "inicio";
+  if (!vistaPermitidaParaSesion(vistaActiva)) showView(primeraVistaPermitida(perfilSesionActual()), false);
 
   renderObrasSociales();
 }
@@ -1161,16 +1213,17 @@ function recalcularDatosCartilla() {
   if (typeof document === "undefined") return;
   const os = resolverObraSocialCartilla(document.getElementById("cartilla-os-search")?.value || "");
   const inicio = os?.inicio_ejercicio || "";
-  const select = document.getElementById("cartilla-ejercicio");
-  const previo = select?.value || "";
+  const ejercicioIngresado = document.getElementById("cartilla-ejercicio")?.value || "";
+  const ejercicio = ejercicioCanonico(ejercicioIngresado);
+  const anio = anioInicioDesdeEjercicio(ejercicio);
+
   document.getElementById("cartilla-os-id").value = os?.id || "";
   document.getElementById("cartilla-inicio-ejercicio").value = inicio;
-  actualizarMasterInfoCartilla(os);
-  poblarSelectorEjercicio("cartilla", inicio, previo);
-  const ejercicio = select?.value || "";
-  const anio = anioInicioDesdeEjercicio(ejercicio);
   document.getElementById("cartilla-anio-inicio").value = anio || "";
-  document.getElementById("cartilla-fecha-inicio-ejercicio").value = anio ? fechaInicioEjercicioDesdeDiaMes(inicio, anio) : "";
+  document.getElementById("cartilla-fecha-inicio-ejercicio").value =
+    anio ? fechaInicioEjercicioDesdeDiaMes(inicio, anio) : "";
+
+  actualizarMasterInfoCartilla(os);
   actualizarAlertaCartilla();
 }
 
@@ -1974,27 +2027,27 @@ function recalcularDatosPma() {
   if (typeof document === "undefined") return;
   const os = resolverObraSocialPma(document.getElementById("pma-os-search")?.value || "");
   const inicio = os?.inicio_ejercicio || "";
-  const select = document.getElementById("pma-ejercicio");
-  const previo = select?.value || "";
-  document.getElementById("pma-os-id").value = os?.id || "";
-  document.getElementById("pma-inicio-periodo").value = inicio;
-  actualizarMasterInfoPma(os);
-  poblarSelectorEjercicio("pma", inicio, previo);
-  const ejercicio = select?.value || "";
+  const ejercicioIngresado = document.getElementById("pma-ejercicio")?.value || "";
+  const ejercicio = ejercicioCanonico(ejercicioIngresado);
   const anio = anioInicioDesdeEjercicio(ejercicio);
   const fechaInicio = anio ? fechaInicioEjercicioDesdeDiaMes(inicio, anio) : "";
   const fechaFin = anio ? finPeriodoDesdeInicio(inicio, anio) : "";
+
+  document.getElementById("pma-os-id").value = os?.id || "";
+  document.getElementById("pma-inicio-periodo").value = inicio;
   document.getElementById("pma-anio-inicio").value = anio || "";
   document.getElementById("pma-fin-periodo").value = diaMesDesdeFechaIso(fechaFin);
   document.getElementById("pma-fecha-inicio-ejercicio").value = fechaInicio;
   document.getElementById("pma-fecha-fin-ejercicio").value = fechaFin;
+
+  actualizarMasterInfoPma(os);
   actualizarAlertaPma();
 }
 function limpiarFormularioPma() {
   document.getElementById("pma-form")?.reset();
   ["pma-id","pma-os-id","pma-inicio-periodo","pma-fin-periodo","pma-fecha-inicio-ejercicio","pma-fecha-fin-ejercicio","pma-anio-inicio"].forEach(id => document.getElementById(id).value = "");
   const ejercicio = document.getElementById("pma-ejercicio");
-  if (ejercicio) { ejercicio.innerHTML = '<option value="">Seleccioná un agente</option>'; ejercicio.disabled = true; }
+  if (ejercicio) ejercicio.value = "";
   document.getElementById("pma-res-170").value = "SI";
   actualizarMasterInfoPma(null);
   setFormMessage("pma-form-message","");
@@ -2013,8 +2066,10 @@ function abrirModalPmaEdicion(id) {
   document.getElementById("pma-inicio-periodo").value=r.inicio_periodo||r.obras_sociales?.inicio_ejercicio||"";
   document.getElementById("pma-fin-periodo").value=r.fin_periodo||diaMesDesdeFechaIso(r.fecha_fin_ejercicio);
   const inicioPma = r.inicio_periodo || r.obras_sociales?.inicio_ejercicio || "";
-  poblarSelectorEjercicio("pma", inicioPma, r.ejercicio || derivarEjercicio(inicioPma, r.anio_inicio));
-  document.getElementById("pma-anio-inicio").value = r.anio_inicio || anioInicioDesdeEjercicio(document.getElementById("pma-ejercicio").value) || "";
+  document.getElementById("pma-ejercicio").value =
+    ejercicioCanonico(r.ejercicio || derivarEjercicio(inicioPma, r.anio_inicio)) || "";
+  document.getElementById("pma-anio-inicio").value =
+    r.anio_inicio || anioInicioDesdeEjercicio(document.getElementById("pma-ejercicio").value) || "";
   document.getElementById("pma-fecha-inicio-ejercicio").value=r.fecha_inicio_ejercicio||"";
   document.getElementById("pma-fecha-fin-ejercicio").value=r.fecha_fin_ejercicio||"";document.getElementById("pma-analista").value=r.analista||"";
   document.getElementById("pma-ee").value=r.numero_ee||"";document.getElementById("pma-condicion").value=r.condicion||"";
@@ -2041,7 +2096,7 @@ async function handlePmaSubmit(event){
     const ejercicio=ejercicioCanonico(document.getElementById("pma-ejercicio")?.value||"");
     const anio=anioInicioDesdeEjercicio(ejercicio);
     const fechaInicio=anio?fechaInicioEjercicioDesdeDiaMes(inicio,anio):"",fechaFin=anio?finPeriodoDesdeInicio(inicio,anio):"";
-    if(!fechaInicio||!fechaFin||!ejercicio)throw new Error("Seleccioná el Ejercicio de la presentación.");
+    if(!fechaInicio||!fechaFin||!ejercicio)throw new Error("Ingresá el Ejercicio como 2026 o 2026/27.");
     const registro={obra_social_id:Number(os.id),anio_inicio:anio,ejercicio,inicio_periodo:inicio,fin_periodo:diaMesDesdeFechaIso(fechaFin),
       fecha_inicio_ejercicio:fechaInicio,fecha_fin_ejercicio:fechaFin,analista:document.getElementById("pma-analista")?.value.trim()||null,
       numero_ee:document.getElementById("pma-ee")?.value.trim()||null,condicion:document.getElementById("pma-condicion")?.value||null,
@@ -2062,7 +2117,7 @@ function limpiarFormularioCartilla() {
   document.getElementById("cartilla-fecha-inicio-ejercicio").value = "";
   document.getElementById("cartilla-anio-inicio").value = "";
   const ejercicio = document.getElementById("cartilla-ejercicio");
-  if (ejercicio) { ejercicio.innerHTML = '<option value="">Seleccioná un agente</option>'; ejercicio.disabled = true; }
+  if (ejercicio) ejercicio.value = "";
   document.getElementById("cartilla-res-170").value = "SI";
   actualizarMasterInfoCartilla(null);
   setFormMessage("cartilla-form-message", "");
@@ -2087,8 +2142,10 @@ function abrirModalCartillaEdicion(id) {
   document.getElementById("cartilla-os-search").value = getObraSocialDisplay(c.obras_sociales || {});
   const inicioCartilla = c.obras_sociales?.inicio_ejercicio || "";
   document.getElementById("cartilla-inicio-ejercicio").value = inicioCartilla;
-  poblarSelectorEjercicio("cartilla", inicioCartilla, c.ejercicio || derivarEjercicio(inicioCartilla, c.anio_inicio));
-  document.getElementById("cartilla-anio-inicio").value = c.anio_inicio || anioInicioDesdeEjercicio(document.getElementById("cartilla-ejercicio").value) || "";
+  document.getElementById("cartilla-ejercicio").value =
+    ejercicioCanonico(c.ejercicio || derivarEjercicio(inicioCartilla, c.anio_inicio)) || "";
+  document.getElementById("cartilla-anio-inicio").value =
+    c.anio_inicio || anioInicioDesdeEjercicio(document.getElementById("cartilla-ejercicio").value) || "";
   document.getElementById("cartilla-fecha-inicio-ejercicio").value = c.fecha_inicio_ejercicio || "";
   document.getElementById("cartilla-analista").value = c.analista || "";
   document.getElementById("cartilla-ee").value = c.numero_ee || "";
@@ -2140,7 +2197,7 @@ async function handleCartillaSubmit(event) {
     const ejercicio = ejercicioCanonico(document.getElementById("cartilla-ejercicio")?.value || "");
     const anioInicio = anioInicioDesdeEjercicio(ejercicio);
     const fechaInicioEjercicio = anioInicio ? fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio) : "";
-    if (!fechaInicioEjercicio || !ejercicio) throw new Error("Seleccioná el Ejercicio de la presentación.");
+    if (!fechaInicioEjercicio || !ejercicio) throw new Error("Ingresá el Ejercicio como 2026 o 2026/27.");
 
     const registro = {
       obra_social_id:Number(os.id), anio_inicio:anioInicio, ejercicio, fecha_inicio_ejercicio:fechaInicioEjercicio,
@@ -2204,6 +2261,11 @@ function initBrowser() {
   const recoveryDetected = procesarRecuperacionDesdeUrl();
 
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
+  document.querySelectorAll(".nav-group-toggle").forEach(btn => btn.addEventListener("click", () => {
+    const group = btn.closest(".nav-group");
+    const collapsed = group?.classList.toggle("collapsed") || false;
+    btn.setAttribute("aria-expanded", String(!collapsed));
+  }));
   document.querySelectorAll("[data-go]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.go)));
   document.querySelectorAll("[data-close-modal]").forEach(btn => btn.addEventListener("click", () => cerrarModal(btn.dataset.closeModal)));
   document.querySelectorAll("[data-toggle-password]").forEach(btn => btn.addEventListener("click", () => togglePassword(btn.dataset.togglePassword, btn)));
@@ -2226,6 +2288,7 @@ function initBrowser() {
   document.getElementById("pma-res170-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-os-search")?.addEventListener("change", recalcularDatosPma);
+  document.getElementById("pma-ejercicio")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-ejercicio")?.addEventListener("change", recalcularDatosPma);
   document.getElementById("pma-fecha-ingreso")?.addEventListener("change", actualizarAlertaPma);
 
@@ -2236,6 +2299,7 @@ function initBrowser() {
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", renderCartillas);
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
+  document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
 
@@ -2348,6 +2412,9 @@ if (typeof module !== "undefined" && module.exports) {
     cargarPmaDesdeSupabase,
     debeCerrarSelectorPeriodoPorClick,
     parseRecoveryHash,
-    normalizarSesion
+    normalizarSesion,
+    normalizarPerfilAcceso,
+    perfilPuedeVerVista,
+    primeraVistaPermitida
   };
 }

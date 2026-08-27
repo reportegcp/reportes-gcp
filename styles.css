@@ -64,6 +64,23 @@ button{cursor:pointer}
   border-radius:10px
 }
 .nav-item:hover,.nav-item.active{background:rgba(255,255,255,.11);color:#fff}
+.nav-group{display:grid;gap:5px}
+.nav-group-toggle{
+  width:100%;border:0;background:transparent;color:#dce7f2;text-align:left;
+  padding:12px 14px;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+.nav-group-toggle:hover,.nav-group.active>.nav-group-toggle{background:rgba(255,255,255,.11);color:#fff}
+.nav-group-chevron{font-size:15px;line-height:1;transition:transform .16s ease}
+.nav-group.collapsed .nav-group-chevron{transform:rotate(-90deg)}
+.nav-submenu{display:grid;gap:3px;padding:0 0 2px 12px}
+.nav-group.collapsed .nav-submenu{display:none}
+.nav-subitem{
+  border:0;background:transparent;color:#c7d5e4;text-align:left;padding:9px 14px 9px 22px;
+  border-radius:9px;position:relative;font-size:13px
+}
+.nav-subitem::before{content:"";position:absolute;left:8px;top:50%;width:5px;height:5px;border-radius:50%;background:#8097af;transform:translateY(-50%)}
+.nav-subitem:hover,.nav-subitem.active{background:rgba(255,255,255,.09);color:#fff}
+.nav-subitem.active::before{background:#fff}
 .sidebar-footer{
   margin-top:auto;
   padding-top:24px;
@@ -235,6 +252,8 @@ button{cursor:pointer}
 }
 .search-box{position:relative}
 .search-box input{width:100%;padding-left:42px}
+.transaction-agent-search{width:100%}
+.transaction-agent-search .search-icon{z-index:1}
 .search-icon{
   position:absolute;
   left:14px;

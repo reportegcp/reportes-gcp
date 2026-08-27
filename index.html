@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=25">
+  <link rel="stylesheet" href="styles.css?v=27">
 </head>
 <body>
   <div class="app-shell">
@@ -18,15 +18,24 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-view="inicio">Inicio</button>
-        <button class="nav-item" data-view="obras-sociales">Obras Sociales</button>
-        <button class="nav-item" data-view="pma">PMA</button>
-        <button class="nav-item" data-view="cartillas">Cartillas</button>
-        <button class="nav-item" data-view="reportes">Reportes</button>
+        <button class="nav-item active" data-view="inicio" data-nav-access="inicio">Inicio</button>
+        <button class="nav-item" data-view="obras-sociales" data-nav-access="obras-sociales">Obras Sociales</button>
+
+        <div class="nav-group" data-nav-group="presentaciones" data-nav-access="presentaciones">
+          <button class="nav-group-toggle" type="button" aria-expanded="true">
+            <span>Presentaciones</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-subitem" data-view="pma" type="button">PMA</button>
+            <button class="nav-subitem" data-view="cartillas" type="button">Cartillas</button>
+          </div>
+        </div>
+
+        <button class="nav-item" data-view="reportes" data-nav-access="reportes">Reportes</button>
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 25</span>
+        <span>Versión 27</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -425,11 +434,14 @@
         <div class="form-grid transaction-form-grid">
           <div class="transaction-agent-row full">
             <label><span>Agente de Seguro de Salud</span>
-              <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+              <div class="search-box transaction-agent-search">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input id="pma-os-search" type="text" list="pma-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+              </div>
               <datalist id="pma-os-list"></datalist>
             </label>
             <label><span>Ejercicio</span>
-              <select id="pma-ejercicio" disabled required><option value="">Seleccioná un agente</option></select>
+              <input id="pma-ejercicio" type="text" maxlength="7" placeholder="2026 o 2026/27" autocomplete="off" required>
             </label>
           </div>
 
@@ -489,11 +501,14 @@
         <div class="form-grid transaction-form-grid">
           <div class="transaction-agent-row full">
             <label><span>Agente de Seguro de Salud</span>
-              <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+              <div class="search-box transaction-agent-search">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input id="cartilla-os-search" type="text" list="cartilla-os-list" placeholder="Buscar por RNOS, sigla o denominación..." autocomplete="off" required>
+              </div>
               <datalist id="cartilla-os-list"></datalist>
             </label>
             <label><span>Ejercicio</span>
-              <select id="cartilla-ejercicio" disabled required><option value="">Seleccioná un agente</option></select>
+              <input id="cartilla-ejercicio" type="text" maxlength="7" placeholder="2026 o 2026/27" autocomplete="off" required>
             </label>
           </div>
 
@@ -602,6 +617,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=27"></script>
 </body>
 </html>
