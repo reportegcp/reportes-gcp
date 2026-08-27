@@ -17,6 +17,7 @@ let accionPendienteTrasLogin = null;
 let passwordRecoveryPending = false;
 let cartillas = [];
 let cartillasCargadas = false;
+let reporteCartillasCargado = false;
 
 function getInitialView(hash) {
   const id = String(hash || "").replace(/^#/, "");
@@ -93,6 +94,92 @@ function derivarEjercicio(inicioEjercicio, anioInicio) {
   const year = Number(anioInicio);
   if (!normalizado || !Number.isInteger(year)) return "";
   return normalizado === "01-01" ? String(year) : `${year}/${String(year + 1).slice(-2)}`;
+}
+
+
+function ejercicioEsperadoPeriodoControl(inicioEjercicio, periodoControl) {
+  const normalizado = normalizarDiaMes(inicioEjercicio);
+  const periodo = Number(periodoControl);
+
+  if (!normalizado || !Number.isInteger(periodo)) return null;
+
+  if (normalizado === "01-01") {
+    return { anioInicio: periodo, ejercicio: String(periodo) };
+  }
+
+  const anioInicio = periodo - 1;
+  return {
+    anioInicio,
+    ejercicio: `${anioInicio}/${String(periodo).slice(-2)}`
+  };
+}
+
+function generarReporteFaltantesCartillas(obras, registrosCartillas, periodos) {
+  const periodosValidos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
+  const indexPresentaciones = new Set(
+    (registrosCartillas || [])
+      .filter(c => c && c.obra_social_id !== null && c.obra_social_id !== undefined && Number.isInteger(Number(c.anio_inicio)))
+      .map(c => `${Number(c.obra_social_id)}|${Number(c.anio_inicio)}`)
+  );
+
+  return (obras || [])
+    .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
+    .map(os => {
+      const periodosResultado = {};
+
+      for (const periodo of periodosValidos) {
+        const esperado = ejercicioEsperadoPeriodoControl(os?.inicio_ejercicio || "", periodo);
+
+        if (!esperado) {
+          periodosResultado[periodo] = {
+            estado: "SIN_INICIO",
+            ejercicioEsperado: ""
+          };
+          continue;
+        }
+
+        const presento = indexPresentaciones.has(`${Number(os.id)}|${esperado.anioInicio}`);
+        periodosResultado[periodo] = {
+          estado: presento ? "PRESENTO" : "NO_PRESENTO",
+          ejercicioEsperado: esperado.ejercicio
+        };
+      }
+
+      return {
+        id: os.id,
+        rnos: os.rnos || "",
+        denominacion: os.denominacion || "",
+        inicioEjercicio: os.inicio_ejercicio || "",
+        periodos: periodosResultado
+      };
+    })
+    .sort((a, b) => {
+      const ar = Number(String(a.rnos).replace(/\D/g, "")) || 0;
+      const br = Number(String(b.rnos).replace(/\D/g, "")) || 0;
+      return ar - br;
+    });
+}
+
+function periodosControlDisponibles(registrosCartillas, anioActual = new Date().getFullYear()) {
+  const periodos = new Set([Number(anioActual)]);
+
+  for (const c of registrosCartillas || []) {
+    const anioInicio = Number(c?.anio_inicio);
+    if (!Number.isInteger(anioInicio)) continue;
+
+    const inicio = normalizarDiaMes(c?.obras_sociales?.inicio_ejercicio || "");
+    const periodo = inicio === "01-01" ? anioInicio : anioInicio + 1;
+    if (Number.isInteger(periodo)) periodos.add(periodo);
+  }
+
+  const values = [...periodos].filter(Number.isInteger);
+  if (!values.length) return [Number(anioActual)];
+
+  const min = Math.min(...values);
+  const max = Math.max(Math.max(...values), Number(anioActual));
+  const result = [];
+  for (let y = min; y <= max; y += 1) result.push(y);
+  return result.sort((a, b) => b - a);
 }
 
 function calcularCumplimiento90(fechaInicioEjercicio, fechaIngreso) {
@@ -486,6 +573,7 @@ function showView(id, updateHistory = true) {
 
   if (updateHistory && typeof history !== "undefined") history.pushState(null, "", `#${resolved}`);
   if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
+  if (resolved === "reportes") cargarYRenderizarReporteCartillas();
 }
 
 function renderObrasSociales() {
@@ -1055,6 +1143,174 @@ async function cargarYRenderizarCartillas() {
   }
 }
 
+
+function getPeriodosReporteSeleccionados() {
+  if (typeof document === "undefined") return [];
+  return [...document.querySelectorAll('input[name="report-periodo"]:checked')]
+    .map(input => Number(input.value))
+    .filter(Number.isInteger)
+    .sort((a, b) => a - b);
+}
+
+function poblarPeriodosReporte() {
+  if (typeof document === "undefined") return;
+  const container = document.getElementById("report-periodos");
+  if (!container) return;
+
+  const seleccionadosAntes = new Set(getPeriodosReporteSeleccionados());
+  const periodos = periodosControlDisponibles(cartillas);
+  const actual = new Date().getFullYear();
+
+  container.innerHTML = periodos.map(periodo => {
+    const checked = seleccionadosAntes.size
+      ? seleccionadosAntes.has(periodo)
+      : periodo === actual;
+
+    return `<label class="period-chip">
+      <input type="checkbox" name="report-periodo" value="${periodo}" ${checked ? "checked" : ""}>
+      <span>${periodo}</span>
+    </label>`;
+  }).join("");
+
+  container.querySelectorAll('input[name="report-periodo"]').forEach(input => {
+    input.addEventListener("change", renderReporteFaltantesCartillas);
+  });
+}
+
+function reporteTieneFaltante(row, periodos) {
+  return periodos.some(periodo => {
+    const estado = row?.periodos?.[periodo]?.estado;
+    return estado === "NO_PRESENTO" || estado === "SIN_INICIO";
+  });
+}
+
+function renderReporteFaltantesCartillas() {
+  if (typeof document === "undefined") return;
+
+  const head = document.getElementById("report-cartillas-head");
+  const body = document.getElementById("report-cartillas-body");
+  const count = document.getElementById("report-cartillas-count");
+  const empty = document.getElementById("report-cartillas-empty");
+  if (!head || !body) return;
+
+  const periodos = getPeriodosReporteSeleccionados();
+  const termino = normalizar(document.getElementById("report-cartillas-search")?.value || "");
+  const soloFaltantes = Boolean(document.getElementById("report-solo-faltantes")?.checked);
+
+  head.innerHTML = `<tr>
+    <th>RNOS</th>
+    <th>Denominación</th>
+    <th>Inicio ejercicio</th>
+    ${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}
+  </tr>`;
+
+  if (!periodos.length) {
+    body.innerHTML = "";
+    if (count) count.textContent = "Seleccioná al menos un período";
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = "Seleccioná uno o más períodos de control para generar el reporte.";
+    }
+    return;
+  }
+
+  const reporte = generarReporteFaltantesCartillas(obrasSociales, cartillas, periodos);
+
+  const filtrado = reporte.filter(row => {
+    if (soloFaltantes && !reporteTieneFaltante(row, periodos)) return false;
+    if (!termino) return true;
+    return normalizar(`${row.rnos} ${row.denominacion}`).includes(termino);
+  });
+
+  body.innerHTML = filtrado.map(row => `
+    <tr>
+      <td><strong>${escaparHtml(row.rnos || "—")}</strong></td>
+      <td class="denominacion-cell">${escaparHtml(row.denominacion || "—")}</td>
+      <td class="date-cell">${escaparHtml(row.inicioEjercicio || "—")}</td>
+      ${periodos.map(periodo => {
+        const resultado = row.periodos[periodo] || { estado: "SIN_INICIO", ejercicioEsperado: "" };
+
+        if (resultado.estado === "PRESENTO") {
+          return `<td class="report-status-cell" title="Ejercicio esperado: ${escaparHtml(resultado.ejercicioEsperado)}">
+            <span class="report-status ok">PRESENTÓ</span>
+          </td>`;
+        }
+
+        if (resultado.estado === "NO_PRESENTO") {
+          return `<td class="report-status-cell" title="Ejercicio esperado: ${escaparHtml(resultado.ejercicioEsperado)}">
+            <span class="report-status missing">NO PRESENTÓ</span>
+          </td>`;
+        }
+
+        return `<td class="report-status-cell">
+          <span class="report-status unknown">SIN INICIO EJ.</span>
+        </td>`;
+      }).join("")}
+    </tr>
+  `).join("");
+
+  const faltantes = reporte.filter(row => reporteTieneFaltante(row, periodos)).length;
+  const sinInicio = reporte.filter(row => periodos.some(p => row.periodos[p]?.estado === "SIN_INICIO")).length;
+
+  if (count) {
+    count.textContent = `${filtrado.length} ${filtrado.length === 1 ? "Obra Social" : "Obras Sociales"} mostradas`;
+  }
+
+  const status = document.getElementById("report-cartillas-status");
+  if (status) {
+    status.textContent = `${faltantes} con faltantes · ${sinInicio} sin Inicio ejercicio · ${reporte.length} OS activas evaluadas`;
+  }
+
+  if (empty) {
+    empty.hidden = filtrado.length !== 0;
+    empty.textContent = "No hay Obras Sociales para mostrar con los filtros seleccionados.";
+  }
+}
+
+async function cargarYRenderizarReporteCartillas() {
+  if (typeof document === "undefined") return;
+
+  const status = document.getElementById("report-cartillas-status");
+  const count = document.getElementById("report-cartillas-count");
+
+  if (reporteCartillasCargado && obrasSociales.length && cartillasCargadas) {
+    renderReporteFaltantesCartillas();
+    return;
+  }
+
+  if (status) status.textContent = "Cargando Obras Sociales y Cartillas...";
+  if (count) count.textContent = "Preparando reporte...";
+
+  try {
+    if (!obrasSociales.length) {
+      obrasSociales = await cargarObrasSocialesDesdeSupabase();
+    }
+
+    if (!cartillasCargadas) {
+      cartillas = await cargarCartillasDesdeSupabase();
+      cartillasCargadas = true;
+      llenarFiltroEjercicios();
+    }
+
+    reporteCartillasCargado = true;
+    poblarPeriodosReporte();
+    renderReporteFaltantesCartillas();
+
+    if (document.getElementById("report-cartillas-status")?.textContent === "Cargando Obras Sociales y Cartillas...") {
+      document.getElementById("report-cartillas-status").textContent = "Reporte listo";
+    }
+  } catch (error) {
+    reporteCartillasCargado = false;
+    if (count) count.textContent = "No se pudo generar el reporte";
+    if (status) status.textContent = "Error de conexión con Supabase";
+    const empty = document.getElementById("report-cartillas-empty");
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = error?.message || "No se pudieron cargar los datos del reporte.";
+    }
+  }
+}
+
 function limpiarFormularioCartilla() {
   document.getElementById("cartilla-form")?.reset();
   document.getElementById("cartilla-id").value = "";
@@ -1222,6 +1478,9 @@ function initBrowser() {
   document.getElementById("cartilla-anio-inicio")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
 
+  document.getElementById("report-cartillas-search")?.addEventListener("input", renderReporteFaltantesCartillas);
+  document.getElementById("report-solo-faltantes")?.addEventListener("change", renderReporteFaltantesCartillas);
+
   document.getElementById("btn-login")?.addEventListener("click", abrirLogin);
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
   document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
@@ -1282,6 +1541,9 @@ if (typeof module !== "undefined" && module.exports) {
     derivarEjercicio,
     fechaInicioEjercicioDesdeDiaMes,
     calcularCumplimiento90,
+    ejercicioEsperadoPeriodoControl,
+    generarReporteFaltantesCartillas,
+    periodosControlDisponibles,
     buildCartillasUrl,
     cargarCartillasDesdeSupabase,
     parseRecoveryHash,

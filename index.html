@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 14</span>
+        <span>Versión 16</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -61,7 +61,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V15</strong><span>Datos y acceso</span></div>
+          <div class="hero-badge"><strong>V16</strong><span>Datos y acceso</span></div>
         </div>
 
         <div class="cards">
@@ -203,10 +203,50 @@
       </section>
 
       <section id="reportes" class="view">
-        <div class="cards report-cards no-top-margin">
-          <article class="card"><h3>PMA por ejercicio</h3><p>Presentados, aprobados, observados y en estudio.</p></article>
-          <article class="card"><h3>Por analista</h3><p>Cantidad asignada y estado de cada presentación.</p></article>
-          <article class="card"><h3>Comparaciones</h3><p>Series históricas y cruces entre Obras Sociales.</p></article>
+        <div class="report-panel">
+          <div class="report-heading">
+            <div>
+              <span class="eyebrow">CARTILLAS</span>
+              <h2>Obras Sociales sin presentación</h2>
+              <p>Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Obra Social.</p>
+            </div>
+          </div>
+
+          <div class="report-filters">
+            <div class="period-filter">
+              <strong>Período de control</strong>
+              <div class="period-options" id="report-periodos"></div>
+            </div>
+
+            <div class="search-box report-search">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="report-cartillas-search" type="search" placeholder="Buscar por RNOS o denominación..." autocomplete="off">
+            </div>
+
+            <label class="check-option">
+              <input id="report-solo-faltantes" type="checkbox" checked>
+              <span>Mostrar sólo OS con faltantes</span>
+            </label>
+          </div>
+
+          <div class="report-note">
+            <strong>Equivalencia automática:</strong>
+            <span>para el período 2026, una OS con inicio 01-01 busca ejercicio 2026; una OS con inicio distinto de 01-01 busca 2025/26.</span>
+          </div>
+
+          <div class="table-card">
+            <div class="table-meta">
+              <strong id="report-cartillas-count">Preparando reporte...</strong>
+              <span id="report-cartillas-status">Cargando datos...</span>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table report-missing-table">
+                <thead id="report-cartillas-head"></thead>
+                <tbody id="report-cartillas-body"></tbody>
+              </table>
+            </div>
+            <div class="table-empty" id="report-cartillas-empty" hidden>No hay Obras Sociales para mostrar con los filtros seleccionados.</div>
+          </div>
         </div>
       </section>
     </main>
@@ -382,6 +422,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
