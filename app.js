@@ -113,6 +113,7 @@ function generarReporteFaltantesPorEjercicio(obras, registrosPresentaciones, eje
 }
 
 const periodosEstadisticasInicio = [
+  { key: "2027", ejercicios: ["2026/27", "2027"] },
   { key: "2026", ejercicios: ["2025/26", "2026"] },
   { key: "2025", ejercicios: ["2024/25", "2025"] },
   { key: "2024", ejercicios: ["2023/24", "2024"] }
