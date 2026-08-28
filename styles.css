@@ -1383,3 +1383,32 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 }
 
 .home-hero .hero-badge{display:none}
+
+
+/* V46: inicio por trámite y período */
+.hero.home-hero{padding:18px 28px;min-height:auto;border-radius:22px}
+.hero.home-hero h2{font-size:30px;margin:2px 0 6px}
+.hero.home-hero p{font-size:14px;line-height:1.4}
+.home-stats-section{margin-top:12px}
+.home-simple-heading{margin:2px 0 10px}
+.home-simple-heading h3{font-size:20px}
+.home-tramite-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.home-tramite-card{background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.home-tramite-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcfe 0%,#f5f8fc 100%)}
+.home-tramite-kicker{display:block;font-size:12px;font-weight:900;letter-spacing:.75px;color:var(--accent);margin-bottom:2px}
+.home-tramite-header h4{margin:0;font-size:24px;color:var(--navy)}
+.home-tramite-header small{display:block;max-width:220px;font-size:12px;line-height:1.35;color:#60718a;font-weight:700;text-align:right}
+.home-tramite-table{padding:0}
+.home-tramite-row{display:grid;grid-template-columns:1.35fr .85fr .95fr;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #edf1f5}
+.home-tramite-row:last-child{border-bottom:0}
+.home-tramite-row>span:nth-child(n+2){text-align:center}
+.home-tramite-head{padding-top:8px;padding-bottom:8px;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.25px;background:#fcfdff}
+.home-tramite-row strong{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--navy)}
+.home-tramite-row strong em{font-style:normal;font-size:10px;font-weight:900;letter-spacing:.6px;color:#1d3f6a;background:rgba(29,63,106,.08);padding:4px 7px;border-radius:999px;white-space:nowrap}
+.home-tramite-row.current{background:linear-gradient(90deg,#fff9ea 0%,#fffdf7 100%)}
+.home-tramite-row.current strong{color:#17365b}
+.home-tramite-row.current .home-stat-number.ok{background:#dff4e8;color:#1b6c50}
+.home-tramite-row.current .home-stat-number.missing{background:#f7e7e9;color:#923646}
+.home-stat-number{min-width:52px;padding:4px 10px;font-size:16px}
+@media(max-width:980px){.home-tramite-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.hero.home-hero{padding:16px 18px}.home-tramite-header{flex-direction:column}.home-tramite-header small{text-align:left;max-width:none}.home-tramite-row{grid-template-columns:1fr 86px 100px;padding-left:12px;padding-right:12px}.home-tramite-row strong{font-size:14px}}
