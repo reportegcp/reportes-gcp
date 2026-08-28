@@ -21,6 +21,10 @@ let obrasSociales = [];
 let rnosSortDirection = "asc";
 let reportCartillasRnasSortDirection = "asc";
 let reportPmaRnasSortDirection = "asc";
+let pmaSortField = "rnas";
+let pmaSortDirection = "asc";
+let cartillaSortField = "rnas";
+let cartillaSortDirection = "asc";
 let authSession = null;
 let accionPendienteTrasLogin = null;
 let passwordRecoveryPending = false;
@@ -1489,6 +1493,62 @@ function ordenarReportePorRnas(filas, direccion = "asc") {
   });
 }
 
+
+function iconoOrdenTabla(campoActivo, campo, direccion) {
+  if (campoActivo !== campo) return "↕";
+  return direccion === "desc" ? "↓" : "↑";
+}
+
+function compararTextoOrden(a, b, factor = 1) {
+  return String(a || "").localeCompare(String(b || ""), "es", { numeric: true, sensitivity: "base" }) * factor;
+}
+
+function ordenarPresentacionesPorCampo(lista, campo = "rnas", direccion = "asc") {
+  const factor = direccion === "desc" ? -1 : 1;
+  return [...(lista || [])].sort((a, b) => {
+    if (campo === "rnas") {
+      const diff = rnosNumerico(a?.obras_sociales?.rnos) - rnosNumerico(b?.obras_sociales?.rnos);
+      if (diff !== 0) return diff * factor;
+      return compararTextoOrden(a?.obras_sociales?.rnos, b?.obras_sociales?.rnos, factor);
+    }
+    if (campo === "ingreso") {
+      const av = String(a?.fecha_ingreso || "");
+      const bv = String(b?.fecha_ingreso || "");
+      if (av !== bv) return av.localeCompare(bv, "es") * factor;
+      return compararTextoOrden(a?.obras_sociales?.denominacion, b?.obras_sociales?.denominacion, factor);
+    }
+    if (campo === "fecha_limite") {
+      const av = String(calcularCumplimiento90(a?.fecha_inicio_ejercicio || "", a?.fecha_ingreso || "")?.fechaLimite || "");
+      const bv = String(calcularCumplimiento90(b?.fecha_inicio_ejercicio || "", b?.fecha_ingreso || "")?.fechaLimite || "");
+      if (av !== bv) return av.localeCompare(bv, "es") * factor;
+      return compararTextoOrden(a?.obras_sociales?.denominacion, b?.obras_sociales?.denominacion, factor);
+    }
+    return 0;
+  });
+}
+
+function cambiarOrdenPresentaciones(modulo, campo) {
+  if (modulo === "pma") {
+    if (pmaSortField === campo) {
+      pmaSortDirection = pmaSortDirection === "asc" ? "desc" : "asc";
+    } else {
+      pmaSortField = campo;
+      pmaSortDirection = campo === "rnas" ? "asc" : "desc";
+    }
+    pmaPage = 1;
+    renderPma();
+    return;
+  }
+  if (cartillaSortField === campo) {
+    cartillaSortDirection = cartillaSortDirection === "asc" ? "desc" : "asc";
+  } else {
+    cartillaSortField = campo;
+    cartillaSortDirection = campo === "rnas" ? "asc" : "desc";
+  }
+  cartillaPage = 1;
+  renderCartillas();
+}
+
 function construirHistorialPresentaciones(lista, obraSocialId) {
   const objetivo = String(obraSocialId ?? "");
   return (lista || [])
@@ -1722,7 +1782,14 @@ function cumplimientoPmaRegistro(row) {
 function renderPma() {
   if (typeof document === "undefined") return;
   const tbody = document.getElementById("pma-table-body"); if (!tbody) return;
-  const rows = obtenerPmaFiltradas();
+  const head = document.getElementById("pma-table-head");
+  const rows = ordenarPresentacionesPorCampo(obtenerPmaFiltradas(), pmaSortField, pmaSortDirection);
+  if (head) {
+    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th>Ejercicio</th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.querySelector("#pma-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "rnas"));
+    head.querySelector("#pma-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ingreso"));
+    head.querySelector("#pma-sort-fecha-limite")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "fecha_limite"));
+  }
   const pageInfo = paginarRegistros(rows, pmaPage, PAGE_SIZE);
   pmaPage = pageInfo.page;
   tbody.innerHTML = pageInfo.items.map(r => {
@@ -1782,7 +1849,14 @@ function renderCartillas() {
   if (typeof document === "undefined") return;
   const tbody = document.getElementById("cartilla-table-body");
   if (!tbody) return;
-  const filtradas = filtrarCartillas();
+  const head = document.getElementById("cartilla-table-head");
+  const filtradas = ordenarPresentacionesPorCampo(filtrarCartillas(), cartillaSortField, cartillaSortDirection);
+  if (head) {
+    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th>Ejercicio</th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.querySelector("#cartilla-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "rnas"));
+    head.querySelector("#cartilla-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ingreso"));
+    head.querySelector("#cartilla-sort-fecha-limite")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "fecha_limite"));
+  }
   const pageInfo = paginarRegistros(filtradas, cartillaPage, PAGE_SIZE);
   cartillaPage = pageInfo.page;
   tbody.innerHTML = pageInfo.items.map(c => {
