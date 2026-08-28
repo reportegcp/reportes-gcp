@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=48">
+  <link rel="stylesheet" href="styles.css?v=49">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 48</span>
+        <span>Versión 49</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -113,35 +113,29 @@
             <h3 id="home-stats-title">Resumen por trámite y período</h3>
           </div>
 
-          <div class="home-kpi-grid home-kpi-grid-v48">
+          <div class="home-kpi-grid home-kpi-grid-v49">
             <article class="home-kpi-card is-universe">
               <span class="home-kpi-label">Universo de OS</span>
               <strong class="home-kpi-value" id="home-kpi-universo">—</strong>
               <small class="home-kpi-note">Obras Sociales activas</small>
             </article>
 
-            <article class="home-kpi-card">
-              <span class="home-kpi-label">OS con PMA presentado</span>
-              <strong class="home-kpi-value" id="home-kpi-pma">—</strong>
-              <small class="home-kpi-note">Período vigente</small>
-            </article>
-
             <article class="home-kpi-card is-current-period">
               <span class="home-kpi-label">Período vigente · PMA</span>
-              <strong class="home-kpi-period">2026/27 · 2027</strong>
-              <small class="home-kpi-note">En curso</small>
-            </article>
-
-            <article class="home-kpi-card">
-              <span class="home-kpi-label">OS con Cartilla presentada</span>
-              <strong class="home-kpi-value" id="home-kpi-cartillas">—</strong>
-              <small class="home-kpi-note">Período vigente</small>
+              <div class="home-current-period-body">
+                <strong class="home-kpi-period">2026/27 · 2027</strong>
+                <strong class="home-kpi-current-count" id="home-kpi-pma">—</strong>
+              </div>
+              <small class="home-kpi-note">OS con PMA presentado</small>
             </article>
 
             <article class="home-kpi-card is-current-period">
               <span class="home-kpi-label">Período vigente · Cartilla</span>
-              <strong class="home-kpi-period">2026/27 · 2027</strong>
-              <small class="home-kpi-note">En curso</small>
+              <div class="home-current-period-body">
+                <strong class="home-kpi-period">2026/27 · 2027</strong>
+                <strong class="home-kpi-current-count" id="home-kpi-cartillas">—</strong>
+              </div>
+              <small class="home-kpi-note">OS con Cartilla presentada</small>
             </article>
           </div>
 
@@ -711,6 +705,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-  <script src="app.js?v=48"></script>
+  <script src="app.js?v=49"></script>
 </body>
 </html>

@@ -1437,3 +1437,14 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 @media(max-width:1250px){.home-kpi-grid-v48{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:850px){.home-kpi-grid-v48{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.home-kpi-grid-v48{grid-template-columns:1fr}}
+
+
+/* V49: solo 3 pastillas */
+.home-kpi-grid-v49{grid-template-columns:1fr 1.2fr 1.2fr;gap:14px}
+.home-kpi-grid-v49 .home-kpi-card{min-height:92px;padding:14px 18px 12px}
+.home-kpi-grid-v49 .is-universe .home-kpi-value{font-size:30px}
+.home-current-period-body{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.home-kpi-grid-v49 .is-current-period .home-kpi-period{font-size:20px}
+.home-kpi-current-count{font-size:30px;line-height:1;color:#fff;font-weight:900}
+.home-kpi-grid-v49 .is-current-period .home-kpi-note{color:#dbe7f1;font-size:12px;text-transform:none;letter-spacing:0}
+@media(max-width:1050px){.home-kpi-grid-v49{grid-template-columns:1fr}}
