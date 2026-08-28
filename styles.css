@@ -1272,3 +1272,17 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .pma-table tbody{height:auto!important;vertical-align:top}
 .pma-table tr{height:auto!important}
 .pma-table td:nth-child(8),.pma-table td:nth-child(9){overflow-wrap:break-word;word-break:normal}
+
+
+/* V35: salto directo de página, plazo en una línea y versión visible consistente */
+.table-pagination .page-jump{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:800;color:#5d6d7e;
+}
+.table-pagination .page-jump select{
+  min-width:58px;height:30px;padding:3px 24px 3px 8px;
+  border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--navy);
+  font-size:11px;font-weight:850;
+}
+.history-table .badge{white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;}
+.history-evolution-label{white-space:nowrap!important;max-width:none!important;}

@@ -52,11 +52,15 @@ function renderPaginacion(containerId, pageInfo, onPageChange) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!pageInfo || pageInfo.totalPages <= 1) { el.innerHTML = ""; return; }
+  const opciones = Array.from({ length: pageInfo.totalPages }, (_, i) => i + 1)
+    .map(page => `<option value="${page}" ${page === pageInfo.page ? "selected" : ""}>${page}</option>`)
+    .join("");
   el.innerHTML = `<button type="button" data-page-action="prev" ${pageInfo.page <= 1 ? "disabled" : ""}>‹ Anterior</button>
-    <span>Página ${pageInfo.page} de ${pageInfo.totalPages}</span>
+    <label class="page-jump">Página <select data-page-select aria-label="Ir a página">${opciones}</select> de ${pageInfo.totalPages}</label>
     <button type="button" data-page-action="next" ${pageInfo.page >= pageInfo.totalPages ? "disabled" : ""}>Siguiente ›</button>`;
   el.querySelector('[data-page-action="prev"]')?.addEventListener("click", () => onPageChange(pageInfo.page - 1));
   el.querySelector('[data-page-action="next"]')?.addEventListener("click", () => onPageChange(pageInfo.page + 1));
+  el.querySelector('[data-page-select]')?.addEventListener("change", event => onPageChange(Number(event.target.value)));
 }
 
 function simboloCumplimientoPresentacion(estado) {
@@ -69,6 +73,15 @@ function claseCumplimientoPresentacion(estado) {
   if (estado === "EN_TERMINO") return "ok";
   if (estado === "FUERA_DE_TERMINO") return "missing";
   return "neutral";
+}
+
+function limpiarObservacionDuplicada(numeroDisposicion, observaciones) {
+  const numero = String(numeroDisposicion || "").trim();
+  const obs = String(observaciones || "").trim();
+  if (!obs) return null;
+  if (!numero) return obs;
+  const canon = valor => String(valor || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return canon(numero) && canon(numero) === canon(obs) ? null : obs;
 }
 
 function claveOrdenEjercicio(valor) {
@@ -2556,7 +2569,7 @@ async function handlePmaSubmit(event){
       numero_ee:document.getElementById("pma-ee")?.value.trim()||null,condicion:document.getElementById("pma-condicion")?.value||null,
       fecha_ingreso:document.getElementById("pma-fecha-ingreso")?.value||null,res_170_2009:document.getElementById("pma-res-170")?.value||null,
       numero_disposicion:document.getElementById("pma-disposicion")?.value.trim()||null,fecha_disposicion:document.getElementById("pma-fecha-disposicion")?.value||null,
-      observaciones:document.getElementById("pma-observaciones")?.value.trim()||null};
+      observaciones:limpiarObservacionDuplicada(document.getElementById("pma-disposicion")?.value, document.getElementById("pma-observaciones")?.value)};
     const id=document.getElementById("pma-id")?.value||"";await guardarPmaEnSupabase(registro,id||null,session.access_token);
     cerrarModal("pma-modal");mostrarToast(id?"Presentación de PMA actualizada.":"Presentación de PMA creada.");await cargarYRenderizarPma();reportePmaCargado=false;
   }catch(error){setFormMessage("pma-form-message",error.message||"No se pudo guardar la presentación de PMA.");}
@@ -2662,7 +2675,7 @@ async function handleCartillaSubmit(event) {
       res_170_2009:document.getElementById("cartilla-res-170")?.value || null,
       numero_disposicion:document.getElementById("cartilla-disposicion")?.value.trim() || null,
       fecha_disposicion:document.getElementById("cartilla-fecha-disposicion")?.value || null,
-      observaciones:document.getElementById("cartilla-observaciones")?.value.trim() || null
+      observaciones:limpiarObservacionDuplicada(document.getElementById("cartilla-disposicion")?.value, document.getElementById("cartilla-observaciones")?.value)
     };
     const id = document.getElementById("cartilla-id")?.value || "";
     await guardarCartillaEnSupabase(registro, id || null, session.access_token);
@@ -2832,6 +2845,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     paginarRegistros,
     simboloCumplimientoPresentacion,
+    limpiarObservacionDuplicada,
     generarReporteFaltantesPorEjercicio,
     getInitialView,
     normalizarDiaMes,
