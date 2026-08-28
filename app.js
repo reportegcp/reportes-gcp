@@ -112,6 +112,63 @@ function generarReporteFaltantesPorEjercicio(obras, registrosPresentaciones, eje
     .sort((a,b) => (Number(String(a.rnos).replace(/\D/g,""))||0) - (Number(String(b.rnos).replace(/\D/g,""))||0));
 }
 
+const periodosEstadisticasInicio = [
+  { key: "2026", ejercicios: ["2025/26", "2026"] },
+  { key: "2025", ejercicios: ["2024/25", "2025"] },
+  { key: "2024", ejercicios: ["2023/24", "2024"] }
+];
+
+function resumirInicioPorParEjercicios(obras, registros, ejercicios) {
+  const activas = (obras || []).filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA");
+  const idsActivos = new Set(activas.map(os => String(os?.id ?? "")).filter(Boolean));
+  const esperados = new Set((ejercicios || []).map(e => ejercicioCanonico(e) || String(e || "").trim()).filter(Boolean));
+  const conPresentacion = new Set();
+  for (const row of registros || []) {
+    const id = String(row?.obra_social_id ?? "");
+    if (!idsActivos.has(id)) continue;
+    const ejercicio = ejercicioCanonico(row?.ejercicio) || String(row?.ejercicio || "").trim();
+    if (esperados.has(ejercicio)) conPresentacion.add(id);
+  }
+  const presentaron = conPresentacion.size;
+  const totalActivas = activas.length;
+  return { presentaron, noPresentaron: Math.max(0, totalActivas - presentaron), totalActivas };
+}
+
+function pintarResumenInicio(key, tipo, resumen) {
+  if (typeof document === "undefined") return;
+  const presentaron = document.getElementById(`home-${key}-${tipo}-presentaron`);
+  const noPresentaron = document.getElementById(`home-${key}-${tipo}-no-presentaron`);
+  if (presentaron) presentaron.textContent = String(resumen?.presentaron ?? "—");
+  if (noPresentaron) noPresentaron.textContent = String(resumen?.noPresentaron ?? "—");
+}
+
+function renderEstadisticasInicio() {
+  if (typeof document === "undefined") return;
+  const base = document.getElementById("home-stats-base");
+  const totalActivas = (obrasSociales || []).filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA").length;
+  for (const periodo of periodosEstadisticasInicio) {
+    pintarResumenInicio(periodo.key, "pma", resumirInicioPorParEjercicios(obrasSociales, pma, periodo.ejercicios));
+    pintarResumenInicio(periodo.key, "cartillas", resumirInicioPorParEjercicios(obrasSociales, cartillas, periodo.ejercicios));
+  }
+  if (base) base.textContent = `${totalActivas} Agentes de Seguro activos evaluados`;
+}
+
+async function cargarYRenderizarEstadisticasInicio() {
+  if (typeof document === "undefined") return;
+  const base = document.getElementById("home-stats-base");
+  if (base) base.textContent = "Cargando estadísticas...";
+  try {
+    const tareas = [];
+    if (!obrasSociales.length) tareas.push(cargarObrasSocialesDesdeSupabase().then(rows => { obrasSociales = rows; }));
+    if (!pmaCargadas) tareas.push(cargarPmaDesdeSupabase().then(rows => { pma = rows; pmaCargadas = true; llenarFiltrosPma(); }));
+    if (!cartillasCargadas) tareas.push(cargarCartillasDesdeSupabase().then(rows => { cartillas = rows; cartillasCargadas = true; llenarFiltroEjercicios(); }));
+    if (tareas.length) await Promise.all(tareas);
+    renderEstadisticasInicio();
+  } catch (error) {
+    if (base) base.textContent = "No se pudieron cargar las estadísticas";
+  }
+}
+
 function getInitialView(hash) {
   const id = String(hash || "").replace(/^#/, "");
   return Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -857,6 +914,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "inicio") {
     topbar?.classList.add("is-home");
     if (copy) copy.hidden = true;
+    cargarYRenderizarEstadisticasInicio();
   } else {
     topbar?.classList.remove("is-home");
     if (copy) copy.hidden = false;
@@ -2958,8 +3016,9 @@ async function initBrowser() {
 
   await restaurarSesion();
   if (authSession?.access_token) {
-    showView(recoveryDetected ? "obras-sociales" : getInitialView(location.hash), false);
-    await cargarYRenderizarObrasSociales();
+    const vistaInicial = recoveryDetected ? "obras-sociales" : getInitialView(location.hash);
+    showView(vistaInicial, false);
+    if (vistaInicial !== "inicio") await cargarYRenderizarObrasSociales();
   } else {
     abrirLogin();
   }
@@ -2975,6 +3034,7 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     paginarRegistros,
+    resumirInicioPorParEjercicios,
     simboloCumplimientoPresentacion,
     generarReporteFaltantesPorEjercicio,
     getInitialView,
