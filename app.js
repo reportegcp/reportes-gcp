@@ -1495,25 +1495,37 @@ function matrizExcelNuncaPresentaron(filas, titulo) {
 function construirMatrizExcelDetallePresentaciones(filas, metadata = {}) {
   const tipo = metadata.tipo || "Presentaciones";
   const generado = metadata.generado || "";
+  const filtros = metadata.filtros || "Todos los registros filtrados";
+  const esPma = /^PMA\b/i.test(tipo);
+  const encabezados = esPma
+    ? ["RNAS","DENOMINACIÓN","EJERCICIO","INICIO PERÍODO","FECHA INGRESO","FECHA LÍMITE","PLAZO","CONDICIÓN","Nº EE","FECHA DISPOSICIÓN","Nº DISPO","OBSERVACIONES"]
+    : ["RNAS","DENOMINACIÓN","EJERCICIO","FECHA INGRESO","FECHA LÍMITE","PLAZO","CONDICIÓN","Nº EE","FECHA DISPOSICIÓN","Nº DISPO","OBSERVACIONES"];
   const matriz = [
     [tipo],
     ["Generado", generado],
-    [],
-    ["RNAS","DENOMINACIÓN","SIGLA","INICIO EJERCICIO","DOMICILIO","LOCALIDAD","PROVINCIA","EJERCICIO","AÑO INICIO","FECHA INICIO EJERCICIO","FECHA FIN EJERCICIO","INICIO PERÍODO","FIN PERÍODO","FECHA INGRESO","FECHA LÍMITE","PLAZO","ANALISTA","CONDICIÓN","Nº EE","RES. 170/09","Nº DISPO","FECHA DISPOSICIÓN","OBSERVACIONES","ID PRESENTACIÓN"]
+    ["Filtros aplicados", filtros],
+    encabezados
   ];
   for (const row of filas || []) {
     const os = row?.obras_sociales || {};
     const cumplimiento = calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
-    const plazo = cumplimiento.estado === "EN_TERMINO" ? "EN TÉRMINO" : cumplimiento.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "SIN DATOS";
-    matriz.push([
-      String(os.rnos || ""), String(os.denominacion || ""), String(os.sigla || ""), String(os.inicio_ejercicio || ""),
-      String(os.domicilio || ""), String(os.localidad || ""), String(os.provincia || ""), String(row.ejercicio || ""),
-      row.anio_inicio ?? "", formatFechaPantalla(row.fecha_inicio_ejercicio), formatFechaPantalla(row.fecha_fin_ejercicio),
-      String(row.inicio_periodo || ""), String(row.fin_periodo || ""), formatFechaPantalla(row.fecha_ingreso),
-      formatFechaPantalla(cumplimiento.fechaLimite), plazo, String(row.analista || ""), String(row.condicion || ""),
-      String(row.numero_ee || ""), String(row.res_170_2009 || ""), String(row.numero_disposicion || ""),
-      formatFechaPantalla(row.fecha_disposicion), String(row.observaciones || ""), row.id ?? ""
-    ]);
+    const plazo = cumplimiento.estado === "EN_TERMINO" ? "EN TÉRMINO" : cumplimiento.estado === "FUERA_DE_TERMINO" ? "FUERA DE TÉRMINO" : "—";
+    const comunes = [
+      String(os.rnos || ""),
+      String(os.denominacion || ""),
+      String(row.ejercicio || "")
+    ];
+    const detalle = [
+      formatFechaPantalla(row.fecha_ingreso),
+      formatFechaPantalla(cumplimiento.fechaLimite),
+      plazo,
+      String(row.condicion || ""),
+      String(row.numero_ee || ""),
+      formatFechaPantalla(row.fecha_disposicion),
+      String(row.numero_disposicion || ""),
+      String(row.observaciones || "")
+    ];
+    matriz.push(esPma ? [...comunes, String(row.inicio_periodo || ""), ...detalle] : [...comunes, ...detalle]);
   }
   return matriz;
 }
@@ -1522,17 +1534,60 @@ function crearHojaExcelConDiseno(matriz, titulo = "Reporte", filaEncabezado = 3)
   if (typeof window === "undefined" || !window.XLSX) return null;
   const hoja = window.XLSX.utils.aoa_to_sheet(matriz);
   const maxCols = Math.max(1, ...(matriz || []).map(r => r.length));
-  hoja["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:Math.max(0,maxCols-1)} }];
-  hoja["!cols"] = Array.from({length:maxCols}, (_,i) => ({ wch: i === 1 ? 46 : (i === 22 ? 42 : 18) }));
   const lastRow = Math.max(filaEncabezado, (matriz || []).length - 1);
+  const headers = matriz?.[filaEncabezado] || [];
+  const widths = {
+    "RNAS": 11, "DENOMINACIÓN": 48, "EJERCICIO": 12, "INICIO PERÍODO": 15,
+    "FECHA INGRESO": 15, "FECHA LÍMITE": 15, "PLAZO": 18, "CONDICIÓN": 18,
+    "Nº EE": 35, "FECHA DISPOSICIÓN": 18, "Nº DISPO": 34, "OBSERVACIONES": 46
+  };
+  hoja["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:Math.max(0,maxCols-1)} }];
+  hoja["!cols"] = headers.map(h => ({ wch: widths[String(h)] || 18 }));
+  hoja["!rows"] = [
+    { hpt: 28 }, { hpt: 21 }, { hpt: 24 }, { hpt: 28 },
+    ...Array.from({length:Math.max(0,lastRow-filaEncabezado)}, () => ({ hpt: 30 }))
+  ];
   hoja["!autofilter"] = { ref: window.XLSX.utils.encode_range({s:{r:filaEncabezado,c:0},e:{r:lastRow,c:maxCols-1}}) };
   hoja["!freeze"] = { xSplit: 0, ySplit: filaEncabezado + 1, topLeftCell: `A${filaEncabezado+2}`, activePane: "bottomLeft", state: "frozen" };
-  // Los estilos son aprovechados por versiones de SheetJS que los soportan; anchos/filtros/estructura funcionan en todas.
+
+  const border = {
+    top:{style:"thin",color:{rgb:"D9E2EC"}}, bottom:{style:"thin",color:{rgb:"D9E2EC"}},
+    left:{style:"thin",color:{rgb:"D9E2EC"}}, right:{style:"thin",color:{rgb:"D9E2EC"}}
+  };
   const titleCell = hoja.A1;
-  if (titleCell) titleCell.s = { font:{bold:true,sz:16,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"183153"}}, alignment:{horizontal:"left"} };
+  if (titleCell) titleCell.s = {
+    font:{bold:true,sz:17,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"183153"}},
+    alignment:{horizontal:"left",vertical:"center"}
+  };
   for (let c=0;c<maxCols;c++) {
+    const meta1 = hoja[window.XLSX.utils.encode_cell({r:1,c})];
+    const meta2 = hoja[window.XLSX.utils.encode_cell({r:2,c})];
+    if (meta1) meta1.s = {font:{sz:10,color:{rgb:c===0?"183153":"52647A"},bold:c===0},alignment:{vertical:"center",wrapText:true}};
+    if (meta2) meta2.s = {font:{sz:10,color:{rgb:c===0?"183153":"52647A"},bold:c===0},fill:{fgColor:{rgb:"F4F7FB"}},alignment:{vertical:"center",wrapText:true}};
     const addr = window.XLSX.utils.encode_cell({r:filaEncabezado,c});
-    if (hoja[addr]) hoja[addr].s = { font:{bold:true,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"183153"}}, alignment:{vertical:"center",wrapText:true} };
+    if (hoja[addr]) hoja[addr].s = {
+      font:{bold:true,sz:10,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"23476B"}}, border,
+      alignment:{vertical:"center",horizontal:"left",wrapText:true}
+    };
+  }
+  for (let r=filaEncabezado+1;r<=lastRow;r++) {
+    for (let c=0;c<maxCols;c++) {
+      const addr = window.XLSX.utils.encode_cell({r,c});
+      const cell = hoja[addr];
+      if (!cell) continue;
+      cell.s = {
+        font:{sz:9.5,color:{rgb:"172B4D"}}, border,
+        fill:{fgColor:{rgb:r%2===0?"F8FAFC":"FFFFFF"}},
+        alignment:{vertical:"top",wrapText:true}
+      };
+      const header = String(headers[c] || "");
+      if (["RNAS","EJERCICIO","PLAZO"].includes(header)) cell.s.font.bold = true;
+      if (header === "PLAZO" && String(cell.v || "").includes("FUERA")) {
+        cell.s.fill = {fgColor:{rgb:"FCE8EA"}}; cell.s.font.color = {rgb:"9A3441"};
+      } else if (header === "PLAZO" && String(cell.v || "").includes("EN TÉRMINO")) {
+        cell.s.fill = {fgColor:{rgb:"E5F3ED"}}; cell.s.font.color = {rgb:"236B50"};
+      }
+    }
   }
   return hoja;
 }
@@ -1883,17 +1938,41 @@ function matrizResumenReporte(filas, periodos, titulo) {
   return matriz;
 }
 
+function resumenFiltrosModulo(tipo) {
+  if (typeof document === "undefined") return "Filtros actuales";
+  const esPma = tipo === "pma";
+  const prefix = esPma ? "pma" : "cartilla";
+  const ejercicios = ejerciciosFiltroSeleccionados(prefix);
+  const totalOpciones = document.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).length;
+  const partes = [];
+  partes.push(!ejercicios.length || ejercicios.length === totalOpciones ? "Ejercicios: Todos" : `Ejercicios: ${ejercicios.join(", ")}`);
+  const busqueda = document.getElementById(esPma ? "pma-search" : "cartilla-search")?.value?.trim();
+  if (busqueda) partes.push(`Búsqueda: ${busqueda}`);
+  if (esPma) {
+    const condicion = document.getElementById("pma-condicion-filter")?.value || "TODOS";
+    if (condicion !== "TODOS") partes.push(`Condición: ${condicion}`);
+  } else {
+    const plazo = document.getElementById("cartilla-plazo-filter")?.value || "TODOS";
+    if (plazo !== "TODOS") partes.push(`Plazo: ${plazo === "EN_TERMINO" ? "En término" : "Fuera de término"}`);
+  }
+  return partes.join(" · ");
+}
+
 function exportarModuloPresentacionesExcel(tipo) {
   if (typeof document === "undefined") return;
   if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.","error"); return; }
   const esPma = tipo === "pma";
   const filas = esPma ? obtenerPmaFiltradas() : filtrarCartillas();
   const nombre = esPma ? "PMA" : "Cartillas";
-  const matriz = construirMatrizExcelDetallePresentaciones(filas,{tipo:`${nombre} - Presentaciones`,generado:formatearFechaHoraExportacion()});
+  const matriz = construirMatrizExcelDetallePresentaciones(filas,{
+    tipo:`${nombre} - Presentaciones`,
+    generado:formatearFechaHoraExportacion(),
+    filtros:resumenFiltrosModulo(tipo)
+  });
   const hoja = crearHojaExcelConDiseno(matriz, nombre, 3);
   const libro = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(libro,hoja,nombre);
-  window.XLSX.writeFile(libro,`${nombre.toLowerCase()}_presentaciones_${new Date().toISOString().slice(0,10)}.xlsx`);
+  window.XLSX.writeFile(libro,`${nombre.toLowerCase()}_presentaciones_${new Date().toISOString().slice(0,10)}.xlsx`,{cellStyles:true});
 }
 
 function renderReporteFaltantesCartillas() {
