@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=46">
+  <link rel="stylesheet" href="styles.css?v=47">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 46</span>
+        <span>Versión 47</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -113,6 +113,29 @@
             <h3 id="home-stats-title">Resumen por trámite y período</h3>
           </div>
 
+          <div class="home-kpi-grid">
+            <article class="home-kpi-card is-universe">
+              <span class="home-kpi-label">Universo de OS activas</span>
+              <strong class="home-kpi-value" id="home-kpi-universo">—</strong>
+              <small class="home-kpi-note">Base activa evaluada</small>
+            </article>
+            <article class="home-kpi-card">
+              <span class="home-kpi-label">OS que presentaron algún trámite · período vigente</span>
+              <strong class="home-kpi-value" id="home-kpi-obras">—</strong>
+              <small class="home-kpi-note">Ejercicios 2026/27 y 2027</small>
+            </article>
+            <article class="home-kpi-card">
+              <span class="home-kpi-label">OS que presentaron PMA · período vigente</span>
+              <strong class="home-kpi-value" id="home-kpi-pma">—</strong>
+              <small class="home-kpi-note">Ejercicios 2026/27 y 2027</small>
+            </article>
+            <article class="home-kpi-card">
+              <span class="home-kpi-label">OS que presentaron Cartillas · período vigente</span>
+              <strong class="home-kpi-value" id="home-kpi-cartillas">—</strong>
+              <small class="home-kpi-note">Ejercicios 2026/27 y 2027</small>
+            </article>
+          </div>
+
           <div class="home-tramite-grid">
             <article class="home-tramite-card">
               <div class="home-tramite-header">
@@ -120,11 +143,10 @@
                   <span class="home-tramite-kicker">TRÁMITE</span>
                   <h4>PMA</h4>
                 </div>
-                <small>Período vigente + últimos 3 períodos completos</small>
+                <small>Últimos 3 períodos completos</small>
               </div>
               <div class="home-tramite-table" role="table" aria-label="Resumen PMA por período">
                 <div class="home-tramite-row home-tramite-head" role="row"><span>Período</span><span>Presentaron</span><span>No presentaron</span></div>
-                <div class="home-tramite-row current" role="row"><strong>2026/27 – 2027 <em>Vigente</em></strong><span class="home-stat-number ok" id="home-2027-pma-presentaron">—</span><span class="home-stat-number missing" id="home-2027-pma-no-presentaron">—</span></div>
                 <div class="home-tramite-row" role="row"><strong>2025/26 – 2026</strong><span class="home-stat-number ok" id="home-2026-pma-presentaron">—</span><span class="home-stat-number missing" id="home-2026-pma-no-presentaron">—</span></div>
                 <div class="home-tramite-row" role="row"><strong>2024/25 – 2025</strong><span class="home-stat-number ok" id="home-2025-pma-presentaron">—</span><span class="home-stat-number missing" id="home-2025-pma-no-presentaron">—</span></div>
                 <div class="home-tramite-row" role="row"><strong>2023/24 – 2024</strong><span class="home-stat-number ok" id="home-2024-pma-presentaron">—</span><span class="home-stat-number missing" id="home-2024-pma-no-presentaron">—</span></div>
@@ -137,11 +159,10 @@
                   <span class="home-tramite-kicker">TRÁMITE</span>
                   <h4>Cartillas</h4>
                 </div>
-                <small>Período vigente + últimos 3 períodos completos</small>
+                <small>Últimos 3 períodos completos</small>
               </div>
               <div class="home-tramite-table" role="table" aria-label="Resumen Cartillas por período">
                 <div class="home-tramite-row home-tramite-head" role="row"><span>Período</span><span>Presentaron</span><span>No presentaron</span></div>
-                <div class="home-tramite-row current" role="row"><strong>2026/27 – 2027 <em>Vigente</em></strong><span class="home-stat-number ok" id="home-2027-cartillas-presentaron">—</span><span class="home-stat-number missing" id="home-2027-cartillas-no-presentaron">—</span></div>
                 <div class="home-tramite-row" role="row"><strong>2025/26 – 2026</strong><span class="home-stat-number ok" id="home-2026-cartillas-presentaron">—</span><span class="home-stat-number missing" id="home-2026-cartillas-no-presentaron">—</span></div>
                 <div class="home-tramite-row" role="row"><strong>2024/25 – 2025</strong><span class="home-stat-number ok" id="home-2025-cartillas-presentaron">—</span><span class="home-stat-number missing" id="home-2025-cartillas-no-presentaron">—</span></div>
                 <div class="home-tramite-row" role="row"><strong>2023/24 – 2024</strong><span class="home-stat-number ok" id="home-2024-cartillas-presentaron">—</span><span class="home-stat-number missing" id="home-2024-cartillas-no-presentaron">—</span></div>
@@ -681,6 +702,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-  <script src="app.js?v=46"></script>
+  <script src="app.js?v=47"></script>
 </body>
 </html>
