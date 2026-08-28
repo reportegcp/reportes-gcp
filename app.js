@@ -153,15 +153,12 @@ function resumirAgentesInicioPeriodoVigente(obras, pmaRegistros, cartillasRegist
 function renderEstadisticasInicio() {
   if (typeof document === "undefined") return;
   const kpiUniverso = document.getElementById("home-kpi-universo");
-  const kpiObras = document.getElementById("home-kpi-obras");
   const kpiPma = document.getElementById("home-kpi-pma");
   const kpiCartillas = document.getElementById("home-kpi-cartillas");
   const periodoVigente = periodosEstadisticasInicio.find(periodo => periodo.key === "2027") || { ejercicios: ["2026/27", "2027"] };
   const resumenPmaVigente = resumirInicioPorParEjercicios(obrasSociales, pma, periodoVigente.ejercicios);
   const resumenCartillasVigente = resumirInicioPorParEjercicios(obrasSociales, cartillas, periodoVigente.ejercicios);
-  const agentesVigentes = resumirAgentesInicioPeriodoVigente(obrasSociales, pma, cartillas, periodoVigente.ejercicios);
   if (kpiUniverso) kpiUniverso.textContent = String(resumenPmaVigente.totalActivas || resumenCartillasVigente.totalActivas || 0);
-  if (kpiObras) kpiObras.textContent = String(agentesVigentes || 0);
   if (kpiPma) kpiPma.textContent = String(resumenPmaVigente.presentaron || 0);
   if (kpiCartillas) kpiCartillas.textContent = String(resumenCartillasVigente.presentaron || 0);
   for (const periodo of periodosEstadisticasInicio.filter(periodo => periodo.key !== "2027")) {
