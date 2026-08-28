@@ -75,14 +75,6 @@ function claseCumplimientoPresentacion(estado) {
   return "neutral";
 }
 
-function limpiarObservacionDuplicada(numeroDisposicion, observaciones) {
-  const numero = String(numeroDisposicion || "").trim();
-  const obs = String(observaciones || "").trim();
-  if (!obs) return null;
-  if (!numero) return obs;
-  const canon = valor => String(valor || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return canon(numero) && canon(numero) === canon(obs) ? null : obs;
-}
 
 function claveOrdenEjercicio(valor) {
   const canonico = ejercicioCanonico(valor) || String(valor || "").trim();
@@ -2569,7 +2561,7 @@ async function handlePmaSubmit(event){
       numero_ee:document.getElementById("pma-ee")?.value.trim()||null,condicion:document.getElementById("pma-condicion")?.value||null,
       fecha_ingreso:document.getElementById("pma-fecha-ingreso")?.value||null,res_170_2009:document.getElementById("pma-res-170")?.value||null,
       numero_disposicion:document.getElementById("pma-disposicion")?.value.trim()||null,fecha_disposicion:document.getElementById("pma-fecha-disposicion")?.value||null,
-      observaciones:limpiarObservacionDuplicada(document.getElementById("pma-disposicion")?.value, document.getElementById("pma-observaciones")?.value)};
+      observaciones:document.getElementById("pma-observaciones")?.value.trim()||null};
     const id=document.getElementById("pma-id")?.value||"";await guardarPmaEnSupabase(registro,id||null,session.access_token);
     cerrarModal("pma-modal");mostrarToast(id?"Presentación de PMA actualizada.":"Presentación de PMA creada.");await cargarYRenderizarPma();reportePmaCargado=false;
   }catch(error){setFormMessage("pma-form-message",error.message||"No se pudo guardar la presentación de PMA.");}
@@ -2675,7 +2667,7 @@ async function handleCartillaSubmit(event) {
       res_170_2009:document.getElementById("cartilla-res-170")?.value || null,
       numero_disposicion:document.getElementById("cartilla-disposicion")?.value.trim() || null,
       fecha_disposicion:document.getElementById("cartilla-fecha-disposicion")?.value || null,
-      observaciones:limpiarObservacionDuplicada(document.getElementById("cartilla-disposicion")?.value, document.getElementById("cartilla-observaciones")?.value)
+      observaciones:document.getElementById("cartilla-observaciones")?.value.trim() || null
     };
     const id = document.getElementById("cartilla-id")?.value || "";
     await guardarCartillaEnSupabase(registro, id || null, session.access_token);
@@ -2845,7 +2837,6 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     paginarRegistros,
     simboloCumplimientoPresentacion,
-    limpiarObservacionDuplicada,
     generarReporteFaltantesPorEjercicio,
     getInitialView,
     normalizarDiaMes,

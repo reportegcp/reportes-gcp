@@ -1286,3 +1286,5 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 }
 .history-table .badge{white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;}
 .history-evolution-label{white-space:nowrap!important;max-width:none!important;}
+
+/* V36: Observaciones se conservan sin modificaciones automáticas. */
