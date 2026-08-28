@@ -374,7 +374,16 @@ function periodosControlDisponibles(registrosCartillas, anioActual = new Date().
 function calcularCumplimiento90(fechaInicioEjercicio, fechaIngreso) {
   const inicio = parseIsoDateUtc(fechaInicioEjercicio);
   const ingreso = parseIsoDateUtc(fechaIngreso);
-  const limite = inicio ? new Date(inicio.getTime() - 90 * 86400000) : null;
+  let limite = null;
+
+  if (inicio) {
+    // Criterio operativo de Cartillas: el vencimiento es el día anterior
+    // al comienzo de los tres meses previos al Inicio ejercicio.
+    // Ej.: Inicio 01/01/2026 => fecha límite 30/09/2025.
+    limite = new Date(inicio.getTime());
+    limite.setUTCMonth(limite.getUTCMonth() - 3);
+    limite.setUTCDate(limite.getUTCDate() - 1);
+  }
 
   if (!inicio || !ingreso) {
     return { estado: "SIN_DATOS", fechaLimite: limite ? formatIsoDateUtc(limite) : "", diasAnticipacion: null, diferenciaLimite: null };
@@ -1240,6 +1249,17 @@ function actualizarAlertaCartilla() {
     limite.classList.remove("success", "danger", "neutral");
     limite.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
   }
+  const cumplimiento = document.getElementById("cartilla-cumplimiento");
+  if (cumplimiento) {
+    const texto = resultado.estado === "EN_TERMINO"
+      ? "EN TÉRMINO"
+      : resultado.estado === "FUERA_DE_TERMINO"
+        ? "FUERA DE TÉRMINO"
+        : "—";
+    cumplimiento.textContent = texto;
+    cumplimiento.classList.remove("success", "danger", "neutral");
+    cumplimiento.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
+  }
   return resultado;
 }
 
@@ -1595,11 +1615,9 @@ function crearHojaExcelConDiseno(matriz, titulo = "Reporte", filaEncabezado = 3)
 function filtrarPmaRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
   const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : (filtros.ejercicio && filtros.ejercicio !== "TODOS" ? [filtros.ejercicio] : [])).map(String));
-  const analista = filtros.analista || "TODOS";
   const condicion = filtros.condicion || "TODOS";
   return (lista || []).filter(row => {
     if (ejercicios.size && !ejercicios.has(String(row.ejercicio || ""))) return false;
-    if (analista !== "TODOS" && String(row.analista || "") !== analista) return false;
     if (condicion !== "TODOS" && String(row.condicion || "") !== condicion) return false;
     if (!busqueda) return true;
     return normalizar([row.obras_sociales?.rnos,row.obras_sociales?.denominacion,row.obras_sociales?.sigla,row.numero_ee,row.numero_disposicion,row.ejercicio,row.analista,row.condicion].join(" ")).includes(busqueda);
@@ -1614,14 +1632,12 @@ function llenarFiltrosPma() {
     select.innerHTML = `<option value="TODOS">${label}: Todos</option>` + vals.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
     select.value = vals.includes(prev) ? prev : "TODOS";
   };
-  fill("pma-analista-filter","Analista",[...new Set(pma.map(x=>x.analista).filter(Boolean))].sort());
   fill("pma-condicion-filter","Condición",[...new Set(pma.map(x=>x.condicion).filter(Boolean))].sort());
 }
 function obtenerPmaFiltradas() {
   return filtrarPmaRegistros(pma,{
     busqueda:document.getElementById("pma-search")?.value||"",
     ejercicios:ejerciciosFiltroSeleccionados("pma"),
-    analista:document.getElementById("pma-analista-filter")?.value||"TODOS",
     condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS"
   });
 }
@@ -1984,8 +2000,6 @@ function renderReporteFaltantesCartillas() {
   const empty = document.getElementById("report-cartillas-empty");
   if (!head || !body) return;
   const periodos = getPeriodosReporteSeleccionados();
-  const periodNote = document.getElementById("report-cartillas-period-note");
-  if (periodNote) periodNote.textContent = textoContextoPeriodos(periodos);
   const arrow = reportCartillasRnasSortDirection === "asc" ? "↑" : "↓";
   head.innerHTML = `<tr><th><button class="sort-button" id="report-cartillas-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th>${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}</tr>`;
   head.querySelector("#report-cartillas-rnas-sort")?.addEventListener("click", () => { reportCartillasRnasSortDirection = reportCartillasRnasSortDirection === "asc" ? "desc" : "asc"; renderReporteFaltantesCartillas(); });
@@ -2252,7 +2266,6 @@ function renderReporteFaltantesPma() {
   const head=document.getElementById("report-pma-head"), body=document.getElementById("report-pma-body"), count=document.getElementById("report-pma-count"), empty=document.getElementById("report-pma-empty");
   if(!head||!body)return;
   const periodos=getPeriodosPmaSeleccionados();
-  const periodNote=document.getElementById("report-pma-period-note"); if(periodNote) periodNote.textContent=textoContextoPeriodos(periodos);
   const arrow=reportPmaRnasSortDirection==="asc"?"↑":"↓";
   head.innerHTML=`<tr><th><button class="sort-button" id="report-pma-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th>${periodos.map(p=>`<th class="period-head">${p}</th>`).join("")}</tr>`;
   head.querySelector("#report-pma-rnas-sort")?.addEventListener("click",()=>{reportPmaRnasSortDirection=reportPmaRnasSortDirection==="asc"?"desc":"asc";renderReporteFaltantesPma();});
@@ -2340,6 +2353,17 @@ function actualizarAlertaPma() {
     limite.textContent = formatFechaPantalla(resultado.fechaLimite);
     limite.classList.remove("success", "danger", "neutral");
     limite.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
+  }
+  const cumplimiento = document.getElementById("cartilla-cumplimiento");
+  if (cumplimiento) {
+    const texto = resultado.estado === "EN_TERMINO"
+      ? "EN TÉRMINO"
+      : resultado.estado === "FUERA_DE_TERMINO"
+        ? "FUERA DE TÉRMINO"
+        : "—";
+    cumplimiento.textContent = texto;
+    cumplimiento.classList.remove("success", "danger", "neutral");
+    cumplimiento.classList.add(resultado.estado === "EN_TERMINO" ? "success" : resultado.estado === "FUERA_DE_TERMINO" ? "danger" : "neutral");
   }
   return resultado;
 }

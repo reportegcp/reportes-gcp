@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=31">
+  <link rel="stylesheet" href="styles.css?v=32">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 31</span>
+        <span>Versión 32</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -331,7 +331,6 @@
                     <div class="period-options" id="report-periodos"></div>
                   </div>
                 </details>
-                <div class="period-context-note" id="report-cartillas-period-note"></div>
               </div>
 
               <label class="check-option">
@@ -384,7 +383,6 @@
                     <div class="period-options" id="report-pma-periodos"></div>
                   </div>
                 </details>
-                <div class="period-context-note" id="report-pma-period-note"></div>
               </div>
 
               <label class="check-option">
@@ -528,7 +526,7 @@
         <div class="transaction-header-main">
           <div class="transaction-header-kickers">
             <span class="eyebrow">CARTILLA</span>
-            <div class="modal-mini-info" id="cartilla-resolucion-info"><span>Resolución Nº 170/2009</span></div>
+            <div class="modal-mini-info" id="cartilla-resolucion-info"><span>Resolución Nº 2161/2021</span></div>
           </div>
           <h2 id="cartilla-modal-title">Nueva presentación</h2>
         </div>
@@ -559,7 +557,8 @@
 
           <div class="master-info-line full transaction-master-line" id="cartilla-master-info">
             <span><b>Inicio ejercicio:</b> <span id="cartilla-master-inicio">—</span></span>
-            <span><b>Fecha límite:</b> <span class="deadline-value neutral" id="cartilla-fecha-limite">—</span></span>
+            <span><b>Fecha límite de presentación:</b> <span class="deadline-value neutral" id="cartilla-fecha-limite">—</span></span>
+            <span><b>Cumplimiento:</b> <span class="deadline-status neutral" id="cartilla-cumplimiento">—</span></span>
           </div>
 
           <div class="form-inline-grid cols-3 full">
@@ -662,6 +661,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>
