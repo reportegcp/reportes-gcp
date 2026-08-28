@@ -1191,7 +1191,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .table-scroll{overflow-x:hidden}
 .pma-table,.cartillas-table{width:100%;min-width:0;table-layout:fixed}
 .pma-table th,.pma-table td,.cartillas-table th,.cartillas-table td{white-space:normal;overflow-wrap:anywhere;word-break:normal;font-size:10.5px;padding:8px 7px;vertical-align:middle;line-height:1.2}
-.pma-table th:nth-child(1){width:8%}.pma-table th:nth-child(2){width:25%}.pma-table th:nth-child(3){width:9%}.pma-table th:nth-child(4){width:10%}.pma-table th:nth-child(5){width:12%}.pma-table th:nth-child(6){width:20%}.pma-table th:nth-child(7){width:16%}
+.pma-table th:nth-child(1){width:7%}.pma-table th:nth-child(2){width:25%}.pma-table th:nth-child(3){width:7%}.pma-table th:nth-child(4){width:9%}.pma-table th:nth-child(5){width:9%}.pma-table th:nth-child(6){width:7%}.pma-table th:nth-child(7){width:10%}.pma-table th:nth-child(8){width:15%}.pma-table th:nth-child(9){width:11%}
 .cartillas-table th:nth-child(1){width:7%}.cartillas-table th:nth-child(2){width:20%}.cartillas-table th:nth-child(3){width:7%}.cartillas-table th:nth-child(4){width:8%}.cartillas-table th:nth-child(5){width:9%}.cartillas-table th:nth-child(6){width:10%}.cartillas-table th:nth-child(7){width:9%}.cartillas-table th:nth-child(8){width:17%}.cartillas-table th:nth-child(9){width:13%}
 .pma-table .denominacion-cell,.cartillas-table .denominacion-cell{max-width:none;overflow:visible;text-overflow:clip}
 .pma-table td.date-cell,.cartillas-table td.date-cell{min-width:0;white-space:nowrap}
@@ -1266,3 +1266,9 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .period-filter{max-width:430px}
 .report-filters-compact{grid-template-columns:minmax(280px,430px) auto auto}
 @media(max-width:900px){.report-filters-compact{grid-template-columns:1fr}.period-filter{max-width:none}}
+
+/* V34: corrige distribución de 9 columnas en PMA para evitar filas estiradas */
+.pma-table{height:auto!important}
+.pma-table tbody{height:auto!important;vertical-align:top}
+.pma-table tr{height:auto!important}
+.pma-table td:nth-child(8),.pma-table td:nth-child(9){overflow-wrap:break-word;word-break:normal}
