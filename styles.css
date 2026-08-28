@@ -1196,3 +1196,73 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .pma-table .denominacion-cell,.cartillas-table .denominacion-cell{max-width:none;overflow:visible;text-overflow:clip}
 .pma-table td.date-cell,.cartillas-table td.date-cell{min-width:0;white-space:nowrap}
 @media(max-width:900px){.table-scroll{overflow-x:auto}.pma-table{min-width:780px}.cartillas-table{min-width:940px}}
+
+
+/* V33: paginación, tablas compactas, búsquedas uniformes */
+.transaction-agent-search input,
+.report-main-search input{
+  background:#f7f9fc!important;
+  border:1px solid #d9e1ea!important;
+  border-radius:12px!important;
+  min-height:42px;
+  box-shadow:none!important;
+}
+.transaction-agent-search input:focus,
+.report-main-search input:focus{
+  background:#fff!important;
+  border-color:#7f98b3!important;
+  box-shadow:0 0 0 3px rgba(38,74,113,.08)!important;
+}
+.transaction-header .modal-header h2,
+.transaction-header h2{font-size:22px}
+.transaction-header-kickers{font-size:10px}
+.transaction-master-line{
+  margin-top:-2px;
+  padding:9px 12px;
+  font-size:12.5px;
+  line-height:1.4;
+  background:#f2f5f9;
+}
+.transaction-master-line b{font-size:12px}
+.transaction-master-line .deadline-value,
+.transaction-master-line .deadline-status{font-size:12px}
+.form-grid.transaction-form-grid label>span{font-size:11px}
+.modal-wide{width:min(820px,96vw)}
+.table-pagination{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:10px 14px;
+  border-top:1px solid var(--line);
+  background:#fbfcfe;
+}
+.table-pagination:empty{display:none}
+.table-pagination button{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  border-radius:8px;
+  padding:6px 10px;
+  font-weight:800;
+  font-size:11px;
+}
+.table-pagination button:disabled{opacity:.4;cursor:not-allowed}
+.table-pagination span{font-size:11px;font-weight:800;color:#5d6d7e}
+.deadline-icon{
+  width:24px;height:24px;border-radius:50%;
+  display:inline-grid;place-items:center;
+  font-size:15px;font-weight:900;line-height:1;
+}
+.deadline-icon.ok{background:#e4f4ed;color:#1f7b58}
+.deadline-icon.missing{background:#f9e7e9;color:#a33b46}
+.deadline-icon.neutral{background:#eef2f6;color:#667789}
+.pma-table .deadline-cell,.cartillas-table .deadline-cell{text-align:center}
+.pma-table th,.pma-table td,.cartillas-table th,.cartillas-table td{vertical-align:middle}
+.pma-table td:nth-child(8),.pma-table td:nth-child(9),
+.cartillas-table td:nth-child(8),.cartillas-table td:nth-child(9){
+  overflow-wrap:anywhere;word-break:break-word;
+}
+.period-filter{max-width:430px}
+.report-filters-compact{grid-template-columns:minmax(280px,430px) auto auto}
+@media(max-width:900px){.report-filters-compact{grid-template-columns:1fr}.period-filter{max-width:none}}

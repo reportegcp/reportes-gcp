@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=32">
+  <link rel="stylesheet" href="styles.css?v=33">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 32</span>
+        <span>Versión 33</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -219,11 +219,12 @@
             <table class="data-table pma-table">
               <thead><tr>
                 <th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th>
-                <th>Condición</th><th>Nº EE</th><th>Nº Disposición</th>
+                <th>Fecha límite</th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>
               </tr></thead>
               <tbody id="pma-table-body"></tbody>
             </table>
           </div>
+          <div class="table-pagination" id="pma-pagination"></div>
           <div class="table-empty" id="pma-empty" hidden>No se encontraron presentaciones de PMA con ese criterio.</div>
         </div>
       </section>
@@ -275,6 +276,7 @@
               <tbody id="cartilla-table-body"></tbody>
             </table>
           </div>
+          <div class="table-pagination" id="cartilla-pagination"></div>
           <div class="table-empty" id="cartilla-empty" hidden>No se encontraron presentaciones con ese criterio.</div>
         </div>
       </section>
@@ -284,7 +286,7 @@
           <div class="report-current-heading">
             <span class="eyebrow" id="report-current-eyebrow">CARTILLAS</span>
             <h2 id="report-current-title">Agentes de Seguro sin presentación</h2>
-            <p id="report-current-description">Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Agente de Seguro.</p>
+            <p id="report-current-description">Seleccioná uno o más ejercicios para identificar qué Agentes de Seguro presentaron y cuáles no.</p>
           </div>
 
           <div class="report-switcher-card report-top-controls">
@@ -313,19 +315,9 @@
           <div class="report-panel" id="report-cartillas-panel" data-report-panel="cartillas">
             <div class="report-filters report-filters-compact" id="report-cartillas-filters">
               <div class="period-filter">
-                <div class="period-filter-label">
-                  <strong>Período de control</strong>
-                  <details class="report-help">
-                    <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
-                    <div class="report-help-popover">
-                      <strong>¿Cómo se determina el período?</strong>
-                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Agente de Seguro para saber qué Cartilla debe buscar.</p>
-                      <p>Ejemplo: para el período de control <b>2026</b>, un agente con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
-                    </div>
-                  </details>
-                </div>
+                <div class="period-filter-label"><strong>Ejercicios</strong></div>
                 <details class="period-select" id="report-period-select">
-                  <summary><span id="report-period-summary">Seleccionar períodos</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+                  <summary><span id="report-period-summary">Seleccionar ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
                   <div class="period-select-menu">
                     <div class="period-select-actions"><button type="button" id="report-period-all">Todos</button><button type="button" id="report-period-clear">Limpiar</button></div>
                     <div class="period-options" id="report-periodos"></div>
@@ -343,9 +335,9 @@
 
             <div class="report-chart-sector" id="report-cartillas-chart-sector" hidden>
               <div class="report-chart-header">
-                <div><h3>Gráfico de presentaciones</h3><p>Elegí un período para ver el resumen.</p></div>
+                <div><h3>Gráfico de presentaciones</h3><p>Elegí un ejercicio para ver el resumen.</p></div>
                 <div class="report-chart-actions">
-                  <label><span>Período</span><select id="report-cartillas-chart-period"></select></label>
+                  <label><span>Ejercicio</span><select id="report-cartillas-chart-period"></select></label>
                   <button class="text-button" id="btn-hide-cartillas-chart" type="button">Ocultar gráfico</button>
                 </div>
               </div>
@@ -355,9 +347,10 @@
             <div class="table-card">
               <div class="table-meta"><strong id="report-cartillas-count">Preparando reporte...</strong><span id="report-cartillas-status">Cargando datos...</span></div>
               <div class="report-symbol-legend" id="report-cartillas-legend" aria-label="Leyenda de estados">
-                <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span><span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
+                <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span>
               </div>
               <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-cartillas-head" data-rnas-sort-id="report-cartillas-rnas-sort"></thead><tbody id="report-cartillas-body"></tbody></table></div>
+              <div class="table-pagination" id="report-cartillas-pagination"></div>
               <div class="table-empty" id="report-cartillas-empty" hidden>No hay Agentes de Seguro para mostrar con los filtros seleccionados.</div>
             </div>
           </div>
@@ -365,19 +358,9 @@
           <div class="report-panel" id="report-pma-panel" data-report-panel="pma" hidden>
             <div class="report-filters report-filters-compact" id="report-pma-filters">
               <div class="period-filter">
-                <div class="period-filter-label">
-                  <strong>Período de control</strong>
-                  <details class="report-help">
-                    <summary aria-label="Ver explicación del período de control" title="Ver explicación">i</summary>
-                    <div class="report-help-popover">
-                      <strong>¿Cómo se determina el período?</strong>
-                      <p>El sistema usa el <b>Inicio ejercicio</b> de cada Agente de Seguro para saber qué PMA debe buscar.</p>
-                      <p>Ejemplo: para el período de control <b>2026</b>, un agente con inicio <b>01-01</b> busca ejercicio <b>2026</b>; si inicia en otra fecha, busca <b>2025/26</b>.</p>
-                    </div>
-                  </details>
-                </div>
+                <div class="period-filter-label"><strong>Ejercicios</strong></div>
                 <details class="period-select" id="report-pma-period-select">
-                  <summary><span id="report-pma-period-summary">Seleccionar períodos</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+                  <summary><span id="report-pma-period-summary">Seleccionar ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
                   <div class="period-select-menu">
                     <div class="period-select-actions"><button type="button" id="report-pma-period-all">Todos</button><button type="button" id="report-pma-period-clear">Limpiar</button></div>
                     <div class="period-options" id="report-pma-periodos"></div>
@@ -395,9 +378,9 @@
 
             <div class="report-chart-sector" id="report-pma-chart-sector" hidden>
               <div class="report-chart-header">
-                <div><h3>Gráfico de presentaciones</h3><p>Elegí un período para ver el resumen.</p></div>
+                <div><h3>Gráfico de presentaciones</h3><p>Elegí un ejercicio para ver el resumen.</p></div>
                 <div class="report-chart-actions">
-                  <label><span>Período</span><select id="report-pma-chart-period"></select></label>
+                  <label><span>Ejercicio</span><select id="report-pma-chart-period"></select></label>
                   <button class="text-button" id="btn-hide-pma-chart" type="button">Ocultar gráfico</button>
                 </div>
               </div>
@@ -407,9 +390,10 @@
             <div class="table-card">
               <div class="table-meta"><strong id="report-pma-count">Preparando reporte...</strong><span id="report-pma-status">Cargando datos...</span></div>
               <div class="report-symbol-legend" id="report-pma-legend" aria-label="Leyenda de estados">
-                <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span><span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
+                <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span>
               </div>
               <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-pma-head" data-rnas-sort-id="report-pma-rnas-sort"></thead><tbody id="report-pma-body"></tbody></table></div>
+              <div class="table-pagination" id="report-pma-pagination"></div>
               <div class="table-empty" id="report-pma-empty" hidden>No hay Agentes de Seguro para mostrar con los filtros seleccionados.</div>
             </div>
           </div>
@@ -490,7 +474,8 @@
 
           <div class="master-info-line full transaction-master-line" id="pma-master-info">
             <span><b>Inicio ejercicio:</b> <span id="pma-master-inicio">—</span></span>
-            <span><b>Fecha límite:</b> <span class="deadline-value neutral" id="pma-fecha-limite">—</span></span>
+            <span><b>Fecha límite de presentación:</b> <span class="deadline-value neutral" id="pma-fecha-limite">—</span></span>
+            <span><b>Cumplimiento:</b> <span class="deadline-status neutral" id="pma-cumplimiento">—</span></span>
           </div>
 
           <div class="form-inline-grid cols-3 full">
@@ -661,6 +646,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>
