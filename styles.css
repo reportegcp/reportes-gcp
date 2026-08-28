@@ -1110,3 +1110,58 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .section-help-popover li+li{margin-top:5px}
 @media(max-width:1180px){.pma-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.pma-toolbar .search-box{grid-column:1/-1}}
 @media(max-width:760px){.pma-toolbar,.cartillas-toolbar{grid-template-columns:1fr}.exercise-multi-select{min-width:0}.section-help-popover{left:auto;right:-20px}}
+
+/* V30: reportes, historial compacto y evolución */
+.pma-toolbar{grid-template-columns:minmax(320px,1.35fr) minmax(210px,.75fr) minmax(190px,.7fr)}
+.cartillas-table{min-width:1160px}
+.report-filters-compact{grid-template-columns:minmax(280px,430px) auto auto;justify-content:start;align-items:end}
+.report-filters-compact .period-filter{width:100%}
+.period-context-note{margin-top:8px;padding:8px 10px;border-radius:9px;background:#f4f7fb;border:1px solid #dce4ee;color:#52647a;font-size:11px;line-height:1.4}
+.period-context-note:empty{display:none}
+
+.history-modal{width:min(96vw,1460px);max-width:min(96vw,1460px);padding:22px 26px}
+.history-modal .modal-header{margin-bottom:10px}
+.history-agent-meta{font-size:13px}
+.history-summary{padding:0 0 10px;font-size:14px}
+.history-table-wrap{overflow-x:hidden}
+.history-table{width:100%;min-width:0;table-layout:fixed}
+.history-table th,.history-table td{font-size:10.5px;padding:9px 8px;white-space:normal;vertical-align:middle;line-height:1.25}
+.history-table th:nth-child(1),.history-table td:nth-child(1){width:8%}
+.history-table th:nth-child(2),.history-table td:nth-child(2){width:28%}
+.history-table th:nth-child(3),.history-table td:nth-child(3){width:13%}
+.history-table th:nth-child(4),.history-table td:nth-child(4){width:14%}
+.history-table th:nth-child(5),.history-table td:nth-child(5){width:25%}
+.history-table th:nth-child(6),.history-table td:nth-child(6){width:12%}
+.history-wrap-cell{overflow-wrap:anywhere;word-break:break-word}
+.history-table .badge{font-size:9px;padding:5px 7px;white-space:normal;text-align:center}
+
+.history-evolution{margin:2px 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fafbfd}
+.history-evolution[hidden]{display:none}
+.history-evolution-title{font-size:12px;font-weight:900;color:var(--navy);margin-bottom:10px}
+.history-timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));align-items:start;gap:0;overflow:visible;padding:2px 4px 4px}
+.history-evolution-item{position:relative;min-width:0;display:grid;justify-items:center;grid-template-rows:auto 20px auto;color:#617187;font-size:10px;font-weight:750}
+.history-evolution-item::before{content:"";position:absolute;top:28px;left:0;right:0;height:2px;background:#d9e1ea;z-index:0}
+.history-evolution-item:first-child::before{left:50%}.history-evolution-item:last-child::before{right:50%}
+.history-evolution-year{font-size:11px;font-weight:900;color:var(--navy);margin-bottom:5px}
+.history-evolution-dot{position:relative;z-index:1;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #cbd6e2;background:#8c98a6}
+.history-evolution-label{text-align:center;line-height:1.2;margin-top:4px;max-width:82px}
+.history-evolution-item.en_termino .history-evolution-dot{background:#3f8b6c}
+.history-evolution-item.en_termino .history-evolution-label{color:#27694f}
+.history-evolution-item.fuera_de_termino .history-evolution-dot{background:#b95d67}
+.history-evolution-item.fuera_de_termino .history-evolution-label{color:#8d3543}
+.history-evolution-item.no_presento .history-evolution-dot{background:#c84e59}
+.history-evolution-item.no_presento .history-evolution-label{color:#9c2f39}
+.history-evolution-item.presento .history-evolution-dot{background:#557ca8}
+
+@media(max-width:980px){
+  .report-filters-compact{grid-template-columns:minmax(250px,1fr) auto}
+  .report-chart-toggle{grid-column:auto}
+  .history-modal{width:97vw;max-width:97vw;padding:18px}
+  .history-table th,.history-table td{font-size:9.5px;padding:8px 5px}
+}
+@media(max-width:760px){
+  .pma-toolbar,.cartillas-toolbar{grid-template-columns:1fr}
+  .report-filters-compact{grid-template-columns:1fr}
+  .history-table-wrap{overflow-x:auto}
+  .history-table{min-width:760px}
+}

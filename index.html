@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 29</span>
+        <span>Versión 30</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -208,7 +208,6 @@
               <div class="period-options" id="pma-ejercicio-options"></div>
             </div>
           </details>
-          <select id="pma-analista-filter"><option value="TODOS">Analista: Todos</option></select>
           <select id="pma-condicion-filter"><option value="TODOS">Condición: Todas</option></select>
         </div>
 
@@ -220,7 +219,7 @@
             <table class="data-table pma-table">
               <thead><tr>
                 <th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th>
-                <th>Condición</th><th>Analista</th><th>Nº EE</th><th>Nº Disposición</th>
+                <th>Condición</th><th>Nº EE</th><th>Nº Disposición</th>
               </tr></thead>
               <tbody id="pma-table-body"></tbody>
             </table>
@@ -269,7 +268,8 @@
                   <th>Fecha límite</th>
                   <th>Plazo</th>
                   <th>Condición</th>
-                  <th>Analista</th>
+                  <th>Nº EE</th>
+                  <th>Nº DISPO</th>
                 </tr>
               </thead>
               <tbody id="cartilla-table-body"></tbody>
@@ -292,7 +292,9 @@
               <span>Reporte</span>
               <select id="report-type-select" aria-label="Elegir reporte">
                 <option value="cartillas">Cartillas - Presentaciones</option>
+                <option value="cartillas-nunca">Cartillas - Nunca presentaron</option>
                 <option value="pma">PMA - Presentaciones</option>
+                <option value="pma-nunca">PMA - Nunca presentaron</option>
               </select>
             </label>
 
@@ -309,7 +311,7 @@
           </div>
 
           <div class="report-panel" id="report-cartillas-panel" data-report-panel="cartillas">
-            <div class="report-filters report-filters-compact">
+            <div class="report-filters report-filters-compact" id="report-cartillas-filters">
               <div class="period-filter">
                 <div class="period-filter-label">
                   <strong>Período de control</strong>
@@ -329,11 +331,12 @@
                     <div class="period-options" id="report-periodos"></div>
                   </div>
                 </details>
+                <div class="period-context-note" id="report-cartillas-period-note"></div>
               </div>
 
               <label class="check-option">
                 <input id="report-solo-faltantes" type="checkbox" checked>
-                <span>Mostrar sólo OS con faltantes</span>
+                <span>Mostrar sólo Agentes con faltantes</span>
               </label>
 
               <button class="secondary report-chart-toggle" id="btn-report-cartillas-chart" type="button">Ver gráfico</button>
@@ -352,7 +355,7 @@
 
             <div class="table-card">
               <div class="table-meta"><strong id="report-cartillas-count">Preparando reporte...</strong><span id="report-cartillas-status">Cargando datos...</span></div>
-              <div class="report-symbol-legend" aria-label="Leyenda de estados">
+              <div class="report-symbol-legend" id="report-cartillas-legend" aria-label="Leyenda de estados">
                 <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span><span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
               </div>
               <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-cartillas-head" data-rnas-sort-id="report-cartillas-rnas-sort"></thead><tbody id="report-cartillas-body"></tbody></table></div>
@@ -361,7 +364,7 @@
           </div>
 
           <div class="report-panel" id="report-pma-panel" data-report-panel="pma" hidden>
-            <div class="report-filters report-filters-compact">
+            <div class="report-filters report-filters-compact" id="report-pma-filters">
               <div class="period-filter">
                 <div class="period-filter-label">
                   <strong>Período de control</strong>
@@ -381,11 +384,12 @@
                     <div class="period-options" id="report-pma-periodos"></div>
                   </div>
                 </details>
+                <div class="period-context-note" id="report-pma-period-note"></div>
               </div>
 
               <label class="check-option">
                 <input id="report-pma-solo-faltantes" type="checkbox" checked>
-                <span>Mostrar sólo OS con faltantes</span>
+                <span>Mostrar sólo Agentes con faltantes</span>
               </label>
 
               <button class="secondary report-chart-toggle" id="btn-report-pma-chart" type="button">Ver gráfico</button>
@@ -404,7 +408,7 @@
 
             <div class="table-card">
               <div class="table-meta"><strong id="report-pma-count">Preparando reporte...</strong><span id="report-pma-status">Cargando datos...</span></div>
-              <div class="report-symbol-legend" aria-label="Leyenda de estados">
+              <div class="report-symbol-legend" id="report-pma-legend" aria-label="Leyenda de estados">
                 <span><b class="report-icon ok">✓</b> Presentó</span><span><b class="report-icon missing">✕</b> No presentó</span><span><b class="report-icon unknown">?</b> Sin Inicio ejercicio</span>
               </div>
               <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-pma-head" data-rnas-sort-id="report-pma-rnas-sort"></thead><tbody id="report-pma-body"></tbody></table></div>
@@ -598,7 +602,8 @@
         <button class="icon-button" type="button" data-close-modal="history-modal" aria-label="Cerrar">×</button>
       </div>
       <div class="history-summary"><strong id="history-count">0 presentaciones</strong></div>
-      <div class="table-scroll">
+      <div class="history-evolution" id="history-evolution" aria-label="Evolución de presentaciones"></div>
+      <div class="table-scroll history-table-wrap">
         <table class="data-table history-table">
           <thead><tr><th>AÑO</th><th>Nº EE</th><th>FECHA INGRESO</th><th>FECHA DISPOSICIÓN</th><th>Nº DISPO</th><th>PLAZO</th></tr></thead>
           <tbody id="history-table-body"></tbody>
@@ -657,6 +662,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="app.js?v=29"></script>
+  <script src="app.js?v=30"></script>
 </body>
 </html>

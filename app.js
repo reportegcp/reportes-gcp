@@ -12,9 +12,9 @@ const views = {
 
 const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
-  pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Analista y Condición.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
+  pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
-  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí Cartillas o PMA y uno o varios períodos de control.</li><li>✓ indica que presentó, ✕ que no presentó y ? que falta Inicio ejercicio para calcularlo.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo de presentaciones.</li><li>Podés ordenar por RNAS y exportar un Excel con resumen y detalle.</li></ul>`
+  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>✓ indica que presentó, ✕ que no presentó y ? que falta Inicio ejercicio para calcularlo.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo de presentaciones.</li><li>Podés ordenar por RNAS y exportar un Excel con resumen y detalle.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -1412,6 +1412,86 @@ function construirHistorialPresentaciones(lista, obraSocialId) {
     });
 }
 
+function identificarNuncaPresentaron(obras, registros) {
+  const conPresentacion = new Set((registros || []).map(row => String(row?.obra_social_id ?? "")).filter(Boolean));
+  return (obras || [])
+    .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
+    .filter(os => !conPresentacion.has(String(os?.id ?? "")))
+    .map(os => ({ ...os }))
+    .sort((a, b) => {
+      const ar = Number(String(a?.rnos || "").replace(/\D/g, "")) || 0;
+      const br = Number(String(b?.rnos || "").replace(/\D/g, "")) || 0;
+      return ar - br;
+    });
+}
+
+function construirEvolucionPresentaciones(os, lista, anioActual = new Date().getFullYear()) {
+  if (!os) return [];
+  const objetivo = String(os.id ?? "");
+  const inicio = normalizarDiaMes(os.inicio_ejercicio || "");
+  if (!inicio) return [];
+  const registros = (lista || []).filter(row => String(row?.obra_social_id ?? "") === objetivo);
+  if (!registros.length) return [];
+  const periodosRegistrados = registros.map(row => {
+    const anioInicio = Number(row?.anio_inicio);
+    if (!Number.isInteger(anioInicio)) return null;
+    return inicio === "01-01" ? anioInicio : anioInicio + 1;
+  }).filter(Number.isInteger);
+  if (!periodosRegistrados.length) return [];
+  const min = Math.min(...periodosRegistrados);
+  const max = Math.max(Number(anioActual) || min, ...periodosRegistrados);
+  const resultado = [];
+  for (let periodo = min; periodo <= max; periodo += 1) {
+    const esperado = ejercicioEsperadoPeriodoControl(inicio, periodo);
+    const registro = esperado ? registros.find(row => Number(row?.anio_inicio) === Number(esperado.anioInicio)) : null;
+    if (!registro) {
+      resultado.push({ periodo, ejercicio: esperado?.ejercicio || "", estado: "NO_PRESENTO", etiqueta: "No presentó" });
+      continue;
+    }
+    const cumplimiento = calcularCumplimiento90(registro.fecha_inicio_ejercicio || "", registro.fecha_ingreso || "");
+    const estado = cumplimiento.estado === "EN_TERMINO" ? "EN_TERMINO" : cumplimiento.estado === "FUERA_DE_TERMINO" ? "FUERA_DE_TERMINO" : "PRESENTO";
+    const etiqueta = estado === "EN_TERMINO" ? "En término" : estado === "FUERA_DE_TERMINO" ? "Fuera de término" : "Presentó";
+    resultado.push({ periodo, ejercicio: registro.ejercicio || esperado?.ejercicio || "", estado, etiqueta });
+  }
+  return resultado;
+}
+
+function textoContextoPeriodos(periodos) {
+  const validos = [...new Set((periodos || []).map(Number).filter(Number.isInteger))].sort((a,b)=>a-b);
+  if (!validos.length) return "";
+  if (validos.length === 1) {
+    const p = validos[0];
+    return `Período ${p}: no significa solamente Ejercicio ${p}. Para informar todo el período ${p}, el sistema considera Ejercicio ${p} cuando el Inicio ejercicio es 01-01 y Ejercicio ${p-1}/${String(p).slice(-2)} cuando inicia en otra fecha.`;
+  }
+  return "Cada período de control reúne el ejercicio calendario y, cuando corresponde por el Inicio ejercicio del Agente, el ejercicio que comenzó el año anterior.";
+}
+
+function esReporteNunca(tipo = reporteActivo) {
+  return String(tipo || "").endsWith("-nunca");
+}
+
+function tipoBaseReporte(tipo = reporteActivo) {
+  return String(tipo || "").startsWith("pma") ? "pma" : "cartillas";
+}
+
+function filtrarNuncaPresentaron(lista, tipo) {
+  if (typeof document === "undefined") return lista || [];
+  const base = tipo === "pma" ? "pma" : "cartillas";
+  const termino = normalizar(document.getElementById(`report-${base}-search`)?.value || "");
+  if (!termino) return lista || [];
+  return (lista || []).filter(row => normalizar(`${row.rnos || ""} ${row.denominacion || ""} ${row.sigla || ""}`).includes(termino));
+}
+
+function matrizExcelNuncaPresentaron(filas, titulo) {
+  const matriz = [[titulo],["Generado",formatearFechaHoraExportacion()],[],["RNAS","DENOMINACIÓN","SIGLA","INICIO EJERCICIO","DOMICILIO","LOCALIDAD","PROVINCIA","TELÉFONO","E-MAIL","WEB","ESTADO","OBSERVACIONES"]];
+  for (const os of filas || []) matriz.push([
+    String(os.rnos || ""), String(os.denominacion || ""), String(os.sigla || ""), String(os.inicio_ejercicio || ""),
+    String(os.domicilio || ""), String(os.localidad || ""), String(os.provincia || ""), String(os.telefono || ""),
+    String(os.email || ""), String(os.web || ""), String(os.estado || ""), String(os.observaciones || "")
+  ]);
+  return matriz;
+}
+
 function construirMatrizExcelDetallePresentaciones(filas, metadata = {}) {
   const tipo = metadata.tipo || "Presentaciones";
   const generado = metadata.generado || "";
@@ -1498,7 +1578,7 @@ function renderPma() {
     <td><strong>${escaparHtml(r.obras_sociales?.rnos||"—")}</strong></td>
     <td class="denominacion-cell">${escaparHtml(r.obras_sociales?.denominacion||"—")}</td>
     <td>${escaparHtml(r.ejercicio||"—")}</td><td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td>
-    <td>${escaparHtml(r.condicion||"—")}</td><td>${escaparHtml(r.analista||"—")}</td>
+    <td>${escaparHtml(r.condicion||"—")}</td>
     <td>${escaparHtml(r.numero_ee||"—")}</td><td>${escaparHtml(r.numero_disposicion||"—")}</td></tr>`).join("");
   const count=document.getElementById("pma-count"); if(count)count.textContent=`${rows.length} ${rows.length===1?"presentación":"presentaciones"}`;
   const empty=document.getElementById("pma-empty"); if(empty){empty.hidden=rows.length!==0;}
@@ -1552,7 +1632,8 @@ function renderCartillas() {
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td><span class="badge ${clase}">${plazoTexto}</span></td>
       <td>${escaparHtml(c.condicion || "—")}</td>
-      <td>${escaparHtml(c.analista || "—")}</td>
+      <td>${escaparHtml(c.numero_ee || "—")}</td>
+      <td>${escaparHtml(c.numero_disposicion || "—")}</td>
     </tr>`;
   }).join("");
   const count = document.getElementById("cartilla-count");
@@ -1747,18 +1828,24 @@ function abrirHistorialPresentaciones(tipo, obraSocialId) {
   const os = obrasSociales.find(item => String(item?.id) === String(obraSocialId));
   if (!os) return;
   const historial = construirHistorialPresentaciones(fuente, obraSocialId);
+  const evolucion = construirEvolucionPresentaciones(os, fuente);
   const title = document.getElementById("history-title");
   const meta = document.getElementById("history-agent-meta");
   const count = document.getElementById("history-count");
   const body = document.getElementById("history-table-body");
   const empty = document.getElementById("history-empty");
+  const evolution = document.getElementById("history-evolution");
   if (title) title.textContent = esPma ? "Presentación de PMA" : "Presentación de Cartilla";
   const sigla = os.sigla ? ` (${os.sigla})` : "";
   if (meta) meta.innerHTML = `<b>RNAS ${escaparHtml(os.rnos || "—")}</b> · ${escaparHtml(os.denominacion || "—")}${escaparHtml(sigla)} · <b>Inicio ejercicio:</b> ${escaparHtml(os.inicio_ejercicio || "—")}`;
   if (count) count.textContent = `${historial.length} ${historial.length === 1 ? "presentación realizada" : "presentaciones realizadas"}`;
+  if (evolution) {
+    evolution.innerHTML = evolucion.length ? `<div class="history-evolution-title">Evolución de presentaciones</div><div class="history-timeline">${evolucion.map(item => `<div class="history-evolution-item ${item.estado.toLowerCase()}"><span class="history-evolution-year">${item.periodo}</span><span class="history-evolution-dot" aria-hidden="true"></span><span class="history-evolution-label">${escaparHtml(item.etiqueta)}</span></div>`).join("")}</div>` : "";
+    evolution.hidden = !evolucion.length;
+  }
   if (body) body.innerHTML = historial.map(row => {
     const clase = row.plazoEstado === "EN_TERMINO" ? "active" : row.plazoEstado === "FUERA_DE_TERMINO" ? "inactive" : "neutral-badge";
-    return `<tr><td><strong>${escaparHtml(row.ejercicio || "—")}</strong></td><td>${escaparHtml(row.numero_ee || "—")}</td><td class="date-cell">${formatFechaPantalla(row.fecha_ingreso)}</td><td class="date-cell">${formatFechaPantalla(row.fecha_disposicion)}</td><td>${escaparHtml(row.numero_disposicion || "—")}</td><td><span class="badge ${clase}">${escaparHtml(row.plazoTexto)}</span></td></tr>`;
+    return `<tr><td><strong>${escaparHtml(row.ejercicio || "—")}</strong></td><td class="history-wrap-cell">${escaparHtml(row.numero_ee || "—")}</td><td class="date-cell">${formatFechaPantalla(row.fecha_ingreso)}</td><td class="date-cell">${formatFechaPantalla(row.fecha_disposicion)}</td><td class="history-wrap-cell">${escaparHtml(row.numero_disposicion || "—")}</td><td><span class="badge ${clase}">${escaparHtml(row.plazoTexto)}</span></td></tr>`;
   }).join("");
   if (empty) empty.hidden = historial.length !== 0;
   abrirModal("history-modal");
@@ -1811,12 +1898,15 @@ function exportarModuloPresentacionesExcel(tipo) {
 
 function renderReporteFaltantesCartillas() {
   if (typeof document === "undefined") return;
+  configurarModoPanelReporte("cartillas", false);
   const head = document.getElementById("report-cartillas-head");
   const body = document.getElementById("report-cartillas-body");
   const count = document.getElementById("report-cartillas-count");
   const empty = document.getElementById("report-cartillas-empty");
   if (!head || !body) return;
   const periodos = getPeriodosReporteSeleccionados();
+  const periodNote = document.getElementById("report-cartillas-period-note");
+  if (periodNote) periodNote.textContent = textoContextoPeriodos(periodos);
   const arrow = reportCartillasRnasSortDirection === "asc" ? "↑" : "↓";
   head.innerHTML = `<tr><th><button class="sort-button" id="report-cartillas-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th>${periodos.map(periodo => `<th class="period-head">${periodo}</th>`).join("")}</tr>`;
   head.querySelector("#report-cartillas-rnas-sort")?.addEventListener("click", () => { reportCartillasRnasSortDirection = reportCartillasRnasSortDirection === "asc" ? "desc" : "asc"; renderReporteFaltantesCartillas(); });
@@ -1866,36 +1956,73 @@ function mostrarGraficoReporte(tipo, mostrar = true) {
 
 function actualizarCabeceraReporte(tipo) {
   if (typeof document === "undefined") return;
+  const base = tipoBaseReporte(tipo);
+  const nunca = esReporteNunca(tipo);
   const eyebrow = document.getElementById("report-current-eyebrow");
   const title = document.getElementById("report-current-title");
   const description = document.getElementById("report-current-description");
-  if (eyebrow) eyebrow.textContent = tipo === "pma" ? "PMA" : "CARTILLAS";
-  if (title) title.textContent = "Agentes de Seguro sin presentación";
-  if (description) description.textContent = "Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Agente de Seguro.";
+  if (eyebrow) eyebrow.textContent = base === "pma" ? "PMA" : "CARTILLAS";
+  if (title) title.textContent = nunca ? "Agentes de Seguro que nunca presentaron" : "Agentes de Seguro sin presentación";
+  if (description) description.textContent = nunca
+    ? `Identifica los Agentes de Seguro que no tienen ninguna presentación histórica de ${base === "pma" ? "PMA" : "Cartillas"} cargada en el sistema.`
+    : "Seleccioná uno o más períodos de control. El sistema determina automáticamente qué ejercicio corresponde según el Inicio ejercicio de cada Agente de Seguro.";
   const cartSearch = document.getElementById("report-cartillas-search-wrap");
   const pmaSearch = document.getElementById("report-pma-search-wrap");
-  if (cartSearch) cartSearch.hidden = tipo !== "cartillas";
-  if (pmaSearch) pmaSearch.hidden = tipo !== "pma";
+  if (cartSearch) cartSearch.hidden = base !== "cartillas";
+  if (pmaSearch) pmaSearch.hidden = base !== "pma";
+}
+
+function configurarModoPanelReporte(tipo, nunca) {
+  if (typeof document === "undefined") return;
+  const filtros = document.getElementById(`report-${tipo}-filters`);
+  const legend = document.getElementById(`report-${tipo}-legend`);
+  const chart = document.getElementById(`report-${tipo}-chart-sector`);
+  if (filtros) filtros.hidden = Boolean(nunca);
+  if (legend) legend.hidden = Boolean(nunca);
+  if (chart && nunca) chart.hidden = true;
+}
+
+function renderReporteNuncaPresentaron(tipo) {
+  if (typeof document === "undefined") return;
+  const fuente = tipo === "pma" ? pma : cartillas;
+  const head = document.getElementById(`report-${tipo}-head`);
+  const body = document.getElementById(`report-${tipo}-body`);
+  const count = document.getElementById(`report-${tipo}-count`);
+  const status = document.getElementById(`report-${tipo}-status`);
+  const empty = document.getElementById(`report-${tipo}-empty`);
+  if (!head || !body) return;
+  configurarModoPanelReporte(tipo, true);
+  const direccion = tipo === "pma" ? reportPmaRnasSortDirection : reportCartillasRnasSortDirection;
+  const arrow = direccion === "asc" ? "↑" : "↓";
+  head.innerHTML = `<tr><th><button class="sort-button" id="report-${tipo}-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th><th>Sigla</th><th>Inicio ejercicio</th></tr>`;
+  head.querySelector(`#report-${tipo}-rnas-sort`)?.addEventListener("click", () => {
+    if (tipo === "pma") reportPmaRnasSortDirection = reportPmaRnasSortDirection === "asc" ? "desc" : "asc";
+    else reportCartillasRnasSortDirection = reportCartillasRnasSortDirection === "asc" ? "desc" : "asc";
+    renderReporteNuncaPresentaron(tipo);
+  });
+  let filas = identificarNuncaPresentaron(obrasSociales, fuente);
+  filas = filtrarNuncaPresentaron(filas, tipo);
+  filas = ordenarReportePorRnas(filas, tipo === "pma" ? reportPmaRnasSortDirection : reportCartillasRnasSortDirection);
+  body.innerHTML = filas.map(os => `<tr><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(os.sigla || "—")}</td><td>${escaparHtml(os.inicio_ejercicio || "—")}</td></tr>`).join("");
+  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "Agente de Seguro" : "Agentes de Seguro"} que nunca ${filas.length === 1 ? "presentó" : "presentaron"}`;
+  if (status) status.textContent = `Sin ninguna presentación histórica de ${tipo === "pma" ? "PMA" : "Cartillas"}`;
+  if (empty) { empty.hidden = filas.length !== 0; empty.textContent = "No hay Agentes de Seguro sin presentaciones históricas con ese criterio."; }
 }
 
 function actualizarSelectorReporte() {
   if (typeof document === "undefined") return;
   const select = document.getElementById("report-type-select");
   reporteActivo = select?.value || "cartillas";
-
+  const base = tipoBaseReporte(reporteActivo);
   document.querySelectorAll("[data-report-panel]").forEach(panel => {
-    panel.hidden = panel.dataset.reportPanel !== reporteActivo;
+    panel.hidden = panel.dataset.reportPanel !== base;
   });
   actualizarCabeceraReporte(reporteActivo);
-
+  configurarModoPanelReporte(base, esReporteNunca(reporteActivo));
   const exportButton = document.getElementById("btn-export-report");
-  if (exportButton) {
-    exportButton.disabled = false;
-    exportButton.title = "Descargar el reporte actual en Excel";
-  }
-
-  if (reporteActivo === "cartillas") cargarYRenderizarReporteCartillas();
-  if (reporteActivo === "pma") cargarYRenderizarReportePma();
+  if (exportButton) { exportButton.disabled = false; exportButton.title = "Descargar el reporte actual en Excel"; }
+  if (base === "cartillas") cargarYRenderizarReporteCartillas();
+  if (base === "pma") cargarYRenderizarReportePma();
 }
 
 function cargarReporteActivo() {
@@ -1903,15 +2030,24 @@ function cargarReporteActivo() {
   actualizarSelectorReporte();
 }
 
+function exportarReporteNuncaPresentaron(tipo) {
+  if (typeof document === "undefined") return;
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.","error"); return; }
+  const fuente = tipo === "pma" ? pma : cartillas;
+  let filas = filtrarNuncaPresentaron(identificarNuncaPresentaron(obrasSociales, fuente), tipo);
+  filas = ordenarReportePorRnas(filas, tipo === "pma" ? reportPmaRnasSortDirection : reportCartillasRnasSortDirection);
+  const nombre = tipo === "pma" ? "PMA" : "Cartillas";
+  const matriz = matrizExcelNuncaPresentaron(filas, `${nombre} - Agentes que nunca presentaron`);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), "Nunca presentaron");
+  window.XLSX.writeFile(libro, `${tipo}_nunca_presentaron_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 function exportarReporteActivo() {
-  if (reporteActivo === "cartillas") {
-    exportarReporteCartillasExcel();
-    return;
-  }
-  if (reporteActivo === "pma") {
-    exportarReportePmaExcel();
-    return;
-  }
+  if (reporteActivo === "cartillas") return exportarReporteCartillasExcel();
+  if (reporteActivo === "pma") return exportarReportePmaExcel();
+  if (reporteActivo === "cartillas-nunca") return exportarReporteNuncaPresentaron("cartillas");
+  if (reporteActivo === "pma-nunca") return exportarReporteNuncaPresentaron("pma");
   mostrarToast("Este reporte todavía no está disponible.", "error");
 }
 
@@ -1922,7 +2058,7 @@ async function cargarYRenderizarReporteCartillas() {
   const count = document.getElementById("report-cartillas-count");
 
   if (reporteCartillasCargado && obrasSociales.length && cartillasCargadas) {
-    renderReporteFaltantesCartillas();
+    if (esReporteNunca(reporteActivo)) renderReporteNuncaPresentaron("cartillas"); else renderReporteFaltantesCartillas();
     return;
   }
 
@@ -1942,7 +2078,7 @@ async function cargarYRenderizarReporteCartillas() {
 
     reporteCartillasCargado = true;
     poblarPeriodosReporte();
-    renderReporteFaltantesCartillas();
+    if (esReporteNunca(reporteActivo)) renderReporteNuncaPresentaron("cartillas"); else renderReporteFaltantesCartillas();
 
     if (document.getElementById("report-cartillas-status")?.textContent === "Cargando Agentes de Seguro y Cartillas...") {
       document.getElementById("report-cartillas-status").textContent = "Reporte listo";
@@ -2033,9 +2169,11 @@ function renderGraficoPma(resumen) {
 
 function renderReporteFaltantesPma() {
   if (typeof document === "undefined") return;
+  configurarModoPanelReporte("pma", false);
   const head=document.getElementById("report-pma-head"), body=document.getElementById("report-pma-body"), count=document.getElementById("report-pma-count"), empty=document.getElementById("report-pma-empty");
   if(!head||!body)return;
   const periodos=getPeriodosPmaSeleccionados();
+  const periodNote=document.getElementById("report-pma-period-note"); if(periodNote) periodNote.textContent=textoContextoPeriodos(periodos);
   const arrow=reportPmaRnasSortDirection==="asc"?"↑":"↓";
   head.innerHTML=`<tr><th><button class="sort-button" id="report-pma-rnas-sort" type="button" title="Ordenar RNAS">RNAS <span aria-hidden="true">${arrow}</span></button></th><th>Denominación</th>${periodos.map(p=>`<th class="period-head">${p}</th>`).join("")}</tr>`;
   head.querySelector("#report-pma-rnas-sort")?.addEventListener("click",()=>{reportPmaRnasSortDirection=reportPmaRnasSortDirection==="asc"?"desc":"asc";renderReporteFaltantesPma();});
@@ -2067,7 +2205,7 @@ async function cargarYRenderizarReportePma() {
   const count = document.getElementById("report-pma-count");
 
   if (reportePmaCargado && obrasSociales.length && pmaCargadas) {
-    renderReporteFaltantesPma();
+    if (esReporteNunca(reporteActivo)) renderReporteNuncaPresentaron("pma"); else renderReporteFaltantesPma();
     return;
   }
 
@@ -2082,7 +2220,7 @@ async function cargarYRenderizarReportePma() {
     }
     reportePmaCargado = true;
     poblarPeriodosPma();
-    renderReporteFaltantesPma();
+    if (esReporteNunca(reporteActivo)) renderReporteNuncaPresentaron("pma"); else renderReporteFaltantesPma();
     if (document.getElementById("report-pma-status")?.textContent === "Cargando Agentes de Seguro y PMA...") {
       document.getElementById("report-pma-status").textContent = "Reporte listo";
     }
@@ -2405,11 +2543,11 @@ async function initBrowser() {
   document.getElementById("cartilla-ejercicio")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
 
-  document.getElementById("report-cartillas-search")?.addEventListener("input", renderReporteFaltantesCartillas);
+  document.getElementById("report-cartillas-search")?.addEventListener("input", () => esReporteNunca(reporteActivo) ? renderReporteNuncaPresentaron("cartillas") : renderReporteFaltantesCartillas());
   document.getElementById("report-solo-faltantes")?.addEventListener("change", renderReporteFaltantesCartillas);
   document.getElementById("report-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(true));
   document.getElementById("report-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosReporte(false));
-  document.getElementById("report-pma-search")?.addEventListener("input", renderReporteFaltantesPma);
+  document.getElementById("report-pma-search")?.addEventListener("input", () => esReporteNunca(reporteActivo) ? renderReporteNuncaPresentaron("pma") : renderReporteFaltantesPma());
   document.getElementById("report-pma-solo-faltantes")?.addEventListener("change", renderReporteFaltantesPma);
   document.getElementById("report-pma-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosPma(true));
   document.getElementById("report-pma-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosPma(false));
@@ -2504,6 +2642,9 @@ if (typeof module !== "undefined" && module.exports) {
     filtrarCartillasRegistros,
     ordenarReportePorRnas,
     construirHistorialPresentaciones,
+    identificarNuncaPresentaron,
+    construirEvolucionPresentaciones,
+    textoContextoPeriodos,
     construirMatrizExcelDetallePresentaciones,
     calcularCumplimiento90,
     ejercicioEsperadoPeriodoControl,
