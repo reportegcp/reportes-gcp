@@ -146,6 +146,12 @@ function renderEstadisticasInicio() {
   if (typeof document === "undefined") return;
   const base = document.getElementById("home-stats-base");
   const totalActivas = (obrasSociales || []).filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA").length;
+  const kpiObras = document.getElementById("home-kpi-obras");
+  const kpiPma = document.getElementById("home-kpi-pma");
+  const kpiCartillas = document.getElementById("home-kpi-cartillas");
+  if (kpiObras) kpiObras.textContent = String(totalActivas || 0);
+  if (kpiPma) kpiPma.textContent = String((pma || []).length || 0);
+  if (kpiCartillas) kpiCartillas.textContent = String((cartillas || []).length || 0);
   for (const periodo of periodosEstadisticasInicio) {
     pintarResumenInicio(periodo.key, "pma", resumirInicioPorParEjercicios(obrasSociales, pma, periodo.ejercicios));
     pintarResumenInicio(periodo.key, "cartillas", resumirInicioPorParEjercicios(obrasSociales, cartillas, periodo.ejercicios));

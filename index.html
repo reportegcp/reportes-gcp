@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=37">
+  <link rel="stylesheet" href="styles.css?v=40">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 39</span>
+        <span>Versión 40</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -104,14 +104,38 @@
             <h2>Trámites GCP</h2>
             <p>Resumen general de presentaciones de PMA y Cartillas.</p>
           </div>
-          <div class="hero-badge"><strong>V39</strong><span>Presentaciones y reportes</span></div>
+          <div class="hero-badge"><strong>V40</strong><span>Presentaciones y reportes</span></div>
         </div>
 
         <section class="home-stats-section" aria-labelledby="home-stats-title">
-          <div class="home-section-heading">
+          <div class="home-kpi-grid">
+            <article class="home-kpi-card">
+              <span class="home-kpi-label">Agentes activos</span>
+              <strong class="home-kpi-value" id="home-kpi-obras">—</strong>
+              <small class="home-kpi-note">Base activa evaluada</small>
+            </article>
+            <article class="home-kpi-card">
+              <span class="home-kpi-label">Presentaciones PMA</span>
+              <strong class="home-kpi-value" id="home-kpi-pma">—</strong>
+              <small class="home-kpi-note">Registros cargados</small>
+            </article>
+            <article class="home-kpi-card">
+              <span class="home-kpi-label">Presentaciones Cartillas</span>
+              <strong class="home-kpi-value" id="home-kpi-cartillas">—</strong>
+              <small class="home-kpi-note">Registros cargados</small>
+            </article>
+            <article class="home-kpi-card accent">
+              <span class="home-kpi-label">Períodos analizados</span>
+              <strong class="home-kpi-value">3</strong>
+              <small class="home-kpi-note">2025/26–2026 · 2024/25–2025 · 2023/24–2024</small>
+            </article>
+          </div>
+
+          <div class="home-section-heading dashboard-heading">
             <div>
               <span class="eyebrow">ESTADÍSTICAS</span>
               <h3 id="home-stats-title">Estado de presentaciones por período</h3>
+              <p class="home-panel-text">Panel comparativo de PMA y Cartillas para los últimos tres períodos de control.</p>
             </div>
             <span class="home-stats-base" id="home-stats-base">Cargando datos...</span>
           </div>
