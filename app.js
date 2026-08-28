@@ -132,7 +132,7 @@ function resumirInicioPorParEjercicios(obras, registros, ejercicios) {
   }
   const presentaron = conPresentacion.size;
   const totalActivas = activas.length;
-  return { presentaron, noPresentaron: Math.max(0, totalActivas - presentaron), totalActivas };
+  return { presentaron, noPresentaron: Math.max(0, totalActivas - presentaron), totalActivas, ids: conPresentacion };
 }
 
 function pintarResumenInicio(key, tipo, resumen) {
@@ -143,21 +143,29 @@ function pintarResumenInicio(key, tipo, resumen) {
   if (noPresentaron) noPresentaron.textContent = String(resumen?.noPresentaron ?? "—");
 }
 
+function resumirAgentesInicioPeriodoVigente(obras, pmaRegistros, cartillasRegistros, ejercicios) {
+  const r1 = resumirInicioPorParEjercicios(obras, pmaRegistros, ejercicios);
+  const r2 = resumirInicioPorParEjercicios(obras, cartillasRegistros, ejercicios);
+  const ids = new Set([...(r1.ids || []), ...(r2.ids || [])]);
+  return ids.size;
+}
+
 function renderEstadisticasInicio() {
   if (typeof document === "undefined") return;
-  const base = document.getElementById("home-stats-base");
-  const totalActivas = (obrasSociales || []).filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA").length;
   const kpiObras = document.getElementById("home-kpi-obras");
   const kpiPma = document.getElementById("home-kpi-pma");
   const kpiCartillas = document.getElementById("home-kpi-cartillas");
-  if (kpiObras) kpiObras.textContent = String(totalActivas || 0);
-  if (kpiPma) kpiPma.textContent = String((pma || []).length || 0);
-  if (kpiCartillas) kpiCartillas.textContent = String((cartillas || []).length || 0);
-  for (const periodo of periodosEstadisticasInicio) {
+  const periodoVigente = periodosEstadisticasInicio.find(periodo => periodo.key === "2027") || { ejercicios: ["2027", "2026/27"] };
+  const resumenPmaVigente = resumirInicioPorParEjercicios(obrasSociales, pma, periodoVigente.ejercicios);
+  const resumenCartillasVigente = resumirInicioPorParEjercicios(obrasSociales, cartillas, periodoVigente.ejercicios);
+  const agentesVigentes = resumirAgentesInicioPeriodoVigente(obrasSociales, pma, cartillas, periodoVigente.ejercicios);
+  if (kpiObras) kpiObras.textContent = String(agentesVigentes || 0);
+  if (kpiPma) kpiPma.textContent = String(resumenPmaVigente.presentaron || 0);
+  if (kpiCartillas) kpiCartillas.textContent = String(resumenCartillasVigente.presentaron || 0);
+  for (const periodo of periodosEstadisticasInicio.filter(periodo => periodo.key !== "2027")) {
     pintarResumenInicio(periodo.key, "pma", resumirInicioPorParEjercicios(obrasSociales, pma, periodo.ejercicios));
     pintarResumenInicio(periodo.key, "cartillas", resumirInicioPorParEjercicios(obrasSociales, cartillas, periodo.ejercicios));
   }
-  if (base) base.textContent = `${totalActivas} Agentes de Seguro activos evaluados`;
 }
 
 async function cargarYRenderizarEstadisticasInicio() {
