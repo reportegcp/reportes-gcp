@@ -1291,3 +1291,22 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 
 .data-table th .sort-button{width:100%;justify-content:flex-start;}
 .data-table th .sort-button span{display:inline-block;min-width:14px;text-align:center;}
+
+
+/* V38: búsqueda por fechas, orden por ejercicio y ayuda flotante de historial */
+.search-box-compact input{padding-left:40px}
+.search-box-date input::placeholder{font-size:13px}
+.pma-toolbar{grid-template-columns:minmax(320px,1.55fr) repeat(4,minmax(165px,.7fr))}
+.cartillas-toolbar{grid-template-columns:minmax(320px,1.45fr) repeat(4,minmax(165px,.65fr))}
+.report-floating-help-wrap{margin-top:12px;display:flex;justify-content:flex-start}
+.report-floating-help .section-help-popover{width:min(420px,calc(100vw - 52px))}
+.report-floating-help .section-help-popover p{margin:0;color:#34465f}
+.report-floating-help .section-help-popover p + p{margin-top:10px}
+@media(max-width:1320px){
+  .pma-toolbar,.cartillas-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pma-toolbar .search-box:first-child,.cartillas-toolbar .search-box:first-child{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .pma-toolbar,.cartillas-toolbar{grid-template-columns:1fr}
+  .pma-toolbar .search-box:first-child,.cartillas-toolbar .search-box:first-child{grid-column:auto}
+}

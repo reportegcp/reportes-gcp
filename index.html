@@ -64,7 +64,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 37</span>
+        <span>Versión 38</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -104,7 +104,7 @@
             <h2>Reportes GCP</h2>
             <p>Espacio único para consulta rápida de estado de trámites presentados en la Gerencia.</p>
           </div>
-          <div class="hero-badge"><strong>V37</strong><span>Presentaciones y reportes</span></div>
+          <div class="hero-badge"><strong>V38</strong><span>Presentaciones y reportes</span></div>
         </div>
 
         <div class="cards">
@@ -209,6 +209,14 @@
             </div>
           </details>
           <select id="pma-condicion-filter"><option value="TODOS">Condición: Todas</option></select>
+          <div class="search-box search-box-compact search-box-date">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="pma-ingreso-search" type="search" placeholder="Buscar fecha ingreso..." autocomplete="off">
+          </div>
+          <div class="search-box search-box-compact search-box-date">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="pma-limite-search" type="search" placeholder="Buscar fecha límite..." autocomplete="off">
+          </div>
         </div>
 
         <div class="table-card">
@@ -252,6 +260,14 @@
             <option value="EN_TERMINO">En término</option>
             <option value="FUERA_DE_TERMINO">Fuera de término</option>
           </select>
+          <div class="search-box search-box-compact search-box-date">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="cartilla-ingreso-search" type="search" placeholder="Buscar fecha ingreso..." autocomplete="off">
+          </div>
+          <div class="search-box search-box-compact search-box-date">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="cartilla-limite-search" type="search" placeholder="Buscar fecha límite..." autocomplete="off">
+          </div>
         </div>
 
         <div class="table-card">
@@ -287,6 +303,16 @@
             <span class="eyebrow" id="report-current-eyebrow">CARTILLAS</span>
             <h2 id="report-current-title">Agentes de Seguro sin presentación</h2>
             <p id="report-current-description">Seleccioná uno o más ejercicios para identificar qué Agentes de Seguro presentaron y cuáles no.</p>
+            <div class="report-floating-help-wrap">
+              <details class="section-help report-floating-help" id="report-history-help">
+                <summary aria-label="Ayuda sobre historial">?</summary>
+                <div class="section-help-popover">
+                  <strong>Cómo funciona el historial</strong>
+                  <p>En los reportes de <b>Presentaciones</b> de Cartillas y PMA, al hacer clic sobre una Obra Social se abre su historial completo.</p>
+                  <p>En los reportes de <b>Nunca presentaron</b> no se abre historial, porque esa Obra Social no tiene presentaciones cargadas.</p>
+                </div>
+              </details>
+            </div>
           </div>
 
           <div class="report-switcher-card report-top-controls">

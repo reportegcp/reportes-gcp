@@ -12,9 +12,9 @@ const views = {
 
 const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
-  pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
-  cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
-  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo. Podés ordenar por RNAS y exportar a Excel.</li></ul>`
+  pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
+  cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
+  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -1470,15 +1470,56 @@ function poblarSelectorMultipleEjercicios(prefix, valores, renderFn) {
   actualizarResumenEjercicios(prefix);
 }
 
+function normalizarBusquedaFecha(valor = "") {
+  return String(valor || "").trim().replace(/\s+/g, "").replace(/[./]/g, "-").toLowerCase();
+}
+
+function fechaCoincideFiltro(fechaIso, filtro = "") {
+  const termino = String(filtro || "").trim();
+  if (!termino) return true;
+  const iso = String(fechaIso || "").trim();
+  if (!iso) return false;
+  const terminoNormalizado = normalizarBusquedaFecha(termino);
+  const terminoNumerico = termino.replace(/\D/g, "");
+  const candidatos = [
+    normalizarBusquedaFecha(iso),
+    normalizarBusquedaFecha(formatFechaPantalla(iso)),
+    String(iso || "").replace(/\D/g, ""),
+    String(formatFechaPantalla(iso) || "").replace(/\D/g, "")
+  ].filter(Boolean);
+  return candidatos.some(candidato => {
+    if (!candidato) return false;
+    if (terminoNormalizado && candidato.includes(terminoNormalizado)) return true;
+    if (terminoNumerico && candidato.includes(terminoNumerico)) return true;
+    return false;
+  });
+}
+
+function valorOrdenEjercicio(ejercicio = "") {
+  const texto = String(ejercicio || "").trim();
+  const match = texto.match(/^(\d{4})(?:\/(\d{2,4}))?$/);
+  if (!match) return { inicio: 0, fin: 0, texto };
+  const inicio = Number(match[1]) || 0;
+  let fin = inicio;
+  if (match[2]) {
+    fin = match[2].length === 2 ? Number(String(inicio).slice(0, 2) + match[2]) : Number(match[2]);
+  }
+  return { inicio, fin, texto };
+}
+
 function filtrarCartillasRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
   const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : []).map(String));
   const plazo = filtros.plazo || "TODOS";
+  const fechaIngreso = filtros.fechaIngreso || "";
+  const fechaLimite = filtros.fechaLimite || "";
   return (lista || []).filter(c => {
     const os = c.obras_sociales || {};
     if (ejercicios.size && !ejercicios.has(String(c.ejercicio || ""))) return false;
-    const cumplimiento = calcularCumplimiento90(c?.fecha_inicio_ejercicio || "", c?.fecha_ingreso || "").estado;
+    const cumplimiento = calcularCumplimiento90(c?.fecha_inicio_ejercicio || "", c?.fecha_ingreso || "");
     if (plazo !== "TODOS" && cumplimiento !== plazo) return false;
+    if (!fechaCoincideFiltro(c?.fecha_ingreso || "", fechaIngreso)) return false;
+    if (!fechaCoincideFiltro(cumplimiento?.fechaLimite || "", fechaLimite)) return false;
     if (!busqueda) return true;
     return normalizar([os.rnos,os.denominacion,os.sigla,c.ejercicio,c.analista,c.numero_ee,c.condicion,c.numero_disposicion,c.observaciones].join(" ")).includes(busqueda);
   });
@@ -1511,6 +1552,13 @@ function ordenarPresentacionesPorCampo(lista, campo = "rnas", direccion = "asc")
       if (diff !== 0) return diff * factor;
       return compararTextoOrden(a?.obras_sociales?.rnos, b?.obras_sociales?.rnos, factor);
     }
+    if (campo === "ejercicio") {
+      const av = valorOrdenEjercicio(a?.ejercicio || "");
+      const bv = valorOrdenEjercicio(b?.ejercicio || "");
+      if (av.inicio !== bv.inicio) return (av.inicio - bv.inicio) * factor;
+      if (av.fin !== bv.fin) return (av.fin - bv.fin) * factor;
+      return compararTextoOrden(a?.obras_sociales?.denominacion, b?.obras_sociales?.denominacion, factor);
+    }
     if (campo === "ingreso") {
       const av = String(a?.fecha_ingreso || "");
       const bv = String(b?.fecha_ingreso || "");
@@ -1528,12 +1576,13 @@ function ordenarPresentacionesPorCampo(lista, campo = "rnas", direccion = "asc")
 }
 
 function cambiarOrdenPresentaciones(modulo, campo) {
+  const direccionInicial = campo === "rnas" ? "asc" : "desc";
   if (modulo === "pma") {
     if (pmaSortField === campo) {
       pmaSortDirection = pmaSortDirection === "asc" ? "desc" : "asc";
     } else {
       pmaSortField = campo;
-      pmaSortDirection = campo === "rnas" ? "asc" : "desc";
+      pmaSortDirection = direccionInicial;
     }
     pmaPage = 1;
     renderPma();
@@ -1543,7 +1592,7 @@ function cambiarOrdenPresentaciones(modulo, campo) {
     cartillaSortDirection = cartillaSortDirection === "asc" ? "desc" : "asc";
   } else {
     cartillaSortField = campo;
-    cartillaSortDirection = campo === "rnas" ? "asc" : "desc";
+    cartillaSortDirection = direccionInicial;
   }
   cartillaPage = 1;
   renderCartillas();
@@ -1750,11 +1799,17 @@ function filtrarPmaRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
   const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : (filtros.ejercicio && filtros.ejercicio !== "TODOS" ? [filtros.ejercicio] : [])).map(String));
   const condicion = filtros.condicion || "TODOS";
-  return (lista || []).filter(row => {
-    if (ejercicios.size && !ejercicios.has(String(row.ejercicio || ""))) return false;
-    if (condicion !== "TODOS" && String(row.condicion || "") !== condicion) return false;
+  const fechaIngreso = filtros.fechaIngreso || "";
+  const fechaLimite = filtros.fechaLimite || "";
+  return (lista || []).filter(x => {
+    const os = x.obras_sociales || {};
+    if (ejercicios.size && !ejercicios.has(String(x.ejercicio || ""))) return false;
+    if (condicion !== "TODOS" && String(x.condicion || "") !== condicion) return false;
+    const cumplimiento = calcularCumplimiento90(x?.fecha_inicio_ejercicio || "", x?.fecha_ingreso || "");
+    if (!fechaCoincideFiltro(x?.fecha_ingreso || "", fechaIngreso)) return false;
+    if (!fechaCoincideFiltro(cumplimiento?.fechaLimite || "", fechaLimite)) return false;
     if (!busqueda) return true;
-    return normalizar([row.obras_sociales?.rnos,row.obras_sociales?.denominacion,row.obras_sociales?.sigla,row.numero_ee,row.numero_disposicion,row.ejercicio,row.analista,row.condicion].join(" ")).includes(busqueda);
+    return normalizar([os.rnos, os.denominacion, os.sigla, x.ejercicio, x.analista, x.numero_ee, x.numero_disposicion, x.condicion, x.observaciones].join(" ")).includes(busqueda);
   });
 }
 function llenarFiltrosPma() {
@@ -1772,7 +1827,9 @@ function obtenerPmaFiltradas() {
   return filtrarPmaRegistros(pma,{
     busqueda:document.getElementById("pma-search")?.value||"",
     ejercicios:ejerciciosFiltroSeleccionados("pma"),
-    condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS"
+    condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS",
+    fechaIngreso:document.getElementById("pma-ingreso-search")?.value||"",
+    fechaLimite:document.getElementById("pma-limite-search")?.value||""
   });
 }
 function cumplimientoPmaRegistro(row) {
@@ -1785,8 +1842,9 @@ function renderPma() {
   const head = document.getElementById("pma-table-head");
   const rows = ordenarPresentacionesPorCampo(obtenerPmaFiltradas(), pmaSortField, pmaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th>Ejercicio</th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="pma-sort-ejercicio" type="button" title="Ordenar por ejercicio">Ejercicio <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ejercicio", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#pma-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "rnas"));
+    head.querySelector("#pma-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ejercicio"));
     head.querySelector("#pma-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ingreso"));
     head.querySelector("#pma-sort-fecha-limite")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "fecha_limite"));
   }
@@ -1841,7 +1899,9 @@ function filtrarCartillas() {
   return filtrarCartillasRegistros(cartillas, {
     busqueda: document.getElementById("cartilla-search")?.value || "",
     ejercicios: ejerciciosFiltroSeleccionados("cartilla"),
-    plazo: document.getElementById("cartilla-plazo-filter")?.value || "TODOS"
+    plazo: document.getElementById("cartilla-plazo-filter")?.value || "TODOS",
+    fechaIngreso: document.getElementById("cartilla-ingreso-search")?.value || "",
+    fechaLimite: document.getElementById("cartilla-limite-search")?.value || ""
   });
 }
 
@@ -1852,8 +1912,9 @@ function renderCartillas() {
   const head = document.getElementById("cartilla-table-head");
   const filtradas = ordenarPresentacionesPorCampo(filtrarCartillas(), cartillaSortField, cartillaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th>Ejercicio</th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por ejercicio">Ejercicio <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#cartilla-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "rnas"));
+    head.querySelector("#cartilla-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ejercicio"));
     head.querySelector("#cartilla-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ingreso"));
     head.querySelector("#cartilla-sort-fecha-limite")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "fecha_limite"));
   }
@@ -2815,6 +2876,8 @@ async function initBrowser() {
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
   document.getElementById("pma-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
+  document.getElementById("pma-ingreso-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
+  document.getElementById("pma-limite-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-condicion-filter")?.addEventListener("change", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
@@ -2826,6 +2889,8 @@ async function initBrowser() {
   document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
   document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
   document.getElementById("cartilla-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
+  document.getElementById("cartilla-ingreso-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
+  document.getElementById("cartilla-limite-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("btn-export-pma")?.addEventListener("click", () => exportarModuloPresentacionesExcel("pma"));
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
