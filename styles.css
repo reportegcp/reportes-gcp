@@ -417,11 +417,15 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .subform-block h3{font-size:14px;margin:0 0 12px;color:#4d5d70}
 .subform-list{display:grid;gap:8px;margin-bottom:10px}
 .subform-item{
-  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  display:flex;align-items:flex-start;gap:10px;
   border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--surface-soft)
 }
-.subform-item-text{font-size:13px;line-height:1.4}
+.subform-item-text{flex:1;min-width:0;font-size:13px;line-height:1.4}
 .subform-item-text strong{display:block;font-size:13.5px}
+.subform-item-text textarea{
+  width:100%;box-sizing:border-box;resize:vertical;margin-top:6px;font:inherit;
+  border:1px solid var(--line);border-radius:8px;padding:8px;min-height:56px
+}
 .subform-item-remove{
   border:0;background:none;color:#a33846;font-size:18px;line-height:1;cursor:pointer;padding:2px 4px;flex-shrink:0
 }
