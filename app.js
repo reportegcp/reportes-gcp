@@ -7,14 +7,19 @@ const views = {
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
-  reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" }
+  reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
+  "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
+  "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
+  "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
+  "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" }
 };
 
 const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
-  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`
+  reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
+  "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -40,6 +45,8 @@ let pmaPage = 1;
 let cartillaPage = 1;
 let reportCartillasPage = 1;
 let reportPmaPage = 1;
+let patologias = [];
+let patologiasCargadas = false;
 
 
 function paginarRegistros(registros, pagina = 1, pageSize = PAGE_SIZE) {
@@ -199,6 +206,9 @@ function perfilPuedeVerVista(perfil, vista) {
   const id = Object.prototype.hasOwnProperty.call(views, vista) ? vista : "inicio";
   const p = normalizarPerfilAcceso(perfil);
 
+  // Urgencias Prestacionales: exclusivo del perfil "Administrador", ni siquiera "Admin Prestacional" entra.
+  if (id.startsWith("up-")) return ["administrador", "admin"].includes(p);
+
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes"].includes(id);
@@ -227,11 +237,13 @@ function aplicarPermisosNavegacion() {
   const esAdminPrestacional = ["admin prestacional", "administrador", "admin"].includes(p);
   const esAdminPresentaciones = p === "admin presentaciones";
   const esCargaPresentaciones = p === "carga presentaciones";
+  const esAdministrador = ["administrador", "admin"].includes(p);
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="reportes"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
+  document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
 }
 
 function normalizar(texto) {
@@ -905,6 +917,178 @@ async function guardarObraSocialEnSupabase(registro, id, accessToken, fetchImpl 
   return Array.isArray(rows) ? rows[0] || null : rows;
 }
 
+function buildPatologiasUrl(id = null) {
+  const params = new URLSearchParams();
+  params.set("select", "id,nombre,created_at");
+  params.set("order", "nombre.asc");
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (id) params.set("id", `eq.${id}`);
+  return `${SUPABASE_URL}/rest/v1/patologias?${params.toString()}`;
+}
+
+async function cargarPatologiasDesdeSupabase(fetchImpl = fetch) {
+  const response = await fetchConTimeout(
+    buildPatologiasUrl(),
+    { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" },
+    10000,
+    fetchImpl
+  );
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function guardarPatologiaEnSupabase(registro, id, accessToken, fetchImpl = fetch) {
+  const editando = id !== null && id !== undefined && id !== "";
+  const response = await fetchConTimeout(buildPatologiasUrl(editando ? id : null), {
+    method: editando ? "PATCH" : "POST",
+    headers: { ...authHeaders(accessToken), Prefer: "return=representation" },
+    body: JSON.stringify(registro)
+  }, 10000, fetchImpl);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    const error = new Error(detalle || `Supabase respondió ${response.status}.`);
+    error.status = response.status;
+    throw error;
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows[0] || null : rows;
+}
+
+async function eliminarPatologiaEnSupabase(id, accessToken, fetchImpl = fetch) {
+  const response = await fetchConTimeout(buildPatologiasUrl(id), {
+    method: "DELETE",
+    headers: authHeaders(accessToken)
+  }, 10000, fetchImpl);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(detalle || `Supabase respondió ${response.status}.`);
+  }
+}
+
+function filtrarPatologias(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(p => normalizar(p.nombre || "").includes(termino));
+}
+
+function renderPatologias() {
+  if (typeof document === "undefined") return;
+  const tbody = document.getElementById("patologia-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("patologia-search")?.value || "";
+  const filtradas = filtrarPatologias(patologias, busqueda);
+
+  tbody.innerHTML = filtradas.map(p => `
+    <tr class="os-row" data-edit-patologia="${p.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
+      <td><strong>${escaparHtml(p.nombre)}</strong></td>
+      <td></td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("patologia-count");
+  if (count) count.textContent = `${filtradas.length} patología${filtradas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("patologia-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-patologia]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionPatologia(row.dataset.editPatologia));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+async function cargarYRenderizarPatologias() {
+  if (typeof document === "undefined") return;
+  const count = document.getElementById("patologia-count");
+  if (count) count.textContent = "Cargando patologías...";
+  try {
+    patologias = await cargarPatologiasDesdeSupabase();
+    patologiasCargadas = true;
+    renderPatologias();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar las patologías.${error?.message ? " " + error.message : ""}`;
+    console.error("Error cargando patologías:", error);
+  }
+}
+
+function resetFormularioPatologia() {
+  document.getElementById("patologia-form")?.reset();
+  const id = document.getElementById("patologia-id");
+  if (id) id.value = "";
+  document.getElementById("patologia-eliminar")?.setAttribute("hidden", "");
+  setFormMessage("patologia-form-message");
+}
+
+function abrirModalNuevaPatologia() {
+  resetFormularioPatologia();
+  document.getElementById("patologia-modal-title").textContent = "Nueva patología";
+  abrirModal("patologia-modal");
+  setTimeout(() => document.getElementById("patologia-nombre")?.focus(), 0);
+}
+
+function abrirModalEdicionPatologia(id) {
+  const p = patologias.find(item => String(item.id) === String(id));
+  if (!p) return;
+  resetFormularioPatologia();
+  document.getElementById("patologia-id").value = p.id;
+  document.getElementById("patologia-nombre").value = p.nombre || "";
+  document.getElementById("patologia-eliminar")?.removeAttribute("hidden");
+  document.getElementById("patologia-modal-title").textContent = "Editar patología";
+  abrirModal("patologia-modal");
+}
+
+async function handlePatologiaSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("patologia-save");
+  setFormMessage("patologia-form-message");
+
+  const id = document.getElementById("patologia-id")?.value || "";
+  const nombre = document.getElementById("patologia-nombre")?.value.trim() || "";
+  if (!nombre) {
+    setFormMessage("patologia-form-message", "El nombre es obligatorio.");
+    return;
+  }
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    await guardarPatologiaEnSupabase({ nombre }, id || null, session.access_token);
+    cerrarModal("patologia-modal");
+    mostrarToast(id ? "Patología actualizada." : "Patología creada.");
+    patologiasCargadas = false;
+    await cargarYRenderizarPatologias();
+  } catch (error) {
+    const mensaje = /duplicate|unique|23505/i.test(error.message || "")
+      ? "Ya existe una patología con ese nombre."
+      : error.message || "No se pudo guardar la patología.";
+    setFormMessage("patologia-form-message", mensaje);
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarPatologia() {
+  const id = document.getElementById("patologia-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar esta patología? Esta acción no se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    await eliminarPatologiaEnSupabase(id, session.access_token);
+    cerrarModal("patologia-modal");
+    mostrarToast("Patología eliminada.");
+    patologiasCargadas = false;
+    await cargarYRenderizarPatologias();
+  } catch (error) {
+    setFormMessage("patologia-form-message", error.message || "No se pudo eliminar la patología. Puede estar en uso por una droga.");
+  }
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -917,6 +1101,12 @@ function showView(id, updateHistory = true) {
   document.querySelector(`[data-view="${resolved}"]`)?.classList.add("active");
   if (["pma", "cartillas"].includes(resolved)) {
     const group = document.querySelector('[data-nav-group="presentaciones"]');
+    group?.classList.add("active");
+    group?.classList.remove("collapsed");
+    group?.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "true");
+  }
+  if (resolved.startsWith("up-")) {
+    const group = document.querySelector('[data-nav-group="urgencias-prestacionales"]');
     group?.classList.add("active");
     group?.classList.remove("collapsed");
     group?.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "true");
@@ -947,6 +1137,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "pma" && !pmaCargadas) cargarYRenderizarPma();
   if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
   if (resolved === "reportes") cargarReporteActivo();
+  if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
 }
 
 function renderObrasSociales() {
@@ -2947,6 +3138,13 @@ async function initBrowser() {
   document.getElementById("os-modal-close")?.addEventListener("click", () => cerrarModal("os-modal"));
   document.getElementById("os-cancelar")?.addEventListener("click", () => cerrarModal("os-modal"));
   document.getElementById("os-form")?.addEventListener("submit", handleOsSubmit);
+
+  document.getElementById("patologia-search")?.addEventListener("input", renderPatologias);
+  document.getElementById("btn-nueva-patologia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPatologia));
+  document.getElementById("patologia-modal-close")?.addEventListener("click", () => cerrarModal("patologia-modal"));
+  document.getElementById("patologia-cancelar")?.addEventListener("click", () => cerrarModal("patologia-modal"));
+  document.getElementById("patologia-form")?.addEventListener("submit", handlePatologiaSubmit);
+  document.getElementById("patologia-eliminar")?.addEventListener("click", handleEliminarPatologia);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

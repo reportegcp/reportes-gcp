@@ -61,6 +61,18 @@
         </div>
 
         <button class="nav-item" data-view="reportes" data-nav-access="reportes">Reportes</button>
+
+        <div class="nav-group" data-nav-group="urgencias-prestacionales" data-nav-access="urgencias-prestacionales">
+          <button class="nav-group-toggle" type="button" aria-expanded="true">
+            <span>Urgencias Prestacionales</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-subitem" data-view="up-expedientes" type="button">Expedientes</button>
+            <button class="nav-subitem" data-view="up-drogas" type="button">Catálogo de drogas</button>
+            <button class="nav-subitem" data-view="up-patologias" type="button">Patologías</button>
+            <button class="nav-subitem" data-view="up-plantillas" type="button">Plantillas</button>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -455,6 +467,44 @@
           </div>
         </div>
       </section>
+
+      <section id="up-patologias" class="view">
+        <div class="module-actions">
+          <button class="primary" id="btn-nueva-patologia" type="button">+ Nueva patología</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="patologia-search" type="search" placeholder="Buscar patología..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="patologia-count">Cargando patologías...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nombre</th><th></th></tr></thead>
+              <tbody id="patologia-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="patologia-empty" hidden>No se encontraron patologías con ese criterio.</div>
+        </div>
+      </section>
+
+      <section id="up-drogas" class="view">
+        <div class="table-card"><div class="table-meta"><strong>Catálogo de drogas — en construcción.</strong></div></div>
+      </section>
+
+      <section id="up-plantillas" class="view">
+        <div class="table-card"><div class="table-meta"><strong>Plantillas de informe — en construcción.</strong></div></div>
+      </section>
+
+      <section id="up-expedientes" class="view">
+        <div class="table-card"><div class="table-meta"><strong>Expedientes — en construcción.</strong></div></div>
+      </section>
     </main>
   </div>
 
@@ -491,6 +541,29 @@
   </div>
 
 
+
+  <div class="modal-backdrop" id="patologia-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="patologia-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PATOLOGÍA</span><h2 id="patologia-modal-title">Nueva patología</h2></div>
+        <button class="icon-button" type="button" id="patologia-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="patologia-form">
+        <input type="hidden" id="patologia-id">
+        <div class="form-grid">
+          <label class="full"><span>Nombre</span><input id="patologia-nombre" type="text" maxlength="250" required></label>
+        </div>
+        <div class="form-message" id="patologia-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary danger" id="patologia-eliminar" hidden>Eliminar</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="patologia-cancelar">Cancelar</button>
+          <button type="submit" class="primary" id="patologia-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="pma-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pma-modal-title">

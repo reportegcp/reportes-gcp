@@ -230,6 +230,8 @@ button{cursor:pointer}
   font-weight:700
 }
 .secondary:hover{background:var(--surface-soft)}
+.secondary.danger{color:#a33846;border-color:#e5c0c7}
+.secondary.danger:hover{background:#fbf0f1}
 .toolbar{
   display:grid;
   grid-template-columns:1fr 220px;
