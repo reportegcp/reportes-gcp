@@ -1108,17 +1108,20 @@ function showView(id, updateHistory = true) {
   document.querySelectorAll(".nav-group").forEach(g => g.classList.remove("active"));
   document.getElementById(resolved)?.classList.add("active");
   document.querySelector(`[data-view="${resolved}"]`)?.classList.add("active");
+
+  // Colapsar todos los submenús salvo el de la sección donde estamos parados.
+  document.querySelectorAll(".nav-group").forEach(group => {
+    const esGrupoDeLaVistaActual =
+      (["pma", "cartillas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales");
+    group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
+    group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
+  });
   if (["pma", "cartillas"].includes(resolved)) {
-    const group = document.querySelector('[data-nav-group="presentaciones"]');
-    group?.classList.add("active");
-    group?.classList.remove("collapsed");
-    group?.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "true");
+    document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
-    const group = document.querySelector('[data-nav-group="urgencias-prestacionales"]');
-    group?.classList.add("active");
-    group?.classList.remove("collapsed");
-    group?.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "true");
+    document.querySelector('[data-nav-group="urgencias-prestacionales"]')?.classList.add("active");
   }
 
   const meta = views[resolved];
