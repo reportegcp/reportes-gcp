@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=55">
+  <link rel="stylesheet" href="styles.css?v=56">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -76,7 +76,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 55</span>
+        <span>Versión 56</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -524,7 +524,22 @@
       </section>
 
       <section id="up-plantillas" class="view">
-        <div class="table-card"><div class="table-meta"><strong>Plantillas de informe — en construcción.</strong></div></div>
+        <div class="module-actions">
+          <button class="primary" id="btn-nueva-plantilla" type="button">+ Nueva plantilla</button>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="plantilla-count">Cargando plantillas...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nombre</th><th></th></tr></thead>
+              <tbody id="plantilla-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="plantilla-empty" hidden>No hay plantillas cargadas.</div>
+        </div>
       </section>
 
       <section id="up-expedientes" class="view">
@@ -633,6 +648,31 @@
           <span style="flex:1"></span>
           <button type="button" class="secondary" id="droga-cancelar">Cancelar</button>
           <button type="submit" class="primary" id="droga-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="plantilla-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="plantilla-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PLANTILLA</span><h2 id="plantilla-modal-title">Nueva plantilla</h2></div>
+        <button class="icon-button" type="button" id="plantilla-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="plantilla-form">
+        <input type="hidden" id="plantilla-id">
+        <div class="form-grid">
+          <label class="full"><span>Nombre</span><input id="plantilla-nombre" type="text" maxlength="150" required></label>
+          <label class="full"><span>Texto de apertura</span><textarea id="plantilla-apertura" rows="6"></textarea></label>
+          <label class="full"><span>Texto de cierre técnico</span><textarea id="plantilla-cierre" rows="4"></textarea></label>
+        </div>
+        <div class="form-message" id="plantilla-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary danger" id="plantilla-eliminar" hidden>Eliminar</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="plantilla-cancelar">Cancelar</button>
+          <button type="submit" class="primary" id="plantilla-save">Guardar</button>
         </div>
       </form>
     </div>

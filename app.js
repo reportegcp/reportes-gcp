@@ -20,7 +20,8 @@ const manualesSeccion = {
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
-  "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
+  "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
+  "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -55,6 +56,8 @@ let modalMarcasOriginales = [];
 let modalFundamentaciones = [];
 let modalFundamentacionesOriginales = [];
 let modalPatologiaExpandida = new Set();
+let plantillas = [];
+let plantillasCargadas = false;
 
 
 function paginarRegistros(registros, pagina = 1, pageSize = PAGE_SIZE) {
@@ -1460,6 +1463,146 @@ async function handleEliminarDroga() {
   }
 }
 
+// ---------- Plantillas de informe ----------
+
+function buildPlantillasUrl(id = null) {
+  const params = { select: "id,nombre,texto_apertura,texto_cierre_tecnico,created_at", order: "nombre.asc" };
+  if (id) params.id = `eq.${id}`;
+  return buildTableUrl("plantillas_informe", params);
+}
+
+async function cargarPlantillasDesdeSupabase() {
+  const response = await fetchConTimeout(buildPlantillasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function cargarYRenderizarPlantillas() {
+  const count = document.getElementById("plantilla-count");
+  if (count) count.textContent = "Cargando plantillas...";
+  try {
+    plantillas = await cargarPlantillasDesdeSupabase();
+    plantillasCargadas = true;
+    renderPlantillas();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar las plantillas.${error?.message ? " " + error.message : ""}`;
+    console.error("Error cargando plantillas:", error);
+  }
+}
+
+function renderPlantillas() {
+  const tbody = document.getElementById("plantilla-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = plantillas.map(p => `
+    <tr class="os-row" data-edit-plantilla="${p.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
+      <td><strong>${escaparHtml(p.nombre)}</strong></td>
+      <td></td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("plantilla-count");
+  if (count) count.textContent = `${plantillas.length} plantilla${plantillas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("plantilla-empty");
+  if (empty) empty.hidden = plantillas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-plantilla]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionPlantilla(row.dataset.editPlantilla));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+function resetFormularioPlantilla() {
+  document.getElementById("plantilla-form")?.reset();
+  document.getElementById("plantilla-id").value = "";
+  document.getElementById("plantilla-eliminar")?.setAttribute("hidden", "");
+  setFormMessage("plantilla-form-message");
+}
+
+function abrirModalNuevaPlantilla() {
+  resetFormularioPlantilla();
+  document.getElementById("plantilla-modal-title").textContent = "Nueva plantilla";
+  abrirModal("plantilla-modal");
+  setTimeout(() => document.getElementById("plantilla-nombre")?.focus(), 0);
+}
+
+function abrirModalEdicionPlantilla(id) {
+  const p = plantillas.find(item => String(item.id) === String(id));
+  if (!p) return;
+  resetFormularioPlantilla();
+  document.getElementById("plantilla-id").value = p.id;
+  document.getElementById("plantilla-nombre").value = p.nombre || "";
+  document.getElementById("plantilla-apertura").value = p.texto_apertura || "";
+  document.getElementById("plantilla-cierre").value = p.texto_cierre_tecnico || "";
+  document.getElementById("plantilla-eliminar")?.removeAttribute("hidden");
+  document.getElementById("plantilla-modal-title").textContent = "Editar plantilla";
+  abrirModal("plantilla-modal");
+}
+
+async function handlePlantillaSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("plantilla-save");
+  setFormMessage("plantilla-form-message");
+
+  const id = document.getElementById("plantilla-id")?.value || "";
+  const nombre = document.getElementById("plantilla-nombre")?.value.trim() || "";
+  if (!nombre) { setFormMessage("plantilla-form-message", "El nombre es obligatorio."); return; }
+
+  const registro = {
+    nombre,
+    texto_apertura: document.getElementById("plantilla-apertura")?.value || "",
+    texto_cierre_tecnico: document.getElementById("plantilla-cierre")?.value || ""
+  };
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const editando = !!id;
+    const response = await fetchConTimeout(buildPlantillasUrl(editando ? id : null), {
+      method: editando ? "PATCH" : "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+
+    cerrarModal("plantilla-modal");
+    mostrarToast(editando ? "Plantilla actualizada." : "Plantilla creada.");
+    plantillasCargadas = false;
+    await cargarYRenderizarPlantillas();
+  } catch (error) {
+    const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una plantilla con ese nombre." : (error.message || "No se pudo guardar la plantilla.");
+    setFormMessage("plantilla-form-message", mensaje);
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarPlantilla() {
+  const id = document.getElementById("plantilla-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar esta plantilla? Esta acción no se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("plantillas_informe", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(/foreign key|23503/i.test(detalle || "") ? "No se puede eliminar: esta plantilla está usada en uno o más expedientes." : (detalle || `Supabase respondió ${response.status}.`));
+    }
+    cerrarModal("plantilla-modal");
+    mostrarToast("Plantilla eliminada.");
+    plantillasCargadas = false;
+    await cargarYRenderizarPlantillas();
+  } catch (error) {
+    setFormMessage("plantilla-form-message", error.message || "No se pudo eliminar la plantilla.");
+  }
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -1513,6 +1656,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "reportes") cargarReporteActivo();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
+  if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
 }
 
 function renderObrasSociales() {
@@ -3530,6 +3674,12 @@ async function initBrowser() {
   document.getElementById("droga-es-soporte")?.addEventListener("change", actualizarVisibilidadSoporte);
   document.getElementById("droga-marca-agregar")?.addEventListener("click", agregarMarcaTemporal);
   document.getElementById("droga-patologia-agregar")?.addEventListener("click", agregarPatologiaTemporal);
+
+  document.getElementById("btn-nueva-plantilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPlantilla));
+  document.getElementById("plantilla-modal-close")?.addEventListener("click", () => cerrarModal("plantilla-modal"));
+  document.getElementById("plantilla-cancelar")?.addEventListener("click", () => cerrarModal("plantilla-modal"));
+  document.getElementById("plantilla-form")?.addEventListener("submit", handlePlantillaSubmit);
+  document.getElementById("plantilla-eliminar")?.addEventListener("click", handleEliminarPlantilla);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
