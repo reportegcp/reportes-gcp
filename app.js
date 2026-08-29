@@ -220,8 +220,16 @@ function primeraVistaPermitida(perfil) {
 }
 
 function perfilSesionActual() {
+  // OJO: usar el perfil "crudo" de app_metadata, no el de getSessionIdentity(),
+  // que ya viene simplificado para mostrar en pantalla (Administrador y Admin
+  // Prestacional se muestran ambos como "Admin Prestacional"). Los chequeos de
+  // acceso (por ejemplo, Urgencias Prestacionales exclusivo de Administrador)
+  // necesitan distinguir el valor real.
   if (!authSession?.access_token) return "";
-  return getSessionIdentity(authSession).perfil || "";
+  const payload = decodeJwtPayload(authSession.access_token);
+  const user = authSession?.user || {};
+  const appMetadata = user.app_metadata || payload.app_metadata || {};
+  return appMetadata.perfil || appMetadata.role_name || "";
 }
 
 function vistaPermitidaParaSesion(vista) {
@@ -627,6 +635,10 @@ function buildObrasSocialesUrl() {
 
   const params = new URLSearchParams();
   params.set("select", fields);
+  // Esta tabla ahora también contiene EMP (para Urgencias Prestacionales), pero
+  // Agentes de Seguro / PMA / Cartillas / Reportes / KPIs de Inicio son
+  // exclusivamente de Obras Sociales: PMA y Cartilla nunca las presentan las EMP.
+  params.set("tipo", "eq.Obra Social");
   params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
   return `${SUPABASE_URL}/rest/v1/obras_sociales?${params.toString()}`;
 }
