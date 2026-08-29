@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=56">
+  <link rel="stylesheet" href="styles.css?v=57">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -76,7 +76,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 56</span>
+        <span>Versión 57</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -543,7 +543,29 @@
       </section>
 
       <section id="up-expedientes" class="view">
-        <div class="table-card"><div class="table-meta"><strong>Expedientes — en construcción.</strong></div></div>
+        <div class="module-actions">
+          <button class="primary" id="btn-nuevo-expediente" type="button">+ Nuevo expediente</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="expediente-search" type="search" placeholder="Buscar por Nº EE, paciente o DNI..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="expediente-count">Cargando expedientes...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nº EE</th><th>Paciente</th><th>Patología</th><th>Obra Social / EMP</th><th>Estado</th><th>F. Ingreso</th><th>F. Límite</th></tr></thead>
+              <tbody id="expediente-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="expediente-empty" hidden>No se encontraron expedientes con ese criterio.</div>
+        </div>
       </section>
     </main>
   </div>
@@ -673,6 +695,96 @@
           <span style="flex:1"></span>
           <button type="button" class="secondary" id="plantilla-cancelar">Cancelar</button>
           <button type="submit" class="primary" id="plantilla-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="expediente-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="expediente-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">EXPEDIENTE</span><h2 id="expediente-modal-title">Nuevo expediente</h2></div>
+        <button class="icon-button" type="button" id="expediente-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="expediente-form">
+        <input type="hidden" id="expediente-id">
+
+        <div class="form-section" data-section="expediente">
+          <button type="button" class="form-section-toggle"><span>Expediente</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label><span>Nº EE</span><input id="expediente-numero-ee" type="text" required></label>
+              <label><span>Estado</span>
+                <select id="expediente-estado"><option value="Abierto">Abierto</option><option value="Pendiente">Pendiente</option><option value="Cerrado">Cerrado</option></select>
+              </label>
+              <label><span>Fecha de ingreso</span><input id="expediente-fecha-ingreso" type="date" required></label>
+              <label><span>Fecha límite</span><input id="expediente-fecha-limite" type="date"></label>
+              <label><span>Fecha de cierre</span><input id="expediente-fecha-cierre" type="date"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="afiliado">
+          <button type="button" class="form-section-toggle"><span>Datos del afiliado</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label><span>Nombre y apellido</span><input id="expediente-nombre-paciente" type="text" required></label>
+              <label><span>DNI / CUIT</span><input id="expediente-dni-paciente" type="text"></label>
+              <label><span>Teléfono</span><input id="expediente-telefono-paciente" type="text"></label>
+              <label><span>Email</span><input id="expediente-email-paciente" type="email"></label>
+              <label class="checkbox-inline"><input id="expediente-es-denunciante" type="checkbox" checked><span>El afiliado es el denunciante</span></label>
+              <label id="expediente-denunciante-nombre-wrap" hidden><span>Nombre del denunciante</span><input id="expediente-denunciante-nombre" type="text"></label>
+              <label id="expediente-denunciante-dni-wrap" hidden><span>DNI / CUIT del denunciante</span><input id="expediente-denunciante-dni" type="text"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="solicitud">
+          <button type="button" class="form-section-toggle"><span>Solicitud / Denuncia</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label class="full"><span>Obra Social / EMP</span>
+                <input id="expediente-os-input" type="text" list="expediente-os-datalist" placeholder="Escribí para buscar...">
+                <datalist id="expediente-os-datalist"></datalist>
+              </label>
+              <label><span>Patología</span><select id="expediente-patologia"><option value="">Elegir patología...</option></select></label>
+              <label><span>Motivo de la denuncia</span><input id="expediente-motivo" type="text" placeholder="Ej: Negativa de cobertura"></label>
+              <label class="full"><span>Diagnóstico</span><textarea id="expediente-diagnostico" rows="2" required></textarea></label>
+              <label class="full"><span>Resumen de historia clínica</span><textarea id="expediente-resumen-hc" rows="4"></textarea></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="drogas">
+          <button type="button" class="form-section-toggle"><span>Drogas solicitadas</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div id="expediente-drogas-list" class="subform-list"></div>
+            <div class="subform-add-row">
+              <select id="expediente-droga-select"><option value="">Elegir droga...</option></select>
+              <select id="expediente-marca-select"><option value="">Marca (opcional)...</option></select>
+              <input id="expediente-dosis-input" type="text" placeholder="Dosis">
+              <button type="button" class="secondary" id="expediente-droga-agregar">+ Agregar droga</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="analisis">
+          <button type="button" class="form-section-toggle"><span>Análisis / Dictamen</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label class="full"><span>Plantilla de informe</span><select id="expediente-plantilla"><option value="">Elegir plantilla...</option></select></label>
+              <label class="full"><span>Pasos de resolución / seguimiento</span><textarea id="expediente-pasos" rows="6"></textarea></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-message" id="expediente-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary danger" id="expediente-eliminar" hidden>Eliminar</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="expediente-cancelar">Cancelar</button>
+          <button type="submit" class="primary" id="expediente-save">Guardar</button>
         </div>
       </form>
     </div>

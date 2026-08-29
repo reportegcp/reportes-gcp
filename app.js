@@ -21,7 +21,8 @@ const manualesSeccion = {
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
-  "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
+  "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
+  "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -58,6 +59,13 @@ let modalFundamentacionesOriginales = [];
 let modalPatologiaExpandida = new Set();
 let plantillas = [];
 let plantillasCargadas = false;
+let expedientes = [];
+let expedientesCargadas = false;
+let obrasSocialesTodas = [];
+let obrasSocialesTodasCargadas = false;
+let obrasSocialesTodasPorEtiqueta = new Map();
+let modalDrogasExpediente = [];
+let modalDrogasExpedienteOriginales = [];
 
 
 function paginarRegistros(registros, pagina = 1, pageSize = PAGE_SIZE) {
@@ -1603,6 +1611,390 @@ async function handleEliminarPlantilla() {
   }
 }
 
+// ---------- Expedientes ----------
+
+function buildObrasSocialesTodasUrl() {
+  const params = { select: "id,tipo,rnos,rnemp,denominacion", order: "denominacion.asc" };
+  return buildTableUrl("obras_sociales", params);
+}
+
+async function asegurarObrasSocialesTodasCargadas() {
+  if (obrasSocialesTodasCargadas) return;
+  const response = await fetchConTimeout(buildObrasSocialesTodasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
+  if (!response.ok) { console.error("Error cargando Obras Sociales/EMP:", await leerErrorApi(response)); return; }
+  const rows = await response.json();
+  obrasSocialesTodas = Array.isArray(rows) ? rows : [];
+  obrasSocialesTodasCargadas = true;
+  obrasSocialesTodasPorEtiqueta = new Map();
+  obrasSocialesTodas.forEach(o => {
+    const codigo = o.tipo === "Obra Social" ? o.rnos : o.rnemp;
+    const etiqueta = `${o.denominacion}${codigo ? ` (${codigo})` : ""}`;
+    obrasSocialesTodasPorEtiqueta.set(etiqueta, o.id);
+  });
+}
+
+function poblarDatalistObrasSociales() {
+  const datalist = document.getElementById("expediente-os-datalist");
+  if (!datalist) return;
+  datalist.innerHTML = [...obrasSocialesTodasPorEtiqueta.keys()].map(etiqueta => `<option value="${escaparHtml(etiqueta)}"></option>`).join("");
+}
+
+function etiquetaObraSocial(id) {
+  const o = obrasSocialesTodas.find(item => String(item.id) === String(id));
+  if (!o) return "";
+  const codigo = o.tipo === "Obra Social" ? o.rnos : o.rnemp;
+  return `${o.denominacion}${codigo ? ` (${codigo})` : ""}`;
+}
+
+async function asegurarCatalogosExpedienteCargados() {
+  await Promise.all([
+    asegurarPatologiasCargadas(),
+    (async () => { if (!plantillasCargadas) { try { plantillas = await cargarPlantillasDesdeSupabase(); plantillasCargadas = true; } catch (e) { console.error(e); } } })(),
+    (async () => { if (!drogasCargadas) { try { drogas = await cargarDrogasDesdeSupabase(); drogasCargadas = true; } catch (e) { console.error(e); } } })(),
+    asegurarObrasSocialesTodasCargadas()
+  ]);
+}
+
+function buildExpedientesUrl(id = null) {
+  const params = {
+    select: "id,numero_ee,fecha_ingreso,fecha_cierre,fecha_limite,nombre_paciente,telefono_paciente,email_paciente," +
+      "patologia_id,diagnostico_detalle,resumen_hc,obra_social_id,pasos_resolucion,dni_cuit_paciente," +
+      "denunciante_nombre,denunciante_dni_cuit,motivo_denuncia,plantilla_id,estado,filial_id," +
+      "patologias(nombre)," +
+      "expediente_medicamentos(id,droga_id,marca_id,dosis,drogas(nombre),marcas_comerciales(nombre_comercial))",
+    order: "fecha_ingreso.desc"
+  };
+  if (id) params.id = `eq.${id}`;
+  return buildTableUrl("expedientes", params);
+}
+
+async function cargarExpedientesDesdeSupabase() {
+  const response = await fetchConTimeout(buildExpedientesUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function cargarYRenderizarExpedientes() {
+  const count = document.getElementById("expediente-count");
+  if (count) count.textContent = "Cargando expedientes...";
+  try {
+    const [filas] = await Promise.all([cargarExpedientesDesdeSupabase(), asegurarObrasSocialesTodasCargadas()]);
+    expedientes = filas;
+    expedientesCargadas = true;
+    renderExpedientes();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar los expedientes.${error?.message ? " " + error.message : ""}`;
+    console.error("Error cargando expedientes:", error);
+  }
+}
+
+function filtrarExpedientes(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(e =>
+    normalizar(e.numero_ee || "").includes(termino) ||
+    normalizar(e.nombre_paciente || "").includes(termino) ||
+    normalizar(e.dni_cuit_paciente || "").includes(termino)
+  );
+}
+
+function formatearFecha(f) {
+  if (!f) return "—";
+  const [a, m, d] = f.split("-");
+  return d && m && a ? `${d}/${m}/${a}` : f;
+}
+
+function renderExpedientes() {
+  const tbody = document.getElementById("expediente-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("expediente-search")?.value || "";
+  const filtradas = filtrarExpedientes(expedientes, busqueda);
+
+  tbody.innerHTML = filtradas.map(e => `
+    <tr class="os-row" data-edit-expediente="${e.id}" tabindex="0" role="button" title="Clic para editar">
+      <td><strong>${escaparHtml(e.numero_ee)}</strong></td>
+      <td>${escaparHtml(e.nombre_paciente || "—")}</td>
+      <td>${escaparHtml(e.patologias?.nombre || "—")}</td>
+      <td>${escaparHtml(etiquetaObraSocial(e.obra_social_id) || "—")}</td>
+      <td>${escaparHtml(e.estado || "—")}</td>
+      <td>${formatearFecha(e.fecha_ingreso)}</td>
+      <td>${formatearFecha(e.fecha_limite)}</td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("expediente-count");
+  if (count) count.textContent = `${filtradas.length} expediente${filtradas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("expediente-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-expediente]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionExpediente(row.dataset.editExpediente));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+function poblarSelectPatologiasExpediente() {
+  const select = document.getElementById("expediente-patologia");
+  if (!select) return;
+  const actual = select.value;
+  select.innerHTML = `<option value="">Elegir patología...</option>` + patologias.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join("");
+  select.value = actual;
+}
+
+function poblarSelectPlantillasExpediente() {
+  const select = document.getElementById("expediente-plantilla");
+  if (!select) return;
+  const actual = select.value;
+  select.innerHTML = `<option value="">Elegir plantilla...</option>` + plantillas.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join("");
+  select.value = actual;
+}
+
+function poblarSelectDrogasExpediente() {
+  const select = document.getElementById("expediente-droga-select");
+  if (!select) return;
+  select.innerHTML = `<option value="">Elegir droga...</option>` + drogas.map(d => `<option value="${d.id}">${escaparHtml(d.nombre)}</option>`).join("");
+  poblarSelectMarcasParaDroga();
+}
+
+function poblarSelectMarcasParaDroga() {
+  const drogaId = document.getElementById("expediente-droga-select")?.value;
+  const select = document.getElementById("expediente-marca-select");
+  if (!select) return;
+  const droga = drogas.find(d => String(d.id) === String(drogaId));
+  const marcas = droga?.marcas_comerciales || [];
+  select.innerHTML = `<option value="">Marca (opcional)...</option>` + marcas.map(m => `<option value="${m.id}">${escaparHtml(m.nombre_comercial)}</option>`).join("");
+}
+
+function renderDrogasExpedienteSubform() {
+  const cont = document.getElementById("expediente-drogas-list");
+  if (!cont) return;
+  cont.innerHTML = modalDrogasExpediente.map((item, i) => {
+    const droga = drogas.find(d => String(d.id) === String(item.droga_id));
+    const marca = (droga?.marcas_comerciales || []).find(m => String(m.id) === String(item.marca_id));
+    return `
+    <div class="subform-item">
+      <div class="subform-item-text"><strong>${escaparHtml(droga ? droga.nombre : "(droga)")}</strong>
+        ${marca ? `${escaparHtml(marca.nombre_comercial)} · ` : ""}${item.dosis ? `Dosis: ${escaparHtml(item.dosis)}` : "Sin dosis especificada"}</div>
+      <button type="button" class="subform-item-remove" data-quitar-droga-exp="${i}" aria-label="Quitar">×</button>
+    </div>`;
+  }).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin drogas cargadas.</p>`;
+
+  cont.querySelectorAll("[data-quitar-droga-exp]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      modalDrogasExpediente.splice(Number(btn.dataset.quitarDrogaExp), 1);
+      renderDrogasExpedienteSubform();
+    });
+  });
+}
+
+function agregarDrogaTemporalExpediente() {
+  const drogaId = document.getElementById("expediente-droga-select")?.value;
+  if (!drogaId) return;
+  const marcaId = document.getElementById("expediente-marca-select")?.value || null;
+  const dosis = document.getElementById("expediente-dosis-input")?.value.trim() || null;
+  modalDrogasExpediente.push({ droga_id: drogaId, marca_id: marcaId, dosis });
+  document.getElementById("expediente-dosis-input").value = "";
+  renderDrogasExpedienteSubform();
+}
+
+function actualizarVisibilidadDenunciante() {
+  const esDenunciante = document.getElementById("expediente-es-denunciante")?.checked;
+  document.getElementById("expediente-denunciante-nombre-wrap")?.toggleAttribute("hidden", esDenunciante);
+  document.getElementById("expediente-denunciante-dni-wrap")?.toggleAttribute("hidden", esDenunciante);
+}
+
+function resetFormularioExpediente() {
+  document.getElementById("expediente-form")?.reset();
+  document.getElementById("expediente-id").value = "";
+  document.getElementById("expediente-eliminar")?.setAttribute("hidden", "");
+  document.getElementById("expediente-os-input").value = "";
+  document.getElementById("expediente-os-input").dataset.selectedId = "";
+  modalDrogasExpediente = [];
+  modalDrogasExpedienteOriginales = [];
+  poblarSelectPatologiasExpediente();
+  poblarSelectPlantillasExpediente();
+  poblarSelectDrogasExpediente();
+  poblarDatalistObrasSociales();
+  renderDrogasExpedienteSubform();
+  document.getElementById("expediente-es-denunciante").checked = true;
+  actualizarVisibilidadDenunciante();
+  setFormMessage("expediente-form-message");
+  // Solo la sección "Expediente" abierta por defecto.
+  document.querySelectorAll("#expediente-form .form-section").forEach(sec => {
+    sec.classList.toggle("collapsed", sec.dataset.section !== "expediente");
+  });
+}
+
+async function abrirModalNuevoExpediente() {
+  await asegurarCatalogosExpedienteCargados();
+  resetFormularioExpediente();
+  document.getElementById("expediente-modal-title").textContent = "Nuevo expediente";
+  abrirModal("expediente-modal");
+  setTimeout(() => document.getElementById("expediente-numero-ee")?.focus(), 0);
+}
+
+async function abrirModalEdicionExpediente(id) {
+  await asegurarCatalogosExpedienteCargados();
+  const e = expedientes.find(item => String(item.id) === String(id));
+  if (!e) return;
+  resetFormularioExpediente();
+
+  document.getElementById("expediente-id").value = e.id;
+  document.getElementById("expediente-numero-ee").value = e.numero_ee || "";
+  document.getElementById("expediente-estado").value = e.estado || "Abierto";
+  document.getElementById("expediente-fecha-ingreso").value = e.fecha_ingreso || "";
+  document.getElementById("expediente-fecha-limite").value = e.fecha_limite || "";
+  document.getElementById("expediente-fecha-cierre").value = e.fecha_cierre || "";
+  document.getElementById("expediente-nombre-paciente").value = e.nombre_paciente || "";
+  document.getElementById("expediente-dni-paciente").value = e.dni_cuit_paciente || "";
+  document.getElementById("expediente-telefono-paciente").value = e.telefono_paciente || "";
+  document.getElementById("expediente-email-paciente").value = e.email_paciente || "";
+  const esDenunciante = !e.denunciante_nombre && !e.denunciante_dni_cuit;
+  document.getElementById("expediente-es-denunciante").checked = esDenunciante;
+  document.getElementById("expediente-denunciante-nombre").value = e.denunciante_nombre || "";
+  document.getElementById("expediente-denunciante-dni").value = e.denunciante_dni_cuit || "";
+  actualizarVisibilidadDenunciante();
+
+  const osInput = document.getElementById("expediente-os-input");
+  osInput.value = etiquetaObraSocial(e.obra_social_id);
+  osInput.dataset.selectedId = e.obra_social_id || "";
+
+  document.getElementById("expediente-patologia").value = e.patologia_id || "";
+  document.getElementById("expediente-motivo").value = e.motivo_denuncia || "";
+  document.getElementById("expediente-diagnostico").value = e.diagnostico_detalle || "";
+  document.getElementById("expediente-resumen-hc").value = e.resumen_hc || "";
+  document.getElementById("expediente-plantilla").value = e.plantilla_id || "";
+  document.getElementById("expediente-pasos").value = e.pasos_resolucion || "";
+
+  modalDrogasExpediente = (e.expediente_medicamentos || []).map(m => ({ id: m.id, droga_id: m.droga_id, marca_id: m.marca_id, dosis: m.dosis }));
+  modalDrogasExpedienteOriginales = modalDrogasExpediente.map(m => m.id);
+  renderDrogasExpedienteSubform();
+
+  document.getElementById("expediente-eliminar")?.removeAttribute("hidden");
+  document.getElementById("expediente-modal-title").textContent = "Editar expediente";
+  abrirModal("expediente-modal");
+}
+
+async function handleExpedienteSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("expediente-save");
+  setFormMessage("expediente-form-message");
+
+  const id = document.getElementById("expediente-id")?.value || "";
+  const numeroEe = document.getElementById("expediente-numero-ee")?.value.trim() || "";
+  const fechaIngreso = document.getElementById("expediente-fecha-ingreso")?.value || "";
+  const nombrePaciente = document.getElementById("expediente-nombre-paciente")?.value.trim() || "";
+  const diagnostico = document.getElementById("expediente-diagnostico")?.value.trim() || "";
+  if (!numeroEe || !fechaIngreso || !nombrePaciente || !diagnostico) {
+    setFormMessage("expediente-form-message", "Nº EE, fecha de ingreso, paciente y diagnóstico son obligatorios.");
+    return;
+  }
+
+  const osInput = document.getElementById("expediente-os-input");
+  if (osInput.value && !obrasSocialesTodasPorEtiqueta.has(osInput.value)) {
+    setFormMessage("expediente-form-message", "Elegí una Obra Social/EMP de la lista desplegable (no coincide ninguna con lo escrito).");
+    return;
+  }
+  const obraSocialId = osInput.value ? obrasSocialesTodasPorEtiqueta.get(osInput.value) : null;
+
+  const esDenunciante = document.getElementById("expediente-es-denunciante")?.checked;
+  const registro = {
+    numero_ee: numeroEe,
+    estado: document.getElementById("expediente-estado")?.value || "Abierto",
+    fecha_ingreso: fechaIngreso,
+    fecha_limite: document.getElementById("expediente-fecha-limite")?.value || null,
+    fecha_cierre: document.getElementById("expediente-fecha-cierre")?.value || null,
+    nombre_paciente: nombrePaciente,
+    dni_cuit_paciente: document.getElementById("expediente-dni-paciente")?.value.trim() || null,
+    telefono_paciente: document.getElementById("expediente-telefono-paciente")?.value.trim() || null,
+    email_paciente: document.getElementById("expediente-email-paciente")?.value.trim() || null,
+    denunciante_nombre: esDenunciante ? "" : (document.getElementById("expediente-denunciante-nombre")?.value.trim() || ""),
+    denunciante_dni_cuit: esDenunciante ? "" : (document.getElementById("expediente-denunciante-dni")?.value.trim() || ""),
+    obra_social_id: obraSocialId,
+    patologia_id: document.getElementById("expediente-patologia")?.value || null,
+    motivo_denuncia: document.getElementById("expediente-motivo")?.value.trim() || null,
+    diagnostico_detalle: diagnostico,
+    resumen_hc: document.getElementById("expediente-resumen-hc")?.value || null,
+    plantilla_id: document.getElementById("expediente-plantilla")?.value || null,
+    pasos_resolucion: document.getElementById("expediente-pasos")?.value || null
+  };
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const editando = !!id;
+    const response = await fetchConTimeout(buildTableUrl("expedientes", editando ? { id: `eq.${id}` } : {}), {
+      method: editando ? "PATCH" : "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(/duplicate|unique|23505/i.test(detalle || "") ? "Ya existe un expediente con ese Nº EE." : (detalle || `Supabase respondió ${response.status}.`));
+    }
+    const filas = await response.json();
+    const expedienteId = editando ? id : filas[0]?.id;
+    if (!expedienteId) throw new Error("No se pudo obtener el id del expediente guardado.");
+
+    // Sincronizar drogas por diferencia, mismo criterio que en Catálogo de drogas.
+    const actualesIds = modalDrogasExpediente.filter(m => m.id).map(m => m.id);
+    const aBorrar = modalDrogasExpedienteOriginales.filter(mid => !actualesIds.includes(mid));
+    const erroresSync = [];
+    for (const mid of aBorrar) {
+      const r = await fetchConTimeout(buildTableUrl("expediente_medicamentos", { id: `eq.${mid}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo quitar una droga.");
+    }
+    for (const m of modalDrogasExpediente) {
+      if (m.id) {
+        const r = await fetchConTimeout(buildTableUrl("expediente_medicamentos", { id: `eq.${m.id}` }), {
+          method: "PATCH", headers: authHeaders(session.access_token),
+          body: JSON.stringify({ droga_id: m.droga_id, marca_id: m.marca_id, dosis: m.dosis })
+        }, 10000);
+        if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo actualizar una droga.");
+      } else {
+        const r = await fetchConTimeout(buildTableUrl("expediente_medicamentos", {}), {
+          method: "POST", headers: authHeaders(session.access_token),
+          body: JSON.stringify({ expediente_id: expedienteId, droga_id: m.droga_id, marca_id: m.marca_id, dosis: m.dosis })
+        }, 10000);
+        if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo agregar una droga nueva.");
+      }
+    }
+
+    cerrarModal("expediente-modal");
+    mostrarToast(erroresSync.length ? `Expediente guardado, con avisos: ${erroresSync.join(" ")}` : (editando ? "Expediente actualizado." : "Expediente creado."));
+    expedientesCargadas = false;
+    await cargarYRenderizarExpedientes();
+  } catch (error) {
+    setFormMessage("expediente-form-message", error.message || "No se pudo guardar el expediente.");
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarExpediente() {
+  const id = document.getElementById("expediente-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar este expediente? Se van a borrar también sus drogas, informes y adjuntos asociados. Esta acción no se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("expedientes", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    cerrarModal("expediente-modal");
+    mostrarToast("Expediente eliminado.");
+    expedientesCargadas = false;
+    await cargarYRenderizarExpedientes();
+  } catch (error) {
+    setFormMessage("expediente-form-message", error.message || "No se pudo eliminar el expediente.");
+  }
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -1657,6 +2049,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
+  if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
 }
 
 function renderObrasSociales() {
@@ -3680,6 +4073,22 @@ async function initBrowser() {
   document.getElementById("plantilla-cancelar")?.addEventListener("click", () => cerrarModal("plantilla-modal"));
   document.getElementById("plantilla-form")?.addEventListener("submit", handlePlantillaSubmit);
   document.getElementById("plantilla-eliminar")?.addEventListener("click", handleEliminarPlantilla);
+
+  document.getElementById("expediente-search")?.addEventListener("input", renderExpedientes);
+  document.getElementById("btn-nuevo-expediente")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevoExpediente));
+  document.getElementById("expediente-modal-close")?.addEventListener("click", () => cerrarModal("expediente-modal"));
+  document.getElementById("expediente-cancelar")?.addEventListener("click", () => cerrarModal("expediente-modal"));
+  document.getElementById("expediente-form")?.addEventListener("submit", handleExpedienteSubmit);
+  document.getElementById("expediente-eliminar")?.addEventListener("click", handleEliminarExpediente);
+  document.getElementById("expediente-es-denunciante")?.addEventListener("change", actualizarVisibilidadDenunciante);
+  document.getElementById("expediente-droga-select")?.addEventListener("change", poblarSelectMarcasParaDroga);
+  document.getElementById("expediente-droga-agregar")?.addEventListener("click", agregarDrogaTemporalExpediente);
+  document.getElementById("expediente-os-input")?.addEventListener("change", event => {
+    event.target.dataset.selectedId = obrasSocialesTodasPorEtiqueta.get(event.target.value) || "";
+  });
+  document.querySelectorAll("#expediente-form .form-section-toggle").forEach(btn => {
+    btn.addEventListener("click", () => btn.closest(".form-section")?.classList.toggle("collapsed"));
+  });
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

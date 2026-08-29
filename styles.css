@@ -441,6 +441,17 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 }
 .subform-add-row button{white-space:nowrap}
 @media(max-width:760px){.subform-add-row{grid-template-columns:1fr}.subform-add-row select{grid-column:1}}
+.form-section{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden}
+.form-section-toggle{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface-soft);border:0;padding:12px 14px;font-weight:800;font-size:14px;
+  color:var(--navy);cursor:pointer
+}
+.form-section-chevron{transition:transform .16s ease}
+.form-section.collapsed .form-section-chevron{transform:rotate(-90deg)}
+.form-section.collapsed .form-section-body{display:none}
+.form-section-body{padding:6px 14px 4px}
+.form-section-body .form-grid{padding:14px 0}
 .form-message{
   margin:-6px 0 16px;
   padding:10px 12px;
