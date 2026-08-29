@@ -51,7 +51,10 @@ let patologiasCargadas = false;
 let drogas = [];
 let drogasCargadas = false;
 let modalMarcas = [];
+let modalMarcasOriginales = [];
 let modalFundamentaciones = [];
+let modalFundamentacionesOriginales = [];
+let modalPatologiaExpandida = new Set();
 
 
 function paginarRegistros(registros, pagina = 1, pageSize = PAGE_SIZE) {
@@ -1212,14 +1215,29 @@ function renderPatologiasSubform() {
   if (!cont) return;
   cont.innerHTML = modalFundamentaciones.map((f, i) => {
     const p = patologias.find(item => String(item.id) === String(f.patologia_id));
+    const clave = String(f.patologia_id);
+    const abierta = modalPatologiaExpandida.has(clave);
     return `
     <div class="subform-item">
-      <div class="subform-item-text"><strong>${escaparHtml(p ? p.nombre : "(patología)")}</strong>
-        <textarea data-fundamentacion="${i}" rows="2" placeholder="Fundamentación para esta patología...">${escaparHtml(f.fundamentacion_texto || "")}</textarea></div>
+      <div class="subform-item-text">
+        <button type="button" class="subform-item-toggle" data-toggle-patologia="${clave}">
+          <span class="subform-item-toggle-icon">${abierta ? "▾" : "▸"}</span>
+          <strong>${escaparHtml(p ? p.nombre : "(patología)")}</strong>
+        </button>
+        ${abierta ? `<textarea data-fundamentacion="${i}" rows="3" placeholder="Fundamentación para esta patología...">${escaparHtml(f.fundamentacion_texto || "")}</textarea>` : ""}
+      </div>
       <button type="button" class="subform-item-remove" data-quitar-patologia="${i}" aria-label="Quitar">×</button>
     </div>`;
   }).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin patologías asociadas.</p>`;
 
+  cont.querySelectorAll("[data-toggle-patologia]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const clave = btn.dataset.togglePatologia;
+      if (modalPatologiaExpandida.has(clave)) modalPatologiaExpandida.delete(clave);
+      else modalPatologiaExpandida.add(clave);
+      renderPatologiasSubform();
+    });
+  });
   cont.querySelectorAll("[data-quitar-patologia]").forEach(btn => {
     btn.addEventListener("click", () => {
       modalFundamentaciones.splice(Number(btn.dataset.quitarPatologia), 1);
@@ -1251,7 +1269,10 @@ function resetFormularioDroga() {
   document.getElementById("droga-id").value = "";
   document.getElementById("droga-eliminar")?.setAttribute("hidden", "");
   modalMarcas = [];
+  modalMarcasOriginales = [];
   modalFundamentaciones = [];
+  modalFundamentacionesOriginales = [];
+  modalPatologiaExpandida = new Set();
   renderMarcasSubform();
   renderPatologiasSubform();
   poblarSelectPatologias();
@@ -1279,7 +1300,9 @@ async function abrirModalEdicionDroga(id) {
   document.getElementById("droga-es-soporte").checked = !!d.es_soporte;
   document.getElementById("droga-fundamentacion-general").value = d.fundamentacion_general || "";
   modalMarcas = (d.marcas_comerciales || []).map(m => ({ id: m.id, nombre_comercial: m.nombre_comercial, numero_anmat: m.numero_anmat, laboratorio: m.laboratorio }));
+  modalMarcasOriginales = modalMarcas.map(m => m.id);
   modalFundamentaciones = (d.droga_patologia || []).map(f => ({ id: f.id, patologia_id: f.patologia_id, fundamentacion_texto: f.fundamentacion_texto }));
+  modalFundamentacionesOriginales = modalFundamentaciones.map(f => f.id);
   renderMarcasSubform();
   renderPatologiasSubform();
   poblarSelectPatologias();
@@ -1307,6 +1330,7 @@ function agregarPatologiaTemporal() {
   const patologiaId = document.getElementById("droga-patologia-select")?.value;
   if (!patologiaId) return;
   modalFundamentaciones.push({ patologia_id: patologiaId, fundamentacion_texto: "" });
+  modalPatologiaExpandida.add(String(patologiaId));
   renderPatologiasSubform();
   poblarSelectPatologias();
 }
@@ -1345,24 +1369,66 @@ async function handleDrogaSubmit(event) {
     const drogaId = editando ? id : filas[0]?.id;
     if (!drogaId) throw new Error("No se pudo obtener el id de la droga guardada.");
 
-    // Sincronizar marcas comerciales: se borran todas y se reinsertan (mismo patrón que expediente_medicamentos en Urgencias Prestacionales)
-    await fetchConTimeout(buildTableUrl("marcas_comerciales", { droga_id: `eq.${drogaId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
-    if (modalMarcas.length) {
-      const body = modalMarcas.map(m => ({ droga_id: drogaId, nombre_comercial: m.nombre_comercial, numero_anmat: m.numero_anmat, laboratorio: m.laboratorio }));
-      const r = await fetchConTimeout(buildTableUrl("marcas_comerciales", {}), { method: "POST", headers: authHeaders(session.access_token), body: JSON.stringify(body) }, 10000);
-      if (!r.ok) throw new Error((await leerErrorApi(r)) || "No se pudieron guardar las marcas comerciales.");
+    // Sincronizar marcas comerciales por diferencia (no borrar todo y reinsertar:
+    // una marca puede estar en uso en un expediente y no debe duplicarse ni fallar en silencio).
+    const marcasActualesIds = modalMarcas.filter(m => m.id).map(m => m.id);
+    const marcasABorrar = modalMarcasOriginales.filter(id => !marcasActualesIds.includes(id));
+    const erroresSync = [];
+    for (const marcaId of marcasABorrar) {
+      const r = await fetchConTimeout(buildTableUrl("marcas_comerciales", { id: `eq.${marcaId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      if (!r.ok) {
+        const detalle = await leerErrorApi(r);
+        erroresSync.push(/foreign key|23503/i.test(detalle || "") ? "No se pudo quitar una marca: está en uso en un expediente." : (detalle || "No se pudo quitar una marca."));
+      }
+    }
+    for (const m of modalMarcas) {
+      if (m.id) {
+        const r = await fetchConTimeout(buildTableUrl("marcas_comerciales", { id: `eq.${m.id}` }), {
+          method: "PATCH", headers: authHeaders(session.access_token),
+          body: JSON.stringify({ nombre_comercial: m.nombre_comercial, numero_anmat: m.numero_anmat, laboratorio: m.laboratorio })
+        }, 10000);
+        if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo actualizar una marca.");
+      } else {
+        const r = await fetchConTimeout(buildTableUrl("marcas_comerciales", {}), {
+          method: "POST", headers: authHeaders(session.access_token),
+          body: JSON.stringify({ droga_id: drogaId, nombre_comercial: m.nombre_comercial, numero_anmat: m.numero_anmat, laboratorio: m.laboratorio })
+        }, 10000);
+        if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo agregar una marca nueva.");
+      }
     }
 
-    // Sincronizar fundamentación por patología (solo si no es droga de soporte)
-    await fetchConTimeout(buildTableUrl("droga_patologia", { droga_id: `eq.${drogaId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
-    if (!esSoporte && modalFundamentaciones.length) {
-      const body = modalFundamentaciones.map(f => ({ droga_id: drogaId, patologia_id: f.patologia_id, fundamentacion_texto: f.fundamentacion_texto || "" }));
-      const r = await fetchConTimeout(buildTableUrl("droga_patologia", {}), { method: "POST", headers: authHeaders(session.access_token), body: JSON.stringify(body) }, 10000);
-      if (!r.ok) throw new Error((await leerErrorApi(r)) || "No se pudieron guardar las fundamentaciones por patología.");
+    // Sincronizar fundamentación por patología, mismo criterio (solo aplica si no es droga de soporte)
+    const fundamentacionesActualesIds = esSoporte ? [] : modalFundamentaciones.filter(f => f.id).map(f => f.id);
+    const fundamentacionesABorrar = esSoporte
+      ? modalFundamentacionesOriginales
+      : modalFundamentacionesOriginales.filter(id => !fundamentacionesActualesIds.includes(id));
+    for (const fId of fundamentacionesABorrar) {
+      const r = await fetchConTimeout(buildTableUrl("droga_patologia", { id: `eq.${fId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      if (!r.ok) {
+        const detalle = await leerErrorApi(r);
+        erroresSync.push(/foreign key|23503/i.test(detalle || "") ? "No se pudo quitar una fundamentación en uso." : (detalle || "No se pudo quitar una fundamentación."));
+      }
+    }
+    if (!esSoporte) {
+      for (const f of modalFundamentaciones) {
+        if (f.id) {
+          const r = await fetchConTimeout(buildTableUrl("droga_patologia", { id: `eq.${f.id}` }), {
+            method: "PATCH", headers: authHeaders(session.access_token),
+            body: JSON.stringify({ fundamentacion_texto: f.fundamentacion_texto || "" })
+          }, 10000);
+          if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo actualizar una fundamentación.");
+        } else {
+          const r = await fetchConTimeout(buildTableUrl("droga_patologia", {}), {
+            method: "POST", headers: authHeaders(session.access_token),
+            body: JSON.stringify({ droga_id: drogaId, patologia_id: f.patologia_id, fundamentacion_texto: f.fundamentacion_texto || "" })
+          }, 10000);
+          if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo agregar una fundamentación nueva.");
+        }
+      }
     }
 
     cerrarModal("droga-modal");
-    mostrarToast(editando ? "Droga actualizada." : "Droga creada.");
+    mostrarToast(erroresSync.length ? `Droga guardada, con avisos: ${erroresSync.join(" ")}` : (editando ? "Droga actualizada." : "Droga creada."));
     drogasCargadas = false;
     await cargarYRenderizarDrogas();
   } catch (error) {
