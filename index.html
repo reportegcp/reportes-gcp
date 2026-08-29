@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=52">
+  <link rel="stylesheet" href="styles.css?v=53">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -76,7 +76,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 52</span>
+        <span>Versión 53</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -498,7 +498,29 @@
       </section>
 
       <section id="up-drogas" class="view">
-        <div class="table-card"><div class="table-meta"><strong>Catálogo de drogas — en construcción.</strong></div></div>
+        <div class="module-actions">
+          <button class="primary" id="btn-nueva-droga" type="button">+ Nueva droga</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="droga-search" type="search" placeholder="Buscar droga por nombre o código ATC..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="droga-count">Cargando drogas...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nombre</th><th>Código ATC</th><th>Tipo</th><th>Marcas</th><th>Patologías</th></tr></thead>
+              <tbody id="droga-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="droga-empty" hidden>No se encontraron drogas con ese criterio.</div>
+        </div>
       </section>
 
       <section id="up-plantillas" class="view">
@@ -563,6 +585,54 @@
           <span style="flex:1"></span>
           <button type="button" class="secondary" id="patologia-cancelar">Cancelar</button>
           <button type="submit" class="primary" id="patologia-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="droga-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="droga-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">DROGA</span><h2 id="droga-modal-title">Nueva droga</h2></div>
+        <button class="icon-button" type="button" id="droga-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="droga-form">
+        <input type="hidden" id="droga-id">
+        <div class="form-grid">
+          <label class="full"><span>Nombre</span><input id="droga-nombre" type="text" maxlength="250" required></label>
+          <label><span>Código ATC</span><input id="droga-atc" type="text" maxlength="20"></label>
+          <label class="checkbox-inline"><input id="droga-es-soporte" type="checkbox"><span>Droga de soporte (no se asocia a una patología puntual)</span></label>
+          <label class="full"><span>Descripción / mecanismo de acción (ANMAT)</span><textarea id="droga-descripcion-anmat" rows="3"></textarea></label>
+          <label class="full" id="droga-fundamentacion-general-wrap" hidden><span>Fundamentación general (para todas las patologías, por ser droga de soporte)</span><textarea id="droga-fundamentacion-general" rows="3"></textarea></label>
+        </div>
+
+        <div class="subform-block">
+          <h3>Marcas comerciales</h3>
+          <div id="droga-marcas-list" class="subform-list"></div>
+          <div class="subform-add-row">
+            <input id="droga-marca-nombre" type="text" placeholder="Nombre comercial">
+            <input id="droga-marca-anmat" type="text" placeholder="N° certificado ANMAT">
+            <input id="droga-marca-laboratorio" type="text" placeholder="Laboratorio">
+            <button type="button" class="secondary" id="droga-marca-agregar">+ Agregar marca</button>
+          </div>
+        </div>
+
+        <div class="subform-block" id="droga-patologias-block">
+          <h3>Patologías asociadas y fundamentación</h3>
+          <div id="droga-patologias-list" class="subform-list"></div>
+          <div class="subform-add-row">
+            <select id="droga-patologia-select"><option value="">Elegir patología...</option></select>
+            <button type="button" class="secondary" id="droga-patologia-agregar">+ Agregar patología</button>
+          </div>
+        </div>
+
+        <div class="form-message" id="droga-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary danger" id="droga-eliminar" hidden>Eliminar</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="droga-cancelar">Cancelar</button>
+          <button type="submit" class="primary" id="droga-save">Guardar</button>
         </div>
       </form>
     </div>
@@ -778,6 +848,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-  <script src="app.js?v=52"></script>
+  <script src="app.js?v=53"></script>
 </body>
 </html>

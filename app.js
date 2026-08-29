@@ -19,7 +19,8 @@ const manualesSeccion = {
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
-  "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
+  "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
+  "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -47,6 +48,10 @@ let reportCartillasPage = 1;
 let reportPmaPage = 1;
 let patologias = [];
 let patologiasCargadas = false;
+let drogas = [];
+let drogasCargadas = false;
+let modalMarcas = [];
+let modalFundamentaciones = [];
 
 
 function paginarRegistros(registros, pagina = 1, pageSize = PAGE_SIZE) {
@@ -1098,6 +1103,297 @@ async function handleEliminarPatologia() {
   }
 }
 
+function buildTableUrl(table, params = {}) {
+  const search = new URLSearchParams(params);
+  search.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  return `${SUPABASE_URL}/rest/v1/${table}?${search.toString()}`;
+}
+
+// ---------- Drogas ----------
+
+function buildDrogasUrl(id = null) {
+  const params = {
+    select: "id,nombre,codigo_atc,descripcion_anmat,es_soporte,fundamentacion_general,created_at," +
+      "marcas_comerciales(id,nombre_comercial,numero_anmat,laboratorio)," +
+      "droga_patologia(id,patologia_id,fundamentacion_texto,patologias(nombre))",
+    order: "nombre.asc"
+  };
+  if (id) params.id = `eq.${id}`;
+  return buildTableUrl("drogas", params);
+}
+
+async function cargarDrogasDesdeSupabase() {
+  const response = await fetchConTimeout(buildDrogasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function cargarYRenderizarDrogas() {
+  const count = document.getElementById("droga-count");
+  if (count) count.textContent = "Cargando drogas...";
+  try {
+    drogas = await cargarDrogasDesdeSupabase();
+    drogasCargadas = true;
+    renderDrogas();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar las drogas.${error?.message ? " " + error.message : ""}`;
+    console.error("Error cargando drogas:", error);
+  }
+}
+
+async function asegurarPatologiasCargadas() {
+  if (!patologiasCargadas) {
+    try { patologias = await cargarPatologiasDesdeSupabase(); patologiasCargadas = true; }
+    catch (error) { console.error("Error cargando patologías:", error); }
+  }
+}
+
+function filtrarDrogas(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(d => normalizar(d.nombre || "").includes(termino) || normalizar(d.codigo_atc || "").includes(termino));
+}
+
+function renderDrogas() {
+  const tbody = document.getElementById("droga-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("droga-search")?.value || "";
+  const filtradas = filtrarDrogas(drogas, busqueda);
+
+  tbody.innerHTML = filtradas.map(d => `
+    <tr class="os-row" data-edit-droga="${d.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
+      <td><strong>${escaparHtml(d.nombre)}</strong></td>
+      <td>${escaparHtml(d.codigo_atc || "—")}</td>
+      <td>${d.es_soporte ? "Soporte" : "Oncológica"}</td>
+      <td>${(d.marcas_comerciales || []).length}</td>
+      <td>${d.es_soporte ? "—" : (d.droga_patologia || []).length}</td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("droga-count");
+  if (count) count.textContent = `${filtradas.length} droga${filtradas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("droga-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-droga]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionDroga(row.dataset.editDroga));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+function renderMarcasSubform() {
+  const cont = document.getElementById("droga-marcas-list");
+  if (!cont) return;
+  cont.innerHTML = modalMarcas.map((m, i) => `
+    <div class="subform-item">
+      <div class="subform-item-text"><strong>${escaparHtml(m.nombre_comercial)}</strong>
+        ${m.numero_anmat ? `N° ANMAT: ${escaparHtml(m.numero_anmat)}` : ""}${m.laboratorio ? ` · ${escaparHtml(m.laboratorio)}` : ""}</div>
+      <button type="button" class="subform-item-remove" data-quitar-marca="${i}" aria-label="Quitar">×</button>
+    </div>
+  `).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin marcas cargadas.</p>`;
+
+  cont.querySelectorAll("[data-quitar-marca]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      modalMarcas.splice(Number(btn.dataset.quitarMarca), 1);
+      renderMarcasSubform();
+    });
+  });
+}
+
+function renderPatologiasSubform() {
+  const cont = document.getElementById("droga-patologias-list");
+  if (!cont) return;
+  cont.innerHTML = modalFundamentaciones.map((f, i) => {
+    const p = patologias.find(item => String(item.id) === String(f.patologia_id));
+    return `
+    <div class="subform-item">
+      <div class="subform-item-text"><strong>${escaparHtml(p ? p.nombre : "(patología)")}</strong>
+        <textarea data-fundamentacion="${i}" rows="2" placeholder="Fundamentación para esta patología...">${escaparHtml(f.fundamentacion_texto || "")}</textarea></div>
+      <button type="button" class="subform-item-remove" data-quitar-patologia="${i}" aria-label="Quitar">×</button>
+    </div>`;
+  }).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin patologías asociadas.</p>`;
+
+  cont.querySelectorAll("[data-quitar-patologia]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      modalFundamentaciones.splice(Number(btn.dataset.quitarPatologia), 1);
+      renderPatologiasSubform();
+    });
+  });
+  cont.querySelectorAll("[data-fundamentacion]").forEach(ta => {
+    ta.addEventListener("input", () => { modalFundamentaciones[Number(ta.dataset.fundamentacion)].fundamentacion_texto = ta.value; });
+  });
+}
+
+function poblarSelectPatologias() {
+  const select = document.getElementById("droga-patologia-select");
+  if (!select) return;
+  const yaAsociadas = new Set(modalFundamentaciones.map(f => String(f.patologia_id)));
+  const disponibles = patologias.filter(p => !yaAsociadas.has(String(p.id)));
+  select.innerHTML = `<option value="">Elegir patología...</option>` +
+    disponibles.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join("");
+}
+
+function actualizarVisibilidadSoporte() {
+  const esSoporte = document.getElementById("droga-es-soporte")?.checked;
+  document.getElementById("droga-fundamentacion-general-wrap")?.toggleAttribute("hidden", !esSoporte);
+  document.getElementById("droga-patologias-block")?.toggleAttribute("hidden", esSoporte);
+}
+
+function resetFormularioDroga() {
+  document.getElementById("droga-form")?.reset();
+  document.getElementById("droga-id").value = "";
+  document.getElementById("droga-eliminar")?.setAttribute("hidden", "");
+  modalMarcas = [];
+  modalFundamentaciones = [];
+  renderMarcasSubform();
+  renderPatologiasSubform();
+  poblarSelectPatologias();
+  actualizarVisibilidadSoporte();
+  setFormMessage("droga-form-message");
+}
+
+async function abrirModalNuevaDroga() {
+  await asegurarPatologiasCargadas();
+  resetFormularioDroga();
+  document.getElementById("droga-modal-title").textContent = "Nueva droga";
+  abrirModal("droga-modal");
+  setTimeout(() => document.getElementById("droga-nombre")?.focus(), 0);
+}
+
+async function abrirModalEdicionDroga(id) {
+  await asegurarPatologiasCargadas();
+  const d = drogas.find(item => String(item.id) === String(id));
+  if (!d) return;
+  resetFormularioDroga();
+  document.getElementById("droga-id").value = d.id;
+  document.getElementById("droga-nombre").value = d.nombre || "";
+  document.getElementById("droga-atc").value = d.codigo_atc || "";
+  document.getElementById("droga-descripcion-anmat").value = d.descripcion_anmat || "";
+  document.getElementById("droga-es-soporte").checked = !!d.es_soporte;
+  document.getElementById("droga-fundamentacion-general").value = d.fundamentacion_general || "";
+  modalMarcas = (d.marcas_comerciales || []).map(m => ({ id: m.id, nombre_comercial: m.nombre_comercial, numero_anmat: m.numero_anmat, laboratorio: m.laboratorio }));
+  modalFundamentaciones = (d.droga_patologia || []).map(f => ({ id: f.id, patologia_id: f.patologia_id, fundamentacion_texto: f.fundamentacion_texto }));
+  renderMarcasSubform();
+  renderPatologiasSubform();
+  poblarSelectPatologias();
+  actualizarVisibilidadSoporte();
+  document.getElementById("droga-eliminar")?.removeAttribute("hidden");
+  document.getElementById("droga-modal-title").textContent = "Editar droga";
+  abrirModal("droga-modal");
+}
+
+function agregarMarcaTemporal() {
+  const nombre = document.getElementById("droga-marca-nombre")?.value.trim();
+  if (!nombre) { document.getElementById("droga-marca-nombre")?.focus(); return; }
+  modalMarcas.push({
+    nombre_comercial: nombre,
+    numero_anmat: document.getElementById("droga-marca-anmat")?.value.trim() || null,
+    laboratorio: document.getElementById("droga-marca-laboratorio")?.value.trim() || null
+  });
+  document.getElementById("droga-marca-nombre").value = "";
+  document.getElementById("droga-marca-anmat").value = "";
+  document.getElementById("droga-marca-laboratorio").value = "";
+  renderMarcasSubform();
+}
+
+function agregarPatologiaTemporal() {
+  const patologiaId = document.getElementById("droga-patologia-select")?.value;
+  if (!patologiaId) return;
+  modalFundamentaciones.push({ patologia_id: patologiaId, fundamentacion_texto: "" });
+  renderPatologiasSubform();
+  poblarSelectPatologias();
+}
+
+async function handleDrogaSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("droga-save");
+  setFormMessage("droga-form-message");
+
+  const id = document.getElementById("droga-id")?.value || "";
+  const nombre = document.getElementById("droga-nombre")?.value.trim() || "";
+  if (!nombre) { setFormMessage("droga-form-message", "El nombre es obligatorio."); return; }
+
+  const esSoporte = document.getElementById("droga-es-soporte")?.checked || false;
+  const registro = {
+    nombre,
+    codigo_atc: document.getElementById("droga-atc")?.value.trim() || null,
+    descripcion_anmat: document.getElementById("droga-descripcion-anmat")?.value.trim() || null,
+    es_soporte: esSoporte,
+    fundamentacion_general: esSoporte ? (document.getElementById("droga-fundamentacion-general")?.value.trim() || null) : null
+  };
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const headers = { ...authHeaders(session.access_token), Prefer: "return=representation" };
+
+    const editando = !!id;
+    const response = await fetchConTimeout(buildDrogasUrl(editando ? id : null).replace(/&select=[^&]+/, "&select=id"), {
+      method: editando ? "PATCH" : "POST",
+      headers,
+      body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    const filas = await response.json();
+    const drogaId = editando ? id : filas[0]?.id;
+    if (!drogaId) throw new Error("No se pudo obtener el id de la droga guardada.");
+
+    // Sincronizar marcas comerciales: se borran todas y se reinsertan (mismo patrón que expediente_medicamentos en Urgencias Prestacionales)
+    await fetchConTimeout(buildTableUrl("marcas_comerciales", { droga_id: `eq.${drogaId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (modalMarcas.length) {
+      const body = modalMarcas.map(m => ({ droga_id: drogaId, nombre_comercial: m.nombre_comercial, numero_anmat: m.numero_anmat, laboratorio: m.laboratorio }));
+      const r = await fetchConTimeout(buildTableUrl("marcas_comerciales", {}), { method: "POST", headers: authHeaders(session.access_token), body: JSON.stringify(body) }, 10000);
+      if (!r.ok) throw new Error((await leerErrorApi(r)) || "No se pudieron guardar las marcas comerciales.");
+    }
+
+    // Sincronizar fundamentación por patología (solo si no es droga de soporte)
+    await fetchConTimeout(buildTableUrl("droga_patologia", { droga_id: `eq.${drogaId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!esSoporte && modalFundamentaciones.length) {
+      const body = modalFundamentaciones.map(f => ({ droga_id: drogaId, patologia_id: f.patologia_id, fundamentacion_texto: f.fundamentacion_texto || "" }));
+      const r = await fetchConTimeout(buildTableUrl("droga_patologia", {}), { method: "POST", headers: authHeaders(session.access_token), body: JSON.stringify(body) }, 10000);
+      if (!r.ok) throw new Error((await leerErrorApi(r)) || "No se pudieron guardar las fundamentaciones por patología.");
+    }
+
+    cerrarModal("droga-modal");
+    mostrarToast(editando ? "Droga actualizada." : "Droga creada.");
+    drogasCargadas = false;
+    await cargarYRenderizarDrogas();
+  } catch (error) {
+    setFormMessage("droga-form-message", error.message || "No se pudo guardar la droga.");
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarDroga() {
+  const id = document.getElementById("droga-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar esta droga? Se van a borrar también sus marcas comerciales y fundamentaciones asociadas.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    await fetchConTimeout(buildTableUrl("marcas_comerciales", { droga_id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    await fetchConTimeout(buildTableUrl("droga_patologia", { droga_id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    const response = await fetchConTimeout(buildTableUrl("drogas", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(/foreign key|23503/i.test(detalle || "") ? "No se puede eliminar: esta droga está usada en uno o más expedientes." : (detalle || `Supabase respondió ${response.status}.`));
+    }
+    cerrarModal("droga-modal");
+    mostrarToast("Droga eliminada.");
+    drogasCargadas = false;
+    await cargarYRenderizarDrogas();
+  } catch (error) {
+    setFormMessage("droga-form-message", error.message || "No se pudo eliminar la droga.");
+  }
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -1150,6 +1446,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
   if (resolved === "reportes") cargarReporteActivo();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
+  if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
 }
 
 function renderObrasSociales() {
@@ -3157,6 +3454,16 @@ async function initBrowser() {
   document.getElementById("patologia-cancelar")?.addEventListener("click", () => cerrarModal("patologia-modal"));
   document.getElementById("patologia-form")?.addEventListener("submit", handlePatologiaSubmit);
   document.getElementById("patologia-eliminar")?.addEventListener("click", handleEliminarPatologia);
+
+  document.getElementById("droga-search")?.addEventListener("input", renderDrogas);
+  document.getElementById("btn-nueva-droga")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaDroga));
+  document.getElementById("droga-modal-close")?.addEventListener("click", () => cerrarModal("droga-modal"));
+  document.getElementById("droga-cancelar")?.addEventListener("click", () => cerrarModal("droga-modal"));
+  document.getElementById("droga-form")?.addEventListener("submit", handleDrogaSubmit);
+  document.getElementById("droga-eliminar")?.addEventListener("click", handleEliminarDroga);
+  document.getElementById("droga-es-soporte")?.addEventListener("change", actualizarVisibilidadSoporte);
+  document.getElementById("droga-marca-agregar")?.addEventListener("click", agregarMarcaTemporal);
+  document.getElementById("droga-patologia-agregar")?.addEventListener("click", agregarPatologiaTemporal);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
