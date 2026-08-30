@@ -241,11 +241,12 @@ button{cursor:pointer}
 .toolbar input,.toolbar select,
 .form-grid input,.form-grid select,.form-grid textarea{
   border:1px solid var(--line);
-  border-radius:10px;
-  padding:9px 11px;
+  border-radius:9px;
+  padding:8px 10px;
   background:#fff;
   color:var(--text);
-  outline:none
+  outline:none;
+  font-size:13.5px
 }
 .toolbar input:focus,.toolbar select:focus,
 .form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{
@@ -411,7 +412,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .form-grid label{display:grid;gap:5px}
 .form-grid label>span{font-size:12px;font-weight:800;color:#4d5d70}
 .form-grid .full{grid-column:1/-1}
-.form-grid textarea{resize:vertical;min-height:64px}
+.form-grid textarea{resize:vertical;min-height:52px}
+.textarea-grande{min-height:170px!important}
 @media(max-width:700px){.form-grid,.form-grid-3{grid-template-columns:1fr}}
 .checkbox-inline{display:flex!important;flex-direction:row!important;align-items:center;gap:9px;grid-column:1/-1}
 .checkbox-inline input{width:auto!important}
