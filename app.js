@@ -1778,10 +1778,10 @@ function renderDrogasExpedienteSubform() {
   cont.innerHTML = modalDrogasExpediente.map((item, i) => {
     const droga = drogas.find(d => String(d.id) === String(item.droga_id));
     const marca = (droga?.marcas_comerciales || []).find(m => String(m.id) === String(item.marca_id));
+    const detalle = [marca?.nombre_comercial, item.dosis ? `Dosis: ${item.dosis}` : null].filter(Boolean).join(" · ");
     return `
-    <div class="subform-item">
-      <div class="subform-item-text"><strong>${escaparHtml(droga ? droga.nombre : "(droga)")}</strong>
-        ${marca ? `${escaparHtml(marca.nombre_comercial)} · ` : ""}${item.dosis ? `Dosis: ${escaparHtml(item.dosis)}` : "Sin dosis especificada"}</div>
+    <div class="subform-item subform-item-compact" title="${escaparHtml(droga ? droga.nombre : "")}${detalle ? " — " + escaparHtml(detalle) : ""}">
+      <div class="subform-item-text"><strong>${escaparHtml(droga ? droga.nombre : "(droga)")}</strong>${detalle ? ` — ${escaparHtml(detalle)}` : ""}</div>
       <button type="button" class="subform-item-remove" data-quitar-droga-exp="${i}" aria-label="Quitar">×</button>
     </div>`;
   }).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin drogas cargadas.</p>`;
