@@ -1817,6 +1817,9 @@ function resetFormularioExpediente() {
   document.getElementById("expediente-informe-actions")?.setAttribute("hidden", "");
   document.getElementById("expediente-informe-hint")?.removeAttribute("hidden");
   document.getElementById("expediente-informes-historial").innerHTML = "";
+  document.getElementById("expediente-adjuntos-add")?.setAttribute("hidden", "");
+  document.getElementById("expediente-adjuntos-hint")?.removeAttribute("hidden");
+  document.getElementById("expediente-adjuntos-list").innerHTML = "";
   document.getElementById("expediente-os-input").value = "";
   document.getElementById("expediente-os-input").dataset.selectedId = "";
   modalDrogasExpediente = [];
@@ -1884,6 +1887,9 @@ async function abrirModalEdicionExpediente(id) {
   document.getElementById("expediente-informe-actions")?.removeAttribute("hidden");
   document.getElementById("expediente-informe-hint")?.setAttribute("hidden", "");
   actualizarHistorialInformes(e.id);
+  document.getElementById("expediente-adjuntos-add")?.removeAttribute("hidden");
+  document.getElementById("expediente-adjuntos-hint")?.setAttribute("hidden", "");
+  actualizarAdjuntosExpediente(e.id);
   document.getElementById("expediente-modal-title").textContent = "Editar expediente";
   abrirModal("expediente-modal");
 }
@@ -2220,6 +2226,103 @@ function abrirModalMail(tipo) {
   regenerar();
   tratamientoInput.oninput = regenerar;
   abrirModal("mail-modal");
+}
+
+// ---------- Adjuntos ----------
+
+function esImagen(nombreArchivo) {
+  return /\.(png|jpe?g|gif|webp|bmp)$/i.test(nombreArchivo || "");
+}
+
+async function cargarAdjuntosExpediente(expedienteId) {
+  const response = await fetchConTimeout(buildTableUrl("expediente_adjuntos", { expediente_id: `eq.${expedienteId}`, select: "id,archivo_url,nombre_archivo,descripcion,created_at", order: "created_at.desc" }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function renderAdjuntosList(lista) {
+  const cont = document.getElementById("expediente-adjuntos-list");
+  if (!cont) return;
+  cont.innerHTML = lista.length
+    ? lista.map(a => `
+      <div class="subform-item">
+        ${esImagen(a.nombre_archivo) ? `<img src="${escaparHtml(a.archivo_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:56px;height:56px;border-radius:6px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-shrink:0">PDF</div>`}
+        <div class="subform-item-text" style="margin-left:4px">
+          <strong><a href="${escaparHtml(a.archivo_url)}" target="_blank" rel="noopener" style="color:inherit">${escaparHtml(a.nombre_archivo)}</a></strong>
+          ${a.descripcion ? escaparHtml(a.descripcion) : ""}
+        </div>
+        <button type="button" class="subform-item-remove" data-quitar-adjunto="${a.id}" aria-label="Quitar">×</button>
+      </div>`).join("")
+    : `<p style="color:var(--muted);font-size:13px;margin:0">Sin adjuntos cargados.</p>`;
+
+  cont.querySelectorAll("[data-quitar-adjunto]").forEach(btn => {
+    btn.addEventListener("click", () => handleEliminarAdjunto(btn.dataset.quitarAdjunto));
+  });
+}
+
+async function actualizarAdjuntosExpediente(expedienteId) {
+  renderAdjuntosList(await cargarAdjuntosExpediente(expedienteId));
+}
+
+async function handleAgregarAdjunto() {
+  const id = document.getElementById("expediente-id")?.value || "";
+  if (!id) return;
+  const fileInput = document.getElementById("expediente-adjunto-file");
+  const file = fileInput?.files?.[0];
+  if (!file) { setFormMessage("expediente-form-message", "Elegí un archivo para subir."); return; }
+  if (file.size > 10 * 1024 * 1024) { setFormMessage("expediente-form-message", "El archivo no puede superar los 10 MB."); return; }
+
+  const boton = document.getElementById("expediente-adjunto-agregar");
+  try {
+    if (boton) boton.disabled = true;
+    const session = await asegurarSesionVigente();
+    const nombreArchivo = `${Date.now()}_${file.name}`;
+    const path = `${id}/${nombreArchivo}`;
+    const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": file.type || "application/octet-stream" },
+      body: file
+    });
+    if (!uploadResp.ok) throw new Error("No se pudo subir el archivo.");
+    const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+    const descripcion = document.getElementById("expediente-adjunto-descripcion")?.value.trim() || null;
+    const insertResp = await fetch(buildTableUrl("expediente_adjuntos", {}), {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify({ expediente_id: id, archivo_url: archivoUrl, nombre_archivo: file.name, descripcion })
+    });
+    if (!insertResp.ok) throw new Error("El archivo se subió pero no se pudo registrar.");
+
+    fileInput.value = "";
+    document.getElementById("expediente-adjunto-descripcion").value = "";
+    mostrarToast("Adjunto subido.");
+    await actualizarAdjuntosExpediente(id);
+  } catch (error) {
+    setFormMessage("expediente-form-message", error.message || "No se pudo subir el adjunto.");
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function handleEliminarAdjunto(adjuntoId) {
+  if (!confirm("¿Eliminar este adjunto?")) return;
+  const id = document.getElementById("expediente-id")?.value || "";
+  try {
+    const session = await asegurarSesionVigente();
+    const filaResp = await fetchConTimeout(buildTableUrl("expediente_adjuntos", { id: `eq.${adjuntoId}`, select: "archivo_url" }), { method: "GET", headers: { Accept: "application/json" } }, 10000);
+    const filas = filaResp.ok ? await filaResp.json() : [];
+    const response = await fetchConTimeout(buildTableUrl("expediente_adjuntos", { id: `eq.${adjuntoId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || "No se pudo eliminar el adjunto.");
+    const url = filas[0]?.archivo_url;
+    if (url) {
+      const path = url.split("/storage/v1/object/public/adjuntos/")[1];
+      if (path) await fetchConTimeout(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    }
+    mostrarToast("Adjunto eliminado.");
+    await actualizarAdjuntosExpediente(id);
+  } catch (error) {
+    setFormMessage("expediente-form-message", error.message || "No se pudo eliminar el adjunto.");
+  }
 }
 
 function showView(id, updateHistory = true) {
@@ -4327,6 +4430,7 @@ async function initBrowser() {
     try { await navigator.clipboard.writeText(texto); mostrarToast("Texto copiado al portapapeles."); }
     catch { mostrarToast("No se pudo copiar automáticamente: seleccioná el texto y copiá con Ctrl+C."); }
   });
+  document.getElementById("expediente-adjunto-agregar")?.addEventListener("click", handleAgregarAdjunto);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

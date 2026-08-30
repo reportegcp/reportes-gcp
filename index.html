@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=59">
+  <link rel="stylesheet" href="styles.css?v=60">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -76,7 +76,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 59</span>
+        <span>Versión 60</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -775,6 +775,7 @@
             <div class="form-grid">
               <label class="full"><span>Plantilla de informe</span><select id="expediente-plantilla"><option value="">Elegir plantilla...</option></select></label>
               <label class="full"><span>Pasos de resolución / seguimiento</span><textarea id="expediente-pasos" rows="6"></textarea></label>
+              <p class="full" style="color:var(--muted);font-size:12.5px;margin:-8px 0 0">Para agregar capturas de pantalla o imágenes de la resolución, subilas abajo en "Adjuntos" (no se pegan dentro de este texto).</p>
             </div>
             <div id="expediente-informe-actions" class="informe-actions" hidden>
               <button type="button" class="secondary" id="btn-generar-ifsol">Generar informe IFSOL</button>
@@ -785,6 +786,19 @@
             <div id="expediente-informe-hint" hidden style="color:var(--muted);font-size:12.5px;margin-top:8px">Guardá el expediente para poder generar informes y mails.</div>
             <h3 style="font-size:13px;color:#4d5d70;margin:16px 0 8px">Historial de informes</h3>
             <div id="expediente-informes-historial" class="subform-list"></div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="adjuntos">
+          <button type="button" class="form-section-toggle"><span>Adjuntos</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div id="expediente-adjuntos-list" class="subform-list"></div>
+            <div id="expediente-adjuntos-hint" hidden style="color:var(--muted);font-size:12.5px;margin:6px 0 10px">Guardá el expediente para poder subir adjuntos.</div>
+            <div id="expediente-adjuntos-add" class="subform-add-row" style="grid-template-columns:1fr 1fr auto" hidden>
+              <input id="expediente-adjunto-file" type="file" accept="application/pdf,image/*">
+              <input id="expediente-adjunto-descripcion" type="text" placeholder="Descripción (opcional)">
+              <button type="button" class="secondary" id="expediente-adjunto-agregar">+ Subir adjunto</button>
+            </div>
           </div>
         </div>
 
@@ -1028,6 +1042,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=59"></script>
+  <script src="app.js?v=60"></script>
 </body>
 </html>
