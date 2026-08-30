@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=69">
+  <link rel="stylesheet" href="styles.css?v=70">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -76,7 +76,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 69</span>
+        <span>Versión 70</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -780,10 +780,14 @@
               <p class="full" style="color:var(--muted);font-size:12.5px;margin:-8px 0 0">Para agregar capturas de pantalla o imágenes de la resolución, subilas abajo en "Adjuntos" (no se pegan dentro de este texto).</p>
             </div>
             <div id="expediente-informe-actions" class="informe-actions" hidden>
-              <button type="button" class="secondary" id="btn-generar-ifsol">Generar informe IFSOL</button>
-              <button type="button" class="secondary" id="btn-generar-ifder">Generar informe IFDER</button>
-              <button type="button" class="secondary" id="btn-mail-os">Generar mail a OS/EMP</button>
-              <button type="button" class="secondary" id="btn-mail-afiliado">Generar mail al afiliado</button>
+              <div class="informe-actions-row">
+                <button type="button" class="btn-informe" id="btn-generar-ifsol">Generar informe IFSOL</button>
+                <button type="button" class="btn-informe" id="btn-generar-ifder">Generar informe IFDER</button>
+              </div>
+              <div class="informe-actions-row">
+                <button type="button" class="btn-mail" id="btn-mail-os">Generar mail a OS/EMP</button>
+                <button type="button" class="btn-mail" id="btn-mail-afiliado">Generar mail al afiliado</button>
+              </div>
             </div>
             <div id="expediente-informe-hint" hidden style="color:var(--muted);font-size:12.5px;margin-top:8px">Guardá el expediente para poder generar informes y mails.</div>
             <h3 style="font-size:13px;color:#4d5d70;margin:16px 0 8px">Historial de informes</h3>
@@ -1044,6 +1048,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=69"></script>
+  <script src="app.js?v=70"></script>
 </body>
 </html>

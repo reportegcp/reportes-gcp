@@ -463,7 +463,16 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .form-section.collapsed .form-section-body{display:none}
 .form-section-body{padding:2px 14px}
 .form-section-body .form-grid{padding:8px 0}
-.informe-actions{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 8px}
+.informe-actions{display:flex;flex-direction:column;gap:8px;padding:2px 0 8px}
+.informe-actions-row{display:flex;gap:8px}
+.btn-informe,.btn-mail{
+  flex:1;border:0;border-radius:9px;padding:9px 10px;font-weight:700;font-size:12.5px;
+  cursor:pointer;text-align:center
+}
+.btn-informe{background:#dbe9f7;color:#1c4c78}
+.btn-informe:hover{background:#c9def0}
+.btn-mail{background:#dcefe4;color:#1f6b45}
+.btn-mail:hover{background:#c9e6d3}
 .form-message{
   margin:-6px 0 16px;
   padding:10px 12px;
