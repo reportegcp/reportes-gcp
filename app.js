@@ -1814,6 +1814,9 @@ function resetFormularioExpediente() {
   document.getElementById("expediente-form")?.reset();
   document.getElementById("expediente-id").value = "";
   document.getElementById("expediente-eliminar")?.setAttribute("hidden", "");
+  document.getElementById("expediente-informe-actions")?.setAttribute("hidden", "");
+  document.getElementById("expediente-informe-hint")?.removeAttribute("hidden");
+  document.getElementById("expediente-informes-historial").innerHTML = "";
   document.getElementById("expediente-os-input").value = "";
   document.getElementById("expediente-os-input").dataset.selectedId = "";
   modalDrogasExpediente = [];
@@ -1878,6 +1881,9 @@ async function abrirModalEdicionExpediente(id) {
   renderDrogasExpedienteSubform();
 
   document.getElementById("expediente-eliminar")?.removeAttribute("hidden");
+  document.getElementById("expediente-informe-actions")?.removeAttribute("hidden");
+  document.getElementById("expediente-informe-hint")?.setAttribute("hidden", "");
+  actualizarHistorialInformes(e.id);
   document.getElementById("expediente-modal-title").textContent = "Editar expediente";
   abrirModal("expediente-modal");
 }
@@ -1993,6 +1999,227 @@ async function handleEliminarExpediente() {
   } catch (error) {
     setFormMessage("expediente-form-message", error.message || "No se pudo eliminar el expediente.");
   }
+}
+
+// ---------- Generación de informes (.docx) ----------
+
+function textoPlanoDesdeHtml(html) {
+  if (!html) return "";
+  return html.replace(/<\/(p|div|li)>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/[ \t]+/g, " ").replace(/\n{2,}/g, "\n\n").trim();
+}
+
+function fundamentacionParaExpediente(drogaId, patologiaId) {
+  const droga = drogas.find(d => String(d.id) === String(drogaId));
+  if (!droga) return "";
+  if (droga.es_soporte) return droga.fundamentacion_general || "";
+  const fp = (droga.droga_patologia || []).find(item => String(item.patologia_id) === String(patologiaId));
+  return fp?.fundamentacion_texto || "";
+}
+
+async function generarInformeDocx(expediente, tipo) {
+  const { Document, Packer, Paragraph, TextRun, AlignmentType } = window.docx;
+  const plantilla = plantillas.find(p => String(p.id) === String(expediente.plantilla_id));
+  const patologiaNombre = expediente.patologias?.nombre || patologias.find(p => String(p.id) === String(expediente.patologia_id))?.nombre || "—";
+  const osEtiqueta = etiquetaObraSocial(expediente.obra_social_id) || "—";
+  const medicamentos = expediente.expediente_medicamentos || [];
+  const P = 24; // 12pt
+
+  const parrafos = [];
+  parrafos.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `INFORME TÉCNICO — ${tipo}`, bold: true, size: 28 })] }));
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: `Expediente Nº ${expediente.numero_ee}`, bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ text: "" }));
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Paciente: ", bold: true, size: P }), new TextRun({ text: expediente.nombre_paciente || "", size: P })] }));
+  if (expediente.dni_cuit_paciente) parrafos.push(new Paragraph({ children: [new TextRun({ text: "DNI / CUIT: ", bold: true, size: P }), new TextRun({ text: expediente.dni_cuit_paciente, size: P })] }));
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Obra Social / EMP: ", bold: true, size: P }), new TextRun({ text: osEtiqueta, size: P })] }));
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Patología: ", bold: true, size: P }), new TextRun({ text: patologiaNombre, size: P })] }));
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Diagnóstico: ", bold: true, size: P }), new TextRun({ text: expediente.diagnostico_detalle || "", size: P })] }));
+  parrafos.push(new Paragraph({ text: "" }));
+
+  if (plantilla?.texto_apertura) {
+    textoPlanoDesdeHtml(plantilla.texto_apertura).split("\n").forEach(linea => {
+      if (linea.trim()) parrafos.push(new Paragraph({ children: [new TextRun({ text: linea, size: P })] }));
+    });
+    parrafos.push(new Paragraph({ text: "" }));
+  }
+
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Medicación solicitada:", bold: true, size: P })] }));
+  medicamentos.forEach((m, i) => {
+    const droga = drogas.find(d => String(d.id) === String(m.droga_id));
+    const marca = (droga?.marcas_comerciales || []).find(mc => String(mc.id) === String(m.marca_id));
+    const encabezado = medicamentos.length > 1 ? `${i + 1}) ${droga?.nombre || ""}` : (droga?.nombre || "");
+    parrafos.push(new Paragraph({ children: [new TextRun({ text: encabezado, bold: true, size: P })] }));
+    if (marca) {
+      parrafos.push(new Paragraph({ children: [new TextRun({ text: `Marca comercial: ${marca.nombre_comercial}`, size: P })] }));
+      if (marca.numero_anmat) parrafos.push(new Paragraph({ children: [new TextRun({ text: `Certificado ANMAT Nº ${marca.numero_anmat}`, size: P })] }));
+    }
+    if (m.dosis) parrafos.push(new Paragraph({ children: [new TextRun({ text: `Dosis: ${m.dosis}`, size: P })] }));
+    const fundamentacion = textoPlanoDesdeHtml(fundamentacionParaExpediente(m.droga_id, expediente.patologia_id));
+    if (fundamentacion) fundamentacion.split("\n").forEach(linea => { if (linea.trim()) parrafos.push(new Paragraph({ children: [new TextRun({ text: linea, size: P })] })); });
+    parrafos.push(new Paragraph({ text: "" }));
+  });
+
+  if (plantilla?.texto_cierre_tecnico) {
+    textoPlanoDesdeHtml(plantilla.texto_cierre_tecnico).split("\n").forEach(linea => {
+      if (linea.trim()) parrafos.push(new Paragraph({ children: [new TextRun({ text: linea, size: P })] }));
+    });
+    parrafos.push(new Paragraph({ text: "" }));
+  }
+
+  const cierre = tipo === "IFSOL"
+    ? "En virtud de lo expuesto, y habiéndose podido garantizar la cobertura de la medicación solicitada conforme a la normativa vigente, esta área técnica considera que corresponde su otorgamiento."
+    : "En virtud de lo expuesto, y no habiéndose podido garantizar la cobertura de la medicación solicitada conforme a la normativa vigente, esta área técnica recomienda continuar con las gestiones pertinentes ante el Agente del Seguro de Salud.";
+  parrafos.push(new Paragraph({ children: [new TextRun({ text: cierre, bold: true, underline: {}, size: P })] }));
+
+  const doc = new Document({
+    sections: [{ properties: {}, children: parrafos }],
+    styles: { default: { document: { run: { font: "Calibri", size: P } } } } }
+  );
+  return Packer.toBlob(doc);
+}
+
+function descargarBlob(blob, nombreArchivo) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function subirInformeYRegistrar(expedienteId, tipo, blob, session) {
+  const nombreArchivo = `${tipo}_${Date.now()}.docx`;
+  const path = `informes/${expedienteId}/${nombreArchivo}`;
+  const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    },
+    body: blob
+  });
+  if (!uploadResp.ok) throw new Error("El informe se descargó, pero no se pudo guardar en el historial (subida al almacenamiento falló).");
+  const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+  const insertResp = await fetch(buildTableUrl("informes", {}), {
+    method: "POST",
+    headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+    body: JSON.stringify({ expediente_id: expedienteId, tipo, fecha_generacion: new Date().toISOString().slice(0, 10), archivo_url: archivoUrl })
+  });
+  if (!insertResp.ok) throw new Error("El informe se descargó y se subió, pero no se pudo registrar en el historial.");
+  return archivoUrl;
+}
+
+async function cargarHistorialInformes(expedienteId) {
+  const response = await fetchConTimeout(buildTableUrl("informes", { expediente_id: `eq.${expedienteId}`, select: "id,tipo,fecha_generacion,archivo_url", order: "created_at.desc" }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function renderHistorialInformesList(lista) {
+  const cont = document.getElementById("expediente-informes-historial");
+  if (!cont) return;
+  cont.innerHTML = lista.length
+    ? lista.map(i => `
+      <div class="subform-item">
+        <div class="subform-item-text"><strong>${escaparHtml(i.tipo)}</strong> — ${formatearFecha(i.fecha_generacion)}</div>
+        <a href="${escaparHtml(i.archivo_url)}" target="_blank" rel="noopener" class="secondary" style="text-decoration:none;padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap">Descargar</a>
+      </div>`).join("")
+    : `<p style="color:var(--muted);font-size:13px;margin:0">Todavía no se generó ningún informe para este expediente.</p>`;
+}
+
+async function actualizarHistorialInformes(expedienteId) {
+  renderHistorialInformesList(await cargarHistorialInformes(expedienteId));
+}
+
+async function handleGenerarInforme(tipo) {
+  const id = document.getElementById("expediente-id")?.value || "";
+  const expediente = expedientes.find(e => String(e.id) === String(id));
+  if (!expediente) { setFormMessage("expediente-form-message", "Guardá el expediente antes de generar el informe."); return; }
+  setFormMessage("expediente-form-message");
+  try {
+    const session = await asegurarSesionVigente();
+    const blob = await generarInformeDocx(expediente, tipo);
+    descargarBlob(blob, `${tipo}_${expediente.numero_ee}.docx`);
+    await subirInformeYRegistrar(id, tipo, blob, session);
+    mostrarToast(`Informe ${tipo} generado y descargado.`);
+    await actualizarHistorialInformes(id);
+  } catch (error) {
+    setFormMessage("expediente-form-message", error.message || "No se pudo generar el informe.");
+  }
+}
+
+// ---------- Generación de mails ----------
+
+function textoMailObraSocial(expediente, tratamiento) {
+  const osEtiqueta = etiquetaObraSocial(expediente.obra_social_id) || "la Obra Social/EMP";
+  const medicamentos = expediente.expediente_medicamentos || [];
+  const listaDrogas = medicamentos.map(m => {
+    const droga = drogas.find(d => String(d.id) === String(m.droga_id));
+    return `- ${droga?.nombre || ""}${m.dosis ? ` (Dosis: ${m.dosis})` : ""}`;
+  }).join("\n") || "- (sin drogas cargadas)";
+
+  return `Estimados de ${osEtiqueta},
+
+Por medio de la presente, en el marco del expediente Nº ${expediente.numero_ee}, correspondiente al afiliado ${expediente.nombre_paciente}${expediente.dni_cuit_paciente ? ` (CUIL Nº ${expediente.dni_cuit_paciente})` : ""}, se solicita la cobertura del tratamiento${tratamiento ? ` ${tratamiento}` : ""} con la siguiente medicación:
+
+${listaDrogas}
+
+DIAGNÓSTICO: ${expediente.diagnostico_detalle || "—"}
+
+Se recuerda que, conforme la normativa vigente, el Agente del Seguro de Salud cuenta con un plazo de 2 (dos) días hábiles para efectuar el traslado correspondiente.
+
+Quedamos a la espera de su respuesta a la brevedad.
+
+Saludos cordiales.`;
+}
+
+function textoMailAfiliado(expediente) {
+  const medicamentos = expediente.expediente_medicamentos || [];
+  const listaDrogas = medicamentos.map(m => {
+    const droga = drogas.find(d => String(d.id) === String(m.droga_id));
+    return `- ${droga?.nombre || ""}${m.dosis ? ` (Dosis: ${m.dosis})` : ""}`;
+  }).join("\n") || "- (sin drogas cargadas)";
+
+  return `Estimado/a ${expediente.nombre_paciente || ""},
+
+Para dar continuidad al trámite del expediente Nº ${expediente.numero_ee}, referido a la medicación:
+
+${listaDrogas}
+
+Le solicitamos nos brinde la siguiente información:
+
+a) ¿Recibió alguna respuesta de su Obra Social/EMP respecto a la cobertura solicitada?
+b) En caso afirmativo, ¿cuál fue la respuesta y en qué fecha la recibió?
+c) ¿El tratamiento indicado por su médico tratante continúa vigente?
+d) ¿Tuvo alguna internación o cambio relevante en su estado de salud desde la última comunicación?
+e) ¿Desea agregar alguna documentación adicional al expediente?
+
+Quedamos a la espera de su respuesta a la brevedad.
+
+Saludos cordiales.`;
+}
+
+function abrirModalMail(tipo) {
+  const id = document.getElementById("expediente-id")?.value || "";
+  const expediente = expedientes.find(e => String(e.id) === String(id));
+  if (!expediente) return;
+
+  document.getElementById("mail-modal-title").textContent = tipo === "os" ? "Mail a Obra Social / EMP" : "Mail al afiliado";
+  document.getElementById("mail-tratamiento-wrap")?.toggleAttribute("hidden", tipo !== "os");
+  const tratamientoInput = document.getElementById("mail-tratamiento-input");
+  tratamientoInput.value = "";
+
+  const regenerar = () => {
+    document.getElementById("mail-texto").value = tipo === "os"
+      ? textoMailObraSocial(expediente, tratamientoInput.value.trim())
+      : textoMailAfiliado(expediente);
+  };
+  regenerar();
+  tratamientoInput.oninput = regenerar;
+  abrirModal("mail-modal");
 }
 
 function showView(id, updateHistory = true) {
@@ -4088,6 +4315,17 @@ async function initBrowser() {
   });
   document.querySelectorAll("#expediente-form .form-section-toggle").forEach(btn => {
     btn.addEventListener("click", () => btn.closest(".form-section")?.classList.toggle("collapsed"));
+  });
+  document.getElementById("btn-generar-ifsol")?.addEventListener("click", () => handleGenerarInforme("IFSOL"));
+  document.getElementById("btn-generar-ifder")?.addEventListener("click", () => handleGenerarInforme("IFDER"));
+  document.getElementById("btn-mail-os")?.addEventListener("click", () => abrirModalMail("os"));
+  document.getElementById("btn-mail-afiliado")?.addEventListener("click", () => abrirModalMail("afiliado"));
+  document.getElementById("mail-modal-close")?.addEventListener("click", () => cerrarModal("mail-modal"));
+  document.getElementById("mail-cerrar")?.addEventListener("click", () => cerrarModal("mail-modal"));
+  document.getElementById("mail-copiar")?.addEventListener("click", async () => {
+    const texto = document.getElementById("mail-texto")?.value || "";
+    try { await navigator.clipboard.writeText(texto); mostrarToast("Texto copiado al portapapeles."); }
+    catch { mostrarToast("No se pudo copiar automáticamente: seleccioná el texto y copiá con Ctrl+C."); }
   });
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));

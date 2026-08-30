@@ -452,6 +452,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .form-section.collapsed .form-section-body{display:none}
 .form-section-body{padding:6px 14px 4px}
 .form-section-body .form-grid{padding:14px 0}
+.informe-actions{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 10px}
 .form-message{
   margin:-6px 0 16px;
   padding:10px 12px;
