@@ -1716,13 +1716,13 @@ function renderExpedientes() {
 
   tbody.innerHTML = filtradas.map(e => `
     <tr class="os-row" data-edit-expediente="${e.id}" tabindex="0" role="button" title="Clic para editar">
-      <td><strong>${escaparHtml(e.numero_ee)}</strong></td>
-      <td>${escaparHtml(e.nombre_paciente || "—")}</td>
-      <td>${escaparHtml(e.patologias?.nombre || "—")}</td>
-      <td>${escaparHtml(etiquetaObraSocial(e.obra_social_id) || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:140px" title="${escaparHtml(e.numero_ee)}"><strong>${escaparHtml(e.numero_ee)}</strong></td>
+      <td class="ellipsis-cell" style="max-width:130px" title="${escaparHtml(e.nombre_paciente || "")}">${escaparHtml(e.nombre_paciente || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:150px" title="${escaparHtml(e.patologias?.nombre || "")}">${escaparHtml(e.patologias?.nombre || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:170px" title="${escaparHtml(etiquetaObraSocial(e.obra_social_id) || "")}">${escaparHtml(etiquetaObraSocial(e.obra_social_id) || "—")}</td>
       <td>${escaparHtml(e.estado || "—")}</td>
-      <td>${formatearFecha(e.fecha_ingreso)}</td>
-      <td>${formatearFecha(e.fecha_limite)}</td>
+      <td class="date-cell">${formatearFecha(e.fecha_ingreso)}</td>
+      <td class="date-cell">${formatearFecha(e.fecha_limite)}</td>
     </tr>
   `).join("");
 

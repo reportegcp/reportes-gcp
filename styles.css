@@ -303,6 +303,7 @@ button{cursor:pointer}
 .data-table th{white-space:nowrap}
 .data-table td.date-cell{white-space:nowrap;min-width:88px}
 .data-table td.location-cell{max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.ellipsis-cell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .data-table tbody tr:hover{background:#fafcff}
 .data-table tbody tr:last-child td{border-bottom:0}
