@@ -4417,7 +4417,18 @@ async function initBrowser() {
     event.target.dataset.selectedId = obrasSocialesTodasPorEtiqueta.get(event.target.value) || "";
   });
   document.querySelectorAll("#expediente-form .form-section-toggle").forEach(btn => {
-    btn.addEventListener("click", () => btn.closest(".form-section")?.classList.toggle("collapsed"));
+    btn.addEventListener("click", () => {
+      const seccion = btn.closest(".form-section");
+      if (!seccion) return;
+      const estabaColapsada = seccion.classList.contains("collapsed");
+      if (estabaColapsada) {
+        // Acordeón: al abrir una sección, se cierran las demás.
+        document.querySelectorAll("#expediente-form .form-section").forEach(s => s.classList.add("collapsed"));
+        seccion.classList.remove("collapsed");
+      } else {
+        seccion.classList.add("collapsed");
+      }
+    });
   });
   document.getElementById("btn-generar-ifsol")?.addEventListener("click", () => handleGenerarInforme("IFSOL"));
   document.getElementById("btn-generar-ifder")?.addEventListener("click", () => handleGenerarInforme("IFDER"));
