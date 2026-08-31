@@ -2886,6 +2886,20 @@ function parrafosDesdeTexto(texto, size, vineta = false) {
   }));
 }
 
+// Para textos mixtos (párrafos normales + ítems de lista): una línea es viñeta solo si arranca con "- ".
+function parrafosConVinetaAutoDetectada(texto, size) {
+  const { Paragraph } = window.docx;
+  return (texto || "").split("\n").map(l => l.trim()).filter(Boolean).map(linea => {
+    const esVineta = linea.startsWith("- ");
+    const contenido = esVineta ? linea.slice(2).trim() : linea;
+    return new Paragraph({
+      bullet: esVineta ? { level: 0 } : undefined,
+      spacing: { after: 140 },
+      children: runsConNegritaAntesDeDosPuntos(contenido, size)
+    });
+  });
+}
+
 async function generarInformeInffcDocx(px) {
   const { Document, Packer, Paragraph, TextRun, AlignmentType } = window.docx;
   const patologia = px.preexistencias_patologias || pxPatologias.find(p => String(p.id) === String(px.patologia_id));
@@ -2917,7 +2931,7 @@ async function generarInformeInffcDocx(px) {
     ] }));
   }
 
-  parrafos.push(...parrafosDesdeTexto(patologia?.texto_desarrollo, P, false));
+  parrafos.push(...parrafosConVinetaAutoDetectada(patologia?.texto_desarrollo, P));
 
   parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Respecto de este caso puntual y basándonos en la documental aportada, esta Gerencia estima razonable considerar que el siguiente esquema podría ajustarse a las necesidades del solicitante:", size: P })] }));
   parrafos.push(...parrafosDesdeTexto(px.esquema_propuesto, P, true));
