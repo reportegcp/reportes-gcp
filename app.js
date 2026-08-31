@@ -2248,7 +2248,9 @@ async function handleGenerarInforme(tipo) {
 
 // ---------- Generación de mails ----------
 
-function textoMailObraSocial(expediente, tratamiento) {
+function b(texto) { return `<strong>${escaparHtml(texto)}</strong>`; }
+
+function htmlMailObraSocial(expediente, tratamiento) {
   const o = obrasSocialesTodas.find(item => String(item.id) === String(expediente.obra_social_id));
   const codigoLabel = o ? (o.tipo === "Obra Social" ? `RNAS Nº ${o.rnos || "—"}` : `RNEMP Nº ${o.rnemp || "—"}`) : "";
   const nombreEntidad = o ? `${o.denominacion}${o.sigla ? ` (${o.sigla})` : ""}` : "la Obra Social/EMP";
@@ -2256,40 +2258,41 @@ function textoMailObraSocial(expediente, tratamiento) {
   const listaDrogas = medicamentos.map(m => {
     const droga = drogas.find(d => String(d.id) === String(m.droga_id));
     const nombre = (droga?.nombre || "").toUpperCase();
-    return `- ${nombre}${m.dosis ? ` ${m.dosis}` : ""}`;
+    return `- ${b(`${nombre}${m.dosis ? ` ${m.dosis}` : ""}`)}`;
   }).join("\n") || "- (sin drogas cargadas)";
+  const email = "urgenciasprestacionales@sssalud.org.ar";
 
   return `Se envía por vía mail desde el área de Urgencias Prestacionales de la Gerencia de Control Prestacional (GCP) el trámite de resolución urgente.
 
 La misma fue notificada vía formal x TAD a la obra social. Se reitera la misma y se adjunta la denuncia de la beneficiaria afectada con la correspondiente historia clínica e indicaciones médicas.
 
-POR FAVOR ENVIAR respuesta al mail de la SSS: urgenciasprestacionales@sssalud.org.ar
+${b("POR FAVOR ENVIAR respuesta al mail de la SSS:")} ${escaparHtml(email)}
 
-REFERENCIA: ${nombreEntidad} ${expediente.numero_ee}.
+${b("REFERENCIA:")} ${b(nombreEntidad)} ${b(expediente.numero_ee)}.
 
-En atención a la denuncia presentada por el/la Sr./Sra. ${(expediente.nombre_paciente || "").toUpperCase()} (CUIL ${expediente.dni_cuit_paciente || "—"}) contra la ${nombreEntidad} (${codigoLabel}), con motivo de ${expediente.motivo_denuncia || "—"}, se confiere traslado a la entidad denunciada para que, dentro del plazo de DOS (2) días hábiles contados NOTIFIQUE RESOLUCIÓN DE LA MISMA.
+En atención a la denuncia presentada por el/la Sr./Sra. ${b((expediente.nombre_paciente || "").toUpperCase())} (CUIL ${b(expediente.dni_cuit_paciente || "—")}) contra la ${b(nombreEntidad)} (${b(codigoLabel)}), con motivo de ${b(expediente.motivo_denuncia || "—")}, se confiere traslado a la entidad denunciada para que, dentro del plazo de DOS (2) días hábiles contados NOTIFIQUE RESOLUCIÓN DE LA MISMA.
 
-Notifíquese a la ${nombreEntidad} (${codigoLabel}), acompañando copia de la denuncia y de toda la documental respaldatoria correspondiente.
+Notifíquese a la ${b(nombreEntidad)} (${b(codigoLabel)}), acompañando copia de la denuncia y de toda la documental respaldatoria correspondiente.
 
-DIAGNÓSTICO: ${(expediente.diagnostico_detalle || "").toUpperCase()}
-${tratamiento ? `\nTRATAMIENTO ${tratamiento.toUpperCase()}\n` : ""}
-Medicación Indicada:
+${b("DIAGNÓSTICO:")} ${b((expediente.diagnostico_detalle || "").toUpperCase())}
+${tratamiento ? `\n${b(`TRATAMIENTO ${tratamiento.toUpperCase()}`)}\n` : ""}
+${b("Medicación Indicada:")}
 ${listaDrogas}
 
-POR FAVOR ENVIAR respuesta al mail de la SSS: urgenciasprestacionales@sssalud.org.ar
+${b("POR FAVOR ENVIAR respuesta al mail de la SSS:")} ${escaparHtml(email)}
 UNA VEZ RESUELTA LA DENUNCIA/RECLAMO.`;
 }
 
-function textoMailAfiliado(expediente) {
+function htmlMailAfiliado(expediente) {
   const medicamentos = expediente.expediente_medicamentos || [];
   const listaDrogas = medicamentos.map(m => {
     const droga = drogas.find(d => String(d.id) === String(m.droga_id));
-    return `- ${droga?.nombre || ""}${m.dosis ? ` (Dosis: ${m.dosis})` : ""}`;
+    return `- ${b(`${droga?.nombre || ""}${m.dosis ? ` (Dosis: ${m.dosis})` : ""}`)}`;
   }).join("\n") || "- (sin drogas cargadas)";
 
-  return `Estimado/a ${expediente.nombre_paciente || ""},
+  return `Estimado/a ${b(expediente.nombre_paciente || "")},
 
-Para dar continuidad al trámite del expediente Nº ${expediente.numero_ee}, referido a la medicación:
+Para dar continuidad al trámite del expediente Nº ${b(expediente.numero_ee)}, referido a la medicación:
 
 ${listaDrogas}
 
@@ -2317,9 +2320,10 @@ function abrirModalMail(tipo) {
   tratamientoInput.value = "";
 
   const regenerar = () => {
-    document.getElementById("mail-texto").value = tipo === "os"
-      ? textoMailObraSocial(expediente, tratamientoInput.value.trim())
-      : textoMailAfiliado(expediente);
+    const html = tipo === "os"
+      ? htmlMailObraSocial(expediente, tratamientoInput.value.trim())
+      : htmlMailAfiliado(expediente);
+    document.getElementById("mail-texto").innerHTML = html.replace(/\n/g, "<br>");
   };
   regenerar();
   tratamientoInput.oninput = regenerar;
@@ -4537,9 +4541,24 @@ async function initBrowser() {
   document.getElementById("mail-modal-close")?.addEventListener("click", () => cerrarModal("mail-modal"));
   document.getElementById("mail-cerrar")?.addEventListener("click", () => cerrarModal("mail-modal"));
   document.getElementById("mail-copiar")?.addEventListener("click", async () => {
-    const texto = document.getElementById("mail-texto")?.value || "";
-    try { await navigator.clipboard.writeText(texto); mostrarToast("Texto copiado al portapapeles."); }
-    catch { mostrarToast("No se pudo copiar automáticamente: seleccioná el texto y copiá con Ctrl+C."); }
+    const div = document.getElementById("mail-texto");
+    const html = div?.innerHTML || "";
+    const texto = div?.innerText || "";
+    try {
+      if (window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": new Blob([texto], { type: "text/plain" }),
+            "text/html": new Blob([html], { type: "text/html" })
+          })
+        ]);
+      } else {
+        await navigator.clipboard.writeText(texto);
+      }
+      mostrarToast("Texto copiado (con negrita) al portapapeles.");
+    } catch {
+      mostrarToast("No se pudo copiar automáticamente: seleccioná el texto y copiá con Ctrl+C.");
+    }
   });
   document.getElementById("expediente-adjunto-agregar")?.addEventListener("click", handleAgregarAdjunto);
 
