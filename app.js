@@ -14,7 +14,8 @@ const views = {
   "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" },
   "px-preexistencias": { title: "Preexistencias", subtitle: "Casos de preexistencia por EMP" },
   "px-emp": { title: "Estadísticas", subtitle: "Historial de solicitudes por EMP y patología" },
-  "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" }
+  "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" },
+  "px-plantillas": { title: "Plantillas", subtitle: "Párrafo legal de apertura del informe INFFC" }
 };
 
 const manualesSeccion = {
@@ -27,6 +28,7 @@ const manualesSeccion = {
   "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`,
   "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
+  "px-plantillas": `<strong>Qué hacer en Plantillas de Preexistencias</strong><ul><li>El párrafo legal (Ley 26.682) que abre cada informe INFFC se elige acá.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`,
   "px-emp": `<strong>Qué hacer en Estadísticas</strong><ul><li>Muestra cuántas preexistencias se solicitaron, agrupadas por EMP y por patología.</li><li>Buscá por nombre de EMP o de patología.</li></ul>`
 };
@@ -67,6 +69,8 @@ let plantillas = [];
 let plantillasCargadas = false;
 let pxPatologias = [];
 let pxPatologiasCargadas = false;
+let pxPlantillas = [];
+let pxPlantillasCargadas = false;
 let expedientes = [];
 let expedientesCargadas = false;
 let obrasSocialesTodas = [];
@@ -236,7 +240,7 @@ function perfilPuedeVerVista(perfil, vista) {
 
   // Preexistencias: Administrador ve todo; "Admin Preexistencias" ve Preexistencias y EMP, pero no el catálogo de Patologías.
   if (id.startsWith("px-")) {
-    if (id === "px-patologias") return esAdministrador;
+    if (id === "px-patologias" || id === "px-plantillas") return esAdministrador;
     return esAdministrador || p === "admin preexistencias";
   }
 
@@ -286,6 +290,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
+  document.querySelector('[data-view="px-plantillas"]')?.toggleAttribute("hidden", !esAdministrador);
 }
 
 function normalizar(texto) {
@@ -2603,6 +2608,148 @@ async function handleEliminarPxPatologia() {
   }
 }
 
+// ---------- Preexistencias: Plantillas ----------
+
+function buildPxPlantillasUrl(id = null) {
+  const params = { select: "id,nombre,texto_legal,created_at", order: "nombre.asc" };
+  if (id) params.id = `eq.${id}`;
+  return buildTableUrl("preexistencias_plantillas", params);
+}
+
+async function cargarPxPlantillasDesdeSupabase() {
+  const response = await fetchConTimeout(buildPxPlantillasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function asegurarPxPlantillasCargadas() {
+  if (!pxPlantillasCargadas) {
+    try { pxPlantillas = await cargarPxPlantillasDesdeSupabase(); pxPlantillasCargadas = true; }
+    catch (error) { console.error("Error cargando plantillas de preexistencias:", error); }
+  }
+}
+
+async function cargarYRenderizarPxPlantillas() {
+  const count = document.getElementById("px-plantilla-count");
+  if (count) count.textContent = "Cargando plantillas...";
+  try {
+    pxPlantillas = await cargarPxPlantillasDesdeSupabase();
+    pxPlantillasCargadas = true;
+    renderPxPlantillas();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar las plantillas.${error?.message ? " " + error.message : ""}`;
+    console.error(error);
+  }
+}
+
+function renderPxPlantillas() {
+  const tbody = document.getElementById("px-plantilla-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = pxPlantillas.map(p => `
+    <tr class="os-row" data-edit-px-plantilla="${p.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
+      <td><strong>${escaparHtml(p.nombre)}</strong></td>
+      <td></td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("px-plantilla-count");
+  if (count) count.textContent = `${pxPlantillas.length} plantilla${pxPlantillas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("px-plantilla-empty");
+  if (empty) empty.hidden = pxPlantillas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-px-plantilla]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionPxPlantilla(row.dataset.editPxPlantilla));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+function resetFormularioPxPlantilla() {
+  document.getElementById("px-plantilla-form")?.reset();
+  document.getElementById("px-plantilla-id").value = "";
+  document.getElementById("px-plantilla-eliminar")?.setAttribute("hidden", "");
+  setFormMessage("px-plantilla-form-message");
+}
+
+function abrirModalNuevaPxPlantilla() {
+  resetFormularioPxPlantilla();
+  document.getElementById("px-plantilla-modal-title").textContent = "Nueva plantilla";
+  abrirModal("px-plantilla-modal");
+  setTimeout(() => document.getElementById("px-plantilla-nombre")?.focus(), 0);
+}
+
+function abrirModalEdicionPxPlantilla(id) {
+  const p = pxPlantillas.find(item => String(item.id) === String(id));
+  if (!p) return;
+  resetFormularioPxPlantilla();
+  document.getElementById("px-plantilla-id").value = p.id;
+  document.getElementById("px-plantilla-nombre").value = p.nombre || "";
+  document.getElementById("px-plantilla-texto-legal").value = p.texto_legal || "";
+  document.getElementById("px-plantilla-eliminar")?.removeAttribute("hidden");
+  document.getElementById("px-plantilla-modal-title").textContent = "Editar plantilla";
+  abrirModal("px-plantilla-modal");
+}
+
+async function handlePxPlantillaSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("px-plantilla-save");
+  setFormMessage("px-plantilla-form-message");
+
+  const id = document.getElementById("px-plantilla-id")?.value || "";
+  const nombre = document.getElementById("px-plantilla-nombre")?.value.trim() || "";
+  if (!nombre) { setFormMessage("px-plantilla-form-message", "El nombre es obligatorio."); return; }
+
+  const registro = { nombre, texto_legal: document.getElementById("px-plantilla-texto-legal")?.value || "" };
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const editando = !!id;
+    const response = await fetchConTimeout(buildPxPlantillasUrl(editando ? id : null), {
+      method: editando ? "PATCH" : "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+
+    cerrarModal("px-plantilla-modal");
+    mostrarToast(editando ? "Plantilla actualizada." : "Plantilla creada.");
+    pxPlantillasCargadas = false;
+    await cargarYRenderizarPxPlantillas();
+  } catch (error) {
+    const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una plantilla con ese nombre." : (error.message || "No se pudo guardar la plantilla.");
+    setFormMessage("px-plantilla-form-message", mensaje);
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarPxPlantilla() {
+  const id = document.getElementById("px-plantilla-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar esta plantilla? Esta acción no se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("preexistencias_plantillas", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(/foreign key|23503/i.test(detalle || "") ? "No se puede eliminar: está usada en una o más preexistencias." : (detalle || `Supabase respondió ${response.status}.`));
+    }
+    cerrarModal("px-plantilla-modal");
+    mostrarToast("Plantilla eliminada.");
+    pxPlantillasCargadas = false;
+    await cargarYRenderizarPxPlantillas();
+  } catch (error) {
+    setFormMessage("px-plantilla-form-message", error.message || "No se pudo eliminar la plantilla.");
+  }
+}
+
 // ---------- Preexistencias ----------
 
 let preexistencias = [];
@@ -2627,7 +2774,8 @@ function buildPreexistenciasUrl(id = null) {
     select: "id,numero_ex,emp_id,nombre_afiliado,dni_cuit_afiliado,patologia_id,fecha_ingreso,estado," +
       "texto_declaracion_jurada,esquema_propuesto,prestaciones_desestimadas," +
       "preexistencias_patologias(nombre,caracter,texto_desarrollo,referencias)," +
-      "preexistencias_profesionales(id,nombre,profesion)",
+      "preexistencias_profesionales(id,nombre,profesion)," +
+      "preexistencias_plantillas(texto_legal)",
     order: "fecha_ingreso.desc"
   };
   if (id) params.id = `eq.${id}`;
@@ -2707,6 +2855,14 @@ function poblarSelectPxPatologias() {
   select.value = actual;
 }
 
+function poblarSelectPxPlantillasPreexistencia() {
+  const select = document.getElementById("preexistencia-plantilla");
+  if (!select) return;
+  const actual = select.value;
+  select.innerHTML = `<option value="">Elegir plantilla...</option>` + pxPlantillas.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join("");
+  select.value = actual || (pxPlantillas[0]?.id || "");
+}
+
 function resetFormularioPreexistencia() {
   document.getElementById("preexistencia-form")?.reset();
   document.getElementById("preexistencia-id").value = "";
@@ -2718,6 +2874,7 @@ function resetFormularioPreexistencia() {
   renderProfesionalesPxSubform();
   document.getElementById("preexistencia-fecha-ingreso").value = new Date().toISOString().slice(0, 10);
   poblarSelectPxPatologias();
+  poblarSelectPxPlantillasPreexistencia();
   poblarDatalistEmp();
   document.getElementById("preexistencia-informe-actions")?.setAttribute("hidden", "");
   document.getElementById("preexistencia-informe-hint")?.removeAttribute("hidden");
@@ -2732,7 +2889,7 @@ function resetFormularioPreexistencia() {
 }
 
 async function abrirModalNuevaPreexistencia() {
-  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas()]);
+  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas(), asegurarPxPlantillasCargadas()]);
   resetFormularioPreexistencia();
   document.getElementById("preexistencia-modal-title").textContent = "Nueva preexistencia";
   abrirModal("preexistencia-modal");
@@ -2740,7 +2897,7 @@ async function abrirModalNuevaPreexistencia() {
 }
 
 async function abrirModalEdicionPreexistencia(id) {
-  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas()]);
+  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas(), asegurarPxPlantillasCargadas()]);
   const p = preexistencias.find(item => String(item.id) === String(id));
   if (!p) return;
   resetFormularioPreexistencia();
@@ -2749,6 +2906,7 @@ async function abrirModalEdicionPreexistencia(id) {
   document.getElementById("preexistencia-numero-ex").value = p.numero_ex || "";
   document.getElementById("preexistencia-estado").value = p.estado || "Abierto";
   document.getElementById("preexistencia-fecha-ingreso").value = p.fecha_ingreso || "";
+  document.getElementById("preexistencia-plantilla").value = p.plantilla_id || "";
 
   const empInput = document.getElementById("preexistencia-emp-input");
   empInput.value = etiquetaObraSocial(p.emp_id);
@@ -2805,6 +2963,7 @@ async function handlePreexistenciaSubmit(event) {
     nombre_afiliado: nombreAfiliado,
     dni_cuit_afiliado: document.getElementById("preexistencia-dni-afiliado")?.value.trim() || null,
     patologia_id: document.getElementById("preexistencia-patologia")?.value || null,
+    plantilla_id: document.getElementById("preexistencia-plantilla")?.value || null,
     texto_declaracion_jurada: document.getElementById("preexistencia-declaracion")?.value || null,
     esquema_propuesto: document.getElementById("preexistencia-esquema")?.value || null,
     prestaciones_desestimadas: document.getElementById("preexistencia-desestimadas")?.value || null
@@ -2914,7 +3073,7 @@ async function generarInformeInffcDocx(px) {
   parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: "REF: ", bold: true, size: P }), new TextRun({ text: (px.nombre_afiliado || "").toUpperCase(), bold: true, size: P })] }));
   parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: "PREEX: ", bold: true, size: P }), new TextRun({ text: (patologia?.nombre || "").toUpperCase(), bold: true, size: P })] }));
 
-  const legal = "Según surge de los presentes actuados, y en base a lo determinado en el artículo Nº 10 de la Ley 26.682 y su Decreto Reglamentario 1993 del año 2011, donde se define que la Superintendencia de Servicios de Salud establecerá y determinará las situaciones de preexistencia que podrán ser de carácter temporario, crónico o de alto costo, puede manifestarse lo siguiente:";
+  const legal = px.preexistencias_plantillas?.texto_legal || "Según surge de los presentes actuados, y en base a lo determinado en el artículo Nº 10 de la Ley 26.682 y su Decreto Reglamentario 1993 del año 2011, donde se define que la Superintendencia de Servicios de Salud establecerá y determinará las situaciones de preexistencia que podrán ser de carácter temporario, crónico o de alto costo, puede manifestarse lo siguiente:";
   parrafos.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: legal, size: P })] }));
 
   const listaProfesionales = (px.preexistencias_profesionales || []).map(p => `${p.nombre}, ${p.profesion}`).join("; ");
@@ -3280,6 +3439,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
   if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
+  if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
   if (resolved === "px-emp" && !pxEmpReporteCargado) cargarYRenderizarPxEmp();
 }
@@ -5369,6 +5529,12 @@ async function initBrowser() {
   document.getElementById("px-patologia-cancelar")?.addEventListener("click", () => cerrarModal("px-patologia-modal"));
   document.getElementById("px-patologia-form")?.addEventListener("submit", handlePxPatologiaSubmit);
   document.getElementById("px-patologia-eliminar")?.addEventListener("click", handleEliminarPxPatologia);
+
+  document.getElementById("btn-nueva-px-plantilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPxPlantilla));
+  document.getElementById("px-plantilla-modal-close")?.addEventListener("click", () => cerrarModal("px-plantilla-modal"));
+  document.getElementById("px-plantilla-cancelar")?.addEventListener("click", () => cerrarModal("px-plantilla-modal"));
+  document.getElementById("px-plantilla-form")?.addEventListener("submit", handlePxPlantillaSubmit);
+  document.getElementById("px-plantilla-eliminar")?.addEventListener("click", handleEliminarPxPlantilla);
 
   document.getElementById("preexistencia-search")?.addEventListener("input", renderPreexistencias);
   document.getElementById("btn-nueva-preexistencia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPreexistencia));
