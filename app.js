@@ -2171,6 +2171,17 @@ async function subirInformeYRegistrar(expedienteId, tipo, blob, session) {
   });
   if (!uploadResp.ok) throw new Error("El informe se descargó, pero no se pudo guardar en el historial (subida al almacenamiento falló).");
   const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+
+  // Solo se conserva el último informe generado de cada tipo (IFSOL/IFDER) por expediente:
+  // se borran los anteriores del mismo tipo, tanto de la tabla como del almacenamiento.
+  const anterioresResp = await fetch(buildTableUrl("informes", { expediente_id: `eq.${expedienteId}`, tipo: `eq.${tipo}`, select: "id,archivo_url" }), { headers: { Accept: "application/json" } });
+  const anteriores = anterioresResp.ok ? await anterioresResp.json() : [];
+  for (const anterior of anteriores) {
+    await fetch(buildTableUrl("informes", { id: `eq.${anterior.id}` }), { method: "DELETE", headers: authHeaders(session.access_token) });
+    const pathAnterior = anterior.archivo_url?.split("/storage/v1/object/public/adjuntos/")[1];
+    if (pathAnterior) await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${pathAnterior}`, { method: "DELETE", headers: authHeaders(session.access_token) });
+  }
+
   const insertResp = await fetch(buildTableUrl("informes", {}), {
     method: "POST",
     headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
