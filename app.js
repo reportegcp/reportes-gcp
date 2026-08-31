@@ -13,7 +13,7 @@ const views = {
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
   "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" },
   "px-preexistencias": { title: "Preexistencias", subtitle: "Casos de preexistencia por EMP" },
-  "px-emp": { title: "EMP", subtitle: "Historial de solicitudes por patología" },
+  "px-emp": { title: "Estadísticas", subtitle: "Historial de solicitudes por EMP y patología" },
   "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" }
 };
 
@@ -28,7 +28,7 @@ const manualesSeccion = {
   "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`,
   "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`,
-  "px-emp": `<strong>Qué hacer en EMP</strong><ul><li>Muestra cuántas preexistencias se solicitaron, agrupadas por EMP y por patología.</li><li>Buscá por nombre de EMP o de patología.</li></ul>`
+  "px-emp": `<strong>Qué hacer en Estadísticas</strong><ul><li>Muestra cuántas preexistencias se solicitaron, agrupadas por EMP y por patología.</li><li>Buscá por nombre de EMP o de patología.</li></ul>`
 };
 
 let obrasSociales = [];
