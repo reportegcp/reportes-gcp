@@ -1646,6 +1646,46 @@ function etiquetaObraSocial(id) {
   return `${o.denominacion}${codigo ? ` (${codigo})` : ""}`;
 }
 
+function buildFilialesUrl(params = {}) {
+  return buildTableUrl("filiales", { select: "id,nombre,localidad,provincia", order: "nombre.asc", ...params });
+}
+
+async function poblarSelectFiliales(obraSocialId, seleccionarId = "") {
+  const select = document.getElementById("expediente-filial-select");
+  if (!select) return;
+  if (!obraSocialId) {
+    select.innerHTML = `<option value="">Sin filial específica</option>`;
+    select.disabled = true;
+    return;
+  }
+  select.disabled = false;
+  const response = await fetchConTimeout(buildFilialesUrl({ obra_social_id: `eq.${obraSocialId}` }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  const filiales = response.ok ? await response.json() : [];
+  select.innerHTML = `<option value="">Sin filial específica</option>` + filiales.map(f => `<option value="${f.id}">${escaparHtml(f.nombre)}${f.localidad ? ` (${escaparHtml(f.localidad)})` : ""}</option>`).join("");
+  if (seleccionarId) select.value = seleccionarId;
+}
+
+async function handleAgregarFilial() {
+  const osInput = document.getElementById("expediente-os-input");
+  const obraSocialId = osInput?.dataset.selectedId;
+  if (!obraSocialId) { setFormMessage("expediente-form-message", "Elegí primero la Obra Social/EMP para poder agregarle una filial."); return; }
+  const nombre = prompt("Nombre de la nueva filial:");
+  if (!nombre || !nombre.trim()) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("filiales", {}), {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify({ obra_social_id: obraSocialId, nombre: nombre.trim() })
+    }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || "No se pudo crear la filial.");
+    const filas = await response.json();
+    mostrarToast("Filial agregada.");
+    await poblarSelectFiliales(obraSocialId, filas[0]?.id);
+  } catch (error) {
+    setFormMessage("expediente-form-message", error.message || "No se pudo crear la filial.");
+  }
+}
+
 async function asegurarCatalogosExpedienteCargados() {
   await Promise.all([
     asegurarPatologiasCargadas(),
@@ -1822,6 +1862,7 @@ function resetFormularioExpediente() {
   document.getElementById("expediente-adjuntos-list").innerHTML = "";
   document.getElementById("expediente-os-input").value = "";
   document.getElementById("expediente-os-input").dataset.selectedId = "";
+  poblarSelectFiliales("");
   modalDrogasExpediente = [];
   modalDrogasExpedienteOriginales = [];
   poblarSelectPatologiasExpediente();
@@ -1871,6 +1912,7 @@ async function abrirModalEdicionExpediente(id) {
   const osInput = document.getElementById("expediente-os-input");
   osInput.value = etiquetaObraSocial(e.obra_social_id);
   osInput.dataset.selectedId = e.obra_social_id || "";
+  await poblarSelectFiliales(e.obra_social_id, e.filial_id);
 
   document.getElementById("expediente-patologia").value = e.patologia_id || "";
   document.getElementById("expediente-motivo").value = e.motivo_denuncia || "";
@@ -1931,6 +1973,7 @@ async function handleExpedienteSubmit(event) {
     denunciante_dni_cuit: esDenunciante ? "" : (document.getElementById("expediente-denunciante-dni")?.value.trim() || ""),
     obra_social_id: obraSocialId,
     patologia_id: document.getElementById("expediente-patologia")?.value || null,
+    filial_id: document.getElementById("expediente-filial-select")?.value || null,
     motivo_denuncia: document.getElementById("expediente-motivo")?.value.trim() || null,
     diagnostico_detalle: diagnostico,
     resumen_hc: document.getElementById("expediente-resumen-hc")?.value || null,
@@ -4415,7 +4458,9 @@ async function initBrowser() {
   document.getElementById("expediente-droga-agregar")?.addEventListener("click", agregarDrogaTemporalExpediente);
   document.getElementById("expediente-os-input")?.addEventListener("change", event => {
     event.target.dataset.selectedId = obrasSocialesTodasPorEtiqueta.get(event.target.value) || "";
+    poblarSelectFiliales(event.target.dataset.selectedId);
   });
+  document.getElementById("expediente-filial-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarFilial));
   document.querySelectorAll("#expediente-form .form-section-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
       const seccion = btn.closest(".form-section");

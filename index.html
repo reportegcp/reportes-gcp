@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=70">
+  <link rel="stylesheet" href="styles.css?v=71">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -76,7 +76,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 70</span>
+        <span>Versión 71</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -750,6 +750,12 @@
                 <input id="expediente-os-input" type="text" list="expediente-os-datalist" placeholder="Escribí para buscar...">
                 <datalist id="expediente-os-datalist"></datalist>
               </label>
+              <label class="full"><span>Filial (opcional)</span>
+                <div style="display:flex;gap:8px">
+                  <select id="expediente-filial-select" style="flex:1"><option value="">Sin filial específica</option></select>
+                  <button type="button" class="secondary" id="expediente-filial-agregar" style="white-space:nowrap">+ Agregar filial</button>
+                </div>
+              </label>
               <label><span>Patología</span><select id="expediente-patologia"><option value="">Elegir patología...</option></select></label>
               <label><span>Motivo de la denuncia</span><input id="expediente-motivo" type="text" placeholder="Ej: Negativa de cobertura"></label>
               <label class="full"><span>Diagnóstico</span><textarea id="expediente-diagnostico" rows="2" required></textarea></label>
@@ -1048,6 +1054,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=70"></script>
+  <script src="app.js?v=71"></script>
 </body>
 </html>
