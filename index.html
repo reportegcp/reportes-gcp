@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=82">
+  <link rel="stylesheet" href="styles.css?v=83">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -87,7 +87,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 82</span>
+        <span>Versión 83</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -606,7 +606,25 @@
       </section>
 
       <section id="px-emp" class="view">
-        <div class="table-card"><div class="table-meta"><strong>EMP — en construcción.</strong></div></div>
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="px-emp-search" type="search" placeholder="Buscar por EMP o patología..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="px-emp-count">Cargando...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>EMP</th><th>Patología</th><th>Cantidad de preexistencias</th></tr></thead>
+              <tbody id="px-emp-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="px-emp-empty" hidden>No hay preexistencias cargadas todavía.</div>
+        </div>
       </section>
 
       <section id="px-patologias" class="view">
@@ -1234,6 +1252,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=82"></script>
+  <script src="app.js?v=83"></script>
 </body>
 </html>

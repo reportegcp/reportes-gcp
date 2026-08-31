@@ -27,7 +27,8 @@ const manualesSeccion = {
   "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`,
   "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
-  "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`
+  "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`,
+  "px-emp": `<strong>Qué hacer en EMP</strong><ul><li>Muestra cuántas preexistencias se solicitaron, agrupadas por EMP y por patología.</li><li>Buscá por nombre de EMP o de patología.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -3077,6 +3078,69 @@ async function handleEliminarAdjuntoPx(adjuntoId) {
   }
 }
 
+// ---------- Preexistencias: reporte EMP ----------
+
+let pxEmpReporte = [];
+let pxEmpReporteCargado = false;
+
+async function cargarYRenderizarPxEmp() {
+  const count = document.getElementById("px-emp-count");
+  if (count) count.textContent = "Cargando...";
+  try {
+    const params = { select: "emp_id,obras_sociales(denominacion,rnemp),preexistencias_patologias(nombre)" };
+    const response = await fetchConTimeout(buildTableUrl("preexistencias", params), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    const filas = await response.json();
+
+    const agrupado = new Map();
+    filas.forEach(f => {
+      const empNombre = f.obras_sociales ? `${f.obras_sociales.denominacion}${f.obras_sociales.rnemp ? ` (${f.obras_sociales.rnemp})` : ""}` : "(sin EMP asignada)";
+      const patologiaNombre = f.preexistencias_patologias?.nombre || "(sin patología asignada)";
+      const clave = `${empNombre}\u0001${patologiaNombre}`;
+      agrupado.set(clave, (agrupado.get(clave) || 0) + 1);
+    });
+
+    pxEmpReporte = [...agrupado.entries()]
+      .map(([clave, cantidad]) => {
+        const [emp, patologia] = clave.split("\u0001");
+        return { emp, patologia, cantidad };
+      })
+      .sort((a, b) => a.emp.localeCompare(b.emp) || a.patologia.localeCompare(b.patologia));
+
+    pxEmpReporteCargado = true;
+    renderPxEmp();
+  } catch (error) {
+    if (count) count.textContent = `No se pudo cargar el reporte.${error?.message ? " " + error.message : ""}`;
+    console.error(error);
+  }
+}
+
+function filtrarPxEmp(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(f => normalizar(f.emp).includes(termino) || normalizar(f.patologia).includes(termino));
+}
+
+function renderPxEmp() {
+  const tbody = document.getElementById("px-emp-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("px-emp-search")?.value || "";
+  const filtradas = filtrarPxEmp(pxEmpReporte, busqueda);
+
+  tbody.innerHTML = filtradas.map(f => `
+    <tr>
+      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.emp)}">${escaparHtml(f.emp)}</td>
+      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.patologia)}">${escaparHtml(f.patologia)}</td>
+      <td><strong>${f.cantidad}</strong></td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("px-emp-count");
+  if (count) count.textContent = `${filtradas.length} combinación${filtradas.length === 1 ? "" : "es"} EMP / patología`;
+  const empty = document.getElementById("px-emp-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -3138,6 +3202,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
+  if (resolved === "px-emp" && !pxEmpReporteCargado) cargarYRenderizarPxEmp();
 }
 
 function renderObrasSociales() {
@@ -5237,6 +5302,7 @@ async function initBrowser() {
   });
   document.getElementById("btn-generar-inffc")?.addEventListener("click", handleGenerarInformeInffc);
   document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
+  document.getElementById("px-emp-search")?.addEventListener("input", renderPxEmp);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
