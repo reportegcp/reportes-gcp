@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=83">
+  <link rel="stylesheet" href="styles.css?v=84">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -87,7 +87,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 83</span>
+        <span>Versión 84</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1001,8 +1001,15 @@
         <div class="form-section collapsed" data-section="px-informe">
           <button type="button" class="form-section-toggle"><span>Informe</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
           <div class="form-section-body">
+            <h3 style="font-size:13px;color:#4d5d70;margin:10px 0 8px">Profesionales que firman la Declaración Jurada</h3>
+            <div id="preexistencia-profesionales-list" class="subform-list"></div>
+            <div class="subform-add-row">
+              <input id="preexistencia-profesional-nombre" type="text" placeholder="Nombre (ej: Dra. Josefina Liparl)">
+              <input id="preexistencia-profesional-profesion" type="text" placeholder="Profesión (ej: psicóloga)">
+              <button type="button" class="secondary" id="preexistencia-profesional-agregar" style="grid-column:3/5">+ Agregar profesional</button>
+            </div>
             <div class="form-grid">
-              <label class="full"><span>Declaración jurada (profesionales que firman y diagnóstico)</span><textarea id="preexistencia-declaracion" rows="4" class="textarea-grande"></textarea></label>
+              <label class="full"><span>Descripción del diagnóstico (va después de "...la/el beneficiaria/o presenta")</span><textarea id="preexistencia-declaracion" rows="3" class="textarea-grande" placeholder="Ej: trastornos generalizados del desarrollo, con diagnóstico de TGD. Cabe aclarar que posee CUD."></textarea></label>
               <label class="full"><span>Esquema propuesto (prestaciones aprobadas)</span><textarea id="preexistencia-esquema" rows="5" class="textarea-grande"></textarea></label>
               <label class="full"><span>Prestaciones a desestimar</span><textarea id="preexistencia-desestimadas" rows="4" class="textarea-grande"></textarea></label>
             </div>
@@ -1252,6 +1259,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=83"></script>
+  <script src="app.js?v=84"></script>
 </body>
 </html>

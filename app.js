@@ -2608,6 +2608,8 @@ async function handleEliminarPxPatologia() {
 let preexistencias = [];
 let preexistenciasCargadas = false;
 let empSoloPorEtiqueta = new Map();
+let modalProfesionalesPx = [];
+let modalProfesionalesPxOriginales = [];
 
 function poblarDatalistEmp() {
   const datalist = document.getElementById("preexistencia-emp-datalist");
@@ -2624,7 +2626,8 @@ function buildPreexistenciasUrl(id = null) {
   const params = {
     select: "id,numero_ex,emp_id,nombre_afiliado,dni_cuit_afiliado,patologia_id,fecha_ingreso,estado," +
       "texto_declaracion_jurada,esquema_propuesto,prestaciones_desestimadas," +
-      "preexistencias_patologias(nombre,caracter,texto_desarrollo,referencias)",
+      "preexistencias_patologias(nombre,caracter,texto_desarrollo,referencias)," +
+      "preexistencias_profesionales(id,nombre,profesion)",
     order: "fecha_ingreso.desc"
   };
   if (id) params.id = `eq.${id}`;
@@ -2710,6 +2713,9 @@ function resetFormularioPreexistencia() {
   document.getElementById("preexistencia-eliminar")?.setAttribute("hidden", "");
   document.getElementById("preexistencia-emp-input").value = "";
   document.getElementById("preexistencia-emp-input").dataset.selectedId = "";
+  modalProfesionalesPx = [];
+  modalProfesionalesPxOriginales = [];
+  renderProfesionalesPxSubform();
   document.getElementById("preexistencia-fecha-ingreso").value = new Date().toISOString().slice(0, 10);
   poblarSelectPxPatologias();
   poblarDatalistEmp();
@@ -2752,6 +2758,9 @@ async function abrirModalEdicionPreexistencia(id) {
   document.getElementById("preexistencia-dni-afiliado").value = p.dni_cuit_afiliado || "";
   document.getElementById("preexistencia-patologia").value = p.patologia_id || "";
   document.getElementById("preexistencia-declaracion").value = p.texto_declaracion_jurada || "";
+  modalProfesionalesPx = (p.preexistencias_profesionales || []).map(pr => ({ id: pr.id, nombre: pr.nombre, profesion: pr.profesion }));
+  modalProfesionalesPxOriginales = modalProfesionalesPx.map(pr => pr.id);
+  renderProfesionalesPxSubform();
   document.getElementById("preexistencia-esquema").value = p.esquema_propuesto || "";
   document.getElementById("preexistencia-desestimadas").value = p.prestaciones_desestimadas || "";
 
@@ -2814,6 +2823,29 @@ async function handlePreexistenciaSubmit(event) {
       const detalle = await leerErrorApi(response);
       throw new Error(/duplicate|unique|23505/i.test(detalle || "") ? "Ya existe una preexistencia con ese Nº EX." : (detalle || `Supabase respondió ${response.status}.`));
     }
+    const filas = await response.json();
+    const preexistenciaId = editando ? id : filas[0]?.id;
+    if (!preexistenciaId) throw new Error("No se pudo obtener el id de la preexistencia guardada.");
+
+    // Sincronizar profesionales por diferencia (mismo patrón que marcas comerciales en Catálogo de drogas).
+    const actualesIds = modalProfesionalesPx.filter(p => p.id).map(p => p.id);
+    const aBorrar = modalProfesionalesPxOriginales.filter(pid => !actualesIds.includes(pid));
+    for (const pid of aBorrar) {
+      await fetch(buildTableUrl("preexistencias_profesionales", { id: `eq.${pid}` }), { method: "DELETE", headers: authHeaders(session.access_token) });
+    }
+    for (const p of modalProfesionalesPx) {
+      if (p.id) {
+        await fetch(buildTableUrl("preexistencias_profesionales", { id: `eq.${p.id}` }), {
+          method: "PATCH", headers: authHeaders(session.access_token),
+          body: JSON.stringify({ nombre: p.nombre, profesion: p.profesion })
+        });
+      } else {
+        await fetch(buildTableUrl("preexistencias_profesionales", {}), {
+          method: "POST", headers: authHeaders(session.access_token),
+          body: JSON.stringify({ preexistencia_id: preexistenciaId, nombre: p.nombre, profesion: p.profesion })
+        });
+      }
+    }
 
     cerrarModal("preexistencia-modal");
     mostrarToast(editando ? "Preexistencia actualizada." : "Preexistencia creada.");
@@ -2871,7 +2903,11 @@ async function generarInformeInffcDocx(px) {
   const legal = "Según surge de los presentes actuados, y en base a lo determinado en el artículo Nº 10 de la Ley 26.682 y su Decreto Reglamentario 1993 del año 2011, donde se define que la Superintendencia de Servicios de Salud establecerá y determinará las situaciones de preexistencia que podrán ser de carácter temporario, crónico o de alto costo, puede manifestarse lo siguiente:";
   parrafos.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: legal, size: P })] }));
 
-  parrafos.push(...parrafosDesdeTexto(px.texto_declaracion_jurada, P, false));
+  const listaProfesionales = (px.preexistencias_profesionales || []).map(p => `${p.nombre}, ${p.profesion}`).join("; ");
+  const declaracionCompleta = [
+    listaProfesionales ? `Según consta en Declaración Jurada e Informe Profesional de ${listaProfesionales}, el/la beneficiario/a ${px.nombre_afiliado || ""} presenta ${px.texto_declaracion_jurada || ""}` : (px.texto_declaracion_jurada || "")
+  ].join("");
+  parrafos.push(...parrafosDesdeTexto(declaracionCompleta, P, false));
 
   if (patologia) {
     parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [
@@ -2983,6 +3019,35 @@ async function handleGenerarInformeInffc() {
   } catch (error) {
     setFormMessage("preexistencia-form-message", error.message || "No se pudo generar el informe.");
   }
+}
+
+function renderProfesionalesPxSubform() {
+  const cont = document.getElementById("preexistencia-profesionales-list");
+  if (!cont) return;
+  cont.innerHTML = modalProfesionalesPx.map((p, i) => `
+    <div class="subform-item subform-item-compact" title="${escaparHtml(p.nombre)} — ${escaparHtml(p.profesion)}">
+      <div class="subform-item-text"><strong>${escaparHtml(p.nombre)}</strong> — ${escaparHtml(p.profesion)}</div>
+      <button type="button" class="subform-item-remove" data-quitar-profesional-px="${i}" aria-label="Quitar">×</button>
+    </div>
+  `).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin profesionales cargados.</p>`;
+
+  cont.querySelectorAll("[data-quitar-profesional-px]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      modalProfesionalesPx.splice(Number(btn.dataset.quitarProfesionalPx), 1);
+      renderProfesionalesPxSubform();
+    });
+  });
+}
+
+function agregarProfesionalPxTemporal() {
+  const nombre = document.getElementById("preexistencia-profesional-nombre")?.value.trim();
+  const profesion = document.getElementById("preexistencia-profesional-profesion")?.value.trim();
+  if (!nombre || !profesion) { setFormMessage("preexistencia-form-message", "Completá nombre y profesión para agregar un profesional."); return; }
+  setFormMessage("preexistencia-form-message");
+  modalProfesionalesPx.push({ nombre, profesion });
+  document.getElementById("preexistencia-profesional-nombre").value = "";
+  document.getElementById("preexistencia-profesional-profesion").value = "";
+  renderProfesionalesPxSubform();
 }
 
 // ---------- Preexistencias: adjuntos ----------
@@ -5302,6 +5367,7 @@ async function initBrowser() {
   });
   document.getElementById("btn-generar-inffc")?.addEventListener("click", handleGenerarInformeInffc);
   document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
+  document.getElementById("preexistencia-profesional-agregar")?.addEventListener("click", agregarProfesionalPxTemporal);
   document.getElementById("px-emp-search")?.addEventListener("input", renderPxEmp);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
