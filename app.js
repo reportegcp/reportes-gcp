@@ -11,7 +11,10 @@ const views = {
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
-  "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" }
+  "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" },
+  "px-preexistencias": { title: "Preexistencias", subtitle: "Casos de preexistencia por EMP" },
+  "px-emp": { title: "EMP", subtitle: "Historial de solicitudes por patología" },
+  "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" }
 };
 
 const manualesSeccion = {
@@ -221,9 +224,16 @@ function normalizarPerfilAcceso(perfil) {
 function perfilPuedeVerVista(perfil, vista) {
   const id = Object.prototype.hasOwnProperty.call(views, vista) ? vista : "inicio";
   const p = normalizarPerfilAcceso(perfil);
+  const esAdministrador = ["administrador", "admin"].includes(p);
 
   // Urgencias Prestacionales: exclusivo del perfil "Administrador", ni siquiera "Admin Prestacional" entra.
-  if (id.startsWith("up-")) return ["administrador", "admin"].includes(p);
+  if (id.startsWith("up-")) return esAdministrador;
+
+  // Preexistencias: Administrador ve todo; "Admin Preexistencias" ve Preexistencias y EMP, pero no el catálogo de Patologías.
+  if (id.startsWith("px-")) {
+    if (id === "px-patologias") return esAdministrador;
+    return esAdministrador || p === "admin preexistencias";
+  }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes"].includes(id);
@@ -262,12 +272,15 @@ function aplicarPermisosNavegacion() {
   const esAdminPresentaciones = p === "admin presentaciones";
   const esCargaPresentaciones = p === "carga presentaciones";
   const esAdministrador = ["administrador", "admin"].includes(p);
+  const esAdminPreexistencias = p === "admin preexistencias";
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="reportes"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
+  document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
+  document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
 }
 
 function normalizar(texto) {
@@ -2442,7 +2455,8 @@ function showView(id, updateHistory = true) {
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
-      (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales");
+      (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
+      (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
@@ -2451,6 +2465,9 @@ function showView(id, updateHistory = true) {
   }
   if (resolved.startsWith("up-")) {
     document.querySelector('[data-nav-group="urgencias-prestacionales"]')?.classList.add("active");
+  }
+  if (resolved.startsWith("px-")) {
+    document.querySelector('[data-nav-group="preexistencias"]')?.classList.add("active");
   }
 
   const meta = views[resolved];
