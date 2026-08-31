@@ -2113,17 +2113,17 @@ async function generarInformeDocx(expediente, tipo) {
     parrafos.push(new Paragraph({ text: "" }));
   }
 
-  parrafos.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "Medicación solicitada:", bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Medicación solicitada:", bold: true, size: P })] }));
   medicamentos.forEach((m, i) => {
     const droga = drogas.find(d => String(d.id) === String(m.droga_id));
     const marca = (droga?.marcas_comerciales || []).find(mc => String(mc.id) === String(m.marca_id));
     const encabezado = medicamentos.length > 1 ? `${i + 1}) ${droga?.nombre || ""}` : (droga?.nombre || "");
-    parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: encabezado, bold: true, size: P })] }));
+    parrafos.push(new Paragraph({ spacing: { after: 60 }, keepNext: true, children: [new TextRun({ text: encabezado, bold: true, size: P })] }));
     if (marca) {
-      parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `Marca comercial: ${marca.nombre_comercial}`, size: P })] }));
-      if (marca.numero_anmat) parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `Certificado ANMAT Nº ${marca.numero_anmat}`, size: P })] }));
+      parrafos.push(new Paragraph({ spacing: { after: 60 }, keepNext: true, children: runsConNegritaAntesDeDosPuntos(`Marca comercial: ${marca.nombre_comercial}`, P) }));
+      if (marca.numero_anmat) parrafos.push(new Paragraph({ spacing: { after: 60 }, keepNext: true, children: runsConNegritaAntesDeDosPuntos(`Certificado ANMAT: Nº ${marca.numero_anmat}`, P) }));
     }
-    if (m.dosis) parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `Dosis: ${m.dosis}`, size: P })] }));
+    if (m.dosis) parrafos.push(new Paragraph({ spacing: { after: 60 }, keepNext: true, children: runsConNegritaAntesDeDosPuntos(`Dosis: ${m.dosis}`, P) }));
     parrafos.push(...parrafosDesdeHtml(fundamentacionParaExpediente(m.droga_id, expediente.patologia_id), P));
     parrafos.push(new Paragraph({ text: "" }));
   });
@@ -2193,7 +2193,7 @@ function renderHistorialInformesList(lista) {
     ? lista.map(i => `
       <div class="subform-item">
         <div class="subform-item-text"><strong>${escaparHtml(i.tipo)}</strong> — ${formatearFecha(i.fecha_generacion)}</div>
-        <a href="${escaparHtml(i.archivo_url)}" target="_blank" rel="noopener" class="secondary" style="text-decoration:none;padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap">Descargar</a>
+        <a href="${escaparHtml(i.archivo_url)}" download target="_blank" rel="noopener" class="secondary" style="text-decoration:none;padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap">Descargar</a>
       </div>`).join("")
     : `<p style="color:var(--muted);font-size:13px;margin:0">Todavía no se generó ningún informe para este expediente.</p>`;
 }
@@ -2222,26 +2222,35 @@ async function handleGenerarInforme(tipo) {
 // ---------- Generación de mails ----------
 
 function textoMailObraSocial(expediente, tratamiento) {
-  const osEtiqueta = etiquetaObraSocial(expediente.obra_social_id) || "la Obra Social/EMP";
+  const o = obrasSocialesTodas.find(item => String(item.id) === String(expediente.obra_social_id));
+  const codigoLabel = o ? (o.tipo === "Obra Social" ? `RNAS Nº ${o.rnos || "—"}` : `RNEMP Nº ${o.rnemp || "—"}`) : "";
+  const nombreEntidad = o ? `${o.denominacion}${o.sigla ? ` (${o.sigla})` : ""}` : "la Obra Social/EMP";
   const medicamentos = expediente.expediente_medicamentos || [];
   const listaDrogas = medicamentos.map(m => {
     const droga = drogas.find(d => String(d.id) === String(m.droga_id));
-    return `- ${droga?.nombre || ""}${m.dosis ? ` (Dosis: ${m.dosis})` : ""}`;
+    const nombre = (droga?.nombre || "").toUpperCase();
+    return `- ${nombre}${m.dosis ? ` ${m.dosis}` : ""}`;
   }).join("\n") || "- (sin drogas cargadas)";
 
-  return `Estimados de ${osEtiqueta},
+  return `Se envía por vía mail desde el área de Urgencias Prestacionales de la Gerencia de Control Prestacional (GCP) el trámite de resolución urgente.
 
-Por medio de la presente, en el marco del expediente Nº ${expediente.numero_ee}, correspondiente al afiliado ${expediente.nombre_paciente}${expediente.dni_cuit_paciente ? ` (CUIL Nº ${expediente.dni_cuit_paciente})` : ""}, se solicita la cobertura del tratamiento${tratamiento ? ` ${tratamiento}` : ""} con la siguiente medicación:
+La misma fue notificada vía formal x TAD a la obra social. Se reitera la misma y se adjunta la denuncia de la beneficiaria afectada con la correspondiente historia clínica e indicaciones médicas.
 
+POR FAVOR ENVIAR respuesta al mail de la SSS: urgenciasprestacionales@sssalud.org.ar
+
+REFERENCIA: ${nombreEntidad} ${expediente.numero_ee}.
+
+En atención a la denuncia presentada por el/la Sr./Sra. ${(expediente.nombre_paciente || "").toUpperCase()} (CUIL ${expediente.dni_cuit_paciente || "—"}) contra la ${nombreEntidad} (${codigoLabel}), con motivo de ${expediente.motivo_denuncia || "—"}, se confiere traslado a la entidad denunciada para que, dentro del plazo de DOS (2) días hábiles contados NOTIFIQUE RESOLUCIÓN DE LA MISMA.
+
+Notifíquese a la ${nombreEntidad} (${codigoLabel}), acompañando copia de la denuncia y de toda la documental respaldatoria correspondiente.
+
+DIAGNÓSTICO: ${(expediente.diagnostico_detalle || "").toUpperCase()}
+${tratamiento ? `\nTRATAMIENTO ${tratamiento.toUpperCase()}\n` : ""}
+Medicación Indicada:
 ${listaDrogas}
 
-DIAGNÓSTICO: ${expediente.diagnostico_detalle || "—"}
-
-Se recuerda que, conforme la normativa vigente, el Agente del Seguro de Salud cuenta con un plazo de 2 (dos) días hábiles para efectuar el traslado correspondiente.
-
-Quedamos a la espera de su respuesta a la brevedad.
-
-Saludos cordiales.`;
+POR FAVOR ENVIAR respuesta al mail de la SSS: urgenciasprestacionales@sssalud.org.ar
+UNA VEZ RESUELTA LA DENUNCIA/RECLAMO.`;
 }
 
 function textoMailAfiliado(expediente) {
