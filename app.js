@@ -2270,7 +2270,7 @@ ${b("POR FAVOR ENVIAR respuesta al mail de la SSS:")} ${escaparHtml(email)}
 
 ${b("REFERENCIA:")} ${b(nombreEntidad)} ${b(expediente.numero_ee)}.
 
-En atención a la denuncia presentada por el/la Sr./Sra. ${b((expediente.nombre_paciente || "").toUpperCase())} (CUIL ${b(expediente.dni_cuit_paciente || "—")}) contra la ${b(nombreEntidad)} (${b(codigoLabel)}), con motivo de ${b(expediente.motivo_denuncia || "—")}, se confiere traslado a la entidad denunciada para que, dentro del plazo de DOS (2) días hábiles contados NOTIFIQUE RESOLUCIÓN DE LA MISMA.
+En atención a la denuncia presentada por el/la Sr./Sra. ${b((expediente.nombre_paciente || "").toUpperCase())} (${b(`CUIL ${expediente.dni_cuit_paciente || "—"}`)}) contra la ${b(nombreEntidad)} (${b(codigoLabel)}), con motivo de ${b(expediente.motivo_denuncia || "—")}, se confiere traslado a la entidad denunciada para que, dentro del plazo de DOS (2) días hábiles contados NOTIFIQUE RESOLUCIÓN DE LA MISMA.
 
 Notifíquese a la ${b(nombreEntidad)} (${b(codigoLabel)}), acompañando copia de la denuncia y de toda la documental respaldatoria correspondiente.
 
