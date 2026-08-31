@@ -2111,7 +2111,6 @@ async function generarInformeDocx(expediente, tipo) {
 
   if (plantilla?.texto_apertura) {
     parrafos.push(...parrafosDesdeHtml(plantilla.texto_apertura, P));
-    parrafos.push(new Paragraph({ text: "" }));
   }
 
   parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Medicación solicitada:", bold: true, size: P })] }));
@@ -2126,12 +2125,10 @@ async function generarInformeDocx(expediente, tipo) {
     }
     if (m.dosis) parrafos.push(new Paragraph({ spacing: { after: 60 }, keepNext: true, children: runsConNegritaAntesDeDosPuntos(`Dosis: ${m.dosis}`, P) }));
     parrafos.push(...parrafosDesdeHtml(fundamentacionParaExpediente(m.droga_id, expediente.patologia_id), P));
-    parrafos.push(new Paragraph({ text: "" }));
   });
 
   if (plantilla?.texto_cierre_tecnico) {
     parrafos.push(...parrafosDesdeHtml(plantilla.texto_cierre_tecnico, P));
-    parrafos.push(new Paragraph({ text: "" }));
   }
 
   const cierre = tipo === "IFSOL"
