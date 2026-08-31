@@ -2292,7 +2292,7 @@ function htmlMailAfiliado(expediente) {
 
   return `Estimado/a ${b(expediente.nombre_paciente || "")},
 
-Para dar continuidad al trámite del expediente Nº ${b(expediente.numero_ee)}, referido a la medicación:
+Para dar continuidad al trámite del expediente ${b(`Nº ${expediente.numero_ee}`)}, referido a la medicación:
 
 ${listaDrogas}
 
