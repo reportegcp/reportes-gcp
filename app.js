@@ -2069,6 +2069,7 @@ function extraerLineasDesdeHtml(html) {
 }
 
 function runsConNegritaAntesDeDosPuntos(texto, size) {
+  const { TextRun } = window.docx;
   const m = texto.match(/^([^:]{1,70}):\s*(.+)$/);
   if (m) return [new TextRun({ text: `${m[1]}:`, bold: true, size }), new TextRun({ text: ` ${m[2]}`, size })];
   return [new TextRun({ text: texto, size })];
@@ -2190,12 +2191,30 @@ function renderHistorialInformesList(lista) {
   const cont = document.getElementById("expediente-informes-historial");
   if (!cont) return;
   cont.innerHTML = lista.length
-    ? lista.map(i => `
+    ? lista.map((i, idx) => `
       <div class="subform-item">
         <div class="subform-item-text"><strong>${escaparHtml(i.tipo)}</strong> — ${formatearFecha(i.fecha_generacion)}</div>
-        <a href="${escaparHtml(i.archivo_url)}" download target="_blank" rel="noopener" class="secondary" style="text-decoration:none;padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap">Descargar</a>
+        <button type="button" class="secondary" data-descargar-informe="${idx}" style="padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap">Descargar</button>
       </div>`).join("")
     : `<p style="color:var(--muted);font-size:13px;margin:0">Todavía no se generó ningún informe para este expediente.</p>`;
+
+  cont.querySelectorAll("[data-descargar-informe]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const item = lista[Number(btn.dataset.descargarInforme)];
+      const original = btn.textContent;
+      btn.disabled = true; btn.textContent = "Descargando...";
+      try {
+        const response = await fetch(item.archivo_url);
+        if (!response.ok) throw new Error();
+        const blob = await response.blob();
+        descargarBlob(blob, `${item.tipo}_${formatearFecha(item.fecha_generacion).replace(/\//g, "-")}.docx`);
+      } catch {
+        mostrarToast("No se pudo descargar el archivo. Probá abrir el link directamente: " + item.archivo_url);
+      } finally {
+        btn.disabled = false; btn.textContent = original;
+      }
+    });
+  });
 }
 
 async function actualizarHistorialInformes(expedienteId) {
