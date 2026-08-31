@@ -26,7 +26,8 @@ const manualesSeccion = {
   "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`,
-  "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
+  "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
+  "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -2601,6 +2602,481 @@ async function handleEliminarPxPatologia() {
   }
 }
 
+// ---------- Preexistencias ----------
+
+let preexistencias = [];
+let preexistenciasCargadas = false;
+let empSoloPorEtiqueta = new Map();
+
+function poblarDatalistEmp() {
+  const datalist = document.getElementById("preexistencia-emp-datalist");
+  if (!datalist) return;
+  empSoloPorEtiqueta = new Map();
+  obrasSocialesTodas.filter(o => o.tipo === "Empresa de Medicina Prepaga").forEach(o => {
+    const etiqueta = `${o.denominacion}${o.rnemp ? ` (${o.rnemp})` : ""}`;
+    empSoloPorEtiqueta.set(etiqueta, o.id);
+  });
+  datalist.innerHTML = [...empSoloPorEtiqueta.keys()].map(etiqueta => `<option value="${escaparHtml(etiqueta)}"></option>`).join("");
+}
+
+function buildPreexistenciasUrl(id = null) {
+  const params = {
+    select: "id,numero_ex,emp_id,nombre_afiliado,dni_cuit_afiliado,patologia_id,fecha_ingreso,estado," +
+      "texto_declaracion_jurada,esquema_propuesto,prestaciones_desestimadas," +
+      "preexistencias_patologias(nombre,caracter,texto_desarrollo,referencias)",
+    order: "fecha_ingreso.desc"
+  };
+  if (id) params.id = `eq.${id}`;
+  return buildTableUrl("preexistencias", params);
+}
+
+async function cargarPreexistenciasDesdeSupabase() {
+  const response = await fetchConTimeout(buildPreexistenciasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function cargarYRenderizarPreexistencias() {
+  const count = document.getElementById("preexistencia-count");
+  if (count) count.textContent = "Cargando preexistencias...";
+  try {
+    const [filas] = await Promise.all([cargarPreexistenciasDesdeSupabase(), asegurarObrasSocialesTodasCargadas()]);
+    preexistencias = filas;
+    preexistenciasCargadas = true;
+    renderPreexistencias();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar las preexistencias.${error?.message ? " " + error.message : ""}`;
+    console.error(error);
+  }
+}
+
+function filtrarPreexistencias(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(p =>
+    normalizar(p.numero_ex || "").includes(termino) ||
+    normalizar(p.nombre_afiliado || "").includes(termino) ||
+    normalizar(p.dni_cuit_afiliado || "").includes(termino)
+  );
+}
+
+function renderPreexistencias() {
+  const tbody = document.getElementById("preexistencia-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("preexistencia-search")?.value || "";
+  const filtradas = filtrarPreexistencias(preexistencias, busqueda);
+
+  tbody.innerHTML = filtradas.map(p => `
+    <tr class="os-row" data-edit-preexistencia="${p.id}" tabindex="0" role="button" title="Clic para editar">
+      <td class="ellipsis-cell" style="max-width:140px" title="${escaparHtml(p.numero_ex)}"><strong>${escaparHtml(p.numero_ex)}</strong></td>
+      <td class="ellipsis-cell" style="max-width:160px" title="${escaparHtml(etiquetaObraSocial(p.emp_id) || "")}">${escaparHtml(etiquetaObraSocial(p.emp_id) || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:130px" title="${escaparHtml(p.nombre_afiliado || "")}">${escaparHtml(p.nombre_afiliado || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:150px" title="${escaparHtml(p.preexistencias_patologias?.nombre || "")}">${escaparHtml(p.preexistencias_patologias?.nombre || "—")}</td>
+      <td>${escaparHtml(p.estado || "—")}</td>
+      <td class="date-cell">${formatearFecha(p.fecha_ingreso)}</td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("preexistencia-count");
+  if (count) count.textContent = `${filtradas.length} preexistencia${filtradas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("preexistencia-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-preexistencia]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionPreexistencia(row.dataset.editPreexistencia));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+function poblarSelectPxPatologias() {
+  const select = document.getElementById("preexistencia-patologia");
+  if (!select) return;
+  const actual = select.value;
+  select.innerHTML = `<option value="">Elegir patología...</option>` + pxPatologias.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join("");
+  select.value = actual;
+}
+
+function resetFormularioPreexistencia() {
+  document.getElementById("preexistencia-form")?.reset();
+  document.getElementById("preexistencia-id").value = "";
+  document.getElementById("preexistencia-eliminar")?.setAttribute("hidden", "");
+  document.getElementById("preexistencia-emp-input").value = "";
+  document.getElementById("preexistencia-emp-input").dataset.selectedId = "";
+  document.getElementById("preexistencia-fecha-ingreso").value = new Date().toISOString().slice(0, 10);
+  poblarSelectPxPatologias();
+  poblarDatalistEmp();
+  document.getElementById("preexistencia-informe-actions")?.setAttribute("hidden", "");
+  document.getElementById("preexistencia-informe-hint")?.removeAttribute("hidden");
+  document.getElementById("preexistencia-informes-historial").innerHTML = "";
+  document.getElementById("preexistencia-adjuntos-add")?.setAttribute("hidden", "");
+  document.getElementById("preexistencia-adjuntos-hint")?.removeAttribute("hidden");
+  document.getElementById("preexistencia-adjuntos-list").innerHTML = "";
+  setFormMessage("preexistencia-form-message");
+  document.querySelectorAll("#preexistencia-form .form-section").forEach(sec => {
+    sec.classList.toggle("collapsed", sec.dataset.section !== "px-datos");
+  });
+}
+
+async function abrirModalNuevaPreexistencia() {
+  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas()]);
+  resetFormularioPreexistencia();
+  document.getElementById("preexistencia-modal-title").textContent = "Nueva preexistencia";
+  abrirModal("preexistencia-modal");
+  setTimeout(() => document.getElementById("preexistencia-numero-ex")?.focus(), 0);
+}
+
+async function abrirModalEdicionPreexistencia(id) {
+  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas()]);
+  const p = preexistencias.find(item => String(item.id) === String(id));
+  if (!p) return;
+  resetFormularioPreexistencia();
+
+  document.getElementById("preexistencia-id").value = p.id;
+  document.getElementById("preexistencia-numero-ex").value = p.numero_ex || "";
+  document.getElementById("preexistencia-estado").value = p.estado || "Abierto";
+  document.getElementById("preexistencia-fecha-ingreso").value = p.fecha_ingreso || "";
+
+  const empInput = document.getElementById("preexistencia-emp-input");
+  empInput.value = etiquetaObraSocial(p.emp_id);
+  empInput.dataset.selectedId = p.emp_id || "";
+
+  document.getElementById("preexistencia-nombre-afiliado").value = p.nombre_afiliado || "";
+  document.getElementById("preexistencia-dni-afiliado").value = p.dni_cuit_afiliado || "";
+  document.getElementById("preexistencia-patologia").value = p.patologia_id || "";
+  document.getElementById("preexistencia-declaracion").value = p.texto_declaracion_jurada || "";
+  document.getElementById("preexistencia-esquema").value = p.esquema_propuesto || "";
+  document.getElementById("preexistencia-desestimadas").value = p.prestaciones_desestimadas || "";
+
+  document.getElementById("preexistencia-eliminar")?.removeAttribute("hidden");
+  document.getElementById("preexistencia-informe-actions")?.removeAttribute("hidden");
+  document.getElementById("preexistencia-informe-hint")?.setAttribute("hidden", "");
+  actualizarHistorialInformesPx(p.id);
+  document.getElementById("preexistencia-adjuntos-add")?.removeAttribute("hidden");
+  document.getElementById("preexistencia-adjuntos-hint")?.setAttribute("hidden", "");
+  actualizarAdjuntosPreexistencia(p.id);
+
+  document.getElementById("preexistencia-modal-title").textContent = "Editar preexistencia";
+  abrirModal("preexistencia-modal");
+}
+
+async function handlePreexistenciaSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("preexistencia-save");
+  setFormMessage("preexistencia-form-message");
+
+  const id = document.getElementById("preexistencia-id")?.value || "";
+  const numeroEx = document.getElementById("preexistencia-numero-ex")?.value.trim() || "";
+  const fechaIngreso = document.getElementById("preexistencia-fecha-ingreso")?.value || "";
+  const nombreAfiliado = document.getElementById("preexistencia-nombre-afiliado")?.value.trim() || "";
+  if (!numeroEx || !fechaIngreso || !nombreAfiliado) {
+    setFormMessage("preexistencia-form-message", "Nº EX, fecha de ingreso y nombre del afiliado son obligatorios.");
+    return;
+  }
+
+  const empInput = document.getElementById("preexistencia-emp-input");
+  if (empInput.value && !empSoloPorEtiqueta.has(empInput.value)) {
+    setFormMessage("preexistencia-form-message", "Elegí una EMP de la lista desplegable (no coincide ninguna con lo escrito).");
+    return;
+  }
+  const empId = empInput.value ? empSoloPorEtiqueta.get(empInput.value) : null;
+
+  const registro = {
+    numero_ex: numeroEx,
+    estado: document.getElementById("preexistencia-estado")?.value || "Abierto",
+    fecha_ingreso: fechaIngreso,
+    emp_id: empId,
+    nombre_afiliado: nombreAfiliado,
+    dni_cuit_afiliado: document.getElementById("preexistencia-dni-afiliado")?.value.trim() || null,
+    patologia_id: document.getElementById("preexistencia-patologia")?.value || null,
+    texto_declaracion_jurada: document.getElementById("preexistencia-declaracion")?.value || null,
+    esquema_propuesto: document.getElementById("preexistencia-esquema")?.value || null,
+    prestaciones_desestimadas: document.getElementById("preexistencia-desestimadas")?.value || null
+  };
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const editando = !!id;
+    const response = await fetchConTimeout(buildTableUrl("preexistencias", editando ? { id: `eq.${id}` } : {}), {
+      method: editando ? "PATCH" : "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(/duplicate|unique|23505/i.test(detalle || "") ? "Ya existe una preexistencia con ese Nº EX." : (detalle || `Supabase respondió ${response.status}.`));
+    }
+
+    cerrarModal("preexistencia-modal");
+    mostrarToast(editando ? "Preexistencia actualizada." : "Preexistencia creada.");
+    preexistenciasCargadas = false;
+    await cargarYRenderizarPreexistencias();
+  } catch (error) {
+    setFormMessage("preexistencia-form-message", error.message || "No se pudo guardar la preexistencia.");
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarPreexistencia() {
+  const id = document.getElementById("preexistencia-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar esta preexistencia? Se van a borrar también sus informes y adjuntos asociados. Esta acción no se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("preexistencias", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    cerrarModal("preexistencia-modal");
+    mostrarToast("Preexistencia eliminada.");
+    preexistenciasCargadas = false;
+    await cargarYRenderizarPreexistencias();
+  } catch (error) {
+    setFormMessage("preexistencia-form-message", error.message || "No se pudo eliminar la preexistencia.");
+  }
+}
+
+// ---------- Preexistencias: generación del informe INFFC ----------
+
+function parrafosDesdeTexto(texto, size, vineta = false) {
+  const { Paragraph } = window.docx;
+  return (texto || "").split("\n").map(l => l.trim()).filter(Boolean).map(linea => new Paragraph({
+    bullet: vineta ? { level: 0 } : undefined,
+    spacing: { after: 140 },
+    children: runsConNegritaAntesDeDosPuntos(linea, size)
+  }));
+}
+
+async function generarInformeInffcDocx(px) {
+  const { Document, Packer, Paragraph, TextRun, AlignmentType } = window.docx;
+  const patologia = px.preexistencias_patologias || pxPatologias.find(p => String(p.id) === String(px.patologia_id));
+  const empEtiqueta = etiquetaObraSocial(px.emp_id) || "—";
+  const firmante = getSessionIdentity(authSession)?.nombre || "";
+  const P = 24;
+
+  const parrafos = [];
+  parrafos.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "INFORME TÉCNICO", bold: true, size: 28 })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: px.numero_ex || "", bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: (empEtiqueta || "").toUpperCase(), bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: "REF: ", bold: true, size: P }), new TextRun({ text: (px.nombre_afiliado || "").toUpperCase(), bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: "PREEX: ", bold: true, size: P }), new TextRun({ text: (patologia?.nombre || "").toUpperCase(), bold: true, size: P })] }));
+
+  const legal = "Según surge de los presentes actuados, y en base a lo determinado en el artículo Nº 10 de la Ley 26.682 y su Decreto Reglamentario 1993 del año 2011, donde se define que la Superintendencia de Servicios de Salud establecerá y determinará las situaciones de preexistencia que podrán ser de carácter temporario, crónico o de alto costo, puede manifestarse lo siguiente:";
+  parrafos.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: legal, size: P })] }));
+
+  parrafos.push(...parrafosDesdeTexto(px.texto_declaracion_jurada, P, false));
+
+  if (patologia) {
+    parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [
+      new TextRun({ text: `La preexistencia ${patologia.nombre} debe ser considerada como de carácter `, size: P }),
+      new TextRun({ text: patologia.caracter || "", bold: true, size: P }),
+      new TextRun({ text: ".", size: P })
+    ] }));
+  }
+
+  parrafos.push(...parrafosDesdeTexto(patologia?.texto_desarrollo, P, false));
+
+  parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Respecto de este caso puntual y basándonos en la documental aportada, esta Gerencia estima razonable considerar que el siguiente esquema podría ajustarse a las necesidades del solicitante:", size: P })] }));
+  parrafos.push(...parrafosDesdeTexto(px.esquema_propuesto, P, true));
+
+  parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Cabe señalar, respecto al tratamiento propuesto por la Entidad de Medicina Prepaga, esta Gerencia señala que atento a que no obra en el expediente documentación que avale su indicación actual y por fuera del PMO (Plan Médico Obligatorio), deberán desestimarse las siguientes prestaciones:", size: P })] }));
+  parrafos.push(...parrafosDesdeTexto(px.prestaciones_desestimadas, P, true));
+
+  if (firmante) parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: firmante, bold: true, size: P })] }));
+
+  if (patologia?.referencias) {
+    parrafos.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "Referencias", italics: true, size: P })] }));
+    (patologia.referencias || "").split("\n").map(l => l.trim()).filter(Boolean).forEach(linea => {
+      parrafos.push(new Paragraph({ bullet: { level: 0 }, spacing: { after: 100 }, children: [new TextRun({ text: linea, italics: true, size: P })] }));
+    });
+  }
+
+  const doc = new Document({ sections: [{ properties: {}, children: parrafos }], styles: { default: { document: { run: { font: "Calibri", size: P } } } } });
+  return Packer.toBlob(doc);
+}
+
+async function subirInformePxYRegistrar(preexistenciaId, blob, session) {
+  const nombreArchivo = `INFFC_${Date.now()}.docx`;
+  const path = `preexistencias/${preexistenciaId}/${nombreArchivo}`;
+  const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+    body: blob
+  });
+  if (!uploadResp.ok) throw new Error("El informe se descargó, pero no se pudo guardar en el historial.");
+  const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+
+  const anterioresResp = await fetch(buildTableUrl("preexistencias_informes", { preexistencia_id: `eq.${preexistenciaId}`, select: "id,archivo_url" }), { headers: { Accept: "application/json" } });
+  const anteriores = anterioresResp.ok ? await anterioresResp.json() : [];
+  for (const anterior of anteriores) {
+    await fetch(buildTableUrl("preexistencias_informes", { id: `eq.${anterior.id}` }), { method: "DELETE", headers: authHeaders(session.access_token) });
+    const pathAnterior = anterior.archivo_url?.split("/storage/v1/object/public/adjuntos/")[1];
+    if (pathAnterior) await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${pathAnterior}`, { method: "DELETE", headers: authHeaders(session.access_token) });
+  }
+
+  const insertResp = await fetch(buildTableUrl("preexistencias_informes", {}), {
+    method: "POST",
+    headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+    body: JSON.stringify({ preexistencia_id: preexistenciaId, fecha_generacion: new Date().toISOString().slice(0, 10), generado_por: getSessionIdentity(session)?.nombre || null, archivo_url: archivoUrl })
+  });
+  if (!insertResp.ok) throw new Error("El informe se descargó y se subió, pero no se pudo registrar en el historial.");
+  return archivoUrl;
+}
+
+async function cargarHistorialInformesPx(preexistenciaId) {
+  const response = await fetchConTimeout(buildTableUrl("preexistencias_informes", { preexistencia_id: `eq.${preexistenciaId}`, select: "id,fecha_generacion,generado_por,archivo_url", order: "created_at.desc" }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function renderHistorialInformesPxList(lista) {
+  const cont = document.getElementById("preexistencia-informes-historial");
+  if (!cont) return;
+  cont.innerHTML = lista.length
+    ? lista.map((i, idx) => `
+      <div class="subform-item">
+        <div class="subform-item-text"><strong>INFFC</strong> — ${formatearFecha(i.fecha_generacion)}${i.generado_por ? ` · ${escaparHtml(i.generado_por)}` : ""}</div>
+        <button type="button" class="secondary" data-descargar-informe-px="${idx}" style="padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap">Descargar</button>
+      </div>`).join("")
+    : `<p style="color:var(--muted);font-size:13px;margin:0">Todavía no se generó ningún informe para esta preexistencia.</p>`;
+
+  cont.querySelectorAll("[data-descargar-informe-px]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const item = lista[Number(btn.dataset.descargarInformePx)];
+      const original = btn.textContent;
+      btn.disabled = true; btn.textContent = "Descargando...";
+      try {
+        const response = await fetch(item.archivo_url);
+        if (!response.ok) throw new Error();
+        const blob = await response.blob();
+        descargarBlob(blob, `INFFC_${formatearFecha(item.fecha_generacion).replace(/\//g, "-")}.docx`);
+      } catch { mostrarToast("No se pudo descargar el archivo."); }
+      finally { btn.disabled = false; btn.textContent = original; }
+    });
+  });
+}
+
+async function actualizarHistorialInformesPx(preexistenciaId) {
+  renderHistorialInformesPxList(await cargarHistorialInformesPx(preexistenciaId));
+}
+
+async function handleGenerarInformeInffc() {
+  const id = document.getElementById("preexistencia-id")?.value || "";
+  const px = preexistencias.find(item => String(item.id) === String(id));
+  if (!px) { setFormMessage("preexistencia-form-message", "Guardá la preexistencia antes de generar el informe."); return; }
+  setFormMessage("preexistencia-form-message");
+  try {
+    const session = await asegurarSesionVigente();
+    const blob = await generarInformeInffcDocx(px);
+    descargarBlob(blob, `INFFC_${px.numero_ex}.docx`);
+    await subirInformePxYRegistrar(id, blob, session);
+    mostrarToast("Informe INFFC generado y descargado.");
+    await actualizarHistorialInformesPx(id);
+  } catch (error) {
+    setFormMessage("preexistencia-form-message", error.message || "No se pudo generar el informe.");
+  }
+}
+
+// ---------- Preexistencias: adjuntos ----------
+
+async function cargarAdjuntosPreexistencia(preexistenciaId) {
+  const response = await fetchConTimeout(buildTableUrl("preexistencias_adjuntos", { preexistencia_id: `eq.${preexistenciaId}`, select: "id,archivo_url,nombre_archivo,descripcion,created_at", order: "created_at.desc" }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function renderAdjuntosPreexistenciaList(lista) {
+  const cont = document.getElementById("preexistencia-adjuntos-list");
+  if (!cont) return;
+  cont.innerHTML = lista.length
+    ? lista.map(a => `
+      <div class="subform-item">
+        ${esImagen(a.nombre_archivo) ? `<img src="${escaparHtml(a.archivo_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:56px;height:56px;border-radius:6px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-shrink:0">PDF</div>`}
+        <div class="subform-item-text" style="margin-left:4px">
+          <strong><a href="${escaparHtml(a.archivo_url)}" target="_blank" rel="noopener" style="color:inherit">${escaparHtml(a.nombre_archivo)}</a></strong>
+          ${a.descripcion ? escaparHtml(a.descripcion) : ""}
+        </div>
+        <button type="button" class="subform-item-remove" data-quitar-adjunto-px="${a.id}" aria-label="Quitar">×</button>
+      </div>`).join("")
+    : `<p style="color:var(--muted);font-size:13px;margin:0">Sin adjuntos cargados.</p>`;
+
+  cont.querySelectorAll("[data-quitar-adjunto-px]").forEach(btn => {
+    btn.addEventListener("click", () => handleEliminarAdjuntoPx(btn.dataset.quitarAdjuntoPx));
+  });
+}
+
+async function actualizarAdjuntosPreexistencia(preexistenciaId) {
+  renderAdjuntosPreexistenciaList(await cargarAdjuntosPreexistencia(preexistenciaId));
+}
+
+async function handleAgregarAdjuntoPx() {
+  const id = document.getElementById("preexistencia-id")?.value || "";
+  if (!id) return;
+  const fileInput = document.getElementById("preexistencia-adjunto-file");
+  const file = fileInput?.files?.[0];
+  if (!file) { setFormMessage("preexistencia-form-message", "Elegí un archivo para subir."); return; }
+  if (file.size > 10 * 1024 * 1024) { setFormMessage("preexistencia-form-message", "El archivo no puede superar los 10 MB."); return; }
+
+  const boton = document.getElementById("preexistencia-adjunto-agregar");
+  try {
+    if (boton) boton.disabled = true;
+    const session = await asegurarSesionVigente();
+    const nombreArchivo = `${Date.now()}_${file.name}`;
+    const path = `preexistencias/${id}/${nombreArchivo}`;
+    const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": file.type || "application/octet-stream" },
+      body: file
+    });
+    if (!uploadResp.ok) throw new Error("No se pudo subir el archivo.");
+    const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+    const descripcion = document.getElementById("preexistencia-adjunto-descripcion")?.value.trim() || null;
+    const insertResp = await fetch(buildTableUrl("preexistencias_adjuntos", {}), {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify({ preexistencia_id: id, archivo_url: archivoUrl, nombre_archivo: file.name, descripcion })
+    });
+    if (!insertResp.ok) throw new Error("El archivo se subió pero no se pudo registrar.");
+
+    fileInput.value = "";
+    document.getElementById("preexistencia-adjunto-descripcion").value = "";
+    mostrarToast("Adjunto subido.");
+    await actualizarAdjuntosPreexistencia(id);
+  } catch (error) {
+    setFormMessage("preexistencia-form-message", error.message || "No se pudo subir el adjunto.");
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function handleEliminarAdjuntoPx(adjuntoId) {
+  if (!confirm("¿Eliminar este adjunto?")) return;
+  const id = document.getElementById("preexistencia-id")?.value || "";
+  try {
+    const session = await asegurarSesionVigente();
+    const filaResp = await fetchConTimeout(buildTableUrl("preexistencias_adjuntos", { id: `eq.${adjuntoId}`, select: "archivo_url" }), { method: "GET", headers: { Accept: "application/json" } }, 10000);
+    const filas = filaResp.ok ? await filaResp.json() : [];
+    const response = await fetchConTimeout(buildTableUrl("preexistencias_adjuntos", { id: `eq.${adjuntoId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || "No se pudo eliminar el adjunto.");
+    const url = filas[0]?.archivo_url;
+    if (url) {
+      const path = url.split("/storage/v1/object/public/adjuntos/")[1];
+      if (path) await fetchConTimeout(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    }
+    mostrarToast("Adjunto eliminado.");
+    await actualizarAdjuntosPreexistencia(id);
+  } catch (error) {
+    setFormMessage("preexistencia-form-message", error.message || "No se pudo eliminar el adjunto.");
+  }
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -2661,6 +3137,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
   if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
+  if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
 }
 
 function renderObrasSociales() {
@@ -4699,14 +5176,15 @@ async function initBrowser() {
     poblarSelectFiliales(event.target.dataset.selectedId);
   });
   document.getElementById("expediente-filial-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarFilial));
-  document.querySelectorAll("#expediente-form .form-section-toggle").forEach(btn => {
+  document.querySelectorAll(".form-section-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
       const seccion = btn.closest(".form-section");
-      if (!seccion) return;
+      const formulario = btn.closest("form");
+      if (!seccion || !formulario) return;
       const estabaColapsada = seccion.classList.contains("collapsed");
       if (estabaColapsada) {
-        // Acordeón: al abrir una sección, se cierran las demás.
-        document.querySelectorAll("#expediente-form .form-section").forEach(s => s.classList.add("collapsed"));
+        // Acordeón: al abrir una sección, se cierran las demás (dentro del mismo formulario).
+        formulario.querySelectorAll(".form-section").forEach(s => s.classList.add("collapsed"));
         seccion.classList.remove("collapsed");
       } else {
         seccion.classList.add("collapsed");
@@ -4747,6 +5225,18 @@ async function initBrowser() {
   document.getElementById("px-patologia-cancelar")?.addEventListener("click", () => cerrarModal("px-patologia-modal"));
   document.getElementById("px-patologia-form")?.addEventListener("submit", handlePxPatologiaSubmit);
   document.getElementById("px-patologia-eliminar")?.addEventListener("click", handleEliminarPxPatologia);
+
+  document.getElementById("preexistencia-search")?.addEventListener("input", renderPreexistencias);
+  document.getElementById("btn-nueva-preexistencia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPreexistencia));
+  document.getElementById("preexistencia-modal-close")?.addEventListener("click", () => cerrarModal("preexistencia-modal"));
+  document.getElementById("preexistencia-cancelar")?.addEventListener("click", () => cerrarModal("preexistencia-modal"));
+  document.getElementById("preexistencia-form")?.addEventListener("submit", handlePreexistenciaSubmit);
+  document.getElementById("preexistencia-eliminar")?.addEventListener("click", handleEliminarPreexistencia);
+  document.getElementById("preexistencia-emp-input")?.addEventListener("change", event => {
+    event.target.dataset.selectedId = empSoloPorEtiqueta.get(event.target.value) || "";
+  });
+  document.getElementById("btn-generar-inffc")?.addEventListener("click", handleGenerarInformeInffc);
+  document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

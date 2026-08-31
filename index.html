@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=81">
+  <link rel="stylesheet" href="styles.css?v=82">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -87,7 +87,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 81</span>
+        <span>Versión 82</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -580,7 +580,29 @@
       </section>
 
       <section id="px-preexistencias" class="view">
-        <div class="table-card"><div class="table-meta"><strong>Preexistencias — en construcción.</strong></div></div>
+        <div class="module-actions">
+          <button class="primary" id="btn-nueva-preexistencia" type="button">+ Nueva preexistencia</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="preexistencia-search" type="search" placeholder="Buscar por Nº EX, afiliado o DNI..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="preexistencia-count">Cargando preexistencias...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nº EX</th><th>EMP</th><th>Afiliado</th><th>Patología</th><th>Estado</th><th>F. Ingreso</th></tr></thead>
+              <tbody id="preexistencia-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="preexistencia-empty" hidden>No se encontraron preexistencias con ese criterio.</div>
+        </div>
       </section>
 
       <section id="px-emp" class="view">
@@ -920,6 +942,87 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="preexistencia-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="preexistencia-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PREEXISTENCIA</span><h2 id="preexistencia-modal-title">Nueva preexistencia</h2></div>
+        <button class="icon-button" type="button" id="preexistencia-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="preexistencia-form">
+        <input type="hidden" id="preexistencia-id">
+
+        <div class="form-section" data-section="px-datos">
+          <button type="button" class="form-section-toggle"><span>Preexistencia</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label><span>Nº EX</span><input id="preexistencia-numero-ex" type="text" required></label>
+              <label><span>Estado</span>
+                <select id="preexistencia-estado"><option value="Abierto">Abierto</option><option value="Pendiente">Pendiente</option><option value="Cerrado">Cerrado</option></select>
+              </label>
+              <label><span>Fecha de ingreso</span><input id="preexistencia-fecha-ingreso" type="date" required></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="px-afiliado">
+          <button type="button" class="form-section-toggle"><span>EMP y afiliado</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label class="full"><span>Empresa de Medicina Prepaga</span>
+                <input id="preexistencia-emp-input" type="text" list="preexistencia-emp-datalist" placeholder="Escribí para buscar (solo EMP)...">
+                <datalist id="preexistencia-emp-datalist"></datalist>
+              </label>
+              <label><span>Nombre y apellido del afiliado</span><input id="preexistencia-nombre-afiliado" type="text" required></label>
+              <label><span>DNI / CUIT</span><input id="preexistencia-dni-afiliado" type="text"></label>
+              <label class="full"><span>Patología (preexistencia)</span><select id="preexistencia-patologia"><option value="">Elegir patología...</option></select></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="px-informe">
+          <button type="button" class="form-section-toggle"><span>Informe</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div class="form-grid">
+              <label class="full"><span>Declaración jurada (profesionales que firman y diagnóstico)</span><textarea id="preexistencia-declaracion" rows="4" class="textarea-grande"></textarea></label>
+              <label class="full"><span>Esquema propuesto (prestaciones aprobadas)</span><textarea id="preexistencia-esquema" rows="5" class="textarea-grande"></textarea></label>
+              <label class="full"><span>Prestaciones a desestimar</span><textarea id="preexistencia-desestimadas" rows="4" class="textarea-grande"></textarea></label>
+            </div>
+            <div id="preexistencia-informe-actions" class="informe-actions" hidden>
+              <div class="informe-actions-row">
+                <button type="button" class="btn-informe" id="btn-generar-inffc" style="flex:none;width:100%">Generar informe INFFC</button>
+              </div>
+            </div>
+            <div id="preexistencia-informe-hint" hidden style="color:var(--muted);font-size:12.5px;margin-top:8px">Guardá la preexistencia para poder generar el informe.</div>
+            <h3 style="font-size:13px;color:#4d5d70;margin:16px 0 8px">Historial de informes</h3>
+            <div id="preexistencia-informes-historial" class="subform-list"></div>
+          </div>
+        </div>
+
+        <div class="form-section collapsed" data-section="px-adjuntos">
+          <button type="button" class="form-section-toggle"><span>Adjuntos</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
+          <div class="form-section-body">
+            <div id="preexistencia-adjuntos-list" class="subform-list"></div>
+            <div id="preexistencia-adjuntos-hint" hidden style="color:var(--muted);font-size:12.5px;margin:6px 0 10px">Guardá la preexistencia para poder subir adjuntos (por ejemplo, la cartilla).</div>
+            <div id="preexistencia-adjuntos-add" class="subform-add-row" style="grid-template-columns:1fr 1fr auto" hidden>
+              <input id="preexistencia-adjunto-file" type="file" accept="application/pdf,image/*">
+              <input id="preexistencia-adjunto-descripcion" type="text" placeholder="Descripción (ej: Cartilla)">
+              <button type="button" class="secondary" id="preexistencia-adjunto-agregar">+ Subir adjunto</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-message" id="preexistencia-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary danger" id="preexistencia-eliminar" hidden>Eliminar</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="preexistencia-cancelar">Cancelar</button>
+          <button type="submit" class="primary" id="preexistencia-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="pma-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pma-modal-title">
       <div class="modal-header transaction-header">
@@ -1131,6 +1234,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=81"></script>
+  <script src="app.js?v=82"></script>
 </body>
 </html>
