@@ -2052,9 +2052,35 @@ async function handleEliminarExpediente() {
 
 // ---------- Generación de informes (.docx) ----------
 
-function textoPlanoDesdeHtml(html) {
-  if (!html) return "";
-  return html.replace(/<\/(p|div|li)>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/[ \t]+/g, " ").replace(/\n{2,}/g, "\n\n").trim();
+function extraerLineasDesdeHtml(html) {
+  if (!html) return [];
+  const texto = html
+    .replace(/<li[^>]*>/gi, "\u0001LI\u0001")
+    .replace(/<\/(li|p|div)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&");
+  return texto.split("\n")
+    .map(linea => ({
+      esVineta: linea.includes("\u0001LI\u0001"),
+      texto: linea.replace(/\u0001LI\u0001/g, "").replace(/[ \t]+/g, " ").trim()
+    }))
+    .filter(l => l.texto);
+}
+
+function runsConNegritaAntesDeDosPuntos(texto, size) {
+  const m = texto.match(/^([^:]{1,70}):\s*(.+)$/);
+  if (m) return [new TextRun({ text: `${m[1]}:`, bold: true, size }), new TextRun({ text: ` ${m[2]}`, size })];
+  return [new TextRun({ text: texto, size })];
+}
+
+function parrafosDesdeHtml(html, size) {
+  const { Paragraph } = window.docx;
+  return extraerLineasDesdeHtml(html).map(({ texto, esVineta }) => new Paragraph({
+    bullet: esVineta ? { level: 0 } : undefined,
+    spacing: { after: 140 },
+    children: runsConNegritaAntesDeDosPuntos(texto, size)
+  }));
 }
 
 function fundamentacionParaExpediente(drogaId, patologiaId) {
@@ -2074,43 +2100,36 @@ async function generarInformeDocx(expediente, tipo) {
   const P = 24; // 12pt
 
   const parrafos = [];
-  parrafos.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `INFORME TÉCNICO — ${tipo}`, bold: true, size: 28 })] }));
-  parrafos.push(new Paragraph({ children: [new TextRun({ text: `Expediente Nº ${expediente.numero_ee}`, bold: true, size: P })] }));
-  parrafos.push(new Paragraph({ text: "" }));
-  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Paciente: ", bold: true, size: P }), new TextRun({ text: expediente.nombre_paciente || "", size: P })] }));
-  if (expediente.dni_cuit_paciente) parrafos.push(new Paragraph({ children: [new TextRun({ text: "DNI / CUIT: ", bold: true, size: P }), new TextRun({ text: expediente.dni_cuit_paciente, size: P })] }));
-  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Obra Social / EMP: ", bold: true, size: P }), new TextRun({ text: osEtiqueta, size: P })] }));
-  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Patología: ", bold: true, size: P }), new TextRun({ text: patologiaNombre, size: P })] }));
-  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Diagnóstico: ", bold: true, size: P }), new TextRun({ text: expediente.diagnostico_detalle || "", size: P })] }));
-  parrafos.push(new Paragraph({ text: "" }));
+  parrafos.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: `INFORME TÉCNICO — ${tipo}`, bold: true, size: 28 })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: `Expediente Nº ${expediente.numero_ee}`, bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: "Paciente: ", bold: true, size: P }), new TextRun({ text: expediente.nombre_paciente || "", size: P })] }));
+  if (expediente.dni_cuit_paciente) parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: "DNI / CUIT: ", bold: true, size: P }), new TextRun({ text: expediente.dni_cuit_paciente, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: "Obra Social / EMP: ", bold: true, size: P }), new TextRun({ text: osEtiqueta, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: "Patología: ", bold: true, size: P }), new TextRun({ text: patologiaNombre, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: "Diagnóstico: ", bold: true, size: P }), new TextRun({ text: expediente.diagnostico_detalle || "", size: P })] }));
 
   if (plantilla?.texto_apertura) {
-    textoPlanoDesdeHtml(plantilla.texto_apertura).split("\n").forEach(linea => {
-      if (linea.trim()) parrafos.push(new Paragraph({ children: [new TextRun({ text: linea, size: P })] }));
-    });
+    parrafos.push(...parrafosDesdeHtml(plantilla.texto_apertura, P));
     parrafos.push(new Paragraph({ text: "" }));
   }
 
-  parrafos.push(new Paragraph({ children: [new TextRun({ text: "Medicación solicitada:", bold: true, size: P })] }));
+  parrafos.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: "Medicación solicitada:", bold: true, size: P })] }));
   medicamentos.forEach((m, i) => {
     const droga = drogas.find(d => String(d.id) === String(m.droga_id));
     const marca = (droga?.marcas_comerciales || []).find(mc => String(mc.id) === String(m.marca_id));
     const encabezado = medicamentos.length > 1 ? `${i + 1}) ${droga?.nombre || ""}` : (droga?.nombre || "");
-    parrafos.push(new Paragraph({ children: [new TextRun({ text: encabezado, bold: true, size: P })] }));
+    parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: encabezado, bold: true, size: P })] }));
     if (marca) {
-      parrafos.push(new Paragraph({ children: [new TextRun({ text: `Marca comercial: ${marca.nombre_comercial}`, size: P })] }));
-      if (marca.numero_anmat) parrafos.push(new Paragraph({ children: [new TextRun({ text: `Certificado ANMAT Nº ${marca.numero_anmat}`, size: P })] }));
+      parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `Marca comercial: ${marca.nombre_comercial}`, size: P })] }));
+      if (marca.numero_anmat) parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `Certificado ANMAT Nº ${marca.numero_anmat}`, size: P })] }));
     }
-    if (m.dosis) parrafos.push(new Paragraph({ children: [new TextRun({ text: `Dosis: ${m.dosis}`, size: P })] }));
-    const fundamentacion = textoPlanoDesdeHtml(fundamentacionParaExpediente(m.droga_id, expediente.patologia_id));
-    if (fundamentacion) fundamentacion.split("\n").forEach(linea => { if (linea.trim()) parrafos.push(new Paragraph({ children: [new TextRun({ text: linea, size: P })] })); });
+    if (m.dosis) parrafos.push(new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: `Dosis: ${m.dosis}`, size: P })] }));
+    parrafos.push(...parrafosDesdeHtml(fundamentacionParaExpediente(m.droga_id, expediente.patologia_id), P));
     parrafos.push(new Paragraph({ text: "" }));
   });
 
   if (plantilla?.texto_cierre_tecnico) {
-    textoPlanoDesdeHtml(plantilla.texto_cierre_tecnico).split("\n").forEach(linea => {
-      if (linea.trim()) parrafos.push(new Paragraph({ children: [new TextRun({ text: linea, size: P })] }));
-    });
+    parrafos.push(...parrafosDesdeHtml(plantilla.texto_cierre_tecnico, P));
     parrafos.push(new Paragraph({ text: "" }));
   }
 
