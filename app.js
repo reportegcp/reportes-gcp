@@ -25,7 +25,8 @@ const manualesSeccion = {
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
-  "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`
+  "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`,
+  "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -62,6 +63,8 @@ let modalFundamentacionesOriginales = [];
 let modalPatologiaExpandida = new Set();
 let plantillas = [];
 let plantillasCargadas = false;
+let pxPatologias = [];
+let pxPatologiasCargadas = false;
 let expedientes = [];
 let expedientesCargadas = false;
 let obrasSocialesTodas = [];
@@ -2440,6 +2443,164 @@ async function handleEliminarAdjunto(adjuntoId) {
   }
 }
 
+// ---------- Preexistencias: Patologías ----------
+
+function buildPxPatologiasUrl(id = null) {
+  const params = { select: "id,nombre,caracter,texto_desarrollo,referencias,created_at", order: "nombre.asc" };
+  if (id) params.id = `eq.${id}`;
+  return buildTableUrl("preexistencias_patologias", params);
+}
+
+async function cargarPxPatologiasDesdeSupabase() {
+  const response = await fetchConTimeout(buildPxPatologiasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) {
+    const detalle = await leerErrorApi(response);
+    throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function asegurarPxPatologiasCargadas() {
+  if (!pxPatologiasCargadas) {
+    try { pxPatologias = await cargarPxPatologiasDesdeSupabase(); pxPatologiasCargadas = true; }
+    catch (error) { console.error("Error cargando patologías de preexistencias:", error); }
+  }
+}
+
+async function cargarYRenderizarPxPatologias() {
+  const count = document.getElementById("px-patologia-count");
+  if (count) count.textContent = "Cargando patologías...";
+  try {
+    pxPatologias = await cargarPxPatologiasDesdeSupabase();
+    pxPatologiasCargadas = true;
+    renderPxPatologias();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar las patologías.${error?.message ? " " + error.message : ""}`;
+    console.error(error);
+  }
+}
+
+function filtrarPxPatologias(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(p => normalizar(p.nombre || "").includes(termino));
+}
+
+function renderPxPatologias() {
+  const tbody = document.getElementById("px-patologia-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("px-patologia-search")?.value || "";
+  const filtradas = filtrarPxPatologias(pxPatologias, busqueda);
+
+  tbody.innerHTML = filtradas.map(p => `
+    <tr class="os-row" data-edit-px-patologia="${p.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
+      <td><strong>${escaparHtml(p.nombre)}</strong></td>
+      <td>${escaparHtml(p.caracter)}</td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("px-patologia-count");
+  if (count) count.textContent = `${filtradas.length} patología${filtradas.length === 1 ? "" : "s"}`;
+  const empty = document.getElementById("px-patologia-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+
+  document.querySelectorAll(".os-row[data-edit-px-patologia]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalEdicionPxPatologia(row.dataset.editPxPatologia));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); }
+    });
+  });
+}
+
+function resetFormularioPxPatologia() {
+  document.getElementById("px-patologia-form")?.reset();
+  document.getElementById("px-patologia-id").value = "";
+  document.getElementById("px-patologia-eliminar")?.setAttribute("hidden", "");
+  setFormMessage("px-patologia-form-message");
+}
+
+function abrirModalNuevaPxPatologia() {
+  resetFormularioPxPatologia();
+  document.getElementById("px-patologia-modal-title").textContent = "Nueva patología";
+  abrirModal("px-patologia-modal");
+  setTimeout(() => document.getElementById("px-patologia-nombre")?.focus(), 0);
+}
+
+function abrirModalEdicionPxPatologia(id) {
+  const p = pxPatologias.find(item => String(item.id) === String(id));
+  if (!p) return;
+  resetFormularioPxPatologia();
+  document.getElementById("px-patologia-id").value = p.id;
+  document.getElementById("px-patologia-nombre").value = p.nombre || "";
+  document.getElementById("px-patologia-caracter").value = p.caracter || "CRÓNICO";
+  document.getElementById("px-patologia-desarrollo").value = p.texto_desarrollo || "";
+  document.getElementById("px-patologia-referencias").value = p.referencias || "";
+  document.getElementById("px-patologia-eliminar")?.removeAttribute("hidden");
+  document.getElementById("px-patologia-modal-title").textContent = "Editar patología";
+  abrirModal("px-patologia-modal");
+}
+
+async function handlePxPatologiaSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("px-patologia-save");
+  setFormMessage("px-patologia-form-message");
+
+  const id = document.getElementById("px-patologia-id")?.value || "";
+  const nombre = document.getElementById("px-patologia-nombre")?.value.trim() || "";
+  if (!nombre) { setFormMessage("px-patologia-form-message", "El nombre es obligatorio."); return; }
+
+  const registro = {
+    nombre,
+    caracter: document.getElementById("px-patologia-caracter")?.value || "CRÓNICO",
+    texto_desarrollo: document.getElementById("px-patologia-desarrollo")?.value || "",
+    referencias: document.getElementById("px-patologia-referencias")?.value || ""
+  };
+
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const editando = !!id;
+    const response = await fetchConTimeout(buildPxPatologiasUrl(editando ? id : null), {
+      method: editando ? "PATCH" : "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+
+    cerrarModal("px-patologia-modal");
+    mostrarToast(editando ? "Patología actualizada." : "Patología creada.");
+    pxPatologiasCargadas = false;
+    await cargarYRenderizarPxPatologias();
+  } catch (error) {
+    const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una patología con ese nombre." : (error.message || "No se pudo guardar la patología.");
+    setFormMessage("px-patologia-form-message", mensaje);
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function handleEliminarPxPatologia() {
+  const id = document.getElementById("px-patologia-id")?.value || "";
+  if (!id) return;
+  if (!confirm("¿Eliminar esta patología? Esta acción no se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("preexistencias_patologias", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) {
+      const detalle = await leerErrorApi(response);
+      throw new Error(/foreign key|23503/i.test(detalle || "") ? "No se puede eliminar: está usada en una o más preexistencias." : (detalle || `Supabase respondió ${response.status}.`));
+    }
+    cerrarModal("px-patologia-modal");
+    mostrarToast("Patología eliminada.");
+    pxPatologiasCargadas = false;
+    await cargarYRenderizarPxPatologias();
+  } catch (error) {
+    setFormMessage("px-patologia-form-message", error.message || "No se pudo eliminar la patología.");
+  }
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -2499,6 +2660,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
   if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
+  if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
 }
 
 function renderObrasSociales() {
@@ -4578,6 +4740,13 @@ async function initBrowser() {
     }
   });
   document.getElementById("expediente-adjunto-agregar")?.addEventListener("click", handleAgregarAdjunto);
+
+  document.getElementById("px-patologia-search")?.addEventListener("input", renderPxPatologias);
+  document.getElementById("btn-nueva-px-patologia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPxPatologia));
+  document.getElementById("px-patologia-modal-close")?.addEventListener("click", () => cerrarModal("px-patologia-modal"));
+  document.getElementById("px-patologia-cancelar")?.addEventListener("click", () => cerrarModal("px-patologia-modal"));
+  document.getElementById("px-patologia-form")?.addEventListener("submit", handlePxPatologiaSubmit);
+  document.getElementById("px-patologia-eliminar")?.addEventListener("click", handleEliminarPxPatologia);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

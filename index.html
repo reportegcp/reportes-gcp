@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=80">
+  <link rel="stylesheet" href="styles.css?v=81">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -87,7 +87,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 80</span>
+        <span>Versión 81</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -588,7 +588,29 @@
       </section>
 
       <section id="px-patologias" class="view">
-        <div class="table-card"><div class="table-meta"><strong>Patologías de Preexistencias — en construcción.</strong></div></div>
+        <div class="module-actions">
+          <button class="primary" id="btn-nueva-px-patologia" type="button">+ Nueva patología</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="px-patologia-search" type="search" placeholder="Buscar patología..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="px-patologia-count">Cargando patologías...</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nombre</th><th>Carácter</th></tr></thead>
+              <tbody id="px-patologia-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="px-patologia-empty" hidden>No hay patologías cargadas.</div>
+        </div>
       </section>
     </main>
   </div>
@@ -866,6 +888,38 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="px-patologia-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="px-patologia-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PATOLOGÍA · PREEXISTENCIAS</span><h2 id="px-patologia-modal-title">Nueva patología</h2></div>
+        <button class="icon-button" type="button" id="px-patologia-modal-close" aria-label="Cerrar">×</button>
+      </div>
+
+      <form id="px-patologia-form">
+        <input type="hidden" id="px-patologia-id">
+        <div class="form-grid">
+          <label class="full"><span>Nombre</span><input id="px-patologia-nombre" type="text" maxlength="250" required placeholder="Ej: TRASTORNO GENERALIZADO DEL DESARROLLO (TGD)"></label>
+          <label class="full"><span>Carácter</span>
+            <select id="px-patologia-caracter" required>
+              <option value="CRÓNICO">CRÓNICO</option>
+              <option value="TEMPORARIO">TEMPORARIO</option>
+              <option value="ALTO COSTO">ALTO COSTO</option>
+            </select>
+          </label>
+          <label class="full"><span>Texto médico/legal (se repite igual en cada informe de esta patología)</span><textarea id="px-patologia-desarrollo" rows="10" class="textarea-grande"></textarea></label>
+          <label class="full"><span>Referencias bibliográficas</span><textarea id="px-patologia-referencias" rows="4" class="textarea-grande"></textarea></label>
+        </div>
+        <div class="form-message" id="px-patologia-form-message" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary danger" id="px-patologia-eliminar" hidden>Eliminar</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="px-patologia-cancelar">Cancelar</button>
+          <button type="submit" class="primary" id="px-patologia-save">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="pma-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="pma-modal-title">
       <div class="modal-header transaction-header">
@@ -1077,6 +1131,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=80"></script>
+  <script src="app.js?v=81"></script>
 </body>
 </html>
