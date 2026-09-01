@@ -3841,6 +3841,7 @@ async function handleGenerarCriticidad() {
     }).join("");
     document.getElementById("criticidad-count").textContent = `${criticidadDatos.length} Obras Sociales — ciclo ${anio}`;
     document.getElementById("criticidad-resultado")?.removeAttribute("hidden");
+    ["criticidad-exportar-t1", "criticidad-exportar-t2", "criticidad-exportar-t3", "criticidad-exportar-t4"].forEach(id => document.getElementById(id)?.removeAttribute("hidden"));
   } catch (error) {
     mostrarToast("No se pudo generar el reporte de Criticidad.");
     console.error(error);
