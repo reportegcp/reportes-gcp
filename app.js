@@ -2914,6 +2914,7 @@ async function handleEliminarPxPlantilla() {
 // ---------- Preexistencias ----------
 
 let preexistencias = [];
+let preexistenciaVistaEstado = "activos";
 let preexistenciasCargadas = false;
 let empSoloPorEtiqueta = new Map();
 let modalProfesionalesPx = [];
@@ -2968,9 +2969,10 @@ async function cargarYRenderizarPreexistencias() {
 }
 
 function filtrarPreexistencias(lista, busqueda) {
+  const porEstado = lista.filter(p => preexistenciaVistaEstado === "cerrados" ? p.estado === "Cerrado" : p.estado !== "Cerrado");
   const termino = normalizar(busqueda || "");
-  if (!termino) return lista;
-  return lista.filter(p =>
+  if (!termino) return porEstado;
+  return porEstado.filter(p =>
     normalizar(p.numero_ex || "").includes(termino) ||
     normalizar(p.nombre_afiliado || "").includes(termino) ||
     normalizar(p.dni_cuit_afiliado || "").includes(termino)
@@ -5924,6 +5926,18 @@ async function initBrowser() {
   document.getElementById("px-plantilla-eliminar")?.addEventListener("click", handleEliminarPxPlantilla);
 
   document.getElementById("preexistencia-search")?.addEventListener("input", renderPreexistencias);
+  document.getElementById("preexistencia-tab-activos")?.addEventListener("click", () => {
+    preexistenciaVistaEstado = "activos";
+    document.getElementById("preexistencia-tab-activos")?.classList.add("active");
+    document.getElementById("preexistencia-tab-cerrados")?.classList.remove("active");
+    renderPreexistencias();
+  });
+  document.getElementById("preexistencia-tab-cerrados")?.addEventListener("click", () => {
+    preexistenciaVistaEstado = "cerrados";
+    document.getElementById("preexistencia-tab-cerrados")?.classList.add("active");
+    document.getElementById("preexistencia-tab-activos")?.classList.remove("active");
+    renderPreexistencias();
+  });
   document.getElementById("btn-nueva-preexistencia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPreexistencia));
   document.getElementById("preexistencia-modal-close")?.addEventListener("click", () => cerrarModal("preexistencia-modal"));
   document.getElementById("preexistencia-cancelar")?.addEventListener("click", () => cerrarModal("preexistencia-modal"));
