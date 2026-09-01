@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=107">
+  <link rel="stylesheet" href="styles.css?v=108">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -88,7 +88,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 107</span>
+        <span>Versión 108</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1264,11 +1264,12 @@
           <div class="form-inline-grid cols-3 full">
             <label><span>Nº EE</span><input id="pma-ee" type="text" maxlength="180"></label>
             <label><span>Analista</span><input id="pma-analista" type="text" list="pma-analistas">
-              <datalist id="pma-analistas"><option value="MR"><option value="MJR"><option value="MIQ"><option value="S/A"></datalist>
+              <datalist id="pma-analistas"><option value="MR"><option value="MJR"></datalist>
             </label>
             <label><span>Condición</span><select id="pma-condicion">
               <option value=""></option><option value="APROBADO">APROBADO</option><option value="EN ESTUDIO">EN ESTUDIO</option>
-              <option value="ARCHIVO">ARCHIVO</option><option value="OBSERVADO">OBSERVADO</option><option value="PROYECTO DE DISPO">PROYECTO DE DISPO</option>
+              <option value="ARCHIVO">ARCHIVO</option><option value="PROYECTO DE DISPO">PROYECTO DE DISPO</option>
+              <option value="S/ASIGNAR">S/ASIGNAR</option><option value="NOTIFICADO">NOTIFICADO</option><option value="PROCESO SUMARIAL">PROCESO SUMARIAL</option>
             </select></label>
           </div>
 
@@ -1332,11 +1333,12 @@
           <div class="form-inline-grid cols-3 full">
             <label><span>Nº EE</span><input id="cartilla-ee" type="text" maxlength="180"></label>
             <label><span>Analista</span><input id="cartilla-analista" type="text" list="cartilla-analistas" maxlength="40">
-              <datalist id="cartilla-analistas"><option value="MR"></option><option value="MJR"></option><option value="MIQ"></option><option value="S/A"></option></datalist>
+              <datalist id="cartilla-analistas"><option value="MR"></option><option value="MJR"></option><option value="VV"></option><option value="MM"></option></datalist>
             </label>
             <label><span>Condición</span><select id="cartilla-condicion">
               <option value=""></option><option value="APROBADO">APROBADO</option><option value="EN ESTUDIO">EN ESTUDIO</option>
-              <option value="ARCHIVO">ARCHIVO</option><option value="OBSERVADO">OBSERVADO</option><option value="PROYECTO DE DISPO">PROYECTO DE DISPO</option>
+              <option value="ARCHIVO">ARCHIVO</option><option value="PROYECTO DE DISPO">PROYECTO DE DISPO</option>
+              <option value="S/ASIGNAR">S/ASIGNAR</option><option value="NOTIFICADO">NOTIFICADO</option><option value="PROCESO SUMARIAL">PROCESO SUMARIAL</option>
             </select></label>
           </div>
 
@@ -1430,6 +1432,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=107"></script>
+  <script src="app.js?v=108"></script>
 </body>
 </html>

@@ -4803,6 +4803,19 @@ function cumplimientoPmaRegistro(row) {
   return calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
 }
 
+function colorCondicion(condicion) {
+  const mapa = {
+    "S/ASIGNAR": "#c0392b",
+    "EN ESTUDIO": "#1d5ea8",
+    "NOTIFICADO": "#7b4fa3",
+    "PROYECTO DE DISPO": "#d9770a",
+    "PROCESO SUMARIAL": "#1c9ab8",
+    "APROBADO": "#278664",
+    "ARCHIVO": "#6b7280"
+  };
+  return mapa[condicion] || "inherit";
+}
+
 function renderPma() {
   if (typeof document === "undefined") return;
   const tbody = document.getElementById("pma-table-body"); if (!tbody) return;
@@ -4829,7 +4842,7 @@ function renderPma() {
       <td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
-      <td>${escaparHtml(r.condicion||"—")}</td>
+      <td><strong style="color:${colorCondicion(r.condicion)}">${escaparHtml(r.condicion||"—")}</strong></td>
       <td>${escaparHtml(r.numero_ee||"—")}</td>
       <td>${escaparHtml(r.numero_disposicion||"—")}</td>
     </tr>`;
@@ -4900,7 +4913,7 @@ function renderCartillas() {
       <td class="date-cell">${formatFechaPantalla(c.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
-      <td>${escaparHtml(c.condicion || "—")}</td>
+      <td><strong style="color:${colorCondicion(c.condicion)}">${escaparHtml(c.condicion || "—")}</strong></td>
       <td>${escaparHtml(c.numero_ee || "—")}</td>
       <td>${escaparHtml(c.numero_disposicion || "—")}</td>
     </tr>`;
