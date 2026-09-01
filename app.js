@@ -1131,13 +1131,33 @@ async function handleEliminarPatologia() {
   if (!confirm("¿Eliminar esta patología? Esta acción no se puede deshacer.")) return;
   try {
     const session = await asegurarSesionVigente();
-    await eliminarPatologiaEnSupabase(id, session.access_token);
+    try {
+      await eliminarPatologiaEnSupabase(id, session.access_token);
+    } catch (errorPrimerIntento) {
+      if (!/foreign key|23503/i.test(errorPrimerIntento.message || "")) throw errorPrimerIntento;
+
+      const expResp = await fetchConTimeout(buildTableUrl("expedientes", { patologia_id: `eq.${id}`, select: "id,numero_ee,nombre_paciente" }), { method: "GET", headers: { Accept: "application/json" } }, 10000);
+      const expedientesUsan = expResp.ok ? await expResp.json() : [];
+      const detalleExp = expedientesUsan.map(e => `${e.numero_ee} (${e.nombre_paciente})`).join("\n");
+      const mensaje = expedientesUsan.length
+        ? `Esta patología está en uso en ${expedientesUsan.length} expediente(s):\n${detalleExp}\n\n¿Querés borrarlos también (junto con sus adjuntos e informes), quitar la fundamentación de drogas asociada, y eliminar la patología?`
+        : `Esta patología tiene fundamentaciones de drogas asociadas.\n\n¿Querés quitarlas y eliminar la patología?`;
+      if (!confirm(mensaje)) throw new Error("No se pudo eliminar: está en uso.");
+
+      for (const e of expedientesUsan) {
+        await fetchConTimeout(buildTableUrl("expedientes", { id: `eq.${e.id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      }
+      await fetchConTimeout(buildTableUrl("droga_patologia", { patologia_id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      await eliminarPatologiaEnSupabase(id, session.access_token);
+      expedientesCargadas = false;
+    }
     cerrarModal("patologia-modal");
     mostrarToast("Patología eliminada.");
     patologiasCargadas = false;
+    drogasCargadas = false;
     await cargarYRenderizarPatologias();
   } catch (error) {
-    setFormMessage("patologia-form-message", error.message || "No se pudo eliminar la patología. Puede estar en uso por una droga.");
+    setFormMessage("patologia-form-message", error.message || "No se pudo eliminar la patología.");
   }
 }
 
@@ -2655,10 +2675,23 @@ async function handleEliminarPxPatologia() {
   if (!confirm("¿Eliminar esta patología? Esta acción no se puede deshacer.")) return;
   try {
     const session = await asegurarSesionVigente();
-    const response = await fetchConTimeout(buildTableUrl("preexistencias_patologias", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    let response = await fetchConTimeout(buildTableUrl("preexistencias_patologias", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
     if (!response.ok) {
       const detalle = await leerErrorApi(response);
-      throw new Error(/foreign key|23503/i.test(detalle || "") ? "No se puede eliminar: está usada en una o más preexistencias." : (detalle || `Supabase respondió ${response.status}.`));
+      if (!/foreign key|23503/i.test(detalle || "")) throw new Error(detalle || `Supabase respondió ${response.status}.`);
+
+      const usadasResp = await fetchConTimeout(buildTableUrl("preexistencias", { patologia_id: `eq.${id}`, select: "id,numero_ex,nombre_afiliado" }), { method: "GET", headers: { Accept: "application/json" } }, 10000);
+      const usadas = usadasResp.ok ? await usadasResp.json() : [];
+      const detalleUsadas = usadas.map(u => `${u.numero_ex} (${u.nombre_afiliado})`).join("\n");
+      if (!usadas.length || !confirm(`Esta patología está en uso en ${usadas.length} preexistencia(s):\n${detalleUsadas}\n\n¿Querés borrarlas también (junto con sus adjuntos e informes) y eliminar la patología?`)) {
+        throw new Error("No se pudo eliminar: está usada en una o más preexistencias.");
+      }
+      for (const u of usadas) {
+        await fetchConTimeout(buildTableUrl("preexistencias", { id: `eq.${u.id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      }
+      response = await fetchConTimeout(buildTableUrl("preexistencias_patologias", { id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+      if (!response.ok) throw new Error((await leerErrorApi(response)) || "No se pudo eliminar la patología.");
+      preexistenciasCargadas = false;
     }
     cerrarModal("px-patologia-modal");
     mostrarToast("Patología eliminada.");
