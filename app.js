@@ -3804,33 +3804,41 @@ async function handleGenerarCriticidad() {
     const cicloInicio = criticidadTrimestres[0].inicio;
     const cicloFin = criticidadTrimestres[3].fin;
 
-    const presentacionesPorOs = new Map();
-    [...pma, ...cartillas].forEach(p => {
-      if (!p.fecha_ingreso || !p.obra_social_id) return;
-      if (p.fecha_ingreso < cicloInicio || p.fecha_ingreso > cicloFin) return;
-      const actual = presentacionesPorOs.get(p.obra_social_id);
-      if (!actual || p.fecha_ingreso < actual) presentacionesPorOs.set(p.obra_social_id, p.fecha_ingreso);
-    });
+    function primeraFechaPorOs(lista) {
+      const mapa = new Map();
+      lista.forEach(p => {
+        if (!p.fecha_ingreso || !p.obra_social_id) return;
+        if (p.fecha_ingreso < cicloInicio || p.fecha_ingreso > cicloFin) return;
+        const actual = mapa.get(p.obra_social_id);
+        if (!actual || p.fecha_ingreso < actual) mapa.set(p.obra_social_id, p.fecha_ingreso);
+      });
+      return mapa;
+    }
+    const primeraPmaPorOs = primeraFechaPorOs(pma);
+    const primeraCartillaPorOs = primeraFechaPorOs(cartillas);
 
     criticidadDatos = obrasSociales.map(os => {
-      const primeraFecha = presentacionesPorOs.get(os.id);
-      const valores = criticidadTrimestres.map(t => (primeraFecha && primeraFecha <= t.fin) ? 0 : 1);
-      return { rnos: os.rnos || "—", denominacion: os.denominacion || "—", valores };
+      const fechaPma = primeraPmaPorOs.get(os.id);
+      const fechaCartilla = primeraCartillaPorOs.get(os.id);
+      const valoresPma = criticidadTrimestres.map(t => (fechaPma && fechaPma <= t.fin) ? 0 : 1);
+      const valoresCartilla = criticidadTrimestres.map(t => (fechaCartilla && fechaCartilla <= t.fin) ? 0 : 1);
+      return { rnos: os.rnos || "—", denominacion: os.denominacion || "—", valoresPma, valoresCartilla };
     }).sort((a, b) => (a.rnos || "").localeCompare(b.rnos || ""));
 
-    document.getElementById("criticidad-th-t1").textContent = `Trim. 1 (${criticidadTrimestres[0].etiqueta})`;
-    document.getElementById("criticidad-th-t2").textContent = `Trim. 2 (${criticidadTrimestres[1].etiqueta})`;
-    document.getElementById("criticidad-th-t3").textContent = `Trim. 3 (${criticidadTrimestres[2].etiqueta})`;
-    document.getElementById("criticidad-th-t4").textContent = `Trim. 4 (${criticidadTrimestres[3].etiqueta})`;
+    criticidadTrimestres.forEach((t, i) => {
+      document.getElementById(`criticidad-th-t${i + 1}-pma`).textContent = `${i + 1} PMA (${t.etiqueta})`;
+      document.getElementById(`criticidad-th-t${i + 1}-cartilla`).textContent = `${i + 1} CARTILLA (${t.etiqueta})`;
+    });
 
     const tbody = document.getElementById("criticidad-table-body");
-    tbody.innerHTML = criticidadDatos.map(d => `
-      <tr>
-        <td><strong>${escaparHtml(d.rnos)}</strong></td>
-        <td class="denominacion-cell">${escaparHtml(d.denominacion)}</td>
-        ${d.valores.map(v => `<td style="text-align:center;font-weight:800;color:${v === 0 ? "#278664" : "#c0392b"}">${v}</td>`).join("")}
-      </tr>
-    `).join("");
+    tbody.innerHTML = criticidadDatos.map(d => {
+      const celdas = [];
+      for (let i = 0; i < 4; i++) {
+        celdas.push(`<td style="text-align:center;font-weight:800;color:${d.valoresPma[i] === 0 ? "#278664" : "#c0392b"}">${d.valoresPma[i]}</td>`);
+        celdas.push(`<td style="text-align:center;font-weight:800;color:${d.valoresCartilla[i] === 0 ? "#278664" : "#c0392b"}">${d.valoresCartilla[i]}</td>`);
+      }
+      return `<tr><td><strong>${escaparHtml(d.rnos)}</strong></td><td class="denominacion-cell">${escaparHtml(d.denominacion)}</td>${celdas.join("")}</tr>`;
+    }).join("");
     document.getElementById("criticidad-count").textContent = `${criticidadDatos.length} Obras Sociales — ciclo ${anio}`;
     document.getElementById("criticidad-resultado")?.removeAttribute("hidden");
   } catch (error) {
@@ -3844,8 +3852,8 @@ async function handleGenerarCriticidad() {
 function exportarCriticidadTrimestre(indiceTrimestre) {
   if (!criticidadDatos.length) return;
   const t = criticidadTrimestres[indiceTrimestre];
-  const filas = criticidadDatos.map(d => [d.rnos, d.denominacion, d.valores[indiceTrimestre]]);
-  const hoja = window.XLSX.utils.aoa_to_sheet([["RNAS", "Obra Social", `Trimestre ${indiceTrimestre + 1} (${t.etiqueta})`], ...filas]);
+  const filas = criticidadDatos.map(d => [d.rnos, d.denominacion, d.valoresPma[indiceTrimestre], d.valoresCartilla[indiceTrimestre]]);
+  const hoja = window.XLSX.utils.aoa_to_sheet([["RNAS", "Obra Social", `${indiceTrimestre + 1} PMA (${t.etiqueta})`, `${indiceTrimestre + 1} CARTILLA (${t.etiqueta})`], ...filas]);
   const libro = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(libro, hoja, `Trimestre ${indiceTrimestre + 1}`);
   window.XLSX.writeFile(libro, `criticidad_trimestre${indiceTrimestre + 1}_${document.getElementById("criticidad-anio")?.value}.xlsx`);
