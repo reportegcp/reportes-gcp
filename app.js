@@ -74,6 +74,7 @@ let pxPatologiasCargadas = false;
 let pxPlantillas = [];
 let pxPlantillasCargadas = false;
 let expedientes = [];
+let expedienteVistaEstado = "activos";
 let expedientesCargadas = false;
 let obrasSocialesTodas = [];
 let obrasSocialesTodasCargadas = false;
@@ -1824,9 +1825,10 @@ async function cargarYRenderizarExpedientes() {
 }
 
 function filtrarExpedientes(lista, busqueda) {
+  const porEstado = lista.filter(e => expedienteVistaEstado === "cerrados" ? e.estado === "Cerrado" : e.estado !== "Cerrado");
   const termino = normalizar(busqueda || "");
-  if (!termino) return lista;
-  return lista.filter(e =>
+  if (!termino) return porEstado;
+  return porEstado.filter(e =>
     normalizar(e.numero_ee || "").includes(termino) ||
     normalizar(e.nombre_paciente || "").includes(termino) ||
     normalizar(e.dni_cuit_paciente || "").includes(termino)
@@ -5818,6 +5820,18 @@ async function initBrowser() {
   document.getElementById("plantilla-eliminar")?.addEventListener("click", handleEliminarPlantilla);
 
   document.getElementById("expediente-search")?.addEventListener("input", renderExpedientes);
+  document.getElementById("expediente-tab-activos")?.addEventListener("click", () => {
+    expedienteVistaEstado = "activos";
+    document.getElementById("expediente-tab-activos")?.classList.add("active");
+    document.getElementById("expediente-tab-cerrados")?.classList.remove("active");
+    renderExpedientes();
+  });
+  document.getElementById("expediente-tab-cerrados")?.addEventListener("click", () => {
+    expedienteVistaEstado = "cerrados";
+    document.getElementById("expediente-tab-cerrados")?.classList.add("active");
+    document.getElementById("expediente-tab-activos")?.classList.remove("active");
+    renderExpedientes();
+  });
   document.getElementById("btn-nuevo-expediente")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevoExpediente));
   document.getElementById("expediente-modal-close")?.addEventListener("click", () => cerrarModal("expediente-modal"));
   document.getElementById("expediente-cancelar")?.addEventListener("click", () => cerrarModal("expediente-modal"));
