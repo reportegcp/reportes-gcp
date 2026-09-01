@@ -1241,9 +1241,9 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .history-evolution-label{text-align:center;line-height:1.2;margin-top:4px;max-width:82px}
 .history-evolution-item.en_termino .history-evolution-dot{background:#3f8b6c}
 .history-evolution-item.en_termino .history-evolution-label{color:#27694f}
-.history-evolution-item.fuera_de_termino .history-evolution-dot{background:#b95d67}
-.history-evolution-item.fuera_de_termino .history-evolution-label{color:#8d3543}
-.history-evolution-item.no_presento .history-evolution-dot{background:#c84e59}
+.history-evolution-item.fuera_de_termino .history-evolution-dot{background:#2f6fa3}
+.history-evolution-item.fuera_de_termino .history-evolution-label{color:#1d5273}
+.history-evolution-item.no_presento .history-evolution-dot{background:#c0392b}
 .history-evolution-item.no_presento .history-evolution-label{color:#9c2f39}
 .history-evolution-item.presento .history-evolution-dot{background:#557ca8}
 
