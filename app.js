@@ -1644,10 +1644,20 @@ function buildObrasSocialesTodasUrl() {
 
 async function asegurarObrasSocialesTodasCargadas() {
   if (obrasSocialesTodasCargadas) return;
-  const response = await fetchConTimeout(buildObrasSocialesTodasUrl(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
-  if (!response.ok) { console.error("Error cargando Obras Sociales/EMP:", await leerErrorApi(response)); return; }
-  const rows = await response.json();
-  obrasSocialesTodas = Array.isArray(rows) ? rows : [];
+  let todas = [];
+  let offset = 0;
+  const paginaSize = 1000;
+  while (true) {
+    const url = `${buildObrasSocialesTodasUrl()}&limit=${paginaSize}&offset=${offset}`;
+    const response = await fetchConTimeout(url, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
+    if (!response.ok) { console.error("Error cargando Obras Sociales/EMP:", await leerErrorApi(response)); break; }
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) break;
+    todas = todas.concat(rows);
+    if (rows.length < paginaSize) break;
+    offset += paginaSize;
+  }
+  obrasSocialesTodas = todas;
   obrasSocialesTodasCargadas = true;
   obrasSocialesTodasPorEtiqueta = new Map();
   obrasSocialesTodas.forEach(o => {
@@ -3096,6 +3106,17 @@ function parrafosDesdeTexto(texto, size, vineta = false) {
   }));
 }
 
+// Primera línea = párrafo de introducción sin viñeta; el resto de las líneas, todas con viñeta.
+function parrafosConIntroYVinetas(texto, size) {
+  const { Paragraph } = window.docx;
+  const lineas = (texto || "").split("\n").map(l => l.trim()).filter(Boolean);
+  return lineas.map((linea, i) => new Paragraph({
+    bullet: i === 0 ? undefined : { level: 0 },
+    spacing: { after: 140 },
+    children: runsConNegritaAntesDeDosPuntos(linea, size)
+  }));
+}
+
 // Para textos mixtos (párrafos normales + ítems de lista): una línea es viñeta solo si arranca con "- ".
 function parrafosConVinetaAutoDetectada(texto, size) {
   const { Paragraph } = window.docx;
@@ -3144,7 +3165,7 @@ async function generarInformeInffcDocx(px) {
   parrafos.push(...parrafosConVinetaAutoDetectada(patologia?.texto_desarrollo, P));
 
   parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Respecto de este caso puntual y basándonos en la documental aportada, esta Gerencia estima razonable considerar que el siguiente esquema podría ajustarse a las necesidades del solicitante:", size: P })] }));
-  parrafos.push(...parrafosDesdeTexto(px.esquema_propuesto, P, true));
+  parrafos.push(...parrafosConIntroYVinetas(px.esquema_propuesto, P));
 
   parrafos.push(new Paragraph({ spacing: { after: 140 }, keepNext: true, children: [new TextRun({ text: "Cabe señalar, respecto al tratamiento propuesto por la Entidad de Medicina Prepaga, esta Gerencia señala que atento a que no obra en el expediente documentación que avale su indicación actual y por fuera del PMO (Plan Médico Obligatorio), deberán desestimarse las siguientes prestaciones:", size: P })] }));
   parrafos.push(...parrafosDesdeTexto(px.prestaciones_desestimadas, P, true));
