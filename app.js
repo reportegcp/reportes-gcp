@@ -14,7 +14,7 @@ const views = {
   "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" },
   "up-reportes": { title: "Reportes", subtitle: "Cantidad de expedientes por Obra Social/EMP y patología" },
   "px-preexistencias": { title: "Expedientes", subtitle: "Casos de preexistencia por EMP" },
-  "px-emp": { title: "Estadísticas", subtitle: "Historial de solicitudes por EMP y patología" },
+  "px-emp": { title: "Reportes", subtitle: "Cantidad de preexistencias por EMP y patología" },
   "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" },
   "px-plantillas": { title: "Plantillas", subtitle: "Párrafo legal de apertura del informe INFFC" }
 };
@@ -32,7 +32,7 @@ const manualesSeccion = {
   "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-plantillas": `<strong>Qué hacer en Plantillas de Preexistencias</strong><ul><li>El párrafo legal (Ley 26.682) que abre cada informe INFFC se elige acá.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`,
-  "px-emp": `<strong>Qué hacer en Estadísticas</strong><ul><li>Muestra cuántas preexistencias se solicitaron, agrupadas por EMP y por patología.</li><li>Buscá por nombre de EMP o de patología.</li></ul>`
+  "px-emp": `<strong>Qué hacer en Reportes</strong><ul><li>Dos pestañas: por EMP o por Patología. Hacé clic en una fila para ver el detalle discriminado.</li><li>Gráfico de barras arriba, y botones para exportar a Excel o PDF.</li></ul>`
 };
 
 let obrasSociales = [];
@@ -3392,6 +3392,8 @@ async function handleEliminarAdjuntoPx(adjuntoId) {
 
 let pxEmpReporte = [];
 let pxEmpReporteCargado = false;
+let pxReporteModo = "emp";
+let pxReporteDrill = null;
 
 async function cargarYRenderizarPxEmp() {
   const count = document.getElementById("px-emp-count");
@@ -3425,31 +3427,70 @@ async function cargarYRenderizarPxEmp() {
   }
 }
 
-function filtrarPxEmp(lista, busqueda) {
-  const termino = normalizar(busqueda || "");
-  if (!termino) return lista;
-  return lista.filter(f => normalizar(f.emp).includes(termino) || normalizar(f.patologia).includes(termino));
-}
-
 function renderPxEmp() {
+  const thead = document.getElementById("px-emp-thead");
   const tbody = document.getElementById("px-emp-table-body");
-  if (!tbody) return;
-  const busqueda = document.getElementById("px-emp-search")?.value || "";
-  const filtradas = filtrarPxEmp(pxEmpReporte, busqueda);
-
-  tbody.innerHTML = filtradas.map(f => `
-    <tr>
-      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.emp)}">${escaparHtml(f.emp)}</td>
-      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.patologia)}">${escaparHtml(f.patologia)}</td>
-      <td><strong>${f.cantidad}</strong></td>
-    </tr>
-  `).join("");
-
   const count = document.getElementById("px-emp-count");
-  if (count) count.textContent = `${filtradas.length} combinación${filtradas.length === 1 ? "" : "es"} EMP / patología`;
   const empty = document.getElementById("px-emp-empty");
-  if (empty) empty.hidden = filtradas.length !== 0;
+  const breadcrumb = document.getElementById("px-reporte-breadcrumb");
+  const drillTitulo = document.getElementById("px-reporte-drill-titulo");
+  if (!thead || !tbody) return;
+
+  const campoAgrupador = pxReporteModo === "emp" ? "emp" : "patologia";
+  const campoDetalle = pxReporteModo === "emp" ? "patologia" : "emp";
+  const etiquetaColumna = pxReporteModo === "emp" ? "EMP" : "Patología";
+  const etiquetaDetalle = pxReporteModo === "emp" ? "Patología" : "EMP";
+
+  if (pxReporteDrill) {
+    breadcrumb?.removeAttribute("hidden");
+    if (drillTitulo) drillTitulo.textContent = pxReporteDrill;
+    const filas = pxEmpReporte.filter(f => f[campoAgrupador] === pxReporteDrill)
+      .map(f => ({ clave: f[campoDetalle], cantidad: f.cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad || a.clave.localeCompare(b.clave));
+
+    thead.innerHTML = `<tr><th>${etiquetaDetalle}</th><th>Cantidad de preexistencias</th></tr>`;
+    tbody.innerHTML = filas.map(f => `
+      <tr><td class="ellipsis-cell" style="max-width:320px" title="${escaparHtml(f.clave)}">${escaparHtml(f.clave)}</td><td><strong>${f.cantidad}</strong></td></tr>
+    `).join("");
+    if (count) count.textContent = `${filas.length} ${etiquetaDetalle.toLowerCase()}${filas.length === 1 ? "" : "s"} para ${pxReporteDrill}`;
+    if (empty) empty.hidden = filas.length !== 0;
+    renderBarChart("px-reporte-chart", filas.map(f => ({ etiqueta: f.clave, valor: f.cantidad })));
+  } else {
+    breadcrumb?.setAttribute("hidden", "");
+    const agrupado = agruparUpReportesPor(pxEmpReporte, campoAgrupador);
+
+    thead.innerHTML = `<tr><th>${etiquetaColumna}</th><th>Cantidad de preexistencias</th></tr>`;
+    tbody.innerHTML = agrupado.map(f => `
+      <tr class="os-row" data-drill-px-reporte="${escaparHtml(f.clave)}" tabindex="0" role="button" title="Clic para ver el detalle por ${etiquetaDetalle.toLowerCase()}">
+        <td class="ellipsis-cell" style="max-width:320px" title="${escaparHtml(f.clave)}">${escaparHtml(f.clave)}</td><td><strong>${f.cantidad}</strong></td>
+      </tr>
+    `).join("");
+    if (count) count.textContent = `${agrupado.length} ${etiquetaColumna.toLowerCase()}${agrupado.length === 1 ? "" : "s"}`;
+    if (empty) empty.hidden = agrupado.length !== 0;
+    renderBarChart("px-reporte-chart", agrupado.map(f => ({ etiqueta: f.clave, valor: f.cantidad })));
+
+    tbody.querySelectorAll("[data-drill-px-reporte]").forEach(row => {
+      const drill = () => { pxReporteDrill = row.dataset.drillPxReporte; renderPxEmp(); };
+      row.addEventListener("click", drill);
+      row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); drill(); } });
+    });
+  }
 }
+
+function exportarPxReporteExcel() {
+  const filas = [...document.querySelectorAll("#px-emp-table-body tr")].map(tr => [...tr.children].map(td => td.textContent.trim()));
+  const encabezado = [...document.querySelectorAll("#px-emp-thead th")].map(th => th.textContent.trim());
+  const hoja = window.XLSX.utils.aoa_to_sheet([encabezado, ...filas]);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Reporte");
+  const nombre = pxReporteDrill ? `reporte_${pxReporteDrill}` : `reporte_preexistencias_${pxReporteModo}`;
+  window.XLSX.writeFile(libro, `${nombre.replace(/[^\w-]+/g, "_").slice(0, 60)}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function exportarPxReportePdf() {
+  window.print();
+}
+
 
 // ---------- Urgencias Prestacionales: reporte por Obra Social/EMP y patología ----------
 
@@ -3644,7 +3685,10 @@ function showView(id, updateHistory = true) {
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
   if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
-  if (resolved === "px-emp" && !pxEmpReporteCargado) cargarYRenderizarPxEmp();
+  if (resolved === "px-emp") {
+    pxReporteDrill = null;
+    if (!pxEmpReporteCargado) cargarYRenderizarPxEmp(); else renderPxEmp();
+  }
 }
 
 function renderObrasSociales() {
@@ -5760,7 +5804,21 @@ async function initBrowser() {
   document.getElementById("btn-generar-inffc")?.addEventListener("click", handleGenerarInformeInffc);
   document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
   document.getElementById("preexistencia-profesional-agregar")?.addEventListener("click", agregarProfesionalPxTemporal);
-  document.getElementById("px-emp-search")?.addEventListener("input", renderPxEmp);
+  document.getElementById("px-reporte-tab-emp")?.addEventListener("click", () => {
+    pxReporteModo = "emp"; pxReporteDrill = null;
+    document.getElementById("px-reporte-tab-emp")?.classList.add("active");
+    document.getElementById("px-reporte-tab-patologia")?.classList.remove("active");
+    renderPxEmp();
+  });
+  document.getElementById("px-reporte-tab-patologia")?.addEventListener("click", () => {
+    pxReporteModo = "patologia"; pxReporteDrill = null;
+    document.getElementById("px-reporte-tab-patologia")?.classList.add("active");
+    document.getElementById("px-reporte-tab-emp")?.classList.remove("active");
+    renderPxEmp();
+  });
+  document.getElementById("px-reporte-volver")?.addEventListener("click", () => { pxReporteDrill = null; renderPxEmp(); });
+  document.getElementById("px-reporte-exportar-excel")?.addEventListener("click", exportarPxReporteExcel);
+  document.getElementById("px-reporte-exportar-pdf")?.addEventListener("click", exportarPxReportePdf);
   document.getElementById("up-reporte-tab-os")?.addEventListener("click", () => {
     upReporteModo = "os"; upReporteDrill = null;
     document.getElementById("up-reporte-tab-os")?.classList.add("active");
