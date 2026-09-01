@@ -328,7 +328,7 @@ button{cursor:pointer}
   font-weight:800
 }
 .badge.active{background:#e4f4ed;color:#226d53}
-.badge.inactive{background:#f6e8ea;color:#8d3543}
+.badge.inactive{background:#dceaf5;color:#1d5273}
 .table-empty{
   padding:32px 20px;
   text-align:center;
