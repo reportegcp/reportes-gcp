@@ -8,6 +8,7 @@ const views = {
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
+  criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
@@ -248,8 +249,8 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes"].includes(id);
-  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad"].includes(id);
+  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad"].includes(id);
   return false;
 }
 
@@ -3769,6 +3770,87 @@ function exportarUpReportePdf() {
   window.print();
 }
 
+// ---------- Criticidad (PMA + Cartillas) ----------
+
+function trimestresCriticidad(anio) {
+  const bisiesto = (a) => (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0;
+  return [
+    { etiqueta: `1/12/${anio - 1} al ${bisiesto(anio) ? "29" : "28"}/02/${anio}`, inicio: `${anio - 1}-12-01`, fin: `${anio}-02-${bisiesto(anio) ? "29" : "28"}` },
+    { etiqueta: `1/03/${anio} al 31/05/${anio}`, inicio: `${anio}-03-01`, fin: `${anio}-05-31` },
+    { etiqueta: `1/06/${anio} al 31/08/${anio}`, inicio: `${anio}-06-01`, fin: `${anio}-08-31` },
+    { etiqueta: `1/09/${anio} al 30/11/${anio}`, inicio: `${anio}-09-01`, fin: `${anio}-11-30` }
+  ];
+}
+
+async function asegurarPmaYCartillasCargadas() {
+  await Promise.all([
+    (async () => { if (!pmaCargadas) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; } })(),
+    (async () => { if (!cartillasCargadas) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; } })(),
+    (async () => { if (!obrasSociales.length) await cargarYRenderizarObrasSociales(); })()
+  ]);
+}
+
+let criticidadDatos = [];
+let criticidadTrimestres = [];
+
+async function handleGenerarCriticidad() {
+  const anio = Number(document.getElementById("criticidad-anio")?.value);
+  if (!anio) { mostrarToast("Elegí un año para generar el reporte."); return; }
+  const boton = document.getElementById("criticidad-generar");
+  if (boton) { boton.disabled = true; boton.textContent = "Generando..."; }
+  try {
+    await asegurarPmaYCartillasCargadas();
+    criticidadTrimestres = trimestresCriticidad(anio);
+    const cicloInicio = criticidadTrimestres[0].inicio;
+    const cicloFin = criticidadTrimestres[3].fin;
+
+    const presentacionesPorOs = new Map();
+    [...pma, ...cartillas].forEach(p => {
+      if (!p.fecha_ingreso || !p.obra_social_id) return;
+      if (p.fecha_ingreso < cicloInicio || p.fecha_ingreso > cicloFin) return;
+      const actual = presentacionesPorOs.get(p.obra_social_id);
+      if (!actual || p.fecha_ingreso < actual) presentacionesPorOs.set(p.obra_social_id, p.fecha_ingreso);
+    });
+
+    criticidadDatos = obrasSociales.map(os => {
+      const primeraFecha = presentacionesPorOs.get(os.id);
+      const valores = criticidadTrimestres.map(t => (primeraFecha && primeraFecha <= t.fin) ? 0 : 1);
+      return { rnos: os.rnos || "—", denominacion: os.denominacion || "—", valores };
+    }).sort((a, b) => (a.rnos || "").localeCompare(b.rnos || ""));
+
+    document.getElementById("criticidad-th-t1").textContent = `Trim. 1 (${criticidadTrimestres[0].etiqueta})`;
+    document.getElementById("criticidad-th-t2").textContent = `Trim. 2 (${criticidadTrimestres[1].etiqueta})`;
+    document.getElementById("criticidad-th-t3").textContent = `Trim. 3 (${criticidadTrimestres[2].etiqueta})`;
+    document.getElementById("criticidad-th-t4").textContent = `Trim. 4 (${criticidadTrimestres[3].etiqueta})`;
+
+    const tbody = document.getElementById("criticidad-table-body");
+    tbody.innerHTML = criticidadDatos.map(d => `
+      <tr>
+        <td><strong>${escaparHtml(d.rnos)}</strong></td>
+        <td class="denominacion-cell">${escaparHtml(d.denominacion)}</td>
+        ${d.valores.map(v => `<td style="text-align:center;font-weight:800;color:${v === 0 ? "#278664" : "#c0392b"}">${v}</td>`).join("")}
+      </tr>
+    `).join("");
+    document.getElementById("criticidad-count").textContent = `${criticidadDatos.length} Obras Sociales — ciclo ${anio}`;
+    document.getElementById("criticidad-resultado")?.removeAttribute("hidden");
+  } catch (error) {
+    mostrarToast("No se pudo generar el reporte de Criticidad.");
+    console.error(error);
+  } finally {
+    if (boton) { boton.disabled = false; boton.textContent = "Generar"; }
+  }
+}
+
+function exportarCriticidadTrimestre(indiceTrimestre) {
+  if (!criticidadDatos.length) return;
+  const t = criticidadTrimestres[indiceTrimestre];
+  const filas = criticidadDatos.map(d => [d.rnos, d.denominacion, d.valores[indiceTrimestre]]);
+  const hoja = window.XLSX.utils.aoa_to_sheet([["RNAS", "Obra Social", `Trimestre ${indiceTrimestre + 1} (${t.etiqueta})`], ...filas]);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, `Trimestre ${indiceTrimestre + 1}`);
+  window.XLSX.writeFile(libro, `criticidad_trimestre${indiceTrimestre + 1}_${document.getElementById("criticidad-anio")?.value}.xlsx`);
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -3783,13 +3865,13 @@ function showView(id, updateHistory = true) {
   // Colapsar todos los submenús salvo el de la sección donde estamos parados.
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
-      (["pma", "cartillas", "reportes"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["pma", "cartillas", "reportes", "criticidad"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
-  if (["pma", "cartillas", "reportes"].includes(resolved)) {
+  if (["pma", "cartillas", "reportes", "criticidad"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -3824,6 +3906,9 @@ function showView(id, updateHistory = true) {
   if (resolved === "pma" && !pmaCargadas) cargarYRenderizarPma();
   if (resolved === "cartillas" && !cartillasCargadas) cargarYRenderizarCartillas();
   if (resolved === "reportes") cargarReporteActivo();
+  if (resolved === "criticidad" && !document.getElementById("criticidad-anio").value) {
+    document.getElementById("criticidad-anio").value = new Date().getFullYear();
+  }
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
@@ -6044,6 +6129,11 @@ async function initBrowser() {
   document.getElementById("up-reporte-volver")?.addEventListener("click", () => { upReporteDrill = null; renderUpReportes(); });
   document.getElementById("up-reporte-exportar-excel")?.addEventListener("click", exportarUpReporteExcel);
   document.getElementById("up-reporte-exportar-pdf")?.addEventListener("click", exportarUpReportePdf);
+  document.getElementById("criticidad-generar")?.addEventListener("click", handleGenerarCriticidad);
+  document.getElementById("criticidad-exportar-t1")?.addEventListener("click", () => exportarCriticidadTrimestre(0));
+  document.getElementById("criticidad-exportar-t2")?.addEventListener("click", () => exportarCriticidadTrimestre(1));
+  document.getElementById("criticidad-exportar-t3")?.addEventListener("click", () => exportarCriticidadTrimestre(2));
+  document.getElementById("criticidad-exportar-t4")?.addEventListener("click", () => exportarCriticidadTrimestre(3));
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
