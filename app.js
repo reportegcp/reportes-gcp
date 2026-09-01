@@ -3535,15 +3535,17 @@ async function cargarYRenderizarUpReportes() {
   }
 }
 
+const PALETA_GRAFICO = ["#2f6fa3", "#e0a72e", "#3f9f7f", "#c15b6f", "#7b6fce", "#2c9aa8", "#d97b3f", "#5b8c3e"];
+
 function renderBarChart(containerId, items) {
   const cont = document.getElementById(containerId);
   if (!cont) return;
   const top = items.slice(0, 12);
   const max = Math.max(1, ...top.map(i => i.valor));
-  cont.innerHTML = top.map(i => `
+  cont.innerHTML = top.map((i, idx) => `
     <div class="report-chart-row">
       <div class="report-chart-label" title="${escaparHtml(i.etiqueta)}">${escaparHtml(i.etiqueta)}</div>
-      <div class="report-chart-bar-track"><div class="report-chart-bar-fill" style="width:${Math.round((i.valor / max) * 100)}%"></div></div>
+      <div class="report-chart-bar-track"><div class="report-chart-bar-fill" style="width:${Math.round((i.valor / max) * 100)}%;background:${PALETA_GRAFICO[idx % PALETA_GRAFICO.length]}"></div></div>
       <div class="report-chart-value">${i.valor}</div>
     </div>
   `).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin datos para graficar.</p>`;
