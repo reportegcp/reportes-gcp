@@ -3817,7 +3817,9 @@ async function handleGenerarCriticidad() {
     const primeraPmaPorOs = primeraFechaPorOs(pma);
     const primeraCartillaPorOs = primeraFechaPorOs(cartillas);
 
-    criticidadDatos = obrasSociales.map(os => {
+    criticidadDatos = obrasSociales
+      .filter(os => !String(os.rnos || "").trim().startsWith("9"))
+      .map(os => {
       const fechaPma = primeraPmaPorOs.get(os.id);
       const fechaCartilla = primeraCartillaPorOs.get(os.id);
       const valoresPma = criticidadTrimestres.map(t => (fechaPma && fechaPma <= t.fin) ? 0 : 1);
