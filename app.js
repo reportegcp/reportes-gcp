@@ -1944,6 +1944,7 @@ function actualizarVisibilidadDenunciante() {
 function resetFormularioExpediente() {
   document.getElementById("expediente-form")?.reset();
   document.getElementById("expediente-id").value = "";
+  document.getElementById("expediente-pasos").innerHTML = "";
   document.getElementById("expediente-eliminar")?.setAttribute("hidden", "");
   document.getElementById("expediente-informe-actions")?.setAttribute("hidden", "");
   document.getElementById("expediente-informe-hint")?.removeAttribute("hidden");
@@ -2010,7 +2011,7 @@ async function abrirModalEdicionExpediente(id) {
   document.getElementById("expediente-diagnostico").value = e.diagnostico_detalle || "";
   document.getElementById("expediente-resumen-hc").value = e.resumen_hc || "";
   document.getElementById("expediente-plantilla").value = e.plantilla_id || "";
-  document.getElementById("expediente-pasos").value = e.pasos_resolucion || "";
+  document.getElementById("expediente-pasos").innerHTML = e.pasos_resolucion || "";
 
   modalDrogasExpediente = (e.expediente_medicamentos || []).map(m => ({ id: m.id, droga_id: m.droga_id, marca_id: m.marca_id, dosis: m.dosis }));
   modalDrogasExpedienteOriginales = modalDrogasExpediente.map(m => m.id);
@@ -2069,7 +2070,7 @@ async function handleExpedienteSubmit(event) {
     diagnostico_detalle: diagnostico,
     resumen_hc: document.getElementById("expediente-resumen-hc")?.value || null,
     plantilla_id: document.getElementById("expediente-plantilla")?.value || null,
-    pasos_resolucion: document.getElementById("expediente-pasos")?.value || null
+    pasos_resolucion: document.getElementById("expediente-pasos")?.innerHTML || null
   };
 
   try {
@@ -2183,6 +2184,65 @@ function fundamentacionParaExpediente(drogaId, patologiaId) {
   return fp?.fundamentacion_texto || "";
 }
 
+function dataUrlABytes(dataUrl) {
+  const base64 = (dataUrl || "").split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function obtenerDimensionesImagen(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth || 400, height: img.naturalHeight || 300 });
+    img.onerror = () => resolve({ width: 400, height: 300 });
+    img.src = dataUrl;
+  });
+}
+
+// Igual que parrafosDesdeHtml, pero además convierte cada <img> (pegada por el usuario) en una imagen real dentro del Word.
+async function parrafosConImagenes(html, size) {
+  const { Paragraph, ImageRun } = window.docx;
+  if (!html) return [];
+  const ANCHO_MAX = 450;
+  const contenedor = document.createElement("div");
+  contenedor.innerHTML = html;
+
+  const partes = [];
+  contenedor.querySelectorAll("img").forEach(img => {
+    const marcador = document.createTextNode("\u0002IMG:" + img.getAttribute("src") + "\u0002");
+    img.replaceWith(marcador);
+  });
+  const textoConMarcadores = contenedor.innerHTML
+    .replace(/<\/(p|div|li|br)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ");
+
+  const trozos = textoConMarcadores.split(/\u0002/);
+  for (const trozo of trozos) {
+    if (trozo.startsWith("IMG:")) {
+      const src = trozo.slice(4);
+      if (src.startsWith("data:image")) {
+        try {
+          const dims = await obtenerDimensionesImagen(src);
+          const escala = Math.min(1, ANCHO_MAX / dims.width);
+          partes.push(new Paragraph({
+            spacing: { after: 200 },
+            children: [new ImageRun({ data: dataUrlABytes(src), transformation: { width: Math.round(dims.width * escala), height: Math.round(dims.height * escala) } })]
+          }));
+        } catch (error) { console.error("No se pudo incluir una imagen en el informe:", error); }
+      }
+    } else {
+      trozo.split("\n").map(l => l.trim()).filter(Boolean).forEach(linea => {
+        partes.push(new Paragraph({ spacing: { after: 140 }, children: runsConNegritaAntesDeDosPuntos(linea, size) }));
+      });
+    }
+  }
+  return partes;
+}
+
 async function generarInformeDocx(expediente, tipo) {
   const { Document, Packer, Paragraph, TextRun, AlignmentType } = window.docx;
   const plantilla = plantillas.find(p => String(p.id) === String(expediente.plantilla_id));
@@ -2220,6 +2280,11 @@ async function generarInformeDocx(expediente, tipo) {
 
   if (plantilla?.texto_cierre_tecnico) {
     parrafos.push(...parrafosDesdeHtml(plantilla.texto_cierre_tecnico, P));
+  }
+
+  if (expediente.pasos_resolucion && expediente.pasos_resolucion.trim()) {
+    parrafos.push(new Paragraph({ spacing: { before: 100, after: 140 }, keepNext: true, children: [new TextRun({ text: "Pasos de resolución / seguimiento:", bold: true, size: P })] }));
+    parrafos.push(...(await parrafosConImagenes(expediente.pasos_resolucion, P)));
   }
 
   const cierre = tipo === "IFSOL"
@@ -5808,6 +5873,28 @@ async function initBrowser() {
     }
   });
   document.getElementById("expediente-adjunto-agregar")?.addEventListener("click", handleAgregarAdjunto);
+  document.getElementById("expediente-pasos")?.addEventListener("paste", event => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const contenedor = document.getElementById("expediente-pasos");
+          const img = document.createElement("img");
+          img.src = reader.result;
+          img.style.maxWidth = "100%";
+          contenedor.appendChild(document.createElement("br"));
+          contenedor.appendChild(img);
+          contenedor.appendChild(document.createElement("br"));
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  });
 
   document.getElementById("px-patologia-search")?.addEventListener("input", renderPxPatologias);
   document.getElementById("btn-nueva-px-patologia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPxPatologia));

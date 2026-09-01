@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=101">
+  <link rel="stylesheet" href="styles.css?v=102">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -88,7 +88,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 101</span>
+        <span>Versión 102</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -932,8 +932,11 @@
           <div class="form-section-body">
             <div class="form-grid">
               <label class="full"><span>Plantilla de informe</span><select id="expediente-plantilla"><option value="">Elegir plantilla...</option></select></label>
-              <label class="full"><span>Pasos de resolución / seguimiento</span><textarea id="expediente-pasos" rows="6" class="textarea-grande"></textarea></label>
-              <p class="full" style="color:var(--muted);font-size:12.5px;margin:-8px 0 0">Para agregar capturas de pantalla o imágenes de la resolución, subilas abajo en "Adjuntos" (no se pegan dentro de este texto).</p>
+              <label class="full"><span>Pasos de resolución / seguimiento</span>
+                <div id="expediente-pasos" contenteditable="true" class="mail-preview textarea-grande" style="min-height:170px"></div>
+              </label>
+              <p class="full" style="color:var(--muted);font-size:12.5px;margin:-8px 0 0">Podés pegar una imagen acá directamente (Ctrl+V) — se va a incluir en el informe cuando generes el IFSOL/IFDER.</p>
+              <p class="full" style="color:var(--muted);font-size:12.5px;margin:-8px 0 0">Si necesitás guardar un archivo original (PDF, etc.), subilo abajo en "Adjuntos".</p>
             </div>
             <div id="expediente-informe-actions" class="informe-actions" hidden>
               <div class="informe-actions-row">
@@ -1369,6 +1372,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=101"></script>
+  <script src="app.js?v=102"></script>
 </body>
 </html>
