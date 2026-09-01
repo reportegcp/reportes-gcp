@@ -2453,7 +2453,7 @@ async function handleEliminarAdjunto(adjuntoId) {
 // ---------- Preexistencias: Patologías ----------
 
 function buildPxPatologiasUrl(id = null) {
-  const params = { select: "id,nombre,caracter,texto_desarrollo,referencias,created_at", order: "nombre.asc" };
+  const params = { select: "id,nombre,caracter,texto_desarrollo,referencias,plantilla_id,created_at", order: "nombre.asc" };
   if (id) params.id = `eq.${id}`;
   return buildTableUrl("preexistencias_patologias", params);
 }
@@ -2521,27 +2521,39 @@ function renderPxPatologias() {
   });
 }
 
+function poblarSelectPxPlantillasPatologia() {
+  const select = document.getElementById("px-patologia-plantilla");
+  if (!select) return;
+  const actual = select.value;
+  select.innerHTML = `<option value="">Sin plantilla por defecto</option>` + pxPlantillas.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join("");
+  select.value = actual;
+}
+
 function resetFormularioPxPatologia() {
   document.getElementById("px-patologia-form")?.reset();
   document.getElementById("px-patologia-id").value = "";
   document.getElementById("px-patologia-eliminar")?.setAttribute("hidden", "");
+  poblarSelectPxPlantillasPatologia();
   setFormMessage("px-patologia-form-message");
 }
 
-function abrirModalNuevaPxPatologia() {
+async function abrirModalNuevaPxPatologia() {
+  await asegurarPxPlantillasCargadas();
   resetFormularioPxPatologia();
   document.getElementById("px-patologia-modal-title").textContent = "Nueva patología";
   abrirModal("px-patologia-modal");
   setTimeout(() => document.getElementById("px-patologia-nombre")?.focus(), 0);
 }
 
-function abrirModalEdicionPxPatologia(id) {
+async function abrirModalEdicionPxPatologia(id) {
+  await asegurarPxPlantillasCargadas();
   const p = pxPatologias.find(item => String(item.id) === String(id));
   if (!p) return;
   resetFormularioPxPatologia();
   document.getElementById("px-patologia-id").value = p.id;
   document.getElementById("px-patologia-nombre").value = p.nombre || "";
   document.getElementById("px-patologia-caracter").value = p.caracter || "CRÓNICO";
+  document.getElementById("px-patologia-plantilla").value = p.plantilla_id || "";
   document.getElementById("px-patologia-desarrollo").value = p.texto_desarrollo || "";
   document.getElementById("px-patologia-referencias").value = p.referencias || "";
   document.getElementById("px-patologia-eliminar")?.removeAttribute("hidden");
@@ -2561,6 +2573,7 @@ async function handlePxPatologiaSubmit(event) {
   const registro = {
     nombre,
     caracter: document.getElementById("px-patologia-caracter")?.value || "CRÓNICO",
+    plantilla_id: document.getElementById("px-patologia-plantilla")?.value || null,
     texto_desarrollo: document.getElementById("px-patologia-desarrollo")?.value || "",
     referencias: document.getElementById("px-patologia-referencias")?.value || ""
   };
@@ -5544,6 +5557,10 @@ async function initBrowser() {
   document.getElementById("preexistencia-eliminar")?.addEventListener("click", handleEliminarPreexistencia);
   document.getElementById("preexistencia-emp-input")?.addEventListener("change", event => {
     event.target.dataset.selectedId = empSoloPorEtiqueta.get(event.target.value) || "";
+  });
+  document.getElementById("preexistencia-patologia")?.addEventListener("change", event => {
+    const patologia = pxPatologias.find(p => String(p.id) === String(event.target.value));
+    if (patologia?.plantilla_id) document.getElementById("preexistencia-plantilla").value = patologia.plantilla_id;
   });
   document.getElementById("btn-generar-inffc")?.addEventListener("click", handleGenerarInformeInffc);
   document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
