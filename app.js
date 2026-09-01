@@ -1703,8 +1703,8 @@ function etiquetaObraSocial(id) {
 
 // ---------- Modal de datos de contacto (usado desde Expedientes y Preexistencias) ----------
 
-async function abrirModalContactoOs(id) {
-  if (!id) { mostrarToast("Elegí primero una Obra Social/EMP de la lista para ver su contacto."); return; }
+async function abrirModalContactoOs(id, etiquetaEntidad = "Obra Social/EMP") {
+  if (!id) { mostrarToast(`Elegí primero una ${etiquetaEntidad} de la lista para ver su contacto.`); return; }
   const cont = document.getElementById("contacto-os-modal-body");
   document.getElementById("contacto-os-modal-title").textContent = "Datos de contacto";
   if (cont) cont.innerHTML = `<p style="color:var(--muted);font-size:13px">Cargando...</p>`;
@@ -5946,7 +5946,7 @@ async function initBrowser() {
   document.getElementById("contacto-os-modal-close")?.addEventListener("click", () => cerrarModal("contacto-os-modal"));
   document.getElementById("contacto-os-modal-cerrar")?.addEventListener("click", () => cerrarModal("contacto-os-modal"));
   document.getElementById("expediente-os-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("expediente-os-input")?.dataset.selectedId));
-  document.getElementById("preexistencia-emp-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("preexistencia-emp-input")?.dataset.selectedId));
+  document.getElementById("preexistencia-emp-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("preexistencia-emp-input")?.dataset.selectedId, "EMP"));
 
   document.getElementById("preexistencia-emp-input")?.addEventListener("change", event => {
     event.target.dataset.selectedId = empSoloPorEtiqueta.get(event.target.value) || "";
