@@ -3826,8 +3826,10 @@ async function handleGenerarCriticidad() {
     }).sort((a, b) => (a.rnos || "").localeCompare(b.rnos || ""));
 
     criticidadTrimestres.forEach((t, i) => {
-      document.getElementById(`criticidad-th-t${i + 1}-pma`).textContent = `${i + 1} PMA (${t.etiqueta})`;
-      document.getElementById(`criticidad-th-t${i + 1}-cartilla`).textContent = `${i + 1} CARTILLA (${t.etiqueta})`;
+      document.getElementById(`criticidad-th-t${i + 1}-pma`).textContent = `${i + 1} PMA`;
+      document.getElementById(`criticidad-th-t${i + 1}-pma`).title = t.etiqueta;
+      document.getElementById(`criticidad-th-t${i + 1}-cartilla`).textContent = `${i + 1} CARTILLA`;
+      document.getElementById(`criticidad-th-t${i + 1}-cartilla`).title = t.etiqueta;
     });
 
     const tbody = document.getElementById("criticidad-table-body");
@@ -3854,7 +3856,7 @@ function exportarCriticidadTrimestre(indiceTrimestre) {
   if (!criticidadDatos.length) return;
   const t = criticidadTrimestres[indiceTrimestre];
   const filas = criticidadDatos.map(d => [d.rnos, d.denominacion, d.valoresPma[indiceTrimestre], d.valoresCartilla[indiceTrimestre]]);
-  const hoja = window.XLSX.utils.aoa_to_sheet([["RNAS", "Obra Social", `${indiceTrimestre + 1} PMA (${t.etiqueta})`, `${indiceTrimestre + 1} CARTILLA (${t.etiqueta})`], ...filas]);
+  const hoja = window.XLSX.utils.aoa_to_sheet([["RNAS", "Obra Social", `${indiceTrimestre + 1} PMA`, `${indiceTrimestre + 1} CARTILLA`], ...filas]);
   const libro = window.XLSX.utils.book_new();
   window.XLSX.utils.book_append_sheet(libro, hoja, `Trimestre ${indiceTrimestre + 1}`);
   window.XLSX.writeFile(libro, `criticidad_trimestre${indiceTrimestre + 1}_${document.getElementById("criticidad-anio")?.value}.xlsx`);
