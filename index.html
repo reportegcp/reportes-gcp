@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=89">
+  <link rel="stylesheet" href="styles.css?v=90">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -88,7 +88,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 89</span>
+        <span>Versión 90</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -874,7 +874,10 @@
           <div class="form-section-body">
             <div class="form-grid">
               <label class="full"><span>Obra Social / EMP</span>
-                <input id="expediente-os-input" type="text" list="expediente-os-datalist" placeholder="Escribí para buscar...">
+                <div style="display:flex;gap:8px">
+                  <input id="expediente-os-input" type="text" list="expediente-os-datalist" placeholder="Escribí para buscar..." style="flex:1">
+                  <button type="button" class="secondary" id="expediente-os-contacto" style="white-space:nowrap">Ver contacto</button>
+                </div>
                 <datalist id="expediente-os-datalist"></datalist>
               </label>
               <label class="full"><span>Filial (opcional)</span>
@@ -1055,7 +1058,10 @@
           <div class="form-section-body">
             <div class="form-grid">
               <label class="full"><span>Empresa de Medicina Prepaga</span>
-                <input id="preexistencia-emp-input" type="text" list="preexistencia-emp-datalist" placeholder="Escribí para buscar (solo EMP)...">
+                <div style="display:flex;gap:8px">
+                  <input id="preexistencia-emp-input" type="text" list="preexistencia-emp-datalist" placeholder="Escribí para buscar (solo EMP)..." style="flex:1">
+                  <button type="button" class="secondary" id="preexistencia-emp-contacto" style="white-space:nowrap">Ver contacto</button>
+                </div>
                 <datalist id="preexistencia-emp-datalist"></datalist>
               </label>
               <label><span>Nombre y apellido del afiliado</span><input id="preexistencia-nombre-afiliado" type="text" required></label>
@@ -1115,6 +1121,20 @@
           <button type="submit" class="primary" id="preexistencia-save">Guardar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="contacto-os-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="contacto-os-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">CONTACTO</span><h2 id="contacto-os-modal-title">Datos de contacto</h2></div>
+        <button class="icon-button" type="button" id="contacto-os-modal-close" aria-label="Cerrar">×</button>
+      </div>
+      <div id="contacto-os-modal-body" style="padding:8px 0 4px"></div>
+      <div class="modal-actions">
+        <span style="flex:1"></span>
+        <button type="button" class="secondary" id="contacto-os-modal-cerrar">Cerrar</button>
+      </div>
     </div>
   </div>
 
@@ -1329,6 +1349,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=89"></script>
+  <script src="app.js?v=90"></script>
 </body>
 </html>
