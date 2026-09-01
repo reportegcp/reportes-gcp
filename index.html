@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=90">
+  <link rel="stylesheet" href="styles.css?v=91">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -67,10 +67,10 @@
           </button>
           <div class="nav-submenu">
             <button class="nav-subitem" data-view="up-expedientes" type="button">Expedientes</button>
-            <button class="nav-subitem" data-view="up-reportes" type="button">Reportes</button>
             <button class="nav-subitem" data-view="up-drogas" type="button">Catálogo de drogas</button>
             <button class="nav-subitem" data-view="up-patologias" type="button">Patologías</button>
             <button class="nav-subitem" data-view="up-plantillas" type="button">Plantillas</button>
+            <button class="nav-subitem" data-view="up-reportes" type="button">Reportes</button>
           </div>
         </div>
 
@@ -88,7 +88,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 90</span>
+        <span>Versión 91</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -581,20 +581,29 @@
       </section>
 
       <section id="up-reportes" class="view">
-        <div class="toolbar">
-          <div class="search-box">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="up-reportes-search" type="search" placeholder="Buscar por Obra Social/EMP o patología..." autocomplete="off">
+        <div class="toolbar" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div class="report-tabs">
+            <button class="report-tab active" id="up-reporte-tab-os" type="button">Por Obra Social/EMP</button>
+            <button class="report-tab" id="up-reporte-tab-patologia" type="button">Por Patología</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="secondary" id="up-reporte-exportar-excel" type="button">Exportar Excel</button>
+            <button class="secondary" id="up-reporte-exportar-pdf" type="button">Exportar PDF</button>
           </div>
         </div>
 
-        <div class="table-card">
-          <div class="table-meta">
-            <strong id="up-reportes-count">Cargando...</strong>
-          </div>
+        <div id="up-reporte-breadcrumb" style="margin:2px 0 12px" hidden>
+          <button class="secondary" id="up-reporte-volver" type="button" style="padding:5px 12px;font-size:12.5px">← Volver</button>
+          <strong id="up-reporte-drill-titulo" style="margin-left:10px;font-size:13.5px"></strong>
+        </div>
+
+        <div id="up-reporte-chart" class="report-chart"></div>
+
+        <div class="table-card" id="up-reporte-printable">
+          <div class="table-meta"><strong id="up-reportes-count">Cargando...</strong></div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Obra Social / EMP</th><th>Patología</th><th>Cantidad de expedientes</th></tr></thead>
+              <thead id="up-reportes-thead"><tr><th>Obra Social / EMP</th><th>Cantidad de expedientes</th></tr></thead>
               <tbody id="up-reportes-table-body"></tbody>
             </table>
           </div>
@@ -1349,6 +1358,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=90"></script>
+  <script src="app.js?v=91"></script>
 </body>
 </html>

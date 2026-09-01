@@ -479,6 +479,24 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   white-space:pre-wrap;line-height:1.5
 }
 .mail-preview:focus{outline:none;border-color:#7f98b3;box-shadow:0 0 0 3px rgba(38,74,113,.08)}
+.report-tabs{display:flex;gap:6px}
+.report-tab{
+  border:1px solid var(--line);border-radius:9px;padding:8px 14px;background:#fff;
+  color:var(--muted);font-weight:700;font-size:13px;cursor:pointer
+}
+.report-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.report-chart{display:grid;gap:8px;margin-bottom:16px}
+.report-chart-row{display:grid;grid-template-columns:200px 1fr 50px;align-items:center;gap:10px;font-size:12.5px}
+.report-chart-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.report-chart-bar-track{background:var(--surface-soft);border-radius:6px;height:16px;overflow:hidden}
+.report-chart-bar-fill{background:var(--navy-2);height:100%;border-radius:6px}
+.report-chart-value{text-align:right;font-weight:700;color:var(--navy)}
+@media print{
+  .sidebar,.topbar,.modal-backdrop,.report-tabs,#up-reporte-exportar-excel,#up-reporte-exportar-pdf,#up-reporte-volver{display:none!important}
+  main{padding:0!important}
+  .view{display:none!important}
+  .view.active{display:block!important}
+}
 .form-message{
   margin:-6px 0 16px;
   padding:10px 12px;

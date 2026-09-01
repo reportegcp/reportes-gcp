@@ -3434,6 +3434,8 @@ function renderPxEmp() {
 
 let upReportes = [];
 let upReportesCargado = false;
+let upReporteModo = "os";
+let upReporteDrill = null;
 
 async function cargarYRenderizarUpReportes() {
   const count = document.getElementById("up-reportes-count");
@@ -3471,30 +3473,88 @@ async function cargarYRenderizarUpReportes() {
   }
 }
 
-function filtrarUpReportes(lista, busqueda) {
-  const termino = normalizar(busqueda || "");
-  if (!termino) return lista;
-  return lista.filter(f => normalizar(f.os).includes(termino) || normalizar(f.patologia).includes(termino));
+function renderBarChart(containerId, items) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  const top = items.slice(0, 12);
+  const max = Math.max(1, ...top.map(i => i.valor));
+  cont.innerHTML = top.map(i => `
+    <div class="report-chart-row">
+      <div class="report-chart-label" title="${escaparHtml(i.etiqueta)}">${escaparHtml(i.etiqueta)}</div>
+      <div class="report-chart-bar-track"><div class="report-chart-bar-fill" style="width:${Math.round((i.valor / max) * 100)}%"></div></div>
+      <div class="report-chart-value">${i.valor}</div>
+    </div>
+  `).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin datos para graficar.</p>`;
+}
+
+function agruparUpReportesPor(lista, campo) {
+  const mapa = new Map();
+  lista.forEach(f => mapa.set(f[campo], (mapa.get(f[campo]) || 0) + f.cantidad));
+  return [...mapa.entries()].map(([clave, cantidad]) => ({ clave, cantidad })).sort((a, b) => b.cantidad - a.cantidad || a.clave.localeCompare(b.clave));
 }
 
 function renderUpReportes() {
+  const thead = document.getElementById("up-reportes-thead");
   const tbody = document.getElementById("up-reportes-table-body");
-  if (!tbody) return;
-  const busqueda = document.getElementById("up-reportes-search")?.value || "";
-  const filtradas = filtrarUpReportes(upReportes, busqueda);
-
-  tbody.innerHTML = filtradas.map(f => `
-    <tr>
-      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.os)}">${escaparHtml(f.os)}</td>
-      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.patologia)}">${escaparHtml(f.patologia)}</td>
-      <td><strong>${f.cantidad}</strong></td>
-    </tr>
-  `).join("");
-
   const count = document.getElementById("up-reportes-count");
-  if (count) count.textContent = `${filtradas.length} combinación${filtradas.length === 1 ? "" : "es"} Obra Social/EMP / patología`;
   const empty = document.getElementById("up-reportes-empty");
-  if (empty) empty.hidden = filtradas.length !== 0;
+  const breadcrumb = document.getElementById("up-reporte-breadcrumb");
+  const drillTitulo = document.getElementById("up-reporte-drill-titulo");
+  if (!thead || !tbody) return;
+
+  const campoAgrupador = upReporteModo === "os" ? "os" : "patologia";
+  const campoDetalle = upReporteModo === "os" ? "patologia" : "os";
+  const etiquetaColumna = upReporteModo === "os" ? "Obra Social / EMP" : "Patología";
+  const etiquetaDetalle = upReporteModo === "os" ? "Patología" : "Obra Social / EMP";
+
+  if (upReporteDrill) {
+    breadcrumb?.removeAttribute("hidden");
+    if (drillTitulo) drillTitulo.textContent = upReporteDrill;
+    const filas = upReportes.filter(f => f[campoAgrupador] === upReporteDrill)
+      .map(f => ({ clave: f[campoDetalle], cantidad: f.cantidad }))
+      .sort((a, b) => b.cantidad - a.cantidad || a.clave.localeCompare(b.clave));
+
+    thead.innerHTML = `<tr><th>${etiquetaDetalle}</th><th>Cantidad de expedientes</th></tr>`;
+    tbody.innerHTML = filas.map(f => `
+      <tr><td class="ellipsis-cell" style="max-width:320px" title="${escaparHtml(f.clave)}">${escaparHtml(f.clave)}</td><td><strong>${f.cantidad}</strong></td></tr>
+    `).join("");
+    if (count) count.textContent = `${filas.length} ${etiquetaDetalle.toLowerCase()}${filas.length === 1 ? "" : "s"} para ${upReporteDrill}`;
+    if (empty) empty.hidden = filas.length !== 0;
+    renderBarChart("up-reporte-chart", filas.map(f => ({ etiqueta: f.clave, valor: f.cantidad })));
+  } else {
+    breadcrumb?.setAttribute("hidden", "");
+    const agrupado = agruparUpReportesPor(upReportes, campoAgrupador);
+
+    thead.innerHTML = `<tr><th>${etiquetaColumna}</th><th>Cantidad de expedientes</th></tr>`;
+    tbody.innerHTML = agrupado.map(f => `
+      <tr class="os-row" data-drill-up-reporte="${escaparHtml(f.clave)}" tabindex="0" role="button" title="Clic para ver el detalle por ${etiquetaDetalle.toLowerCase()}">
+        <td class="ellipsis-cell" style="max-width:320px" title="${escaparHtml(f.clave)}">${escaparHtml(f.clave)}</td><td><strong>${f.cantidad}</strong></td>
+      </tr>
+    `).join("");
+    if (count) count.textContent = `${agrupado.length} ${etiquetaColumna.toLowerCase()}${agrupado.length === 1 ? "" : "s"}`;
+    if (empty) empty.hidden = agrupado.length !== 0;
+    renderBarChart("up-reporte-chart", agrupado.map(f => ({ etiqueta: f.clave, valor: f.cantidad })));
+
+    tbody.querySelectorAll("[data-drill-up-reporte]").forEach(row => {
+      const drill = () => { upReporteDrill = row.dataset.drillUpReporte; renderUpReportes(); };
+      row.addEventListener("click", drill);
+      row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); drill(); } });
+    });
+  }
+}
+
+function exportarUpReporteExcel() {
+  const filas = [...document.querySelectorAll("#up-reportes-table-body tr")].map(tr => [...tr.children].map(td => td.textContent.trim()));
+  const encabezado = [...document.querySelectorAll("#up-reportes-thead th")].map(th => th.textContent.trim());
+  const hoja = window.XLSX.utils.aoa_to_sheet([encabezado, ...filas]);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Reporte");
+  const nombre = upReporteDrill ? `reporte_${upReporteDrill}` : `reporte_urgencias_prestacionales_${upReporteModo}`;
+  window.XLSX.writeFile(libro, `${nombre.replace(/[^\w-]+/g, "_").slice(0, 60)}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function exportarUpReportePdf() {
+  window.print();
 }
 
 function showView(id, updateHistory = true) {
@@ -3556,7 +3616,10 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
   if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
-  if (resolved === "up-reportes" && !upReportesCargado) cargarYRenderizarUpReportes();
+  if (resolved === "up-reportes") {
+    upReporteDrill = null;
+    if (!upReportesCargado) cargarYRenderizarUpReportes(); else renderUpReportes();
+  }
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
   if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
@@ -5677,7 +5740,21 @@ async function initBrowser() {
   document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
   document.getElementById("preexistencia-profesional-agregar")?.addEventListener("click", agregarProfesionalPxTemporal);
   document.getElementById("px-emp-search")?.addEventListener("input", renderPxEmp);
-  document.getElementById("up-reportes-search")?.addEventListener("input", renderUpReportes);
+  document.getElementById("up-reporte-tab-os")?.addEventListener("click", () => {
+    upReporteModo = "os"; upReporteDrill = null;
+    document.getElementById("up-reporte-tab-os")?.classList.add("active");
+    document.getElementById("up-reporte-tab-patologia")?.classList.remove("active");
+    renderUpReportes();
+  });
+  document.getElementById("up-reporte-tab-patologia")?.addEventListener("click", () => {
+    upReporteModo = "patologia"; upReporteDrill = null;
+    document.getElementById("up-reporte-tab-patologia")?.classList.add("active");
+    document.getElementById("up-reporte-tab-os")?.classList.remove("active");
+    renderUpReportes();
+  });
+  document.getElementById("up-reporte-volver")?.addEventListener("click", () => { upReporteDrill = null; renderUpReportes(); });
+  document.getElementById("up-reporte-exportar-excel")?.addEventListener("click", exportarUpReporteExcel);
+  document.getElementById("up-reporte-exportar-pdf")?.addEventListener("click", exportarUpReportePdf);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
