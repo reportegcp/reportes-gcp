@@ -3131,7 +3131,7 @@ async function generarInformeInffcDocx(px) {
   const declaracionCompleta = [
     listaProfesionales ? `Según consta en Declaración Jurada e Informe Profesional de ${listaProfesionales}, el/la beneficiario/a ${px.nombre_afiliado || ""} presenta ${px.texto_declaracion_jurada || ""}` : (px.texto_declaracion_jurada || "")
   ].join("");
-  parrafos.push(...parrafosDesdeTexto(declaracionCompleta, P, false));
+  parrafos.push(...parrafosConVinetaAutoDetectada(declaracionCompleta, P));
 
   if (patologia) {
     parrafos.push(new Paragraph({ spacing: { after: 200 }, children: [
