@@ -1705,37 +1705,79 @@ function etiquetaObraSocial(id) {
 
 async function abrirModalContactoOs(id, etiquetaEntidad = "Obra Social/EMP") {
   if (!id) { mostrarToast(`Elegí primero una ${etiquetaEntidad} de la lista para ver su contacto.`); return; }
-  const cont = document.getElementById("contacto-os-modal-body");
+  setFormMessage("contacto-os-form-message");
+  document.getElementById("contacto-os-id").value = id;
   document.getElementById("contacto-os-modal-title").textContent = "Datos de contacto";
-  if (cont) cont.innerHTML = `<p style="color:var(--muted);font-size:13px">Cargando...</p>`;
+  document.getElementById("contacto-os-form")?.reset();
   abrirModal("contacto-os-modal");
 
   const params = { id: `eq.${id}`, select: "denominacion,sigla,domicilio,localidad,provincia,telefono,email,web,dg_nombre,dg_cargo,dg_telefono,dg_movil,dg_email,dg_notas,am_nombre,am_cargo,am_telefono,am_movil,am_email,am_notas,ad_nombre,ad_cargo,ad_telefono,ad_movil,ad_email,ad_notas,info_adicional" };
   const response = await fetchConTimeout(buildTableUrl("obras_sociales", params), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
-  if (!response.ok || !cont) { if (cont) cont.innerHTML = `<p style="color:var(--muted);font-size:13px">No se pudieron cargar los datos de contacto.</p>`; return; }
-  const filas = await response.json();
+  const filas = response.ok ? await response.json() : [];
   const o = filas[0];
-  if (!o) { cont.innerHTML = `<p style="color:var(--muted);font-size:13px">No se encontró esa Obra Social/EMP.</p>`; return; }
+  if (!o) { setFormMessage("contacto-os-form-message", "No se encontró esa Obra Social/EMP."); return; }
 
   document.getElementById("contacto-os-modal-title").textContent = o.denominacion || "Datos de contacto";
+  const campos = ["domicilio", "localidad", "provincia", "telefono", "email", "web",
+    "dg_nombre", "dg_cargo", "dg_telefono", "dg_movil", "dg_email", "dg_notas",
+    "am_nombre", "am_cargo", "am_telefono", "am_movil", "am_email", "am_notas",
+    "ad_nombre", "ad_cargo", "ad_telefono", "ad_movil", "ad_email", "ad_notas"];
+  campos.forEach(campo => {
+    const el = document.getElementById(`contacto-os-${campo.replace(/_/g, "-")}`);
+    if (el) el.value = o[campo] || "";
+  });
+  document.getElementById("contacto-os-info-adicional").value = o.info_adicional || "";
+}
 
-  const fila = (etiqueta, valor) => valor ? `<div class="subform-item-text" style="margin-bottom:4px"><strong>${escaparHtml(etiqueta)}:</strong> ${escaparHtml(valor)}</div>` : "";
-  const bloquePersona = (titulo, nombre, cargo, telefono, movil, email, notas) => {
-    if (!nombre && !cargo && !telefono && !movil && !email && !notas) return "";
-    return `
-      <h3 style="font-size:13px;color:#4d5d70;margin:14px 0 6px">${escaparHtml(titulo)}</h3>
-      ${fila("Nombre", nombre)}${fila("Cargo", cargo)}${fila("Teléfono", telefono)}${fila("Celular", movil)}${fila("Email", email)}${fila("Notas", notas)}
-    `;
+async function handleContactoOsSubmit(event) {
+  event.preventDefault();
+  const save = document.getElementById("contacto-os-save");
+  setFormMessage("contacto-os-form-message");
+  const id = document.getElementById("contacto-os-id")?.value || "";
+  if (!id) return;
+
+  const registro = {
+    domicilio: document.getElementById("contacto-os-domicilio")?.value.trim() || null,
+    localidad: document.getElementById("contacto-os-localidad")?.value.trim() || null,
+    provincia: document.getElementById("contacto-os-provincia")?.value.trim() || null,
+    telefono: document.getElementById("contacto-os-telefono")?.value.trim() || null,
+    email: document.getElementById("contacto-os-email")?.value.trim() || null,
+    web: document.getElementById("contacto-os-web")?.value.trim() || null,
+    dg_nombre: document.getElementById("contacto-os-dg-nombre")?.value.trim() || null,
+    dg_cargo: document.getElementById("contacto-os-dg-cargo")?.value.trim() || null,
+    dg_telefono: document.getElementById("contacto-os-dg-telefono")?.value.trim() || null,
+    dg_movil: document.getElementById("contacto-os-dg-movil")?.value.trim() || null,
+    dg_email: document.getElementById("contacto-os-dg-email")?.value.trim() || null,
+    dg_notas: document.getElementById("contacto-os-dg-notas")?.value.trim() || null,
+    am_nombre: document.getElementById("contacto-os-am-nombre")?.value.trim() || null,
+    am_cargo: document.getElementById("contacto-os-am-cargo")?.value.trim() || null,
+    am_telefono: document.getElementById("contacto-os-am-telefono")?.value.trim() || null,
+    am_movil: document.getElementById("contacto-os-am-movil")?.value.trim() || null,
+    am_email: document.getElementById("contacto-os-am-email")?.value.trim() || null,
+    am_notas: document.getElementById("contacto-os-am-notas")?.value.trim() || null,
+    ad_nombre: document.getElementById("contacto-os-ad-nombre")?.value.trim() || null,
+    ad_cargo: document.getElementById("contacto-os-ad-cargo")?.value.trim() || null,
+    ad_telefono: document.getElementById("contacto-os-ad-telefono")?.value.trim() || null,
+    ad_movil: document.getElementById("contacto-os-ad-movil")?.value.trim() || null,
+    ad_email: document.getElementById("contacto-os-ad-email")?.value.trim() || null,
+    ad_notas: document.getElementById("contacto-os-ad-notas")?.value.trim() || null,
+    info_adicional: document.getElementById("contacto-os-info-adicional")?.value.trim() || null
   };
 
-  const general = `${fila("Domicilio", o.domicilio)}${fila("Localidad", [o.localidad, o.provincia].filter(Boolean).join(", "))}${fila("Teléfono", o.telefono)}${fila("Email", o.email)}${fila("Web", o.web)}`;
-  const dg = bloquePersona("Director General", o.dg_nombre, o.dg_cargo, o.dg_telefono, o.dg_movil, o.dg_email, o.dg_notas);
-  const am = bloquePersona("Auditor Médico", o.am_nombre, o.am_cargo, o.am_telefono, o.am_movil, o.am_email, o.am_notas);
-  const ad = bloquePersona("Administrador", o.ad_nombre, o.ad_cargo, o.ad_telefono, o.ad_movil, o.ad_email, o.ad_notas);
-  const adicional = o.info_adicional ? `<h3 style="font-size:13px;color:#4d5d70;margin:14px 0 6px">Información adicional</h3><div class="subform-item-text">${escaparHtml(o.info_adicional)}</div>` : "";
-
-  const contenido = general + dg + am + ad + adicional;
-  cont.innerHTML = contenido.trim() ? contenido : `<p style="color:var(--muted);font-size:13px">No hay datos de contacto cargados para esta Obra Social/EMP.</p>`;
+  try {
+    if (save) save.disabled = true;
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildTableUrl("obras_sociales", { id: `eq.${id}` }), {
+      method: "PATCH", headers: authHeaders(session.access_token), body: JSON.stringify(registro)
+    }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    mostrarToast("Datos de contacto guardados.");
+    cerrarModal("contacto-os-modal");
+  } catch (error) {
+    setFormMessage("contacto-os-form-message", error.message || "No se pudo guardar el contacto.");
+  } finally {
+    if (save) save.disabled = false;
+  }
 }
 
 function buildFilialesUrl(params = {}) {
@@ -5945,6 +5987,7 @@ async function initBrowser() {
   document.getElementById("preexistencia-eliminar")?.addEventListener("click", handleEliminarPreexistencia);
   document.getElementById("contacto-os-modal-close")?.addEventListener("click", () => cerrarModal("contacto-os-modal"));
   document.getElementById("contacto-os-modal-cerrar")?.addEventListener("click", () => cerrarModal("contacto-os-modal"));
+  document.getElementById("contacto-os-form")?.addEventListener("submit", handleContactoOsSubmit);
   document.getElementById("expediente-os-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("expediente-os-input")?.dataset.selectedId));
   document.getElementById("preexistencia-emp-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("preexistencia-emp-input")?.dataset.selectedId, "EMP"));
 
