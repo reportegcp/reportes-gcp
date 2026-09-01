@@ -9,6 +9,7 @@ const views = {
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
+  "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
@@ -249,8 +250,8 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad"].includes(id);
-  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
+  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
   return false;
 }
 
@@ -3864,6 +3865,64 @@ function exportarCriticidadTrimestre(indiceTrimestre) {
   window.XLSX.writeFile(libro, `criticidad_trimestre${indiceTrimestre + 1}_${document.getElementById("criticidad-anio")?.value}.xlsx`);
 }
 
+// ---------- Metas físicas (PMA + Cartillas) ----------
+
+function trimestresMetasFisicas(anio) {
+  return [
+    { etiqueta: `1/01/${anio} al 31/03/${anio}`, inicio: `${anio}-01-01`, fin: `${anio}-03-31` },
+    { etiqueta: `1/04/${anio} al 30/06/${anio}`, inicio: `${anio}-04-01`, fin: `${anio}-06-30` },
+    { etiqueta: `1/07/${anio} al 30/09/${anio}`, inicio: `${anio}-07-01`, fin: `${anio}-09-30` },
+    { etiqueta: `1/10/${anio} al 31/12/${anio}`, inicio: `${anio}-10-01`, fin: `${anio}-12-31` }
+  ];
+}
+
+let metasDatos = [];
+
+async function handleGenerarMetasFisicas() {
+  const anio = Number(document.getElementById("metas-anio")?.value);
+  if (!anio) { mostrarToast("Elegí un año para generar el reporte."); return; }
+  const boton = document.getElementById("metas-generar");
+  if (boton) { boton.disabled = true; boton.textContent = "Generando..."; }
+  try {
+    await asegurarPmaYCartillasCargadas();
+    const trimestres = trimestresMetasFisicas(anio);
+
+    function contarEnRango(lista, inicio, fin) {
+      return lista.filter(p => p.fecha_ingreso && p.fecha_ingreso >= inicio && p.fecha_ingreso <= fin).length;
+    }
+
+    metasDatos = trimestres.map((t, i) => ({
+      trimestre: `Trimestre ${i + 1} (${t.etiqueta})`,
+      pma: contarEnRango(pma, t.inicio, t.fin),
+      cartilla: contarEnRango(cartillas, t.inicio, t.fin)
+    }));
+
+    const tbody = document.getElementById("metas-table-body");
+    tbody.innerHTML = metasDatos.map(d => `
+      <tr><td><strong>${escaparHtml(d.trimestre)}</strong></td><td style="text-align:center;font-weight:800">${d.pma}</td><td style="text-align:center;font-weight:800">${d.cartilla}</td></tr>
+    `).join("");
+    const totalPma = metasDatos.reduce((a, d) => a + d.pma, 0);
+    const totalCartilla = metasDatos.reduce((a, d) => a + d.cartilla, 0);
+    document.getElementById("metas-count").textContent = `Año ${anio} — Total PMA: ${totalPma} · Total Cartillas: ${totalCartilla}`;
+    document.getElementById("metas-resultado")?.removeAttribute("hidden");
+    document.getElementById("metas-exportar")?.removeAttribute("hidden");
+  } catch (error) {
+    mostrarToast("No se pudo generar el reporte de Metas Físicas.");
+    console.error(error);
+  } finally {
+    if (boton) { boton.disabled = false; boton.textContent = "Generar"; }
+  }
+}
+
+function exportarMetasFisicasExcel() {
+  if (!metasDatos.length) return;
+  const filas = metasDatos.map(d => [d.trimestre, d.pma, d.cartilla]);
+  const hoja = window.XLSX.utils.aoa_to_sheet([["Trimestre", "PMA", "CARTILLA"], ...filas]);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Metas Físicas");
+  window.XLSX.writeFile(libro, `metas_fisicas_${document.getElementById("metas-anio")?.value}.xlsx`);
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -3878,13 +3937,13 @@ function showView(id, updateHistory = true) {
   // Colapsar todos los submenús salvo el de la sección donde estamos parados.
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
-      (["pma", "cartillas", "reportes", "criticidad"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
-  if (["pma", "cartillas", "reportes", "criticidad"].includes(resolved)) {
+  if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -3921,6 +3980,9 @@ function showView(id, updateHistory = true) {
   if (resolved === "reportes") cargarReporteActivo();
   if (resolved === "criticidad" && !document.getElementById("criticidad-anio").value) {
     document.getElementById("criticidad-anio").value = new Date().getFullYear();
+  }
+  if (resolved === "metas-fisicas" && !document.getElementById("metas-anio").value) {
+    document.getElementById("metas-anio").value = new Date().getFullYear();
   }
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
@@ -6147,6 +6209,8 @@ async function initBrowser() {
   document.getElementById("criticidad-exportar-t2")?.addEventListener("click", () => exportarCriticidadTrimestre(1));
   document.getElementById("criticidad-exportar-t3")?.addEventListener("click", () => exportarCriticidadTrimestre(2));
   document.getElementById("criticidad-exportar-t4")?.addEventListener("click", () => exportarCriticidadTrimestre(3));
+  document.getElementById("metas-generar")?.addEventListener("click", handleGenerarMetasFisicas);
+  document.getElementById("metas-exportar")?.addEventListener("click", exportarMetasFisicasExcel);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

@@ -486,7 +486,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 }
 .report-tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 #up-reporte-exportar-excel,#up-reporte-exportar-pdf,#px-reporte-exportar-excel,#px-reporte-exportar-pdf,
-#criticidad-generar,#criticidad-exportar-t1,#criticidad-exportar-t2,#criticidad-exportar-t3,#criticidad-exportar-t4{
+#criticidad-generar,#criticidad-exportar-t1,#criticidad-exportar-t2,#criticidad-exportar-t3,#criticidad-exportar-t4,
+#metas-generar,#metas-exportar{
   padding:6px 12px;font-size:12.5px;white-space:nowrap
 }
 .report-chart{display:grid;gap:8px;margin-bottom:16px}

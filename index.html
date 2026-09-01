@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=114">
+  <link rel="stylesheet" href="styles.css?v=115">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -58,6 +58,7 @@
             <button class="nav-subitem" data-view="pma" type="button">PMA</button>
             <button class="nav-subitem" data-view="cartillas" type="button">Cartillas</button>
             <button class="nav-subitem" data-view="criticidad" type="button">Criticidad</button>
+            <button class="nav-subitem" data-view="metas-fisicas" type="button">Metas Físicas</button>
             <button class="nav-subitem" data-view="reportes" type="button">Reportes</button>
           </div>
         </div>
@@ -89,7 +90,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 114</span>
+        <span>Versión 115</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -385,6 +386,31 @@
           </div>
         </div>
         <p id="criticidad-hint" style="color:var(--muted);font-size:13px">0 = presentó PMA o Cartilla en ese trimestre o antes · 1 = todavía no había presentado ninguna de las dos.</p>
+      </section>
+
+      <section id="metas-fisicas" class="view">
+        <div class="toolbar" style="align-items:flex-end;gap:14px;grid-template-columns:none;display:flex;flex-wrap:wrap">
+          <label><span style="display:block;font-size:12px;font-weight:800;color:#4d5d70;margin-bottom:6px">Año (trimestres calendario: Ene-Mar, Abr-Jun, Jul-Sep, Oct-Dic)</span>
+            <input id="metas-anio" type="number" min="2020" max="2100" style="width:140px;padding:9px 11px;border:1px solid var(--line);border-radius:9px">
+          </label>
+          <button class="primary" id="metas-generar" type="button">Generar</button>
+          <button class="secondary" id="metas-exportar" type="button" hidden>Exportar Excel</button>
+        </div>
+
+        <div id="metas-resultado" hidden>
+          <div class="table-card">
+            <div class="table-meta"><strong id="metas-count"></strong></div>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Trimestre</th><th>PMA</th><th>CARTILLA</th>
+                </tr></thead>
+                <tbody id="metas-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <p style="color:var(--muted);font-size:13px">Cantidad de trámites (expedientes) de PMA y de Cartilla que ingresaron en cada trimestre calendario del año elegido.</p>
       </section>
 
       <section id="reportes" class="view">
@@ -1465,6 +1491,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=114"></script>
+  <script src="app.js?v=115"></script>
 </body>
 </html>
