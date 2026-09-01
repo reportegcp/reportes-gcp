@@ -12,6 +12,7 @@ const views = {
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
   "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" },
+  "up-reportes": { title: "Reportes", subtitle: "Cantidad de expedientes por Obra Social/EMP y patología" },
   "px-preexistencias": { title: "Preexistencias", subtitle: "Casos de preexistencia por EMP" },
   "px-emp": { title: "Estadísticas", subtitle: "Historial de solicitudes por EMP y patología" },
   "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" },
@@ -27,6 +28,7 @@ const manualesSeccion = {
   "up-drogas": `<strong>Qué hacer en Catálogo de drogas</strong><ul><li>Cada droga puede tener varias marcas comerciales y, si no es de soporte, una fundamentación distinta por cada patología a la que se asocia.</li><li>Las drogas de soporte (por ejemplo antieméticos) usan una única fundamentación general, sin asociar a patologías puntuales.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-plantillas": `<strong>Qué hacer en Plantillas</strong><ul><li>El texto de apertura y el de cierre técnico se usan al generar los informes IFSOL/IFDER de un expediente.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "up-expedientes": `<strong>Qué hacer en Expedientes</strong><ul><li>Buscá por Nº EE, paciente o DNI.</li><li>El formulario tiene varias secciones plegables; hacé clic en el título de cada una para abrirla.</li><li>Escribí en el campo de Obra Social/EMP para buscarla y elegí una opción de la lista que aparece.</li><li>Hacé clic en una fila para editar ese expediente.</li></ul>`,
+  "up-reportes": `<strong>Qué hacer en Reportes</strong><ul><li>Muestra cuántos expedientes se cargaron, agrupados por Obra Social/EMP y por patología.</li><li>Buscá por nombre de Obra Social/EMP o de patología.</li></ul>`,
   "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-plantillas": `<strong>Qué hacer en Plantillas de Preexistencias</strong><ul><li>El párrafo legal (Ley 26.682) que abre cada informe INFFC se elige acá.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`,
@@ -286,7 +288,6 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
-  document.querySelector('[data-nav-access="reportes"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
@@ -3392,6 +3393,73 @@ function renderPxEmp() {
   if (empty) empty.hidden = filtradas.length !== 0;
 }
 
+// ---------- Urgencias Prestacionales: reporte por Obra Social/EMP y patología ----------
+
+let upReportes = [];
+let upReportesCargado = false;
+
+async function cargarYRenderizarUpReportes() {
+  const count = document.getElementById("up-reportes-count");
+  if (count) count.textContent = "Cargando...";
+  try {
+    const params = { select: "obra_social_id,obras_sociales(denominacion,tipo,rnos,rnemp),patologias(nombre)" };
+    const response = await fetchConTimeout(buildTableUrl("expedientes", params), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    const filas = await response.json();
+
+    const agrupado = new Map();
+    filas.forEach(f => {
+      let osNombre = "(sin Obra Social/EMP asignada)";
+      if (f.obras_sociales) {
+        const codigo = f.obras_sociales.tipo === "Obra Social" ? f.obras_sociales.rnos : f.obras_sociales.rnemp;
+        osNombre = `${f.obras_sociales.denominacion}${codigo ? ` (${codigo})` : ""}`;
+      }
+      const patologiaNombre = f.patologias?.nombre || "(sin patología asignada)";
+      const clave = `${osNombre}\u0001${patologiaNombre}`;
+      agrupado.set(clave, (agrupado.get(clave) || 0) + 1);
+    });
+
+    upReportes = [...agrupado.entries()]
+      .map(([clave, cantidad]) => {
+        const [os, patologia] = clave.split("\u0001");
+        return { os, patologia, cantidad };
+      })
+      .sort((a, b) => a.os.localeCompare(b.os) || a.patologia.localeCompare(b.patologia));
+
+    upReportesCargado = true;
+    renderUpReportes();
+  } catch (error) {
+    if (count) count.textContent = `No se pudo cargar el reporte.${error?.message ? " " + error.message : ""}`;
+    console.error(error);
+  }
+}
+
+function filtrarUpReportes(lista, busqueda) {
+  const termino = normalizar(busqueda || "");
+  if (!termino) return lista;
+  return lista.filter(f => normalizar(f.os).includes(termino) || normalizar(f.patologia).includes(termino));
+}
+
+function renderUpReportes() {
+  const tbody = document.getElementById("up-reportes-table-body");
+  if (!tbody) return;
+  const busqueda = document.getElementById("up-reportes-search")?.value || "";
+  const filtradas = filtrarUpReportes(upReportes, busqueda);
+
+  tbody.innerHTML = filtradas.map(f => `
+    <tr>
+      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.os)}">${escaparHtml(f.os)}</td>
+      <td class="ellipsis-cell" style="max-width:220px" title="${escaparHtml(f.patologia)}">${escaparHtml(f.patologia)}</td>
+      <td><strong>${f.cantidad}</strong></td>
+    </tr>
+  `).join("");
+
+  const count = document.getElementById("up-reportes-count");
+  if (count) count.textContent = `${filtradas.length} combinación${filtradas.length === 1 ? "" : "es"} Obra Social/EMP / patología`;
+  const empty = document.getElementById("up-reportes-empty");
+  if (empty) empty.hidden = filtradas.length !== 0;
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -3406,13 +3474,13 @@ function showView(id, updateHistory = true) {
   // Colapsar todos los submenús salvo el de la sección donde estamos parados.
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
-      (["pma", "cartillas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["pma", "cartillas", "reportes"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
-  if (["pma", "cartillas"].includes(resolved)) {
+  if (["pma", "cartillas", "reportes"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -3451,6 +3519,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
   if (resolved === "up-expedientes" && !expedientesCargadas) cargarYRenderizarExpedientes();
+  if (resolved === "up-reportes" && !upReportesCargado) cargarYRenderizarUpReportes();
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
   if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
@@ -5566,6 +5635,7 @@ async function initBrowser() {
   document.getElementById("preexistencia-adjunto-agregar")?.addEventListener("click", handleAgregarAdjuntoPx);
   document.getElementById("preexistencia-profesional-agregar")?.addEventListener("click", agregarProfesionalPxTemporal);
   document.getElementById("px-emp-search")?.addEventListener("input", renderPxEmp);
+  document.getElementById("up-reportes-search")?.addEventListener("input", renderUpReportes);
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
