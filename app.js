@@ -13,7 +13,7 @@ const views = {
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
   "up-expedientes": { title: "Expedientes", subtitle: "Urgencias Prestacionales" },
   "up-reportes": { title: "Reportes", subtitle: "Cantidad de expedientes por Obra Social/EMP y patología" },
-  "px-preexistencias": { title: "Preexistencias", subtitle: "Casos de preexistencia por EMP" },
+  "px-preexistencias": { title: "Expedientes", subtitle: "Casos de preexistencia por EMP" },
   "px-emp": { title: "Estadísticas", subtitle: "Historial de solicitudes por EMP y patología" },
   "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" },
   "px-plantillas": { title: "Plantillas", subtitle: "Párrafo legal de apertura del informe INFFC" }
