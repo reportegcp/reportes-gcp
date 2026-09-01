@@ -3536,11 +3536,9 @@ async function cargarYRenderizarUpReportes() {
 }
 
 function colorSegunCantidad(ratio) {
-  // De un celeste claro (valores bajos) a un azul intenso (valores altos)
-  const claro = { r: 200, g: 222, b: 240 };
-  const oscuro = { r: 20, g: 66, b: 110 };
-  const mezclar = (a, b) => Math.round(a + (b - a) * ratio);
-  return `rgb(${mezclar(claro.r, oscuro.r)}, ${mezclar(claro.g, oscuro.g)}, ${mezclar(claro.b, oscuro.b)})`;
+  // Verde (valores bajos) -> amarillo -> naranja -> rojo (valores altos), como un semáforo.
+  const hue = Math.round(130 - ratio * 130); // 130° verde -> 0° rojo
+  return `hsl(${hue}, 65%, 45%)`;
 }
 
 function renderBarChart(containerId, items) {
