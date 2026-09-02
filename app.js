@@ -50,10 +50,12 @@ let accionPendienteTrasLogin = null;
 let passwordRecoveryPending = false;
 let cartillas = [];
 let cartillasCargadas = false;
+let cartillasCompleta = false; // true solo cuando `cartillas` tiene TODO el histórico (no solo el período vigente)
 let reporteCartillasCargado = false;
 let reporteActivo = "cartillas";
 let pma = [];
 let pmaCargadas = false;
+let pmaCompleta = false; // true solo cuando `pma` tiene TODO el histórico (no solo el período vigente)
 let reportePmaCargado = false;
 const PAGE_SIZE = 30;
 let pmaPage = 1;
@@ -217,8 +219,8 @@ async function cargarYRenderizarEstadisticasInicio() {
   try {
     const tareas = [];
     if (!obrasSociales.length) tareas.push(cargarObrasSocialesDesdeSupabase().then(rows => { obrasSociales = rows; }));
-    if (!pmaCargadas) tareas.push(cargarPmaDesdeSupabase().then(rows => { pma = rows; pmaCargadas = true; llenarFiltrosPma(); }));
-    if (!cartillasCargadas) tareas.push(cargarCartillasDesdeSupabase().then(rows => { cartillas = rows; cartillasCargadas = true; llenarFiltroEjercicios(); }));
+    if (!pmaCompleta) tareas.push(cargarPmaDesdeSupabase().then(rows => { pma = rows; pmaCargadas = true; pmaCompleta = true; llenarFiltrosPma(); }));
+    if (!cartillasCompleta) tareas.push(cargarCartillasDesdeSupabase().then(rows => { cartillas = rows; cartillasCargadas = true; cartillasCompleta = true; llenarFiltroEjercicios(); }));
     if (tareas.length) await Promise.all(tareas);
     renderEstadisticasInicio();
   } catch (error) {
@@ -3785,8 +3787,8 @@ function trimestresCriticidad(anio) {
 
 async function asegurarPmaYCartillasCargadas() {
   await Promise.all([
-    (async () => { if (!pmaCargadas) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; } })(),
-    (async () => { if (!cartillasCargadas) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; } })(),
+    (async () => { if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; pmaCompleta = true; } })(),
+    (async () => { if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; } })(),
     (async () => { if (!obrasSociales.length) await cargarYRenderizarObrasSociales(); })()
   ]);
 }
@@ -4489,7 +4491,14 @@ function recalcularDatosCartilla() {
   actualizarAlertaCartilla();
 }
 
-function buildCartillasUrl(offset = 0, limit = 1000) {
+// Año a partir del cual se considera "vigente" un ejercicio para la carga rápida
+// de las pantallas de Cartillas/PMA. Se recalcula solo (currentYear - 1, por si
+// una OS con ejercicio fiscal todavía está corriendo el período que arrancó el año anterior).
+function anioMinimoVigente() {
+  return new Date().getFullYear() - 1;
+}
+
+function buildCartillasUrl(offset = 0, limit = 1000, soloVigente = false) {
   const fields = [
     "id","obra_social_id","anio_inicio","ejercicio","fecha_inicio_ejercicio","analista","numero_ee","condicion",
     "fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
@@ -4501,14 +4510,15 @@ function buildCartillasUrl(offset = 0, limit = 1000) {
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (soloVigente) params.set("anio_inicio", `gte.${anioMinimoVigente()}`);
   return `${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`;
 }
 
-async function cargarCartillasDesdeSupabase(fetchImpl = fetch) {
+async function cargarCartillasDesdeSupabase(fetchImpl = fetch, soloVigente = false) {
   const pageSize = 1000;
   const all = [];
   for (let offset = 0; ; offset += pageSize) {
-    const response = await fetchConTimeout(buildCartillasUrl(offset, pageSize), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+    const response = await fetchConTimeout(buildCartillasUrl(offset, pageSize, soloVigente), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
     if (!response.ok) {
       const detalle = await leerErrorApi(response);
       throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
@@ -4521,7 +4531,7 @@ async function cargarCartillasDesdeSupabase(fetchImpl = fetch) {
   return all;
 }
 
-function buildPmaUrl(offset = 0, limit = 1000) {
+function buildPmaUrl(offset = 0, limit = 1000, soloVigente = false) {
   const fields = [
     "id","obra_social_id","anio_inicio","ejercicio","inicio_periodo","fin_periodo","fecha_inicio_ejercicio","fecha_fin_ejercicio",
     "analista","numero_ee","condicion","fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
@@ -4533,14 +4543,15 @@ function buildPmaUrl(offset = 0, limit = 1000) {
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (soloVigente) params.set("anio_inicio", `gte.${anioMinimoVigente()}`);
   return `${SUPABASE_URL}/rest/v1/pma?${params.toString()}`;
 }
 
-async function cargarPmaDesdeSupabase(fetchImpl = fetch) {
+async function cargarPmaDesdeSupabase(fetchImpl = fetch, soloVigente = false) {
   const pageSize = 1000;
   const all = [];
   for (let offset = 0; ; offset += pageSize) {
-    const response = await fetchConTimeout(buildPmaUrl(offset, pageSize), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+    const response = await fetchConTimeout(buildPmaUrl(offset, pageSize, soloVigente), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
     if (!response.ok) {
       const detalle = await leerErrorApi(response);
       throw new Error(`Supabase respondió ${response.status}${detalle ? `: ${detalle}` : ""}`);
@@ -5023,9 +5034,36 @@ async function cargarYRenderizarPma() {
   if(typeof document==="undefined")return;
   const status=document.getElementById("pma-source-status"), count=document.getElementById("pma-count");
   if(count)count.textContent="Cargando presentaciones...";
-  try{pma=await cargarPmaDesdeSupabase();pmaCargadas=true;llenarFiltrosPma();renderPma();}
+  try{
+    if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(fetch, true); pmaCargadas = true; }
+    llenarFiltrosPma();renderPma();actualizarAvisoHistoricoPma();
+  }
   catch(error){pma=[];pmaCargadas=false;renderPma();if(count)count.textContent="0 presentaciones";if(status)status.textContent="Error de conexión con Supabase";
     const empty=document.getElementById("pma-empty");if(empty){empty.hidden=false;empty.textContent=error?.message||"No se pudieron cargar las presentaciones de PMA.";}}
+}
+
+function actualizarAvisoHistoricoPma() {
+  if (typeof document === "undefined") return;
+  const aviso = document.getElementById("pma-historico-aviso");
+  if (!aviso) return;
+  aviso.hidden = pmaCompleta;
+}
+
+async function cargarHistoricoCompletoPma() {
+  if (typeof document === "undefined" || pmaCompleta) return;
+  const boton = document.getElementById("pma-historico-btn");
+  if (boton) { boton.disabled = true; boton.textContent = "Cargando..."; }
+  try {
+    pma = await cargarPmaDesdeSupabase();
+    pmaCargadas = true;
+    pmaCompleta = true;
+    llenarFiltrosPma();
+    renderPma();
+    actualizarAvisoHistoricoPma();
+  } catch (error) {
+    mostrarToast("No se pudo cargar el histórico completo.");
+    if (boton) { boton.disabled = false; boton.textContent = "Ver historial completo"; }
+  }
 }
 
 function cumplimientoCartillaRegistro(row) {
@@ -5098,10 +5136,13 @@ async function cargarYRenderizarCartillas() {
   const status = document.getElementById("cartilla-source-status");
 
   try {
-    cartillas = await cargarCartillasDesdeSupabase();
-    cartillasCargadas = true;
+    if (!cartillasCompleta) {
+      cartillas = await cargarCartillasDesdeSupabase(fetch, true);
+      cartillasCargadas = true;
+    }
     llenarFiltroEjercicios();
     renderCartillas();
+    actualizarAvisoHistoricoCartillas();
 
   } catch (error) {
     cartillas = [];
@@ -5110,6 +5151,30 @@ async function cargarYRenderizarCartillas() {
     if (status) status.textContent = "Error de conexión con Supabase";
     const empty = document.getElementById("cartilla-empty");
     if (empty) { empty.hidden = false; empty.textContent = error?.message || "No se pudieron cargar las presentaciones."; }
+  }
+}
+
+function actualizarAvisoHistoricoCartillas() {
+  if (typeof document === "undefined") return;
+  const aviso = document.getElementById("cartilla-historico-aviso");
+  if (!aviso) return;
+  aviso.hidden = cartillasCompleta;
+}
+
+async function cargarHistoricoCompletoCartillas() {
+  if (typeof document === "undefined" || cartillasCompleta) return;
+  const boton = document.getElementById("cartilla-historico-btn");
+  if (boton) { boton.disabled = true; boton.textContent = "Cargando..."; }
+  try {
+    cartillas = await cargarCartillasDesdeSupabase();
+    cartillasCargadas = true;
+    cartillasCompleta = true;
+    llenarFiltroEjercicios();
+    renderCartillas();
+    actualizarAvisoHistoricoCartillas();
+  } catch (error) {
+    mostrarToast("No se pudo cargar el histórico completo.");
+    if (boton) { boton.disabled = false; boton.textContent = "Ver historial completo"; }
   }
 }
 
@@ -5518,7 +5583,7 @@ async function cargarYRenderizarReporteCartillas() {
   const status = document.getElementById("report-cartillas-status");
   const count = document.getElementById("report-cartillas-count");
 
-  if (reporteCartillasCargado && obrasSociales.length && cartillasCargadas) {
+  if (reporteCartillasCargado && obrasSociales.length && cartillasCompleta) {
     if (esReporteNunca(reporteActivo)) renderReporteNuncaPresentaron("cartillas"); else renderReporteFaltantesCartillas();
     return;
   }
@@ -5531,9 +5596,10 @@ async function cargarYRenderizarReporteCartillas() {
       obrasSociales = await cargarObrasSocialesDesdeSupabase();
     }
 
-    if (!cartillasCargadas) {
+    if (!cartillasCompleta) {
       cartillas = await cargarCartillasDesdeSupabase();
       cartillasCargadas = true;
+      cartillasCompleta = true;
       llenarFiltroEjercicios();
     }
 
@@ -5689,7 +5755,7 @@ async function cargarYRenderizarReportePma() {
   const status = document.getElementById("report-pma-status");
   const count = document.getElementById("report-pma-count");
 
-  if (reportePmaCargado && obrasSociales.length && pmaCargadas) {
+  if (reportePmaCargado && obrasSociales.length && pmaCompleta) {
     if (esReporteNunca(reporteActivo)) renderReporteNuncaPresentaron("pma"); else renderReporteFaltantesPma();
     return;
   }
@@ -5699,9 +5765,10 @@ async function cargarYRenderizarReportePma() {
 
   try {
     if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
-    if (!pmaCargadas) {
+    if (!pmaCompleta) {
       pma = await cargarPmaDesdeSupabase();
       pmaCargadas = true;
+      pmaCompleta = true;
     }
     reportePmaCargado = true;
     poblarPeriodosPma();
@@ -6236,6 +6303,8 @@ async function initBrowser() {
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("btn-export-pma")?.addEventListener("click", () => exportarModuloPresentacionesExcel("pma"));
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
+  document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
+  document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
