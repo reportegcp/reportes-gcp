@@ -3802,14 +3802,17 @@ async function handleGenerarCriticidad() {
   try {
     await asegurarPmaYCartillasCargadas();
     criticidadTrimestres = trimestresCriticidad(anio);
-    const cicloInicio = criticidadTrimestres[0].inicio;
-    const cicloFin = criticidadTrimestres[3].fin;
 
+    // Cada ciclo de Criticidad (Dic Y-1 a Nov Y) evalúa exclusivamente la presentación
+    // correspondiente a ESE ejercicio (anio_inicio === Y), sin importar cuándo se haya
+    // presentado. Una presentación anticipada para el ejercicio siguiente (anio_inicio Y+1)
+    // no cuenta para el ciclo Y: si no presentó el ejercicio Y, el ciclo Y queda en 1 aunque
+    // ya haya presentado el Y+1 (eso resuelve su propio ciclo Y+1, incluso antes de que empiece).
     function primeraFechaPorOs(lista) {
       const mapa = new Map();
       lista.forEach(p => {
         if (!p.fecha_ingreso || !p.obra_social_id) return;
-        if (p.fecha_ingreso < cicloInicio || p.fecha_ingreso > cicloFin) return;
+        if (Number(p.anio_inicio) !== anio) return;
         const actual = mapa.get(p.obra_social_id);
         if (!actual || p.fecha_ingreso < actual) mapa.set(p.obra_social_id, p.fecha_ingreso);
       });
