@@ -7,6 +7,7 @@ const views = {
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
+  afiliados: { title: "Afiliados", subtitle: "Total y distribución geográfica de afiliados por Obra Social" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
@@ -255,7 +256,7 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "cartilla os") return id === "prestadores";
   return false;
@@ -309,6 +310,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
@@ -4009,6 +4011,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
   if (resolved === "prestadores") inicializarVistaPrestadores();
   if (resolved === "cobertura") inicializarVistaCobertura();
+  if (resolved === "afiliados") inicializarVistaAfiliados();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
@@ -6923,6 +6926,174 @@ function renderCoberturaTabla(os, afiliados, prestadores) {
   }
 }
 
+// ---------- Afiliados por localidad ----------
+
+let afiliadosObraSocialActual = null;
+let afiliadosLocalidadActuales = [];
+
+function poblarSelectProvinciaAfiliados() {
+  const select = document.getElementById("afiliados-provincia");
+  if (!select) return;
+  const provincias = [...new Set(localidadesArCache.map(l => l.provincia))].sort();
+  select.innerHTML = `<option value="">—</option>` + provincias.map(p => `<option value="${escaparHtml(p)}">${escaparHtml(p)}</option>`).join("");
+}
+
+function poblarSelectPartidoAfiliados(provincia) {
+  const select = document.getElementById("afiliados-partido");
+  if (!select) return;
+  if (!provincia) { select.innerHTML = `<option value="">—</option>`; select.disabled = true; return; }
+  const partidos = [...new Set(localidadesArCache.filter(l => l.provincia === provincia).map(l => l.partido))].sort();
+  select.innerHTML = `<option value="">—</option>` + partidos.map(p => `<option value="${escaparHtml(p)}">${escaparHtml(p)}</option>`).join("");
+  select.disabled = false;
+}
+
+function poblarSelectLocalidadAfiliados(provincia, partido) {
+  const select = document.getElementById("afiliados-localidad");
+  if (!select) return;
+  if (!provincia || !partido) { select.innerHTML = `<option value="">—</option>`; select.disabled = true; return; }
+  const localidades = [...new Set(localidadesArCache.filter(l => l.provincia === provincia && l.partido === partido).map(l => l.localidad))].sort();
+  select.innerHTML = `<option value="">—</option>` + localidades.map(l => `<option value="${escaparHtml(l)}">${escaparHtml(l)}</option>`).join("");
+  select.disabled = false;
+}
+
+async function inicializarVistaAfiliados() {
+  if (typeof document === "undefined") return;
+  const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
+  const picker = document.getElementById("afiliados-os-search")?.closest(".search-box");
+  try { await cargarLocalidadesAr(); poblarSelectProvinciaAfiliados(); } catch (error) { console.error(error); }
+
+  if (esCartillaOs) {
+    if (picker) picker.hidden = true;
+    if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+    const osId = obraSocialIdSesionActual();
+    const os = obrasSociales.find(o => Number(o.id) === Number(osId));
+    if (!os) return;
+    document.getElementById("afiliados-os-search").value = getObraSocialDisplay(os);
+    await handleSeleccionObraSocialAfiliados();
+    return;
+  }
+
+  if (picker) picker.hidden = false;
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  const list = document.getElementById("afiliados-os-list");
+  if (list) list.innerHTML = obrasSociales
+    .filter(os => os.estado !== "INACTIVA" && !String(os.rnos || "").trim().startsWith("9"))
+    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
+    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+async function cargarAfiliadosTotal(obraSocialId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "total_declarado", obra_social_id: `eq.${obraSocialId}`, apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_total?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  return filas[0]?.total_declarado ?? 0;
+}
+
+async function cargarAfiliadosLocalidadDeOS(obraSocialId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "*", obra_social_id: `eq.${obraSocialId}`, order: "provincia.asc,partido.asc,localidad.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_localidad?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+async function handleSeleccionObraSocialAfiliados() {
+  const valor = document.getElementById("afiliados-os-search")?.value || "";
+  const os = resolverObraSocialCartilla(valor);
+  const panel = document.getElementById("afiliados-panel");
+  if (!os) { if (panel) panel.hidden = true; return; }
+  afiliadosObraSocialActual = os;
+  if (panel) panel.hidden = false;
+  try {
+    const [total, localidades] = await Promise.all([cargarAfiliadosTotal(os.id), cargarAfiliadosLocalidadDeOS(os.id)]);
+    document.getElementById("afiliados-total-input").value = total || "";
+    afiliadosLocalidadActuales = localidades;
+    renderAfiliadosTabla();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudieron cargar los afiliados.");
+  }
+}
+
+function renderAfiliadosTabla() {
+  const totalDeclarado = Number(document.getElementById("afiliados-total-input")?.value || 0);
+  const cargados = afiliadosLocalidadActuales.reduce((a, r) => a + (r.cantidad_beneficiarios || 0), 0);
+  const resumen = document.getElementById("afiliados-total-resumen");
+  if (resumen) resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Faltan: ${Math.max(0, totalDeclarado - cargados).toLocaleString("es-AR")}`;
+
+  const body = document.getElementById("afiliados-table-body");
+  const count = document.getElementById("afiliados-count");
+  const empty = document.getElementById("afiliados-empty");
+  if (count) count.textContent = `${afiliadosLocalidadActuales.length} ${afiliadosLocalidadActuales.length === 1 ? "localidad cargada" : "localidades cargadas"}`;
+  if (empty) empty.hidden = afiliadosLocalidadActuales.length !== 0;
+  body.innerHTML = afiliadosLocalidadActuales.map(r => `<tr>
+    <td>${escaparHtml(r.provincia)}</td><td>${escaparHtml(r.partido)}</td><td>${escaparHtml(r.localidad)}</td>
+    <td>${r.cantidad_beneficiarios}</td>
+    <td><button type="button" class="notificacion-borrar" data-afiliado-borrar="${r.id}" title="Borrar">×</button></td>
+  </tr>`).join("");
+  body.querySelectorAll("[data-afiliado-borrar]").forEach(btn => {
+    btn.addEventListener("click", () => eliminarAfiliadoLocalidad(btn.dataset.afiliadoBorrar));
+  });
+}
+
+async function guardarTotalAfiliados() {
+  if (!afiliadosObraSocialActual) return;
+  const total = Number(document.getElementById("afiliados-total-input")?.value || 0);
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, on_conflict: "obra_social_id" });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_total?${params.toString()}`, {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ obra_social_id: afiliadosObraSocialActual.id, total_declarado: total, actualizado_en: new Date().toISOString() }])
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    renderAfiliadosTabla();
+    mostrarToast("Total de afiliados guardado.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar el total.");
+  }
+}
+
+async function agregarAfiliadoLocalidad() {
+  if (!afiliadosObraSocialActual) return;
+  const provincia = document.getElementById("afiliados-provincia")?.value;
+  const partido = document.getElementById("afiliados-partido")?.value;
+  const localidad = document.getElementById("afiliados-localidad")?.value;
+  const cantidad = Number(document.getElementById("afiliados-cantidad")?.value || 0);
+  if (!provincia || !partido || !localidad) { mostrarToast("Elegí provincia, partido y localidad."); return; }
+  if (!cantidad || cantidad <= 0) { mostrarToast("Ingresá una cantidad mayor a 0."); return; }
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, on_conflict: "obra_social_id,provincia,partido,localidad" });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_localidad?${params.toString()}`, {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ obra_social_id: afiliadosObraSocialActual.id, provincia, partido, localidad, cantidad_beneficiarios: cantidad, actualizado_en: new Date().toISOString() }])
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    document.getElementById("afiliados-cantidad").value = "";
+    afiliadosLocalidadActuales = await cargarAfiliadosLocalidadDeOS(afiliadosObraSocialActual.id);
+    renderAfiliadosTabla();
+    mostrarToast("Localidad agregada.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo agregar la localidad.");
+  }
+}
+
+async function eliminarAfiliadoLocalidad(id) {
+  if (!window.confirm("¿Borrar esta localidad?")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, id: `eq.${id}` });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_localidad?${params.toString()}`, { method: "DELETE", headers: authHeaders(session.access_token) }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    afiliadosLocalidadActuales = afiliadosLocalidadActuales.filter(r => r.id !== id);
+    renderAfiliadosTabla();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo borrar.");
+  }
+}
+
 async function inicializarVistaPrestadores() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
@@ -7629,6 +7800,17 @@ async function initBrowser() {
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
   document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
   document.getElementById("cobertura-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialCobertura));
+  document.getElementById("afiliados-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
+  document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
+  document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
+  document.getElementById("afiliados-provincia")?.addEventListener("change", event => {
+    poblarSelectPartidoAfiliados(event.target.value);
+    poblarSelectLocalidadAfiliados("", "");
+  });
+  document.getElementById("afiliados-partido")?.addEventListener("change", event => {
+    const provincia = document.getElementById("afiliados-provincia")?.value || "";
+    poblarSelectLocalidadAfiliados(provincia, event.target.value);
+  });
   document.getElementById("prestadores-search")?.addEventListener("input", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("prestadores-estado-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
