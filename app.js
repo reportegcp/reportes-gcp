@@ -6452,7 +6452,10 @@ function poblarObrasSocialesPrestadores() {
   if (typeof document === "undefined") return;
   const list = document.getElementById("prestadores-os-list");
   if (!list) return;
-  list.innerHTML = obrasSociales.filter(os => os.estado !== "INACTIVA").map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+  list.innerHTML = obrasSociales
+    .filter(os => os.estado !== "INACTIVA" && !String(os.rnos || "").trim().startsWith("9"))
+    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
+    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
 }
 
 function buildPrestadoresUrl(obraSocialId) {
@@ -6837,7 +6840,10 @@ async function inicializarVistaCobertura() {
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
   const list = document.getElementById("cobertura-os-list");
-  if (list) list.innerHTML = obrasSociales.filter(os => os.estado !== "INACTIVA").map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+  if (list) list.innerHTML = obrasSociales
+    .filter(os => os.estado !== "INACTIVA" && !String(os.rnos || "").trim().startsWith("9"))
+    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
+    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
 }
 
 async function handleSeleccionObraSocialCobertura() {
