@@ -6,6 +6,7 @@ const views = {
   inicio: { title: "", subtitle: "" },
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
+  cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
@@ -254,7 +255,7 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "cartilla os") return id === "prestadores";
   return false;
@@ -307,6 +308,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
+  document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
@@ -4006,6 +4008,7 @@ function showView(id, updateHistory = true) {
   }
   if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
   if (resolved === "prestadores") inicializarVistaPrestadores();
+  if (resolved === "cobertura") inicializarVistaCobertura();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
@@ -6810,6 +6813,110 @@ async function confirmarImportarCartilla() {
   }
 }
 
+// ---------- Cobertura (vista del analista) ----------
+
+const BASICAS_NOMBRES_CORTOS = {
+  "Clínica médica": "Clínica",
+  "Pediatría": "Pediatría",
+  "Traumatología y Ortopedia": "Traumatología",
+  "Ginecología": "Ginecología",
+  "Urología": "Urología",
+  "Emergencia/Urgencia Clínica Médica": "Urgencias"
+};
+
+async function cargarAfiliadosProvincia(obraSocialId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "provincia,cantidad_beneficiarios", order: "cantidad_beneficiarios.desc", obra_social_id: `eq.${obraSocialId}`, apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_provincia?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+async function inicializarVistaCobertura() {
+  if (typeof document === "undefined") return;
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
+  const list = document.getElementById("cobertura-os-list");
+  if (list) list.innerHTML = obrasSociales.filter(os => os.estado !== "INACTIVA").map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+async function handleSeleccionObraSocialCobertura() {
+  const valor = document.getElementById("cobertura-os-search")?.value || "";
+  const os = resolverObraSocialCartilla(valor);
+  const count = document.getElementById("cobertura-count");
+  const resumen = document.getElementById("cobertura-resumen");
+  if (!os) {
+    if (count) count.textContent = "Elegí una Obra Social arriba para ver su cobertura.";
+    if (resumen) resumen.hidden = true;
+    document.getElementById("cobertura-table-head").innerHTML = "";
+    document.getElementById("cobertura-table-body").innerHTML = "";
+    return;
+  }
+  if (count) count.textContent = "Cargando...";
+  try {
+    const [afiliados, prestadores] = await Promise.all([
+      cargarAfiliadosProvincia(os.id),
+      cargarPrestadoresPorOS(os.id)
+    ]);
+    renderCoberturaTabla(os, afiliados, prestadores.filter(p => p.activo !== false));
+  } catch (error) {
+    if (count) count.textContent = "No se pudo cargar la cobertura.";
+    mostrarToast(error.message || "No se pudo cargar la cobertura.");
+  }
+}
+
+function renderCoberturaTabla(os, afiliados, prestadores) {
+  const basicas = especialidadesPrestadorCache.filter(e => e.basica_obligatoria);
+  const head = document.getElementById("cobertura-table-head");
+  const body = document.getElementById("cobertura-table-body");
+  const count = document.getElementById("cobertura-count");
+  const empty = document.getElementById("cobertura-empty");
+  const resumen = document.getElementById("cobertura-resumen");
+
+  head.innerHTML = `<th>Provincia</th>${basicas.map(e => `<th title="${escaparHtml(e.nombre)}">${escaparHtml(BASICAS_NOMBRES_CORTOS[e.nombre] || e.nombre)}</th>`).join("")}<th>Beneficiarios</th>`;
+
+  if (!afiliados.length) {
+    body.innerHTML = "";
+    if (empty) empty.hidden = false;
+    if (count) count.textContent = `${getObraSocialDisplay(os)} — sin afiliados por provincia cargados`;
+    if (resumen) resumen.hidden = true;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
+  // Por provincia, qué IDs de especialidad básica tiene cubiertas (algún prestador activo ahí)
+  const cubiertasPorProvincia = new Map();
+  prestadores.forEach(p => {
+    if (!p.provincia) return;
+    const prov = normalizarTexto(p.provincia);
+    const set = cubiertasPorProvincia.get(prov) || new Set();
+    (p.prestador_especialidades || []).forEach(f => { if (f.especialidad_id) set.add(f.especialidad_id); });
+    cubiertasPorProvincia.set(prov, set);
+  });
+
+  let conHueco = 0, completas = 0;
+  const filas = afiliados.map(a => {
+    const cubiertas = cubiertasPorProvincia.get(normalizarTexto(a.provincia)) || new Set();
+    const faltantes = basicas.filter(e => !cubiertas.has(e.id));
+    if (faltantes.length) conHueco++; else completas++;
+    return { provincia: a.provincia, beneficiarios: a.cantidad_beneficiarios, cubiertas, faltantes };
+  });
+
+  body.innerHTML = filas.map(f => `<tr class="${f.faltantes.length ? "cobertura-fila-hueco" : ""}">
+    <td><strong>${escaparHtml(f.provincia)}</strong></td>
+    ${basicas.map(e => `<td><span class="cobertura-check ${f.cubiertas.has(e.id) ? "ok" : "falta"}">${f.cubiertas.has(e.id) ? "✓" : "✕"}</span></td>`).join("")}
+    <td>${f.beneficiarios}</td>
+  </tr>`).join("");
+
+  if (count) count.textContent = `${getObraSocialDisplay(os)} — ${afiliados.length} provincias con afiliados`;
+  if (resumen) {
+    resumen.hidden = false;
+    document.getElementById("cobertura-resumen-total").textContent = String(afiliados.length);
+    document.getElementById("cobertura-resumen-hueco").textContent = String(conHueco);
+    document.getElementById("cobertura-resumen-completa").textContent = String(completas);
+  }
+}
+
 async function inicializarVistaPrestadores() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
@@ -7515,6 +7622,7 @@ async function initBrowser() {
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
   document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
+  document.getElementById("cobertura-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialCobertura));
   document.getElementById("prestadores-search")?.addEventListener("input", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("prestadores-estado-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });

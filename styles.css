@@ -1173,6 +1173,14 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .prestadores-table th:nth-child(8),.prestadores-table td:nth-child(8){width:9%;text-align:center}
 .prestadores-table th:nth-child(9),.prestadores-table td:nth-child(9){width:7%}
 .prestadores-table th{white-space:nowrap!important;font-size:11px;padding-top:10px;padding-bottom:10px}
+.cobertura-table{table-layout:fixed;width:100%;min-width:640px}
+.cobertura-table th,.cobertura-table td{padding:9px 8px;font-size:12px;vertical-align:middle}
+.cobertura-table th:first-child,.cobertura-table td:first-child{width:26%;text-align:left}
+.cobertura-table th:not(:first-child),.cobertura-table td:not(:first-child){text-align:center}
+.cobertura-check{font-size:15px;font-weight:800}
+.cobertura-check.ok{color:#278664}
+.cobertura-check.falta{color:#c0392b}
+.cobertura-fila-hueco{background:#fdf3f2}
 .notificaciones-block{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fafbfc}
 .notificaciones-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .notificaciones-header span{font-size:12px;font-weight:800;color:#35485e;letter-spacing:.2px}
