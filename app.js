@@ -4681,6 +4681,7 @@ function filtrarCartillasRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
   const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : []).map(String));
   const plazo = filtros.plazo || "TODOS";
+  const condicion = filtros.condicion || "TODOS";
   const fechaIngreso = filtros.fechaIngreso || "";
   const fechaLimite = filtros.fechaLimite || "";
   return (lista || []).filter(c => {
@@ -4688,6 +4689,7 @@ function filtrarCartillasRegistros(lista, filtros = {}) {
     if (ejercicios.size && !ejercicios.has(String(c.ejercicio || ""))) return false;
     const cumplimiento = calcularCumplimiento90(c?.fecha_inicio_ejercicio || "", c?.fecha_ingreso || "");
     if (plazo !== "TODOS" && cumplimiento !== plazo) return false;
+    if (condicion !== "TODOS" && (c.condicion || "") !== condicion) return false;
     if (!fechaCoincideFiltro(c?.fecha_ingreso || "", fechaIngreso)) return false;
     if (!fechaCoincideFiltro(cumplimiento?.fechaLimite || "", fechaLimite)) return false;
     if (!busqueda) return true;
@@ -5106,6 +5108,13 @@ function cumplimientoCartillaRegistro(row) {
 function llenarFiltroEjercicios() {
   if (typeof document === "undefined") return;
   poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => c.ejercicio).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); });
+  const select = document.getElementById("cartilla-condicion-filter");
+  if (select) {
+    const prev = select.value || "TODOS";
+    const vals = [...new Set(cartillas.map(c => c.condicion).filter(Boolean))].sort();
+    select.innerHTML = `<option value="TODOS">Condición: Todas</option>` + vals.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
+    select.value = vals.includes(prev) ? prev : "TODOS";
+  }
 }
 
 function filtrarCartillas() {
@@ -5114,6 +5123,7 @@ function filtrarCartillas() {
     busqueda: document.getElementById("cartilla-search")?.value || "",
     ejercicios: ejerciciosFiltroSeleccionados("cartilla"),
     plazo: document.getElementById("cartilla-plazo-filter")?.value || "TODOS",
+    condicion: document.getElementById("cartilla-condicion-filter")?.value || "TODOS",
     fechaIngreso: document.getElementById("cartilla-ingreso-search")?.value || "",
     fechaLimite: document.getElementById("cartilla-limite-search")?.value || ""
   });
@@ -7968,6 +7978,7 @@ async function initBrowser() {
   document.getElementById("cartilla-ingreso-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-limite-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
+  document.getElementById("cartilla-condicion-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-notificadas-filter")?.addEventListener("change", async () => {
     await asegurarNotificacionesCargadas();
     cartillaPage = 1;
