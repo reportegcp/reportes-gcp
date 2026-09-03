@@ -291,7 +291,7 @@
           <div class="table-scroll">
             <table class="data-table prestadores-table">
               <thead><tr>
-                <th>Nombre</th><th>CUIT</th><th>Tipo</th><th>Especialidad</th><th>Adulto/Ped.</th>
+                <th>Nombre</th><th>CUIT</th><th>Tipos de prestador</th><th>Especialidades</th><th>Adulto/Ped.</th>
                 <th>Localidad</th><th>Contratación</th><th>Contrato</th><th>Estado</th>
               </tr></thead>
               <tbody id="prestadores-table-body"></tbody>
@@ -318,15 +318,20 @@
               <label class="full"><span>Nombre / Razón social</span><input id="prestador-nombre" type="text" maxlength="300" required></label>
               <div class="form-inline-grid cols-3 full">
                 <label><span>CUIT</span><input id="prestador-cuit" type="text" maxlength="20"></label>
-                <label><span>Tipo de prestador</span><input id="prestador-tipo" type="text" maxlength="120" list="prestador-tipos-list"></label>
-                <label><span>Especialidad</span><input id="prestador-especialidad" type="text" maxlength="120"></label>
+                <label><span>Teléfono</span><input id="prestador-telefono" type="text" maxlength="60"></label>
+                <label><span>Email</span><input id="prestador-email" type="email" maxlength="180"></label>
               </div>
+
+              <div class="full tipos-especialidades-block">
+                <span class="tipos-especialidades-label">Tipo de prestador (marcá todos los que apliquen)</span>
+                <div id="prestador-tipos-chips" class="chips-selector"></div>
+                <div id="prestador-especialidades-grupos"></div>
+              </div>
+
               <div class="form-inline-grid cols-3 full">
                 <label><span>Adulto/Pediátrico</span><select id="prestador-adulto-ped">
                   <option value="">—</option><option value="ADULTO">Adulto</option><option value="PEDIATRICO">Pediátrico</option><option value="AMBOS">Ambos</option>
                 </select></label>
-                <label><span>Teléfono</span><input id="prestador-telefono" type="text" maxlength="60"></label>
-                <label><span>Email</span><input id="prestador-email" type="email" maxlength="180"></label>
               </div>
               <div class="form-inline-grid cols-3 full">
                 <label><span>Provincia</span><input id="prestador-provincia" type="text" maxlength="120"></label>
@@ -346,7 +351,6 @@
               </div>
               <label class="full checkbox-label"><input id="prestador-activo" type="checkbox" checked> <span>Activo (tildar si sigue en la red)</span></label>
             </div>
-            <datalist id="prestador-tipos-list"></datalist>
             <datalist id="prestador-contratacion-list"></datalist>
             <div class="form-message" id="prestador-form-message" hidden></div>
             <div class="modal-actions">

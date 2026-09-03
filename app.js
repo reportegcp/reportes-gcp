@@ -6436,6 +6436,10 @@ let prestadorObraSocialActual = null;
 let prestadores = [];
 let prestadoresPage = 1;
 let tiposContratacionCache = [];
+let tiposPrestadorCache = [];
+let especialidadesPrestadorCache = [];
+let tiposActivosModal = new Set();
+let especialidadesSeleccionadasModal = new Set();
 
 function poblarObrasSocialesPrestadores() {
   if (typeof document === "undefined") return;
@@ -6446,7 +6450,7 @@ function poblarObrasSocialesPrestadores() {
 
 function buildPrestadoresUrl(obraSocialId) {
   const params = new URLSearchParams();
-  params.set("select", "*");
+  params.set("select", "*,prestador_especialidades(especialidad_id,especialidades_prestador(nombre,tipo_prestador_id,tipos_prestador(nombre,orden)))");
   params.set("obra_social_id", `eq.${obraSocialId}`);
   params.set("order", "nombre_completo.asc");
   params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
@@ -6460,6 +6464,18 @@ async function cargarPrestadoresPorOS(obraSocialId) {
   const response = await fetchConTimeout(buildPrestadoresUrl(obraSocialId), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
   if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
   return response.json();
+}
+
+async function cargarTaxonomiaPrestador() {
+  if (tiposPrestadorCache.length) return;
+  const paramsTipos = new URLSearchParams({ select: "*", order: "orden.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const paramsEsp = new URLSearchParams({ select: "*", order: "nombre.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const [resTipos, resEsp] = await Promise.all([
+    fetchConTimeout(`${SUPABASE_URL}/rest/v1/tipos_prestador?${paramsTipos.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch),
+    fetchConTimeout(`${SUPABASE_URL}/rest/v1/especialidades_prestador?${paramsEsp.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch)
+  ]);
+  tiposPrestadorCache = resTipos.ok ? await resTipos.json() : [];
+  especialidadesPrestadorCache = resEsp.ok ? await resEsp.json() : [];
 }
 
 async function cargarTiposContratacion() {
@@ -6476,11 +6492,57 @@ function llenarDatalistsPrestador() {
   if (typeof document === "undefined") return;
   const listContrat = document.getElementById("prestador-contratacion-list");
   if (listContrat) listContrat.innerHTML = tiposContratacionCache.map(t => `<option value="${escaparHtml(t.nombre)}"></option>`).join("");
-  const listTipos = document.getElementById("prestador-tipos-list");
-  if (listTipos) {
-    const tipos = [...new Set(prestadores.map(p => p.tipo_prestador).filter(Boolean))].sort();
-    listTipos.innerHTML = tipos.map(t => `<option value="${escaparHtml(t)}"></option>`).join("");
-  }
+}
+
+// Devuelve, para un prestador ya cargado (con su embed de prestador_especialidades),
+// la lista de nombres de tipo únicos y la cantidad total de especialidades tildadas.
+function resumenTiposEspecialidades(p) {
+  const filas = p.prestador_especialidades || [];
+  const tipos = [...new Set(filas.map(f => f.especialidades_prestador?.tipos_prestador?.nombre).filter(Boolean))];
+  return { tipos, cantidad: filas.length };
+}
+
+function renderChipsTiposModal() {
+  const cont = document.getElementById("prestador-tipos-chips");
+  if (!cont) return;
+  cont.innerHTML = tiposPrestadorCache.map(t => `<button type="button" class="chip-toggle${tiposActivosModal.has(t.id) ? " activo" : ""}" data-tipo-id="${t.id}">${escaparHtml(t.nombre)}</button>`).join("");
+  cont.querySelectorAll("[data-tipo-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.tipoId;
+      if (tiposActivosModal.has(id)) {
+        tiposActivosModal.delete(id);
+        // Al sacar un tipo, se sacan también sus especialidades tildadas.
+        especialidadesPrestadorCache.filter(e => e.tipo_prestador_id === id).forEach(e => especialidadesSeleccionadasModal.delete(e.id));
+      } else {
+        tiposActivosModal.add(id);
+      }
+      renderChipsTiposModal();
+      renderGruposEspecialidadesModal();
+    });
+  });
+}
+
+function renderGruposEspecialidadesModal() {
+  const cont = document.getElementById("prestador-especialidades-grupos");
+  if (!cont) return;
+  const tiposOrdenados = tiposPrestadorCache.filter(t => tiposActivosModal.has(t.id));
+  cont.innerHTML = tiposOrdenados.map(t => {
+    const especialidades = especialidadesPrestadorCache.filter(e => e.tipo_prestador_id === t.id);
+    return `<div class="especialidades-grupo">
+      <div class="especialidades-grupo-titulo">Especialidades contratadas · ${escaparHtml(t.nombre)}</div>
+      <div class="especialidades-lista">
+        ${especialidades.map(e => `<button type="button" class="especialidad-chip${especialidadesSeleccionadasModal.has(e.id) ? " activo" : ""}" data-especialidad-id="${e.id}">${escaparHtml(e.nombre)}</button>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+  cont.querySelectorAll("[data-especialidad-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.especialidadId;
+      if (especialidadesSeleccionadasModal.has(id)) especialidadesSeleccionadasModal.delete(id);
+      else especialidadesSeleccionadasModal.add(id);
+      btn.classList.toggle("activo");
+    });
+  });
 }
 
 async function inicializarVistaPrestadores() {
@@ -6491,6 +6553,7 @@ async function inicializarVistaPrestadores() {
   if (!tiposContratacionCache.length) {
     try { tiposContratacionCache = await cargarTiposContratacion(); } catch (error) { console.error(error); }
   }
+  try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
 
   if (esCartillaOs) {
     if (picker) picker.hidden = true;
@@ -6575,17 +6638,20 @@ function renderPrestadores() {
   const filtradas = filtrarPrestadores();
   const pageInfo = paginarRegistros(filtradas, prestadoresPage, PAGE_SIZE);
   prestadoresPage = pageInfo.page;
-  tbody.innerHTML = pageInfo.items.map(p => `<tr class="cartilla-row" data-prestador-id="${p.id}" tabindex="0" role="button" title="Clic para editar">
+  tbody.innerHTML = pageInfo.items.map(p => {
+    const resumen = resumenTiposEspecialidades(p);
+    return `<tr class="cartilla-row" data-prestador-id="${p.id}" tabindex="0" role="button" title="Clic para editar">
     <td><strong>${escaparHtml(p.nombre_completo || "—")}</strong></td>
     <td>${escaparHtml(p.cuit || "—")}</td>
-    <td>${escaparHtml(p.tipo_prestador || "—")}</td>
-    <td>${escaparHtml(p.especialidad || "—")}</td>
+    <td>${escaparHtml(resumen.tipos.join(", ") || "—")}</td>
+    <td>${resumen.cantidad ? `${resumen.cantidad} especialidad${resumen.cantidad === 1 ? "" : "es"}` : "—"}</td>
     <td>${escaparHtml(p.adulto_pediatrico || "—")}</td>
     <td>${escaparHtml(p.localidad || "—")}</td>
     <td>${escaparHtml(p.tipo_contratacion || "—")}</td>
     <td style="text-align:center">${p.contrato_presentado ? `<span style="color:#278664;font-weight:800">✓</span> ${escaparHtml(p.contrato_numero_ex || "")}` : `<span style="color:#c0392b;font-weight:800">✕</span>`}</td>
     <td>${p.activo ? '<span style="color:#278664;font-weight:700">Activo</span>' : '<span style="color:#a33846;font-weight:700">De baja</span>'}</td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
   const count = document.getElementById("prestadores-count");
   if (count && prestadorObraSocialActual) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "prestador" : "prestadores"} de ${getObraSocialDisplay(prestadorObraSocialActual)}`;
   renderPaginacion("prestadores-pagination", pageInfo, page => { prestadoresPage = page; renderPrestadores(); });
@@ -6625,6 +6691,10 @@ function limpiarFormularioPrestador() {
   setFormMessage("prestador-form-message", "");
   const eliminar = document.getElementById("prestador-eliminar");
   if (eliminar) eliminar.hidden = true;
+  tiposActivosModal = new Set();
+  especialidadesSeleccionadasModal = new Set();
+  renderChipsTiposModal();
+  renderGruposEspecialidadesModal();
 }
 
 function abrirModalPrestadorNuevo() {
@@ -6646,8 +6716,6 @@ function abrirModalPrestadorEdicion(id) {
   document.getElementById("prestador-os-id").value = p.obra_social_id;
   document.getElementById("prestador-nombre").value = p.nombre_completo || "";
   document.getElementById("prestador-cuit").value = p.cuit || "";
-  document.getElementById("prestador-tipo").value = p.tipo_prestador || "";
-  document.getElementById("prestador-especialidad").value = p.especialidad || "";
   document.getElementById("prestador-adulto-ped").value = p.adulto_pediatrico || "";
   document.getElementById("prestador-telefono").value = p.telefono || "";
   document.getElementById("prestador-email").value = p.email || "";
@@ -6660,6 +6728,14 @@ function abrirModalPrestadorEdicion(id) {
   document.getElementById("prestador-contrato-presentado").value = p.contrato_presentado ? "SI" : "NO";
   document.getElementById("prestador-contrato-ex").value = p.contrato_numero_ex || "";
   document.getElementById("prestador-activo").checked = p.activo !== false;
+  (p.prestador_especialidades || []).forEach(f => {
+    if (!f.especialidad_id) return;
+    especialidadesSeleccionadasModal.add(f.especialidad_id);
+    const tipoId = f.especialidades_prestador?.tipo_prestador_id;
+    if (tipoId) tiposActivosModal.add(tipoId);
+  });
+  renderChipsTiposModal();
+  renderGruposEspecialidadesModal();
   const eliminar = document.getElementById("prestador-eliminar");
   if (eliminar) eliminar.hidden = false;
   actualizarVisibilidadCampoContratoEx();
@@ -6671,6 +6747,25 @@ function buildPrestadorWriteUrl(id = null) {
   params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
   if (id) params.set("id", `eq.${id}`);
   return `${SUPABASE_URL}/rest/v1/prestadores?${params.toString()}`;
+}
+
+function buildPrestadorEspecialidadesUrl(prestadorId = null) {
+  const params = new URLSearchParams();
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (prestadorId) params.set("prestador_id", `eq.${prestadorId}`);
+  return `${SUPABASE_URL}/rest/v1/prestador_especialidades?${params.toString()}`;
+}
+
+async function sincronizarEspecialidadesPrestador(prestadorId, accessToken) {
+  // Enfoque simple: borrar todo lo que tenía y volver a insertar la selección actual.
+  const del = await fetchConTimeout(buildPrestadorEspecialidadesUrl(prestadorId), { method: "DELETE", headers: authHeaders(accessToken) }, 10000, fetch);
+  if (!del.ok) throw new Error(await leerErrorApi(del) || `Supabase respondió ${del.status}`);
+  if (!especialidadesSeleccionadasModal.size) return;
+  const filas = [...especialidadesSeleccionadasModal].map(especialidad_id => ({ prestador_id: prestadorId, especialidad_id }));
+  const ins = await fetchConTimeout(buildPrestadorEspecialidadesUrl(), {
+    method: "POST", headers: { ...authHeaders(accessToken), Prefer: "return=minimal" }, body: JSON.stringify(filas)
+  }, 10000, fetch);
+  if (!ins.ok) throw new Error(await leerErrorApi(ins) || `Supabase respondió ${ins.status}`);
 }
 
 async function handlePrestadorSubmit(event) {
@@ -6688,8 +6783,6 @@ async function handlePrestadorSubmit(event) {
       obra_social_id: Number(osId),
       nombre_completo: document.getElementById("prestador-nombre")?.value.trim(),
       cuit: document.getElementById("prestador-cuit")?.value.trim() || null,
-      tipo_prestador: document.getElementById("prestador-tipo")?.value.trim() || null,
-      especialidad: document.getElementById("prestador-especialidad")?.value.trim() || null,
       adulto_pediatrico: document.getElementById("prestador-adulto-ped")?.value || null,
       telefono: document.getElementById("prestador-telefono")?.value.trim() || null,
       email: document.getElementById("prestador-email")?.value.trim() || null,
@@ -6713,6 +6806,9 @@ async function handlePrestadorSubmit(event) {
       body: JSON.stringify(payload)
     }, 10000, fetch);
     if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    const filaGuardada = await response.json();
+    const prestadorId = editando ? id : filaGuardada[0]?.id;
+    if (prestadorId) await sincronizarEspecialidadesPrestador(prestadorId, session.access_token);
     cerrarModal("prestador-modal");
     mostrarToast(editando ? "Prestador actualizado." : "Prestador creado.");
     if (prestadorObraSocialActual) {
@@ -6749,13 +6845,22 @@ function exportarPrestadoresExcel() {
   if (typeof document === "undefined" || !prestadorObraSocialActual) return;
   if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error"); return; }
   const filas = filtrarPrestadores();
-  const encabezado = ["Nombre", "CUIT", "Tipo", "Especialidad", "Adulto/Pediátrico", "Provincia", "Partido", "Localidad", "Beneficiarios en la localidad", "Domicilio", "Teléfono", "Email", "Tipo de contratación", "Contrato presentado", "Nº EX del contrato", "Activo"];
-  const filasExcel = filas.map(p => [
-    p.nombre_completo || "", p.cuit || "", p.tipo_prestador || "", p.especialidad || "", p.adulto_pediatrico || "",
-    p.provincia || "", p.partido || "", p.localidad || "", p.cantidad_beneficiarios_localidad ?? "", p.domicilio || "",
-    p.telefono || "", p.email || "", p.tipo_contratacion || "", p.contrato_presentado ? "SI" : "NO", p.contrato_numero_ex || "",
-    p.activo ? "SI" : "NO"
-  ]);
+  const encabezado = ["Nombre", "CUIT", "Tipo de prestador", "Especialidad", "Adulto/Pediátrico", "Provincia", "Partido", "Localidad", "Beneficiarios en la localidad", "Domicilio", "Teléfono", "Email", "Tipo de contratación", "Contrato presentado", "Nº EX del contrato", "Activo"];
+  // Una fila por cada especialidad tildada, igual al formato Anexo III de siempre.
+  // Si un prestador todavía no tiene ninguna especialidad cargada, sale una sola fila con esas columnas vacías.
+  const filasExcel = filas.flatMap(p => {
+    const especialidades = p.prestador_especialidades || [];
+    const base = [
+      p.nombre_completo || "", p.cuit || "",
+    ];
+    const cola = [
+      p.adulto_pediatrico || "", p.provincia || "", p.partido || "", p.localidad || "",
+      p.cantidad_beneficiarios_localidad ?? "", p.domicilio || "", p.telefono || "", p.email || "",
+      p.tipo_contratacion || "", p.contrato_presentado ? "SI" : "NO", p.contrato_numero_ex || "", p.activo ? "SI" : "NO"
+    ];
+    if (!especialidades.length) return [[...base, "", "", ...cola]];
+    return especialidades.map(f => [...base, f.especialidades_prestador?.tipos_prestador?.nombre || "", f.especialidades_prestador?.nombre || "", ...cola]);
+  });
   const matriz = [
     [`Anexo III - Red de prestadores - ${getObraSocialDisplay(prestadorObraSocialActual)}`],
     [`Generado: ${formatearFechaHoraExportacion()}`],
@@ -6778,6 +6883,20 @@ function buildSnapshotWriteUrl() {
   return `${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`;
 }
 
+function textoTiposYEspecialidades(p) {
+  const filas = p.prestador_especialidades || [];
+  if (!filas.length) return "";
+  const porTipo = new Map();
+  filas.forEach(f => {
+    const tipo = f.especialidades_prestador?.tipos_prestador?.nombre;
+    const especialidad = f.especialidades_prestador?.nombre;
+    if (!tipo || !especialidad) return;
+    if (!porTipo.has(tipo)) porTipo.set(tipo, []);
+    porTipo.get(tipo).push(especialidad);
+  });
+  return [...porTipo.entries()].map(([tipo, especialidades]) => `${tipo}: ${especialidades.join(", ")}`).join("; ");
+}
+
 async function tomarSnapshotPrestadores(cartillaId, obraSocialId, accessToken) {
   const listaPrestadores = await cargarPrestadoresPorOS(obraSocialId);
   if (!listaPrestadores.length) return;
@@ -6786,8 +6905,7 @@ async function tomarSnapshotPrestadores(cartillaId, obraSocialId, accessToken) {
     prestador_id: p.id,
     nombre_completo: p.nombre_completo,
     cuit: p.cuit,
-    tipo_prestador: p.tipo_prestador,
-    especialidad: p.especialidad,
+    tipos_y_especialidades: textoTiposYEspecialidades(p),
     adulto_pediatrico: p.adulto_pediatrico,
     provincia: p.provincia,
     partido: p.partido,
