@@ -22,6 +22,18 @@ body{
 body.modal-open{overflow:hidden}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
+input:not([type="checkbox"]):not([type="radio"]),select,textarea{
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:8px 10px;
+  background:#fff;
+  color:var(--text);
+  outline:none
+}
+input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:focus{
+  border-color:#7f98b3;
+  box-shadow:0 0 0 3px rgba(38,74,113,.08)
+}
 .app-shell{min-height:100vh;display:grid;grid-template-columns:270px 1fr}
 .sidebar{
   background:var(--navy);
