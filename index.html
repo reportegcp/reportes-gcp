@@ -1109,7 +1109,12 @@
             <div class="form-grid">
               <label><span>Nombre y apellido</span><input id="expediente-nombre-paciente" type="text" required></label>
               <label><span>DNI / CUIT</span><input id="expediente-dni-paciente" type="text"></label>
-              <label><span>Teléfono</span><input id="expediente-telefono-paciente" type="text"></label>
+              <label><span>Teléfono</span>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input id="expediente-telefono-paciente" type="text" style="flex:1">
+                  <a href="https://www.argentina.gob.ar/pais/codigo-telefonia" target="_blank" rel="noopener" class="secondary" style="white-space:nowrap;padding:8px 10px;font-size:12px;text-decoration:none" title="Ver códigos de área por provincia/localidad">Ver código de área</a>
+                </div>
+              </label>
               <label><span>Email</span><input id="expediente-email-paciente" type="email"></label>
               <label class="checkbox-inline"><input id="expediente-es-denunciante" type="checkbox" checked><span>El afiliado es el denunciante</span></label>
               <label id="expediente-denunciante-nombre-wrap" hidden><span>Nombre del denunciante</span><input id="expediente-denunciante-nombre" type="text"></label>
