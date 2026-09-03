@@ -312,6 +312,8 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
+  const labelAnalisisCartilla = document.getElementById("analisis-cartilla-label");
+  if (labelAnalisisCartilla) labelAnalisisCartilla.textContent = esCartillaOs ? "Presentación de Cartilla" : "Análisis de Cartilla";
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="normativa"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
@@ -390,6 +392,17 @@ function derivarEjercicio(inicioEjercicio, anioInicio) {
   const year = Number(anioInicio);
   if (!normalizado || !Number.isInteger(year)) return "";
   return normalizado === "01-01" ? String(year) : `${year}/${String(year + 1).slice(-2)}`;
+}
+
+function ejercicioVigenteParaOs(os) {
+  const normalizado = normalizarDiaMes(os?.inicio_ejercicio || "");
+  if (!normalizado) return "";
+  const hoy = new Date();
+  const anioActual = hoy.getFullYear();
+  const [dia, mes] = normalizado.split("-").map(Number);
+  const inicioEsteAnio = new Date(anioActual, mes - 1, dia);
+  const anioInicio = hoy >= inicioEsteAnio ? anioActual + 1 : anioActual;
+  return derivarEjercicio(os.inicio_ejercicio, anioInicio);
 }
 
 function ejercicioCanonico(valor) {
@@ -4462,7 +4475,12 @@ function mostrarOsActualEnCabecera(os) {
   const el = document.getElementById("page-os-actual");
   if (!el) return;
   if (!os) { el.hidden = true; el.textContent = ""; return; }
-  el.textContent = `${os.denominacion || os.sigla || ""} · RNAS ${os.rnos || "—"}`;
+  let texto = `${os.denominacion || os.sigla || ""} · RNAS ${os.rnos || "—"}`;
+  if (normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os") {
+    const periodo = ejercicioVigenteParaOs(os);
+    if (periodo) texto += ` · Preparando la Cartilla del período ${periodo}`;
+  }
+  el.textContent = texto;
   el.hidden = false;
 }
 
