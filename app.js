@@ -6847,11 +6847,15 @@ let ejerciciosCartillaCache = [];
 
 async function cargarEjerciciosCartilla() {
   if (ejerciciosCartillaCache.length) return ejerciciosCartillaCache;
+  const anioActual = new Date().getFullYear();
+  const vigentes = [String(anioActual + 1), `${anioActual}/${String(anioActual + 1).slice(-2)}`];
   const params = new URLSearchParams({ select: "ejercicio", apikey: SUPABASE_PUBLISHABLE_KEY });
   const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
   if (!response.ok) return [];
   const filas = await response.json();
-  ejerciciosCartillaCache = [...new Set(filas.map(f => f.ejercicio).filter(Boolean))].sort().reverse();
+  const todos = [...new Set(filas.map(f => f.ejercicio).filter(Boolean))];
+  // Solo los ejercicios del período vigente (el que está corriendo ahora), no el historico completo.
+  ejerciciosCartillaCache = vigentes.filter(e => todos.includes(e));
   return ejerciciosCartillaCache;
 }
 
