@@ -6478,6 +6478,52 @@ async function cargarTaxonomiaPrestador() {
   especialidadesPrestadorCache = resEsp.ok ? await resEsp.json() : [];
 }
 
+// ---------- Cascada Provincia / Partido / Localidad (localidades_ar) ----------
+let localidadesArCache = [];
+
+async function cargarLocalidadesAr() {
+  if (localidadesArCache.length) return;
+  const params = new URLSearchParams({ select: "provincia,partido,localidad", order: "provincia.asc,partido.asc,localidad.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const pageSize = 1000;
+  const all = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const p = new URLSearchParams(params);
+    p.set("limit", String(pageSize));
+    p.set("offset", String(offset));
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/localidades_ar?${p.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+    if (!response.ok) break;
+    const page = await response.json();
+    all.push(...page);
+    if (page.length < pageSize) break;
+  }
+  localidadesArCache = all;
+}
+
+function poblarSelectProvinciaPrestador() {
+  const select = document.getElementById("prestador-provincia");
+  if (!select) return;
+  const provincias = [...new Set(localidadesArCache.map(l => l.provincia))].sort();
+  select.innerHTML = `<option value="">—</option>` + provincias.map(p => `<option value="${escaparHtml(p)}">${escaparHtml(p)}</option>`).join("");
+}
+
+function poblarSelectPartidoPrestador(provincia, partidoSeleccionado = "") {
+  const select = document.getElementById("prestador-partido");
+  if (!select) return;
+  if (!provincia) { select.innerHTML = `<option value="">—</option>`; select.disabled = true; return; }
+  const partidos = [...new Set(localidadesArCache.filter(l => l.provincia === provincia).map(l => l.partido))].sort();
+  select.innerHTML = `<option value="">—</option>` + partidos.map(p => `<option value="${escaparHtml(p)}" ${p === partidoSeleccionado ? "selected" : ""}>${escaparHtml(p)}</option>`).join("");
+  select.disabled = false;
+}
+
+function poblarSelectLocalidadPrestador(provincia, partido, localidadSeleccionada = "") {
+  const select = document.getElementById("prestador-localidad");
+  if (!select) return;
+  if (!provincia || !partido) { select.innerHTML = `<option value="">—</option>`; select.disabled = true; return; }
+  const localidades = [...new Set(localidadesArCache.filter(l => l.provincia === provincia && l.partido === partido).map(l => l.localidad))].sort();
+  select.innerHTML = `<option value="">—</option>` + localidades.map(l => `<option value="${escaparHtml(l)}" ${l === localidadSeleccionada ? "selected" : ""}>${escaparHtml(l)}</option>`).join("");
+  select.disabled = false;
+}
+
 async function cargarTiposContratacion() {
   const params = new URLSearchParams();
   params.set("select", "nombre");
@@ -6558,6 +6604,7 @@ async function inicializarVistaPrestadores() {
     try { tiposContratacionCache = await cargarTiposContratacion(); } catch (error) { console.error(error); }
   }
   try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
+  try { await cargarLocalidadesAr(); poblarSelectProvinciaPrestador(); } catch (error) { console.error(error); }
 
   if (esCartillaOs) {
     if (picker) picker.hidden = true;
@@ -6699,6 +6746,8 @@ function limpiarFormularioPrestador() {
   especialidadesSeleccionadasModal = new Set();
   renderChipsTiposModal();
   renderGruposEspecialidadesModal();
+  poblarSelectPartidoPrestador("");
+  poblarSelectLocalidadPrestador("", "");
 }
 
 function abrirModalPrestadorNuevo() {
@@ -6724,8 +6773,8 @@ function abrirModalPrestadorEdicion(id) {
   document.getElementById("prestador-telefono").value = p.telefono || "";
   document.getElementById("prestador-email").value = p.email || "";
   document.getElementById("prestador-provincia").value = p.provincia || "";
-  document.getElementById("prestador-partido").value = p.partido || "";
-  document.getElementById("prestador-localidad").value = p.localidad || "";
+  poblarSelectPartidoPrestador(p.provincia || "", p.partido || "");
+  poblarSelectLocalidadPrestador(p.provincia || "", p.partido || "", p.localidad || "");
   document.getElementById("prestador-domicilio").value = p.domicilio || "";
   document.getElementById("prestador-beneficiarios").value = p.cantidad_beneficiarios_localidad ?? "";
   document.getElementById("prestador-contratacion").value = p.tipo_contratacion || "";
@@ -7188,6 +7237,14 @@ async function initBrowser() {
   document.getElementById("prestador-form")?.addEventListener("submit", handlePrestadorSubmit);
   document.getElementById("prestador-eliminar")?.addEventListener("click", eliminarPrestadorActual);
   document.getElementById("prestador-contrato-presentado")?.addEventListener("change", actualizarVisibilidadCampoContratoEx);
+  document.getElementById("prestador-provincia")?.addEventListener("change", event => {
+    poblarSelectPartidoPrestador(event.target.value);
+    poblarSelectLocalidadPrestador("", "");
+  });
+  document.getElementById("prestador-partido")?.addEventListener("change", event => {
+    const provincia = document.getElementById("prestador-provincia")?.value || "";
+    poblarSelectLocalidadPrestador(provincia, event.target.value);
+  });
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
