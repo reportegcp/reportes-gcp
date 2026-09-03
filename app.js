@@ -6454,7 +6454,10 @@ function buildPrestadoresUrl(obraSocialId) {
 }
 
 async function cargarPrestadoresPorOS(obraSocialId) {
-  const response = await fetchConTimeout(buildPrestadoresUrl(obraSocialId), { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  // prestadores tiene seguridad por fila (no es de lectura pública como el resto del
+  // sitio), así que la consulta necesita el token de la sesión logueada, no solo la apikey.
+  const session = await asegurarSesionVigente();
+  const response = await fetchConTimeout(buildPrestadoresUrl(obraSocialId), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
   if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
   return response.json();
 }
