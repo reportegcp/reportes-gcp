@@ -49,6 +49,7 @@
       <nav class="nav">
         <button class="nav-item active" data-view="inicio" data-nav-access="inicio">Inicio</button>
         <button class="nav-item" data-view="obras-sociales" data-nav-access="obras-sociales">Agentes de Seguro</button>
+        <button class="nav-item" data-view="prestadores" data-nav-access="prestadores">Prestadores (Cartilla)</button>
 
         <div class="nav-group collapsed" data-nav-group="presentaciones" data-nav-access="presentaciones">
           <button class="nav-group-toggle" type="button" aria-expanded="false">
@@ -249,6 +250,113 @@
           <div class="table-empty" id="os-empty" hidden>No se encontraron Agentes de Seguro con ese criterio.</div>
         </div>
       </section>
+
+      <section id="prestadores" class="view">
+        <div class="module-actions">
+          <button class="secondary" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
+          <button class="primary" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
+        </div>
+
+        <div class="toolbar prestadores-toolbar">
+          <div class="search-box transaction-agent-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="prestadores-os-search" type="text" list="prestadores-os-list" placeholder="Elegí la Obra Social cuya red querés ver..." autocomplete="off">
+            <datalist id="prestadores-os-list"></datalist>
+          </div>
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="prestadores-search" type="search" placeholder="Buscar por nombre, CUIT o localidad..." autocomplete="off" disabled>
+          </div>
+          <select id="prestadores-estado-filter" aria-label="Filtrar por estado" disabled>
+            <option value="TODOS">Estado: Todos</option>
+            <option value="ACTIVO">Activos</option>
+            <option value="INACTIVO">De baja</option>
+          </select>
+          <select id="prestadores-contrato-filter" aria-label="Filtrar por contrato presentado" disabled>
+            <option value="TODOS">Contrato: Todos</option>
+            <option value="SI">Presentado</option>
+            <option value="NO">No presentado</option>
+          </select>
+        </div>
+
+        <div id="prestadores-resumen" class="deadline-card neutral" hidden style="margin-bottom:16px">
+          <div><span>Contratos presentados</span><strong id="prestadores-resumen-si">—</strong></div>
+          <div><span>Contratos sin presentar</span><strong id="prestadores-resumen-no">—</strong></div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="prestadores-count">Elegí una Obra Social arriba para ver su red de prestadores.</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table prestadores-table">
+              <thead><tr>
+                <th>Nombre</th><th>CUIT</th><th>Tipo</th><th>Especialidad</th><th>Adulto/Ped.</th>
+                <th>Localidad</th><th>Contratación</th><th>Contrato</th><th>Estado</th>
+              </tr></thead>
+              <tbody id="prestadores-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-pagination" id="prestadores-pagination"></div>
+          <div class="table-empty" id="prestadores-empty" hidden>No hay prestadores cargados para esta Obra Social todavía.</div>
+        </div>
+      </section>
+
+      <div class="modal-backdrop" id="prestador-modal" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="prestador-modal-title">
+          <div class="modal-header">
+            <div>
+              <span class="eyebrow">PRESTADOR</span>
+              <h2 id="prestador-modal-title">Nuevo prestador</h2>
+            </div>
+            <button class="icon-button" type="button" data-close-modal="prestador-modal" aria-label="Cerrar">×</button>
+          </div>
+          <form id="prestador-form">
+            <input type="hidden" id="prestador-id">
+            <input type="hidden" id="prestador-os-id">
+            <div class="form-grid">
+              <label class="full"><span>Nombre / Razón social</span><input id="prestador-nombre" type="text" maxlength="300" required></label>
+              <div class="form-inline-grid cols-3 full">
+                <label><span>CUIT</span><input id="prestador-cuit" type="text" maxlength="20"></label>
+                <label><span>Tipo de prestador</span><input id="prestador-tipo" type="text" maxlength="120" list="prestador-tipos-list"></label>
+                <label><span>Especialidad</span><input id="prestador-especialidad" type="text" maxlength="120"></label>
+              </div>
+              <div class="form-inline-grid cols-3 full">
+                <label><span>Adulto/Pediátrico</span><select id="prestador-adulto-ped">
+                  <option value="">—</option><option value="ADULTO">Adulto</option><option value="PEDIATRICO">Pediátrico</option><option value="AMBOS">Ambos</option>
+                </select></label>
+                <label><span>Teléfono</span><input id="prestador-telefono" type="text" maxlength="60"></label>
+                <label><span>Email</span><input id="prestador-email" type="email" maxlength="180"></label>
+              </div>
+              <div class="form-inline-grid cols-3 full">
+                <label><span>Provincia</span><input id="prestador-provincia" type="text" maxlength="120"></label>
+                <label><span>Partido</span><input id="prestador-partido" type="text" maxlength="120"></label>
+                <label><span>Localidad</span><input id="prestador-localidad" type="text" maxlength="120"></label>
+              </div>
+              <div class="form-inline-grid cols-2 full">
+                <label><span>Domicilio</span><input id="prestador-domicilio" type="text" maxlength="300"></label>
+                <label><span>Beneficiarios en la localidad</span><input id="prestador-beneficiarios" type="number" min="0"></label>
+              </div>
+              <div class="form-inline-grid cols-3 full">
+                <label><span>Tipo de contratación</span><input id="prestador-contratacion" type="text" maxlength="120" list="prestador-contratacion-list"></label>
+                <label><span>¿Contrato presentado en la Superintendencia?</span><select id="prestador-contrato-presentado">
+                  <option value="NO">No</option><option value="SI">Sí</option>
+                </select></label>
+                <label><span>Nº de expediente del contrato</span><input id="prestador-contrato-ex" type="text" maxlength="200"></label>
+              </div>
+              <label class="full checkbox-label"><input id="prestador-activo" type="checkbox" checked> <span>Activo (tildar si sigue en la red)</span></label>
+            </div>
+            <datalist id="prestador-tipos-list"></datalist>
+            <datalist id="prestador-contratacion-list"></datalist>
+            <div class="form-message" id="prestador-form-message" hidden></div>
+            <div class="modal-actions">
+              <button type="button" class="secondary danger" id="prestador-eliminar" hidden>Eliminar</button>
+              <button type="button" class="secondary" data-close-modal="prestador-modal">Cancelar</button>
+              <button type="submit" class="primary" id="prestador-save">Guardar</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <section id="pma" class="view">
         <div class="module-actions">

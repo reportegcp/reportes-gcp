@@ -5,6 +5,7 @@ const SESSION_KEY = "gcp-auth-session-v1";
 const views = {
   inicio: { title: "", subtitle: "" },
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
+  prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
@@ -253,7 +254,7 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   return false;
 }
@@ -293,6 +294,7 @@ function aplicarPermisosNavegacion() {
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
@@ -3991,6 +3993,7 @@ function showView(id, updateHistory = true) {
     document.getElementById("metas-anio").value = new Date().getFullYear();
   }
   if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
+  if (resolved === "prestadores") inicializarVistaPrestadores();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
@@ -6364,9 +6367,13 @@ async function handleCartillaSubmit(event) {
       observaciones:document.getElementById("cartilla-observaciones")?.value.trim() || null
     };
     const id = document.getElementById("cartilla-id")?.value || "";
-    await guardarCartillaEnSupabase(registro, id || null, session.access_token);
+    const filaGuardada = await guardarCartillaEnSupabase(registro, id || null, session.access_token);
     cerrarModal("cartilla-modal");
     mostrarToast(id ? "Presentación de Cartilla actualizada." : "Presentación de Cartilla creada.");
+    if (!id) {
+      const nuevaCartillaId = Array.isArray(filaGuardada) ? filaGuardada[0]?.id : filaGuardada?.id;
+      if (nuevaCartillaId) tomarSnapshotPrestadores(nuevaCartillaId, os.id, session.access_token).catch(err => console.error("No se pudo generar el snapshot de prestadores:", err));
+    }
     await cargarYRenderizarCartillas();
   } catch (error) {
     const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una presentación con esa Agente de Seguro, ejercicio y Nº EE." : error.message || "No se pudo guardar la presentación.";
@@ -6408,6 +6415,360 @@ async function restaurarSesion() {
   if (authSession?.access_token) {
     await refrescarDatosUsuarioSesion();
   }
+}
+
+// ---------- Prestadores (Portal de Cartilla) ----------
+
+let prestadorObraSocialActual = null;
+let prestadores = [];
+let prestadoresPage = 1;
+let tiposContratacionCache = [];
+
+function poblarObrasSocialesPrestadores() {
+  if (typeof document === "undefined") return;
+  const list = document.getElementById("prestadores-os-list");
+  if (!list) return;
+  list.innerHTML = obrasSociales.filter(os => os.estado !== "INACTIVA").map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+function buildPrestadoresUrl(obraSocialId) {
+  const params = new URLSearchParams();
+  params.set("select", "*");
+  params.set("obra_social_id", `eq.${obraSocialId}`);
+  params.set("order", "nombre_completo.asc");
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  return `${SUPABASE_URL}/rest/v1/prestadores?${params.toString()}`;
+}
+
+async function cargarPrestadoresPorOS(obraSocialId) {
+  const response = await fetchConTimeout(buildPrestadoresUrl(obraSocialId), { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+async function cargarTiposContratacion() {
+  const params = new URLSearchParams();
+  params.set("select", "nombre");
+  params.set("order", "nombre.asc");
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/tipos_contratacion?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return [];
+  return response.json();
+}
+
+function llenarDatalistsPrestador() {
+  if (typeof document === "undefined") return;
+  const listContrat = document.getElementById("prestador-contratacion-list");
+  if (listContrat) listContrat.innerHTML = tiposContratacionCache.map(t => `<option value="${escaparHtml(t.nombre)}"></option>`).join("");
+  const listTipos = document.getElementById("prestador-tipos-list");
+  if (listTipos) {
+    const tipos = [...new Set(prestadores.map(p => p.tipo_prestador).filter(Boolean))].sort();
+    listTipos.innerHTML = tipos.map(t => `<option value="${escaparHtml(t)}"></option>`).join("");
+  }
+}
+
+async function inicializarVistaPrestadores() {
+  if (typeof document === "undefined") return;
+  poblarObrasSocialesPrestadores();
+  if (!tiposContratacionCache.length) {
+    try { tiposContratacionCache = await cargarTiposContratacion(); } catch (error) { console.error(error); }
+  }
+  llenarDatalistsPrestador();
+}
+
+function actualizarControlesPrestadores(habilitado) {
+  ["prestadores-search", "prestadores-estado-filter", "prestadores-contrato-filter", "btn-nuevo-prestador", "btn-export-prestadores"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !habilitado;
+  });
+}
+
+async function handleSeleccionObraSocialPrestadores() {
+  const valor = document.getElementById("prestadores-os-search")?.value || "";
+  const os = resolverObraSocialCartilla(valor);
+  const resumen = document.getElementById("prestadores-resumen");
+  if (!os) {
+    prestadorObraSocialActual = null;
+    prestadores = [];
+    prestadoresPage = 1;
+    renderPrestadores();
+    const count = document.getElementById("prestadores-count");
+    if (count) count.textContent = "Elegí una Obra Social arriba para ver su red de prestadores.";
+    actualizarControlesPrestadores(false);
+    if (resumen) resumen.hidden = true;
+    return;
+  }
+  prestadorObraSocialActual = os;
+  const count = document.getElementById("prestadores-count");
+  if (count) count.textContent = "Cargando prestadores...";
+  actualizarControlesPrestadores(true);
+  try {
+    prestadores = await cargarPrestadoresPorOS(os.id);
+    prestadoresPage = 1;
+    llenarDatalistsPrestador();
+    renderPrestadores();
+  } catch (error) {
+    prestadores = [];
+    renderPrestadores();
+    mostrarToast("No se pudieron cargar los prestadores de esta Obra Social.");
+  }
+}
+
+function filtrarPrestadores() {
+  if (typeof document === "undefined") return prestadores;
+  const busqueda = normalizar(document.getElementById("prestadores-search")?.value || "");
+  const estado = document.getElementById("prestadores-estado-filter")?.value || "TODOS";
+  const contrato = document.getElementById("prestadores-contrato-filter")?.value || "TODOS";
+  return prestadores.filter(p => {
+    if (busqueda) {
+      const texto = normalizar(`${p.nombre_completo || ""} ${p.cuit || ""} ${p.localidad || ""}`);
+      if (!texto.includes(busqueda)) return false;
+    }
+    if (estado === "ACTIVO" && !p.activo) return false;
+    if (estado === "INACTIVO" && p.activo) return false;
+    if (contrato === "SI" && !p.contrato_presentado) return false;
+    if (contrato === "NO" && p.contrato_presentado) return false;
+    return true;
+  });
+}
+
+function renderPrestadores() {
+  if (typeof document === "undefined") return;
+  const tbody = document.getElementById("prestadores-table-body");
+  if (!tbody) return;
+  const filtradas = filtrarPrestadores();
+  const pageInfo = paginarRegistros(filtradas, prestadoresPage, PAGE_SIZE);
+  prestadoresPage = pageInfo.page;
+  tbody.innerHTML = pageInfo.items.map(p => `<tr class="cartilla-row" data-prestador-id="${p.id}" tabindex="0" role="button" title="Clic para editar">
+    <td><strong>${escaparHtml(p.nombre_completo || "—")}</strong></td>
+    <td>${escaparHtml(p.cuit || "—")}</td>
+    <td>${escaparHtml(p.tipo_prestador || "—")}</td>
+    <td>${escaparHtml(p.especialidad || "—")}</td>
+    <td>${escaparHtml(p.adulto_pediatrico || "—")}</td>
+    <td>${escaparHtml(p.localidad || "—")}</td>
+    <td>${escaparHtml(p.tipo_contratacion || "—")}</td>
+    <td style="text-align:center">${p.contrato_presentado ? `<span style="color:#278664;font-weight:800">✓</span> ${escaparHtml(p.contrato_numero_ex || "")}` : `<span style="color:#c0392b;font-weight:800">✕</span>`}</td>
+    <td>${p.activo ? '<span style="color:#278664;font-weight:700">Activo</span>' : '<span style="color:#a33846;font-weight:700">De baja</span>'}</td>
+  </tr>`).join("");
+  const count = document.getElementById("prestadores-count");
+  if (count && prestadorObraSocialActual) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "prestador" : "prestadores"} de ${getObraSocialDisplay(prestadorObraSocialActual)}`;
+  renderPaginacion("prestadores-pagination", pageInfo, page => { prestadoresPage = page; renderPrestadores(); });
+  const empty = document.getElementById("prestadores-empty");
+  if (empty) empty.hidden = filtradas.length !== 0 || !prestadorObraSocialActual;
+  document.querySelectorAll("#prestadores-table-body [data-prestador-id]").forEach(row => {
+    const editar = () => requiereAutenticacion(() => abrirModalPrestadorEdicion(row.dataset.prestadorId));
+    row.addEventListener("click", editar);
+    row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); } });
+  });
+  const resumen = document.getElementById("prestadores-resumen");
+  if (resumen) {
+    if (prestadorObraSocialActual) {
+      resumen.hidden = false;
+      const si = prestadores.filter(p => p.contrato_presentado).length;
+      document.getElementById("prestadores-resumen-si").textContent = String(si);
+      document.getElementById("prestadores-resumen-no").textContent = String(prestadores.length - si);
+    } else {
+      resumen.hidden = true;
+    }
+  }
+}
+
+function actualizarVisibilidadCampoContratoEx() {
+  const select = document.getElementById("prestador-contrato-presentado");
+  const campoEx = document.getElementById("prestador-contrato-ex");
+  if (campoEx) campoEx.closest("label").hidden = select?.value !== "SI";
+}
+
+function limpiarFormularioPrestador() {
+  document.getElementById("prestador-form")?.reset();
+  document.getElementById("prestador-id").value = "";
+  const activo = document.getElementById("prestador-activo");
+  if (activo) activo.checked = true;
+  const contratoPresentado = document.getElementById("prestador-contrato-presentado");
+  if (contratoPresentado) contratoPresentado.value = "NO";
+  setFormMessage("prestador-form-message", "");
+  const eliminar = document.getElementById("prestador-eliminar");
+  if (eliminar) eliminar.hidden = true;
+}
+
+function abrirModalPrestadorNuevo() {
+  if (!prestadorObraSocialActual) return;
+  limpiarFormularioPrestador();
+  document.getElementById("prestador-os-id").value = prestadorObraSocialActual.id;
+  document.getElementById("prestador-modal-title").textContent = `Nuevo prestador — ${getObraSocialDisplay(prestadorObraSocialActual)}`;
+  actualizarVisibilidadCampoContratoEx();
+  abrirModal("prestador-modal");
+  document.getElementById("prestador-nombre")?.focus();
+}
+
+function abrirModalPrestadorEdicion(id) {
+  const p = prestadores.find(item => String(item.id) === String(id));
+  if (!p) return;
+  limpiarFormularioPrestador();
+  document.getElementById("prestador-modal-title").textContent = "Editar prestador";
+  document.getElementById("prestador-id").value = p.id;
+  document.getElementById("prestador-os-id").value = p.obra_social_id;
+  document.getElementById("prestador-nombre").value = p.nombre_completo || "";
+  document.getElementById("prestador-cuit").value = p.cuit || "";
+  document.getElementById("prestador-tipo").value = p.tipo_prestador || "";
+  document.getElementById("prestador-especialidad").value = p.especialidad || "";
+  document.getElementById("prestador-adulto-ped").value = p.adulto_pediatrico || "";
+  document.getElementById("prestador-telefono").value = p.telefono || "";
+  document.getElementById("prestador-email").value = p.email || "";
+  document.getElementById("prestador-provincia").value = p.provincia || "";
+  document.getElementById("prestador-partido").value = p.partido || "";
+  document.getElementById("prestador-localidad").value = p.localidad || "";
+  document.getElementById("prestador-domicilio").value = p.domicilio || "";
+  document.getElementById("prestador-beneficiarios").value = p.cantidad_beneficiarios_localidad ?? "";
+  document.getElementById("prestador-contratacion").value = p.tipo_contratacion || "";
+  document.getElementById("prestador-contrato-presentado").value = p.contrato_presentado ? "SI" : "NO";
+  document.getElementById("prestador-contrato-ex").value = p.contrato_numero_ex || "";
+  document.getElementById("prestador-activo").checked = p.activo !== false;
+  const eliminar = document.getElementById("prestador-eliminar");
+  if (eliminar) eliminar.hidden = false;
+  actualizarVisibilidadCampoContratoEx();
+  abrirModal("prestador-modal");
+}
+
+function buildPrestadorWriteUrl(id = null) {
+  const params = new URLSearchParams();
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  if (id) params.set("id", `eq.${id}`);
+  return `${SUPABASE_URL}/rest/v1/prestadores?${params.toString()}`;
+}
+
+async function handlePrestadorSubmit(event) {
+  event.preventDefault();
+  setFormMessage("prestador-form-message", "");
+  const save = document.getElementById("prestador-save");
+  if (save) save.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const osId = document.getElementById("prestador-os-id")?.value;
+    if (!osId) throw new Error("Falta la Obra Social.");
+    const contratoPresentado = document.getElementById("prestador-contrato-presentado")?.value === "SI";
+    const beneficiariosValor = document.getElementById("prestador-beneficiarios")?.value;
+    const registro = {
+      obra_social_id: Number(osId),
+      nombre_completo: document.getElementById("prestador-nombre")?.value.trim(),
+      cuit: document.getElementById("prestador-cuit")?.value.trim() || null,
+      tipo_prestador: document.getElementById("prestador-tipo")?.value.trim() || null,
+      especialidad: document.getElementById("prestador-especialidad")?.value.trim() || null,
+      adulto_pediatrico: document.getElementById("prestador-adulto-ped")?.value || null,
+      telefono: document.getElementById("prestador-telefono")?.value.trim() || null,
+      email: document.getElementById("prestador-email")?.value.trim() || null,
+      provincia: document.getElementById("prestador-provincia")?.value.trim() || null,
+      partido: document.getElementById("prestador-partido")?.value.trim() || null,
+      localidad: document.getElementById("prestador-localidad")?.value.trim() || null,
+      domicilio: document.getElementById("prestador-domicilio")?.value.trim() || null,
+      cantidad_beneficiarios_localidad: beneficiariosValor ? Number(beneficiariosValor) : null,
+      tipo_contratacion: document.getElementById("prestador-contratacion")?.value.trim() || null,
+      contrato_presentado: contratoPresentado,
+      contrato_numero_ex: contratoPresentado ? (document.getElementById("prestador-contrato-ex")?.value.trim() || null) : null,
+      activo: document.getElementById("prestador-activo")?.checked !== false
+    };
+    if (!registro.nombre_completo) throw new Error("Ingresá el nombre del prestador.");
+    const id = document.getElementById("prestador-id")?.value || "";
+    const editando = Boolean(id);
+    const payload = editando ? { ...registro, updated_at: new Date().toISOString() } : registro;
+    const response = await fetchConTimeout(buildPrestadorWriteUrl(editando ? id : null), {
+      method: editando ? "PATCH" : "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(payload)
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    cerrarModal("prestador-modal");
+    mostrarToast(editando ? "Prestador actualizado." : "Prestador creado.");
+    if (prestadorObraSocialActual) {
+      prestadores = await cargarPrestadoresPorOS(prestadorObraSocialActual.id);
+      renderPrestadores();
+    }
+  } catch (error) {
+    setFormMessage("prestador-form-message", error.message || "No se pudo guardar el prestador.");
+  } finally {
+    if (save) save.disabled = false;
+  }
+}
+
+async function eliminarPrestadorActual() {
+  const id = document.getElementById("prestador-id")?.value;
+  if (!id) return;
+  if (!window.confirm("¿Eliminar este prestador de la red? No se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildPrestadorWriteUrl(id), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    cerrarModal("prestador-modal");
+    mostrarToast("Prestador eliminado.");
+    if (prestadorObraSocialActual) {
+      prestadores = await cargarPrestadoresPorOS(prestadorObraSocialActual.id);
+      renderPrestadores();
+    }
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo eliminar el prestador.");
+  }
+}
+
+function exportarPrestadoresExcel() {
+  if (typeof document === "undefined" || !prestadorObraSocialActual) return;
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error"); return; }
+  const filas = filtrarPrestadores();
+  const encabezado = ["Nombre", "CUIT", "Tipo", "Especialidad", "Adulto/Pediátrico", "Provincia", "Partido", "Localidad", "Beneficiarios en la localidad", "Domicilio", "Teléfono", "Email", "Tipo de contratación", "Contrato presentado", "Nº EX del contrato", "Activo"];
+  const filasExcel = filas.map(p => [
+    p.nombre_completo || "", p.cuit || "", p.tipo_prestador || "", p.especialidad || "", p.adulto_pediatrico || "",
+    p.provincia || "", p.partido || "", p.localidad || "", p.cantidad_beneficiarios_localidad ?? "", p.domicilio || "",
+    p.telefono || "", p.email || "", p.tipo_contratacion || "", p.contrato_presentado ? "SI" : "NO", p.contrato_numero_ex || "",
+    p.activo ? "SI" : "NO"
+  ]);
+  const matriz = [
+    [`Anexo III - Red de prestadores - ${getObraSocialDisplay(prestadorObraSocialActual)}`],
+    [`Generado: ${formatearFechaHoraExportacion()}`],
+    [],
+    encabezado,
+    ...filasExcel
+  ];
+  const hoja = crearHojaExcelConDiseno(matriz, "Prestadores", 3);
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Prestadores");
+  window.XLSX.writeFile(libro, `anexo3_${prestadorObraSocialActual.rnos || "os"}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// Al presentarse una Cartilla NUEVA, se congela una copia ("foto") de la red de
+// prestadores de esa OS en ese momento — la red viva se sigue editando todo el
+// año, pero esta copia queda fija tal como estaba al presentar el expediente.
+function buildSnapshotWriteUrl() {
+  const params = new URLSearchParams();
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  return `${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`;
+}
+
+async function tomarSnapshotPrestadores(cartillaId, obraSocialId, accessToken) {
+  const listaPrestadores = await cargarPrestadoresPorOS(obraSocialId);
+  if (!listaPrestadores.length) return;
+  const filas = listaPrestadores.map(p => ({
+    cartilla_id: cartillaId,
+    prestador_id: p.id,
+    nombre_completo: p.nombre_completo,
+    cuit: p.cuit,
+    tipo_prestador: p.tipo_prestador,
+    especialidad: p.especialidad,
+    adulto_pediatrico: p.adulto_pediatrico,
+    provincia: p.provincia,
+    partido: p.partido,
+    localidad: p.localidad,
+    cantidad_beneficiarios_localidad: p.cantidad_beneficiarios_localidad,
+    domicilio: p.domicilio,
+    telefono: p.telefono,
+    email: p.email,
+    activo: p.activo,
+    tipo_contratacion: p.tipo_contratacion,
+    contrato_presentado: p.contrato_presentado,
+    contrato_numero_ex: p.contrato_numero_ex
+  }));
+  const response = await fetchConTimeout(buildSnapshotWriteUrl(), {
+    method: "POST", headers: { ...authHeaders(accessToken), Prefer: "return=minimal" }, body: JSON.stringify(filas)
+  }, 15000, fetch);
+  if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
 }
 
 async function initBrowser() {
@@ -6660,6 +7021,15 @@ async function initBrowser() {
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
+  document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
+  document.getElementById("prestadores-search")?.addEventListener("input", () => { prestadoresPage = 1; renderPrestadores(); });
+  document.getElementById("prestadores-estado-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
+  document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
+  document.getElementById("btn-nuevo-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalPrestadorNuevo));
+  document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
+  document.getElementById("prestador-form")?.addEventListener("submit", handlePrestadorSubmit);
+  document.getElementById("prestador-eliminar")?.addEventListener("click", eliminarPrestadorActual);
+  document.getElementById("prestador-contrato-presentado")?.addEventListener("change", actualizarVisibilidadCampoContratoEx);
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
