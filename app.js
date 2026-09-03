@@ -6790,7 +6790,7 @@ async function confirmarImportarCartilla() {
         obra_social_id: os.id, nombre_completo: p.nombre.slice(0, 300), cuit: p.cuit,
         adulto_pediatrico: p.adultoPediatrico, telefono: p.telefono, email: p.email,
         provincia: p.provincia, partido: p.partido, localidad: p.localidad, domicilio: p.domicilio,
-        contrato_presentado: true, activo: true
+        contrato_presentado: false, activo: true
       }));
       const response = await fetchConTimeout(buildPrestadorWriteUrl(), { method: "POST", headers, body: JSON.stringify(payload) }, 20000, fetch);
       if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
