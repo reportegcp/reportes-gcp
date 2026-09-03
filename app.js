@@ -4002,6 +4002,7 @@ function showView(id, updateHistory = true) {
     if (copy) copy.hidden = false;
     if (title) title.textContent = meta.title;
     if (subtitle) subtitle.textContent = meta.subtitle;
+    if (!["prestadores", "afiliados", "cobertura"].includes(resolved)) mostrarOsActualEnCabecera(null);
     const helpContent = document.getElementById("section-help-content");
     const help = document.getElementById("section-help");
     if (helpContent) helpContent.innerHTML = manualesSeccion[resolved] || "";
@@ -4456,6 +4457,14 @@ async function handleOsSubmit(event) {
   }
 }
 
+
+function mostrarOsActualEnCabecera(os) {
+  const el = document.getElementById("page-os-actual");
+  if (!el) return;
+  if (!os) { el.hidden = true; el.textContent = ""; return; }
+  el.textContent = `${os.denominacion || os.sigla || ""} · RNAS ${os.rnos || "—"}`;
+  el.hidden = false;
+}
 
 function getObraSocialDisplay(os) {
   return os ? `${os.rnos || ""} · ${os.sigla || "S/S"} · ${os.denominacion || ""}` : "";
@@ -6911,6 +6920,7 @@ async function handleCambioEjercicioCobertura() {
 async function handleSeleccionObraSocialCobertura() {
   const valor = document.getElementById("cobertura-os-search")?.value || "";
   const os = resolverObraSocialCartilla(valor);
+  mostrarOsActualEnCabecera(os);
   const count = document.getElementById("cobertura-count");
   const resumen = document.getElementById("cobertura-resumen");
   if (!os) {
@@ -7134,6 +7144,7 @@ async function cargarAfiliadosLocalidadDeOS(obraSocialId) {
 async function handleSeleccionObraSocialAfiliados() {
   const valor = document.getElementById("afiliados-os-search")?.value || "";
   const os = resolverObraSocialCartilla(valor);
+  mostrarOsActualEnCabecera(os);
   const panel = document.getElementById("afiliados-panel");
   if (!os) { if (panel) panel.hidden = true; return; }
   afiliadosObraSocialActual = os;
@@ -7332,6 +7343,7 @@ function actualizarControlesPrestadores(habilitado) {
 async function handleSeleccionObraSocialPrestadores() {
   const valor = document.getElementById("prestadores-os-search")?.value || "";
   const os = resolverObraSocialCartilla(valor);
+  mostrarOsActualEnCabecera(os);
   const resumen = document.getElementById("prestadores-resumen");
   if (!os) {
     prestadorObraSocialActual = null;
