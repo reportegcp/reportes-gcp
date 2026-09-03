@@ -7299,6 +7299,71 @@ async function eliminarAfiliadoLocalidad(id) {
   }
 }
 
+// ---------- Presentar Cartilla (perfil Cartilla OS) ----------
+
+async function verificarYRenderizarPresentacionCartillaOs(os) {
+  const panel = document.getElementById("presentar-cartilla-panel");
+  const label = document.getElementById("presentar-cartilla-estado-label");
+  const valor = document.getElementById("presentar-cartilla-estado-valor");
+  const boton = document.getElementById("btn-presentar-cartilla");
+  if (!panel) return;
+  const ejercicio = ejercicioVigenteParaOs(os);
+  if (!ejercicio) { panel.hidden = true; return; }
+  panel.hidden = false;
+  label.textContent = `Cartilla del período ${ejercicio}`;
+  valor.textContent = "Consultando...";
+  boton.hidden = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ select: "id,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, ejercicio: `eq.${ejercicio}`, apikey: SUPABASE_PUBLISHABLE_KEY });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+    const filas = await response.json();
+    if (filas.length) {
+      valor.textContent = `Presentada el ${formatFechaPantalla(filas[0].fecha_ingreso)} · Condición: ${filas[0].condicion || "—"}`;
+      boton.hidden = true;
+    } else {
+      valor.textContent = "Todavía no presentada";
+      boton.hidden = false;
+      boton.textContent = `Presentar Cartilla del período ${ejercicio}`;
+      boton.dataset.ejercicio = ejercicio;
+    }
+  } catch (error) {
+    valor.textContent = "No se pudo consultar el estado.";
+  }
+}
+
+async function presentarCartillaOs() {
+  const boton = document.getElementById("btn-presentar-cartilla");
+  const ejercicio = boton?.dataset.ejercicio;
+  const os = afiliadosObraSocialActual || prestadorObraSocialActual;
+  if (!ejercicio || !os) return;
+  if (!window.confirm(`¿Presentar la Cartilla del período ${ejercicio}? Se va a guardar una foto de tu red de prestadores tal como está ahora mismo, y ya no vas a poder modificar esta presentación (sí podés seguir editando tu red para la próxima).`)) return;
+  boton.disabled = true; boton.textContent = "Presentando...";
+  try {
+    const session = await asegurarSesionVigente();
+    const anioInicio = anioInicioDesdeEjercicio(ejercicio);
+    const registro = {
+      obra_social_id: os.id,
+      ejercicio,
+      anio_inicio: anioInicio,
+      fecha_inicio_ejercicio: fechaInicioEjercicioDesdeDiaMes(os.inicio_ejercicio, anioInicio),
+      fecha_ingreso: hoyLocalISO(),
+      condicion: "EN ESTUDIO"
+    };
+    const filaGuardada = await guardarCartillaEnSupabase(registro, null, session.access_token);
+    const cartillaId = Array.isArray(filaGuardada) ? filaGuardada[0]?.id : filaGuardada?.id;
+    if (cartillaId) {
+      try { await tomarSnapshotPrestadores(cartillaId, os.id, session.access_token); } catch (error) { console.error("No se pudo generar el snapshot:", error); }
+    }
+    mostrarToast("¡Cartilla presentada! La Superintendencia la va a revisar.");
+    await verificarYRenderizarPresentacionCartillaOs(os);
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo presentar la Cartilla.");
+    boton.disabled = false;
+  }
+}
+
 async function inicializarVistaPrestadores() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
@@ -7324,9 +7389,12 @@ async function inicializarVistaPrestadores() {
     }
     document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
     await handleSeleccionObraSocialPrestadores();
+    await verificarYRenderizarPresentacionCartillaOs(os);
     return;
   }
 
+  const panelPresentar = document.getElementById("presentar-cartilla-panel");
+  if (panelPresentar) panelPresentar.hidden = true;
   if (picker) picker.hidden = false;
   if (selectEjercicio) selectEjercicio.hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
@@ -8049,6 +8117,7 @@ async function initBrowser() {
   document.getElementById("prestadores-estado-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("btn-nuevo-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalPrestadorNuevo));
+  document.getElementById("btn-presentar-cartilla")?.addEventListener("click", () => requiereAutenticacion(presentarCartillaOs));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
   document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
   document.getElementById("importar-cartilla-file")?.addEventListener("change", event => manejarArchivoImportarCartilla(event.target.files[0]));
