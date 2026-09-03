@@ -5001,8 +5001,12 @@ function colorCondicion(condicion) {
     "EN ESTUDIO": "#1ca9e6",
     "NOTIFICADO": "#7b4fa3",
     "PROYECTO DE DISPO": "#d9770a",
+    "PROYECTO DISPO": "#d9770a",
     "PROCESO SUMARIAL": "#1c9ab8",
     "APROBADO": "#278664",
+    "APROBADA": "#278664",
+    "OBSERVADO": "#c0392b",
+    "PASE A JURIDICO": "#7b4fa3",
     "ARCHIVO": "#6b7280"
   };
   return mapa[condicion] || "inherit";
