@@ -232,6 +232,7 @@ button{cursor:pointer}
 .secondary:hover{background:var(--surface-soft)}
 .secondary.danger{color:#a33846;border-color:#e5c0c7}
 .secondary.danger:hover{background:#fbf0f1}
+.primary.small,.secondary.small{padding:6px 10px;border-radius:8px;font-size:12.5px}
 .toolbar{
   display:grid;
   grid-template-columns:1fr 220px;
@@ -1145,8 +1146,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .notificacion-estado.no-respondio{color:#c0392b}
 .notificacion-actions{display:flex;gap:8px}
 .notificaciones-hint{font-size:12px;color:var(--muted);margin:0}
-.notificacion-nueva-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 9px;border-radius:8px;border:1px dashed var(--line)}
-.notificacion-nueva-row input[type="date"]{padding:5px 8px;font-size:12px}
+.notificacion-nueva-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 9px;border-radius:8px;border:1px dashed var(--line);font-size:12px}
+.notificacion-nueva-row input[type="date"]{padding:5px 8px;font-size:12px;height:auto}
 @media(max-width:800px){
   .transaction-header{flex-wrap:wrap}.transaction-header-side{width:100%;justify-content:flex-start;margin-left:0}
   .form-inline-grid.cols-3,.form-inline-grid.cols-2{grid-template-columns:1fr}
