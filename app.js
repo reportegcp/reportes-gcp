@@ -258,7 +258,7 @@ function perfilPuedeVerVista(perfil, vista) {
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
-  if (p === "cartilla os") return id === "prestadores";
+  if (p === "cartilla os") return ["prestadores", "afiliados"].includes(id);
   return false;
 }
 
