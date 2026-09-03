@@ -311,6 +311,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
+  document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
@@ -3962,6 +3963,7 @@ function showView(id, updateHistory = true) {
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["afiliados", "prestadores", "cobertura"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -3969,6 +3971,9 @@ function showView(id, updateHistory = true) {
   });
   if (["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
+  }
+  if (["afiliados", "prestadores", "cobertura"].includes(resolved)) {
+    document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
     document.querySelector('[data-nav-group="urgencias-prestacionales"]')?.classList.add("active");
@@ -6838,15 +6843,50 @@ async function cargarAfiliadosProvincia(obraSocialId) {
   return response.json();
 }
 
+let ejerciciosCartillaCache = [];
+
+async function cargarEjerciciosCartilla() {
+  if (ejerciciosCartillaCache.length) return ejerciciosCartillaCache;
+  const params = new URLSearchParams({ select: "ejercicio", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return [];
+  const filas = await response.json();
+  ejerciciosCartillaCache = [...new Set(filas.map(f => f.ejercicio).filter(Boolean))].sort().reverse();
+  return ejerciciosCartillaCache;
+}
+
+async function obtenerObraSocialIdsConCartillaPresentada(ejercicio) {
+  const params = new URLSearchParams({ select: "obra_social_id", ejercicio: `eq.${ejercicio}`, fecha_ingreso: "not.is.null", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return new Set();
+  const filas = await response.json();
+  return new Set(filas.map(f => Number(f.obra_social_id)));
+}
+
 async function inicializarVistaCobertura() {
   if (typeof document === "undefined") return;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
+  const selectEjercicio = document.getElementById("cobertura-ejercicio");
+  const ejercicios = await cargarEjerciciosCartilla();
+  if (selectEjercicio) selectEjercicio.innerHTML = `<option value="">Ejercicio: elegí uno primero</option>` + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
+}
+
+async function handleCambioEjercicioCobertura() {
+  const ejercicio = document.getElementById("cobertura-ejercicio")?.value || "";
+  const osInput = document.getElementById("cobertura-os-search");
   const list = document.getElementById("cobertura-os-list");
+  if (osInput) { osInput.value = ""; osInput.disabled = !ejercicio; }
+  await handleSeleccionObraSocialCobertura();
+  if (!ejercicio) { if (list) list.innerHTML = ""; return; }
+  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(ejercicio);
   if (list) list.innerHTML = obrasSociales
-    .filter(os => os.estado !== "INACTIVA" && !String(os.rnos || "").trim().startsWith("9"))
+    .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+  if (osInput) osInput.placeholder = idsPresentaron.size
+    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${ejercicio}...`
+    : `Ninguna Obra Social presentó Cartilla para ${ejercicio} todavía`;
 }
 
 async function handleSeleccionObraSocialCobertura() {
@@ -6991,6 +7031,51 @@ async function inicializarVistaAfiliados() {
     .filter(os => os.estado !== "INACTIVA" && !String(os.rnos || "").trim().startsWith("9"))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+// ---------- Configurar especialidades básicas obligatorias ----------
+
+async function abrirModalBasicas() {
+  try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
+  renderGruposBasicas();
+  setFormMessage("basicas-message", "");
+  abrirModal("basicas-modal");
+}
+
+function renderGruposBasicas() {
+  const cont = document.getElementById("basicas-grupos");
+  if (!cont) return;
+  cont.innerHTML = tiposPrestadorCache.map(t => {
+    const especialidades = especialidadesPrestadorCache.filter(e => e.tipo_prestador_id === t.id);
+    return `<div class="especialidades-grupo">
+      <div class="especialidades-grupo-titulo">${escaparHtml(t.nombre)}</div>
+      <div class="especialidades-lista" style="max-height:none">
+        ${especialidades.map(e => `<label class="checkbox-label especialidad-checkbox">
+          <input type="checkbox" data-basica-id="${e.id}" ${e.basica_obligatoria ? "checked" : ""}>
+          <span>${escaparHtml(e.nombre)}</span>
+        </label>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+  cont.querySelectorAll("[data-basica-id]").forEach(input => {
+    input.addEventListener("change", () => guardarBasicaObligatoria(input.dataset.basicaId, input.checked));
+  });
+}
+
+async function guardarBasicaObligatoria(especialidadId, valor) {
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, id: `eq.${especialidadId}` });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/especialidades_prestador?${params.toString()}`, {
+      method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" },
+      body: JSON.stringify({ basica_obligatoria: valor })
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    const especialidad = especialidadesPrestadorCache.find(e => e.id === especialidadId);
+    if (especialidad) especialidad.basica_obligatoria = valor;
+  } catch (error) {
+    setFormMessage("basicas-message", error.message || "No se pudo guardar el cambio.");
+  }
 }
 
 async function cargarAfiliadosTotal(obraSocialId) {
@@ -7852,6 +7937,8 @@ async function initBrowser() {
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
   document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
   document.getElementById("cobertura-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialCobertura));
+  document.getElementById("cobertura-ejercicio")?.addEventListener("change", () => requiereAutenticacion(handleCambioEjercicioCobertura));
+  document.getElementById("btn-configurar-basicas")?.addEventListener("click", () => requiereAutenticacion(abrirModalBasicas));
   document.getElementById("afiliados-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
