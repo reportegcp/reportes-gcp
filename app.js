@@ -4982,7 +4982,7 @@ function cumplimientoPmaRegistro(row) {
 function colorCondicion(condicion) {
   const mapa = {
     "S/ASIGNAR": "#c0392b",
-    "EN ESTUDIO": "#1d5ea8",
+    "EN ESTUDIO": "#1ca9e6",
     "NOTIFICADO": "#7b4fa3",
     "PROYECTO DE DISPO": "#d9770a",
     "PROCESO SUMARIAL": "#1c9ab8",
