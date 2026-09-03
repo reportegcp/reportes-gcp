@@ -6505,18 +6505,20 @@ function resumenTiposEspecialidades(p) {
 function renderChipsTiposModal() {
   const cont = document.getElementById("prestador-tipos-chips");
   if (!cont) return;
-  cont.innerHTML = tiposPrestadorCache.map(t => `<button type="button" class="chip-toggle${tiposActivosModal.has(t.id) ? " activo" : ""}" data-tipo-id="${t.id}">${escaparHtml(t.nombre)}</button>`).join("");
-  cont.querySelectorAll("[data-tipo-id]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.tipoId;
-      if (tiposActivosModal.has(id)) {
+  cont.innerHTML = tiposPrestadorCache.map(t => `<label class="checkbox-label tipo-checkbox">
+    <input type="checkbox" data-tipo-id="${t.id}" ${tiposActivosModal.has(t.id) ? "checked" : ""}>
+    <span>${escaparHtml(t.nombre)}</span>
+  </label>`).join("");
+  cont.querySelectorAll("[data-tipo-id]").forEach(input => {
+    input.addEventListener("change", () => {
+      const id = input.dataset.tipoId;
+      if (input.checked) {
+        tiposActivosModal.add(id);
+      } else {
         tiposActivosModal.delete(id);
         // Al sacar un tipo, se sacan también sus especialidades tildadas.
         especialidadesPrestadorCache.filter(e => e.tipo_prestador_id === id).forEach(e => especialidadesSeleccionadasModal.delete(e.id));
-      } else {
-        tiposActivosModal.add(id);
       }
-      renderChipsTiposModal();
       renderGruposEspecialidadesModal();
     });
   });
@@ -6531,16 +6533,18 @@ function renderGruposEspecialidadesModal() {
     return `<div class="especialidades-grupo">
       <div class="especialidades-grupo-titulo">Especialidades contratadas · ${escaparHtml(t.nombre)}</div>
       <div class="especialidades-lista">
-        ${especialidades.map(e => `<button type="button" class="especialidad-chip${especialidadesSeleccionadasModal.has(e.id) ? " activo" : ""}" data-especialidad-id="${e.id}">${escaparHtml(e.nombre)}</button>`).join("")}
+        ${especialidades.map(e => `<label class="checkbox-label especialidad-checkbox">
+          <input type="checkbox" data-especialidad-id="${e.id}" ${especialidadesSeleccionadasModal.has(e.id) ? "checked" : ""}>
+          <span>${escaparHtml(e.nombre)}</span>
+        </label>`).join("")}
       </div>
     </div>`;
   }).join("");
-  cont.querySelectorAll("[data-especialidad-id]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.especialidadId;
-      if (especialidadesSeleccionadasModal.has(id)) especialidadesSeleccionadasModal.delete(id);
-      else especialidadesSeleccionadasModal.add(id);
-      btn.classList.toggle("activo");
+  cont.querySelectorAll("[data-especialidad-id]").forEach(input => {
+    input.addEventListener("change", () => {
+      const id = input.dataset.especialidadId;
+      if (input.checked) especialidadesSeleccionadasModal.add(id);
+      else especialidadesSeleccionadasModal.delete(id);
     });
   });
 }
