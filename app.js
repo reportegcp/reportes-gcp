@@ -256,6 +256,7 @@ function perfilPuedeVerVista(perfil, vista) {
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "cartilla os") return id === "prestadores";
   return false;
 }
 
@@ -263,6 +264,7 @@ function primeraVistaPermitida(perfil) {
   const p = normalizarPerfilAcceso(perfil);
   if (p === "admin presentaciones") return "obras-sociales";
   if (p === "carga presentaciones") return "pma";
+  if (p === "cartilla os") return "prestadores";
   return "inicio";
 }
 
@@ -279,6 +281,15 @@ function perfilSesionActual() {
   return appMetadata.perfil || appMetadata.role_name || "";
 }
 
+function obraSocialIdSesionActual() {
+  if (!authSession?.access_token) return null;
+  const payload = decodeJwtPayload(authSession.access_token);
+  const user = authSession?.user || {};
+  const appMetadata = user.app_metadata || payload.app_metadata || {};
+  const valor = appMetadata.obra_social_id;
+  return valor ? Number(valor) : null;
+}
+
 function vistaPermitidaParaSesion(vista) {
   return perfilPuedeVerVista(perfilSesionActual(), vista);
 }
@@ -291,10 +302,11 @@ function aplicarPermisosNavegacion() {
   const esCargaPresentaciones = p === "carga presentaciones";
   const esAdministrador = ["administrador", "admin"].includes(p);
   const esAdminPreexistencias = p === "admin preexistencias";
+  const esCartillaOs = p === "cartilla os";
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
-  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
@@ -6470,10 +6482,30 @@ function llenarDatalistsPrestador() {
 
 async function inicializarVistaPrestadores() {
   if (typeof document === "undefined") return;
-  poblarObrasSocialesPrestadores();
+  const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
+  const picker = document.getElementById("prestadores-os-search")?.closest(".search-box");
+
   if (!tiposContratacionCache.length) {
     try { tiposContratacionCache = await cargarTiposContratacion(); } catch (error) { console.error(error); }
   }
+
+  if (esCartillaOs) {
+    if (picker) picker.hidden = true;
+    if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+    const osId = obraSocialIdSesionActual();
+    const os = obrasSociales.find(o => Number(o.id) === Number(osId));
+    if (!os) {
+      const count = document.getElementById("prestadores-count");
+      if (count) count.textContent = "Tu usuario no tiene una Obra Social asignada. Avisá a la Superintendencia.";
+      return;
+    }
+    document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
+    await handleSeleccionObraSocialPrestadores();
+    return;
+  }
+
+  if (picker) picker.hidden = false;
+  poblarObrasSocialesPrestadores();
   llenarDatalistsPrestador();
 }
 
