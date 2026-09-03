@@ -313,6 +313,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
+  document.querySelector('[data-nav-access="normativa"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
@@ -3962,15 +3963,19 @@ function showView(id, updateHistory = true) {
   // Colapsar todos los submenús salvo el de la sección donde estamos parados.
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
-      (["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
       (["afiliados", "prestadores", "cobertura"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
-  if (["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(resolved)) {
+  if (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
+  }
+  if (["criticidad", "metas-fisicas"].includes(resolved)) {
+    document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
   if (["afiliados", "prestadores", "cobertura"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
