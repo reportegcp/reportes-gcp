@@ -401,6 +401,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   box-shadow:0 24px 70px rgba(8,25,44,.28);
   padding:20px
 }
+.modal.modal-wide{width:min(840px,100%)}
 .modal-header{
   display:flex;
   justify-content:space-between;
@@ -1146,12 +1147,12 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .tipos-especialidades-block{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fafbfc}
 .tipos-especialidades-label{display:block;font-size:12px;font-weight:800;color:#35485e;margin-bottom:8px}
 .chips-selector{display:flex;flex-wrap:wrap;gap:8px}
-.chip-toggle{border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:700;background:#fff;color:#5a6879;cursor:pointer}
+.chip-toggle{border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;background:#fff;color:#5a6879;cursor:pointer}
 .chip-toggle.activo{background:#e6f1fb;color:#0c447c;border-color:#b9d8f2}
 .especialidades-grupo{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .especialidades-grupo-titulo{font-size:12px;font-weight:800;color:#35485e;margin-bottom:8px}
-.especialidades-lista{display:flex;flex-wrap:wrap;gap:7px}
-.especialidad-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:12px;font-weight:600;background:#fff;color:#5a6879;cursor:pointer}
+.especialidades-lista{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow-y:auto;padding-right:4px}
+.especialidad-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:11.5px;font-weight:600;background:#fff;color:#5a6879;cursor:pointer}
 .especialidad-chip.activo{background:#e4f4ed;color:#226d53;border-color:#bfe4d3}
 .notificaciones-block{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fafbfc}
 .notificaciones-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
