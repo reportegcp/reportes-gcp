@@ -6049,6 +6049,8 @@ function textoEstadoNotificacion(notif) {
   return "Pendiente";
 }
 
+let cartillaModalSoloLectura = false;
+
 function renderNotificacionesCartilla() {
   const cont = document.getElementById("cartilla-notificaciones-lista");
   if (!cont) return;
@@ -6056,23 +6058,41 @@ function renderNotificacionesCartilla() {
   cont.innerHTML = cartillaNotificacionesActuales.map(n => {
     const color = colorNotificacion(n, hoyISO);
     const clase = n.estado === "RESPONDIO" ? "respondio" : n.estado === "NO_RESPONDIO" ? "no-respondio" : "pendiente";
-    const acciones = n.estado === "PENDIENTE"
-      ? `<div class="notificacion-actions">
-           <button type="button" class="link-button" data-notif-marcar="RESPONDIO" data-notif-id="${n.id}">Marcar respondida</button>
-           <button type="button" class="link-button" data-notif-marcar="NO_RESPONDIO" data-notif-id="${n.id}">No respondió</button>
-         </div>`
+    const marcar = !cartillaModalSoloLectura && n.estado === "PENDIENTE"
+      ? `<button type="button" class="link-button" data-notif-marcar="RESPONDIO" data-notif-id="${n.id}">Marcar respondida</button>
+         <button type="button" class="link-button" data-notif-marcar="NO_RESPONDIO" data-notif-id="${n.id}">No respondió</button>`
       : "";
+    const borrar = cartillaModalSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-notif-borrar="${n.id}" title="Borrar esta notificación" aria-label="Borrar esta notificación">×</button>`;
     return `<div class="notificacion-row">
       <span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>
       <span class="notificacion-numero">${n.numero}ª notificación</span>
       <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
       <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
-      ${acciones}
+      <div class="notificacion-actions">${marcar}${borrar}</div>
     </div>`;
   }).join("") || `<p class="notificaciones-hint">Todavía no se cargaron notificaciones.</p>`;
   cont.querySelectorAll("[data-notif-marcar]").forEach(btn => {
     btn.addEventListener("click", () => marcarNotificacionEstado(btn.dataset.notifId, btn.dataset.notifMarcar));
   });
+  cont.querySelectorAll("[data-notif-borrar]").forEach(btn => {
+    btn.addEventListener("click", () => borrarNotificacionCartilla(btn.dataset.notifBorrar));
+  });
+}
+
+async function borrarNotificacionCartilla(id) {
+  if (!window.confirm("¿Borrar esta notificación? No se puede deshacer.")) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildCartillaNotificacionesUrl(null, id), {
+      method: "DELETE", headers: authHeaders(session.access_token)
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    await cargarYRenderizarNotificacionesModal(cartillaNotificacionesCartillaId);
+    cartillaNotificacionesTodasCargadas = false;
+    mostrarToast("Notificación borrada.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo borrar la notificación.");
+  }
 }
 
 async function cargarYRenderizarNotificacionesModal(cartillaId) {
@@ -6099,7 +6119,7 @@ async function cargarYRenderizarNotificacionesModal(cartillaId) {
 }
 
 async function agregarNotificacionCartilla() {
-  if (!cartillaNotificacionesCartillaId) return;
+  if (!cartillaNotificacionesCartillaId || cartillaModalSoloLectura) return;
   const cont = document.getElementById("cartilla-notificaciones-lista");
   if (!cont || cont.querySelector(".notificacion-nueva-row")) return;
   const proximoNumero = (cartillaNotificacionesActuales.reduce((max, n) => Math.max(max, n.numero || 0), 0)) + 1;
@@ -6239,11 +6259,26 @@ function limpiarFormularioCartilla() {
   actualizarAlertaCartilla();
 }
 
+function aplicarModoSoloLecturaCartilla(soloLectura) {
+  cartillaModalSoloLectura = soloLectura;
+  const form = document.getElementById("cartilla-form");
+  if (form) {
+    form.querySelectorAll("input, select, textarea").forEach(campo => { campo.disabled = soloLectura; });
+  }
+  const guardar = document.getElementById("cartilla-save");
+  if (guardar) guardar.hidden = soloLectura;
+  const addNotif = document.getElementById("cartilla-notificacion-add");
+  if (addNotif) addNotif.hidden = soloLectura;
+  const aviso = document.getElementById("cartilla-archivo-aviso");
+  if (aviso) aviso.hidden = !soloLectura;
+}
+
 function abrirModalCartillaNueva() {
   limpiarFormularioCartilla();
   poblarObrasSocialesCartilla();
   document.getElementById("cartilla-modal-title").textContent = "Nueva presentación de Cartilla";
   cargarYRenderizarNotificacionesModal(null);
+  aplicarModoSoloLecturaCartilla(false);
   abrirModal("cartilla-modal");
   document.getElementById("cartilla-os-search")?.focus();
 }
@@ -6275,6 +6310,7 @@ function abrirModalCartillaEdicion(id) {
   setFormMessage("cartilla-form-message", "");
   actualizarAlertaCartilla();
   cargarYRenderizarNotificacionesModal(c.id);
+  aplicarModoSoloLecturaCartilla(c.condicion === "ARCHIVO");
   abrirModal("cartilla-modal");
 }
 
