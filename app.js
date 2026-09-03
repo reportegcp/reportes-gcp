@@ -4087,6 +4087,7 @@ async function cargarYRenderizarObrasSociales() {
     renderObrasSociales();
     poblarObrasSocialesCartilla();
     poblarObrasSocialesPma();
+    poblarObrasSocialesPrestadores();
 
   } catch (error) {
     obrasSociales = [];
