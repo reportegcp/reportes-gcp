@@ -9,6 +9,7 @@ const views = {
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
+  "notificaciones-reporte": { title: "Notificaciones", subtitle: "Obras Sociales que no respondieron a la notificación de Cartilla" },
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
@@ -252,8 +253,8 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
-  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   return false;
 }
 
@@ -3942,13 +3943,13 @@ function showView(id, updateHistory = true) {
   // Colapsar todos los submenús salvo el de la sección donde estamos parados.
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
-      (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
-  if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(resolved)) {
+  if (["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -3989,6 +3990,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "metas-fisicas" && !document.getElementById("metas-anio").value) {
     document.getElementById("metas-anio").value = new Date().getFullYear();
   }
+  if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
   if (resolved === "up-plantillas" && !plantillasCargadas) cargarYRenderizarPlantillas();
@@ -5077,13 +5079,18 @@ function llenarFiltroEjercicios() {
 
 function filtrarCartillas() {
   if (typeof document === "undefined") return cartillas;
-  return filtrarCartillasRegistros(cartillas, {
+  let base = filtrarCartillasRegistros(cartillas, {
     busqueda: document.getElementById("cartilla-search")?.value || "",
     ejercicios: ejerciciosFiltroSeleccionados("cartilla"),
     plazo: document.getElementById("cartilla-plazo-filter")?.value || "TODOS",
     fechaIngreso: document.getElementById("cartilla-ingreso-search")?.value || "",
     fechaLimite: document.getElementById("cartilla-limite-search")?.value || ""
   });
+  const notifFiltro = document.getElementById("cartilla-notificadas-filter")?.value || "TODOS";
+  if (notifFiltro !== "TODOS") {
+    base = base.filter(c => estadoNotificacionesCartilla(c.id).estado === notifFiltro);
+  }
+  return base;
 }
 
 function renderCartillas() {
@@ -5093,7 +5100,7 @@ function renderCartillas() {
   const head = document.getElementById("cartilla-table-head");
   const filtradas = ordenarPresentacionesPorCampo(filtrarCartillas(), cartillaSortField, cartillaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por ejercicio">Ejercicio <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por ejercicio">Ejercicio <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#cartilla-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "rnas"));
     head.querySelector("#cartilla-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ejercicio"));
     head.querySelector("#cartilla-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ingreso"));
@@ -5107,6 +5114,10 @@ function renderCartillas() {
     const simbolo = simboloCumplimientoPresentacion(plazo.estado);
     const clase = claseCumplimientoPresentacion(plazo.estado);
     const titulo = plazo.estado === "EN_TERMINO" ? "En término" : plazo.estado === "FUERA_DE_TERMINO" ? "Fuera de término" : "Sin datos";
+    const notif = estadoNotificacionesCartilla(c.id);
+    const notifCelda = notif.estado === "SIN_NOTIFICAR"
+      ? `<span class="notificacion-dot gris" title="Sin notificar"></span>`
+      : `<span class="notificacion-dot ${notif.color}" title="${textoEstadoNotificacion(notif.ultima)} · ${notif.ultima.numero}ª notificación"></span>`;
     return `<tr class="cartilla-row" data-cartilla-id="${c.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
@@ -5114,6 +5125,7 @@ function renderCartillas() {
       <td class="date-cell">${formatFechaPantalla(c.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
+      <td class="deadline-cell">${notifCelda}</td>
       <td><strong style="color:${colorCondicion(c.condicion)}">${escaparHtml(c.condicion || "—")}</strong></td>
       <td>${escaparHtml(c.numero_ee || "—")}</td>
       <td>${escaparHtml(c.numero_disposicion || "—")}</td>
@@ -5140,6 +5152,7 @@ async function cargarYRenderizarCartillas() {
       cartillas = await cargarCartillasDesdeSupabase(fetch, true);
       cartillasCargadas = true;
     }
+    if (!cartillaNotificacionesTodasCargadas) await cargarTodasLasNotificacionesCartillas();
     llenarFiltroEjercicios();
     renderCartillas();
     actualizarAvisoHistoricoCartillas();
@@ -5913,6 +5926,290 @@ async function handlePmaSubmit(event){
   finally{if(save)save.disabled=false;}
 }
 
+// ---------- Notificaciones de Cartilla ----------
+
+let cartillaNotificacionesActuales = [];
+let cartillaNotificacionesCartillaId = null;
+
+function sumarDiasHabiles(fechaISO, dias) {
+  const d = new Date(`${fechaISO}T00:00:00`);
+  let agregados = 0;
+  while (agregados < dias) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) agregados++;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function diasHabilesTranscurridos(fechaISO, hastaISO) {
+  const d = new Date(`${fechaISO}T00:00:00`);
+  const fin = new Date(`${hastaISO}T00:00:00`);
+  let count = 0;
+  while (d < fin) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+// Estado visual (color) de UNA notificación puntual, en base a días hábiles transcurridos
+// desde que se notificó (verde 1-3, amarillo 4-6, naranja 7-9, rojo 10+) o a si ya se marcó
+// respondida / no respondida.
+function colorNotificacion(notif, hoyISO = new Date().toISOString().slice(0, 10)) {
+  if (notif.estado === "RESPONDIO") return "verde";
+  if (notif.estado === "NO_RESPONDIO") return "rojo";
+  const transcurridos = diasHabilesTranscurridos(notif.fecha_notificacion, hoyISO);
+  if (transcurridos <= 3) return "verde";
+  if (transcurridos <= 6) return "amarillo";
+  if (transcurridos <= 9) return "naranja";
+  return "rojo";
+}
+
+// Estado "resumen" de la cartilla en base a su ÚLTIMA notificación — usado para el
+// filtro "Notificadas" de la tabla y para la columna del punto de color.
+function estadoNotificacionesCartilla(cartillaId, hoyISO = new Date().toISOString().slice(0, 10)) {
+  const notifs = (cartillaNotificacionesPorCartilla.get(Number(cartillaId)) || []);
+  if (!notifs.length) return { estado: "SIN_NOTIFICAR", color: null, ultima: null };
+  const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
+  const color = colorNotificacion(ultima, hoyISO);
+  const estado = ultima.estado === "RESPONDIO" ? "RESPONDIO" : ultima.estado === "NO_RESPONDIO" ? "NO_RESPONDIO" : "PENDIENTE";
+  return { estado, color, ultima };
+}
+
+function buildCartillaNotificacionesUrl(cartillaId, id = null) {
+  const params = new URLSearchParams();
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  params.set("select", "*");
+  if (id !== null) { params.set("id", `eq.${id}`); return `${SUPABASE_URL}/rest/v1/cartilla_notificaciones?${params.toString()}`; }
+  params.set("cartilla_id", `eq.${cartillaId}`);
+  params.set("order", "numero.asc");
+  return `${SUPABASE_URL}/rest/v1/cartilla_notificaciones?${params.toString()}`;
+}
+
+async function cargarNotificacionesCartilla(cartillaId, fetchImpl = fetch) {
+  const response = await fetchConTimeout(buildCartillaNotificacionesUrl(cartillaId), { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+// Cache global: cartilla_id -> lista de notificaciones, usado para el filtro/columna
+// de la tabla de Cartillas sin tener que pedir todo el histórico de notificaciones a la vez.
+let cartillaNotificacionesPorCartilla = new Map();
+let cartillaNotificacionesTodasCargadas = false;
+
+async function cargarTodasLasNotificacionesCartillas(fetchImpl = fetch) {
+  const pageSize = 1000;
+  const all = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const params = new URLSearchParams();
+    params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+    params.set("select", "*");
+    params.set("order", "cartilla_id.asc,numero.asc");
+    params.set("limit", String(pageSize));
+    params.set("offset", String(offset));
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartilla_notificaciones?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+    const page = await response.json();
+    all.push(...page);
+    if (page.length < pageSize) break;
+  }
+  cartillaNotificacionesPorCartilla = new Map();
+  all.forEach(n => {
+    const lista = cartillaNotificacionesPorCartilla.get(Number(n.cartilla_id)) || [];
+    lista.push(n);
+    cartillaNotificacionesPorCartilla.set(Number(n.cartilla_id), lista);
+  });
+  cartillaNotificacionesTodasCargadas = true;
+  return all;
+}
+
+async function asegurarNotificacionesCargadas() {
+  if (!cartillaNotificacionesTodasCargadas) await cargarTodasLasNotificacionesCartillas();
+}
+
+function textoEstadoNotificacion(notif) {
+  if (notif.estado === "RESPONDIO") return `Respondió${notif.fecha_respuesta ? ` (${formatFechaPantalla(notif.fecha_respuesta)})` : ""}`;
+  if (notif.estado === "NO_RESPONDIO") return "No respondió";
+  return "Pendiente";
+}
+
+function renderNotificacionesCartilla() {
+  const cont = document.getElementById("cartilla-notificaciones-lista");
+  if (!cont) return;
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  cont.innerHTML = cartillaNotificacionesActuales.map(n => {
+    const color = colorNotificacion(n, hoyISO);
+    const clase = n.estado === "RESPONDIO" ? "respondio" : n.estado === "NO_RESPONDIO" ? "no-respondio" : "pendiente";
+    const acciones = n.estado === "PENDIENTE"
+      ? `<div class="notificacion-actions">
+           <button type="button" class="link-button" data-notif-marcar="RESPONDIO" data-notif-id="${n.id}">Marcar respondida</button>
+           <button type="button" class="link-button" data-notif-marcar="NO_RESPONDIO" data-notif-id="${n.id}">No respondió</button>
+         </div>`
+      : "";
+    return `<div class="notificacion-row">
+      <span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>
+      <span class="notificacion-numero">${n.numero}ª notificación</span>
+      <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
+      <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
+      ${acciones}
+    </div>`;
+  }).join("") || `<p class="notificaciones-hint">Todavía no se cargaron notificaciones.</p>`;
+  cont.querySelectorAll("[data-notif-marcar]").forEach(btn => {
+    btn.addEventListener("click", () => marcarNotificacionEstado(btn.dataset.notifId, btn.dataset.notifMarcar));
+  });
+}
+
+async function cargarYRenderizarNotificacionesModal(cartillaId) {
+  cartillaNotificacionesCartillaId = cartillaId;
+  const bloque = document.getElementById("cartilla-notificaciones-block");
+  const hint = document.getElementById("cartilla-notificaciones-hint");
+  const addBtn = document.getElementById("cartilla-notificacion-add");
+  if (!cartillaId) {
+    cartillaNotificacionesActuales = [];
+    if (document.getElementById("cartilla-notificaciones-lista")) document.getElementById("cartilla-notificaciones-lista").innerHTML = "";
+    if (hint) hint.hidden = false;
+    if (addBtn) addBtn.hidden = true;
+    return;
+  }
+  if (hint) hint.hidden = true;
+  if (addBtn) addBtn.hidden = false;
+  try {
+    cartillaNotificacionesActuales = await cargarNotificacionesCartilla(cartillaId);
+    cartillaNotificacionesPorCartilla.set(Number(cartillaId), cartillaNotificacionesActuales);
+    renderNotificacionesCartilla();
+  } catch (error) {
+    if (bloque) bloque.querySelector("#cartilla-notificaciones-lista").innerHTML = `<p class="notificaciones-hint">No se pudieron cargar las notificaciones.</p>`;
+  }
+}
+
+async function agregarNotificacionCartilla() {
+  if (!cartillaNotificacionesCartillaId) return;
+  const cont = document.getElementById("cartilla-notificaciones-lista");
+  if (!cont || cont.querySelector(".notificacion-nueva-row")) return;
+  const proximoNumero = (cartillaNotificacionesActuales.reduce((max, n) => Math.max(max, n.numero || 0), 0)) + 1;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const fila = document.createElement("div");
+  fila.className = "notificacion-nueva-row";
+  fila.innerHTML = `
+    <span class="notificacion-numero">${proximoNumero}ª notificación</span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px">Fecha
+      <input type="date" id="cartilla-notif-fecha-nueva" value="${hoy}">
+    </label>
+    <button type="button" class="secondary small" id="cartilla-notif-guardar">Guardar</button>
+    <button type="button" class="link-button" id="cartilla-notif-cancelar">Cancelar</button>
+  `;
+  cont.appendChild(fila);
+  document.getElementById("cartilla-notif-cancelar").addEventListener("click", () => fila.remove());
+  document.getElementById("cartilla-notif-guardar").addEventListener("click", async () => {
+    const fecha = document.getElementById("cartilla-notif-fecha-nueva")?.value;
+    if (!fecha) { mostrarToast("Elegí la fecha de la notificación."); return; }
+    const boton = document.getElementById("cartilla-notif-guardar");
+    boton.disabled = true; boton.textContent = "Guardando...";
+    try {
+      const session = await asegurarSesionVigente();
+      const payload = {
+        cartilla_id: Number(cartillaNotificacionesCartillaId),
+        numero: proximoNumero,
+        fecha_notificacion: fecha,
+        fecha_limite_respuesta: sumarDiasHabiles(fecha, 10),
+        estado: "PENDIENTE"
+      };
+      const response = await fetchConTimeout(buildCartillaNotificacionesUrl(cartillaNotificacionesCartillaId), {
+        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" }, body: JSON.stringify(payload)
+      }, 10000, fetch);
+      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+      await cargarYRenderizarNotificacionesModal(cartillaNotificacionesCartillaId);
+      cartillaNotificacionesTodasCargadas = false;
+      mostrarToast("Notificación cargada.");
+    } catch (error) {
+      mostrarToast(error.message || "No se pudo guardar la notificación.");
+      fila.remove();
+    }
+  });
+}
+
+async function marcarNotificacionEstado(id, estado) {
+  try {
+    const session = await asegurarSesionVigente();
+    const payload = { estado, updated_at: new Date().toISOString(), fecha_respuesta: estado === "RESPONDIO" ? new Date().toISOString().slice(0, 10) : null };
+    const response = await fetchConTimeout(buildCartillaNotificacionesUrl(null, id), {
+      method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" }, body: JSON.stringify(payload)
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    await cargarYRenderizarNotificacionesModal(cartillaNotificacionesCartillaId);
+    cartillaNotificacionesTodasCargadas = false;
+    mostrarToast(estado === "RESPONDIO" ? "Notificación marcada como respondida." : "Notificación marcada como no respondida.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo actualizar la notificación.");
+  }
+}
+
+async function cargarYRenderizarReporteNotificaciones() {
+  if (typeof document === "undefined") return;
+  const tbody = document.getElementById("notif-reporte-table-body");
+  if (!tbody) return;
+  try {
+    if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; }
+    if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
+    await cargarTodasLasNotificacionesCartillas();
+    renderReporteNotificaciones();
+  } catch (error) {
+    mostrarToast("No se pudo cargar el reporte de notificaciones.");
+    console.error(error);
+  }
+}
+
+function renderReporteNotificaciones() {
+  const tbody = document.getElementById("notif-reporte-table-body");
+  const empty = document.getElementById("notif-reporte-empty");
+  const count = document.getElementById("notif-reporte-count");
+  if (!tbody) return;
+  const hoyISO = new Date().toISOString().slice(0, 10);
+
+  // Filas: cartillas cuya ÚLTIMA notificación quedó en NO_RESPONDIO, o PENDIENTE y ya venció
+  // el plazo de 10 días hábiles sin que se haya cargado una notificación siguiente.
+  const filas = [];
+  cartillas.forEach(c => {
+    const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
+    if (!notifs.length) return;
+    const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
+    const vencida = ultima.estado === "PENDIENTE" && diasHabilesTranscurridos(ultima.fecha_notificacion, hoyISO) >= 10;
+    if (ultima.estado === "NO_RESPONDIO" || vencida) {
+      filas.push({ cartilla: c, notif: ultima, vencida });
+    }
+  });
+  filas.sort((a, b) => (a.cartilla.obras_sociales?.rnos || "").localeCompare(b.cartilla.obras_sociales?.rnos || ""));
+
+  tbody.innerHTML = filas.map(f => {
+    const os = f.cartilla.obras_sociales || {};
+    const estadoTexto = f.notif.estado === "NO_RESPONDIO" ? "No respondió (tildado)" : "Sin responder — venció el plazo";
+    return `<tr>
+      <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
+      <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
+      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_notificacion)}</td>
+      <td>${f.notif.numero}ª</td>
+      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_limite_respuesta)}</td>
+      <td style="color:#c0392b;font-weight:700">${estadoTexto}</td>
+    </tr>`;
+  }).join("");
+  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "Obra Social" : "Obras Sociales"} sin respuesta a su notificación`;
+  if (empty) empty.hidden = filas.length !== 0;
+
+  // Gráfico: cuántas cartillas respondieron a la 1ª notificación, a la 2ª, etc.
+  const conteoPorNumero = new Map();
+  cartillas.forEach(c => {
+    const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
+    const respondida = notifs.find(n => n.estado === "RESPONDIO");
+    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
+  });
+  const items = [...conteoPorNumero.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([numero, cantidad]) => ({ etiqueta: `Respondieron a la ${numero}ª notificación`, valor: cantidad }));
+  renderBarChart("notif-reporte-chart", items);
+}
+
 function limpiarFormularioCartilla() {
   document.getElementById("cartilla-form")?.reset();
   document.getElementById("cartilla-id").value = "";
@@ -5932,6 +6229,7 @@ function abrirModalCartillaNueva() {
   limpiarFormularioCartilla();
   poblarObrasSocialesCartilla();
   document.getElementById("cartilla-modal-title").textContent = "Nueva presentación de Cartilla";
+  cargarYRenderizarNotificacionesModal(null);
   abrirModal("cartilla-modal");
   document.getElementById("cartilla-os-search")?.focus();
 }
@@ -5962,6 +6260,7 @@ function abrirModalCartillaEdicion(id) {
   actualizarMasterInfoCartilla(resolverObraSocialCartilla(document.getElementById("cartilla-os-search").value) || c.obras_sociales);
   setFormMessage("cartilla-form-message", "");
   actualizarAlertaCartilla();
+  cargarYRenderizarNotificacionesModal(c.id);
   abrirModal("cartilla-modal");
 }
 
@@ -6301,6 +6600,12 @@ async function initBrowser() {
   document.getElementById("cartilla-ingreso-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-limite-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
+  document.getElementById("cartilla-notificadas-filter")?.addEventListener("change", async () => {
+    await asegurarNotificacionesCargadas();
+    cartillaPage = 1;
+    renderCartillas();
+  });
+  document.getElementById("cartilla-notificacion-add")?.addEventListener("click", agregarNotificacionCartilla);
   document.getElementById("btn-export-pma")?.addEventListener("click", () => exportarModuloPresentacionesExcel("pma"));
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);

@@ -58,6 +58,7 @@
             <button class="nav-subitem" data-view="pma" type="button">PMA</button>
             <button class="nav-subitem" data-view="cartillas" type="button">Cartillas</button>
             <button class="nav-subitem" data-view="criticidad" type="button">Criticidad</button>
+            <button class="nav-subitem" data-view="notificaciones-reporte" type="button">Notificaciones</button>
             <button class="nav-subitem" data-view="metas-fisicas" type="button">Metas Físicas</button>
             <button class="nav-subitem" data-view="reportes" type="button">Reportes</button>
           </div>
@@ -323,6 +324,13 @@
             <option value="EN_TERMINO">En término</option>
             <option value="FUERA_DE_TERMINO">Fuera de término</option>
           </select>
+          <select id="cartilla-notificadas-filter" aria-label="Filtrar por notificaciones">
+            <option value="TODOS">Notificadas: Todas</option>
+            <option value="SIN_NOTIFICAR">Sin notificar</option>
+            <option value="PENDIENTE">Notificación pendiente</option>
+            <option value="RESPONDIO">Respondió</option>
+            <option value="NO_RESPONDIO">No respondió</option>
+          </select>
           <div class="search-box search-box-compact search-box-date">
             <span class="search-icon" aria-hidden="true">⌕</span>
             <input id="cartilla-ingreso-search" type="date" autocomplete="off">
@@ -394,6 +402,26 @@
           </div>
         </div>
         <p id="criticidad-hint" style="color:var(--muted);font-size:13px">0 = presentó PMA o Cartilla en ese trimestre o antes · 1 = todavía no había presentado ninguna de las dos.</p>
+      </section>
+
+      <section id="notificaciones-reporte" class="view">
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="notif-reporte-count">Obras Sociales sin respuesta a sus notificaciones</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>RNAS</th><th>Obra Social</th><th>Última notificación</th><th>Nº</th><th>Vence</th><th>Estado</th></tr></thead>
+              <tbody id="notif-reporte-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="notif-reporte-empty" hidden>No hay obras sociales sin responder a sus notificaciones.</div>
+        </div>
+
+        <div class="table-card" style="margin-top:16px;padding:18px">
+          <strong style="display:block;margin-bottom:10px">Respuestas por cantidad de notificaciones</strong>
+          <div id="notif-reporte-chart"></div>
+        </div>
       </section>
 
       <section id="metas-fisicas" class="view">
@@ -1413,6 +1441,18 @@
 
           <div class="form-inline-grid cols-3 full">
             <label><span>Fecha de ingreso</span><input id="cartilla-fecha-ingreso" type="date"></label>
+          </div>
+
+          <div class="full notificaciones-block" id="cartilla-notificaciones-block">
+            <div class="notificaciones-header">
+              <span>Notificaciones a la Obra Social</span>
+              <button type="button" class="secondary small" id="cartilla-notificacion-add">+ Agregar notificación</button>
+            </div>
+            <div id="cartilla-notificaciones-lista" class="notificaciones-lista"></div>
+            <p class="notificaciones-hint" id="cartilla-notificaciones-hint" hidden>Guardá la presentación primero para poder cargar notificaciones.</p>
+          </div>
+
+          <div class="form-inline-grid cols-3 full">
             <label><span>Fecha Disposición</span><input id="cartilla-fecha-disposicion" type="date"></label>
             <label><span>Nº Disposición</span><input id="cartilla-disposicion" type="text" maxlength="300"></label>
           </div>
