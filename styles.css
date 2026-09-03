@@ -249,8 +249,8 @@ button{cursor:pointer}
   outline:none;
   font-size:13.5px
 }
-.toolbar select{height:52px}
-.toolbar input{height:52px;box-sizing:border-box}
+.toolbar select{height:42px}
+.toolbar input{height:42px;box-sizing:border-box}
 .toolbar input:focus,.toolbar select:focus,
 .form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{
   border-color:#7f98b3;
@@ -269,6 +269,8 @@ button{cursor:pointer}
   font-size:20px;
   pointer-events:none
 }
+.search-icon-text{font-size:10.5px;font-weight:800;letter-spacing:.2px;left:10px;text-transform:uppercase}
+.search-box-date input{padding-left:52px}
 .table-card{
   background:var(--surface);
   border:1px solid var(--line);
@@ -1214,7 +1216,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 /* V29: filtros múltiples, historial y ayuda contextual */
 .module-actions{gap:10px;align-items:center}
 .exercise-multi-select{min-width:190px}
-.exercise-multi-select > summary{height:52px;background:#fff}
+.exercise-multi-select > summary{height:42px;background:#fff}
 .pma-toolbar{grid-template-columns:minmax(280px,1.45fr) minmax(185px,.75fr) minmax(170px,.7fr) minmax(180px,.75fr)}
 .cartillas-toolbar{grid-template-columns:minmax(300px,1fr) minmax(190px,.65fr) minmax(190px,.65fr)}
 .report-agent-row{cursor:pointer}
@@ -1422,8 +1424,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 /* V38: búsqueda por fechas, orden por ejercicio y ayuda flotante de historial */
 .search-box-compact input{padding-left:40px}
 .search-box-date input::placeholder{font-size:13px}
-.pma-toolbar{grid-template-columns:minmax(320px,1.55fr) repeat(4,minmax(165px,.7fr))}
-.cartillas-toolbar{grid-template-columns:minmax(300px,1.3fr) repeat(5,minmax(150px,.62fr))}
+.pma-toolbar{grid-template-columns:minmax(320px,1.55fr) minmax(165px,.7fr) minmax(165px,.7fr) minmax(130px,.55fr) minmax(130px,.55fr)}
+.cartillas-toolbar{grid-template-columns:minmax(260px,1.3fr) minmax(140px,.62fr) minmax(140px,.62fr) minmax(140px,.62fr) minmax(120px,.5fr) minmax(120px,.5fr)}
 .report-floating-help-wrap{margin-top:12px;display:flex;justify-content:flex-start}
 .report-floating-help .section-help-popover{width:min(420px,calc(100vw - 52px))}
 .report-floating-help .section-help-popover p{margin:0;color:#34465f}
