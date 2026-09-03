@@ -7055,12 +7055,38 @@ function renderAfiliadosTabla() {
   if (empty) empty.hidden = filtradas.length !== 0;
   body.innerHTML = filtradas.map(r => `<tr>
     <td>${escaparHtml(r.provincia)}</td><td>${escaparHtml(r.partido)}</td><td>${escaparHtml(r.localidad)}</td>
-    <td>${r.cantidad_beneficiarios}</td>
+    <td>${afiliadosSoloLectura ? r.cantidad_beneficiarios : `<button type="button" class="link-button" data-afiliado-editar="${r.id}" title="Click para cambiar la cantidad">${r.cantidad_beneficiarios} ✎</button>`}</td>
     <td>${afiliadosSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-afiliado-borrar="${r.id}" title="Borrar">×</button>`}</td>
   </tr>`).join("");
   body.querySelectorAll("[data-afiliado-borrar]").forEach(btn => {
     btn.addEventListener("click", () => eliminarAfiliadoLocalidad(btn.dataset.afiliadoBorrar));
   });
+  body.querySelectorAll("[data-afiliado-editar]").forEach(btn => {
+    btn.addEventListener("click", () => editarCantidadAfiliadoLocalidad(btn.dataset.afiliadoEditar));
+  });
+}
+
+async function editarCantidadAfiliadoLocalidad(id) {
+  const fila = afiliadosLocalidadActuales.find(r => r.id === id);
+  if (!fila) return;
+  const nuevoValor = window.prompt(`Nueva cantidad de afiliados para ${fila.localidad}:`, fila.cantidad_beneficiarios);
+  if (nuevoValor === null) return;
+  const cantidad = Number(nuevoValor);
+  if (!Number.isFinite(cantidad) || cantidad < 0) { mostrarToast("Ingresá un número válido."); return; }
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, id: `eq.${id}` });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_localidad?${params.toString()}`, {
+      method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" },
+      body: JSON.stringify({ cantidad_beneficiarios: cantidad, actualizado_en: new Date().toISOString() })
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    fila.cantidad_beneficiarios = cantidad;
+    renderAfiliadosTabla();
+    mostrarToast("Cantidad actualizada.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo actualizar.");
+  }
 }
 
 async function guardarTotalAfiliados() {
