@@ -6599,6 +6599,217 @@ function renderGruposEspecialidadesModal() {
   });
 }
 
+// ---------- Importador de Cartilla histórica (Excel Carátula + Anexo III) ----------
+
+const PROVINCIAS_CANONICAS = {
+  "buenos aires": "Buenos Aires", "caba": "Ciudad Autónoma de Buenos Aires",
+  "ciudad autonoma de buenos aires": "Ciudad Autónoma de Buenos Aires", "catamarca": "Catamarca",
+  "chaco": "Chaco", "chubut": "Chubut", "cordoba": "Córdoba", "corrientes": "Corrientes",
+  "entre rios": "Entre Ríos", "formosa": "Formosa", "jujuy": "Jujuy", "la pampa": "La Pampa",
+  "la rioja": "La Rioja", "mendoza": "Mendoza", "misiones": "Misiones", "neuquen": "Neuquén",
+  "rio negro": "Río Negro", "salta": "Salta", "san juan": "San Juan", "san luis": "San Luis",
+  "santa cruz": "Santa Cruz", "santa fe": "Santa Fe", "santiago del estero": "Santiago del Estero",
+  "tierra del fuego": "Tierra del Fuego", "tucuman": "Tucumán"
+};
+
+function normalizarTexto(s) {
+  if (!s) return "";
+  return String(s).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+// Busca, en cualquier hoja del libro, la carátula (RNAS + beneficiarios por provincia)
+// recorriendo celda por celda — no depende del nombre exacto de la hoja ni de filas fijas.
+function parsearCaratulaCartilla(workbook) {
+  for (const nombreHoja of workbook.SheetNames) {
+    const filas = window.XLSX.utils.sheet_to_json(workbook.Sheets[nombreHoja], { header: 1, defval: null });
+    let rnas = null, anio = null, denominacion = null, totalBeneficiarios = null;
+    for (const fila of filas) {
+      for (let i = 0; i < fila.length; i++) {
+        if (normalizarTexto(fila[i]).includes("rnas") && fila[i + 1] != null) rnas = String(fila[i + 1]).trim();
+        if (normalizarTexto(fila[i]).includes("periodo de vigencia") && fila[i + 1] != null) anio = fila[i + 1];
+        if (normalizarTexto(fila[i]).includes("denominacion") && fila[i + 1]) denominacion = String(fila[i + 1]).trim();
+        if (normalizarTexto(fila[i]).includes("total de beneficiarios") && fila[i + 1] != null) totalBeneficiarios = Number(fila[i + 1]);
+      }
+    }
+    if (!rnas) continue;
+    const afiliadosPorProvincia = {};
+    for (const fila of filas) {
+      for (let i = 0; i < fila.length - 1; i++) {
+        const prov = PROVINCIAS_CANONICAS[normalizarTexto(fila[i])];
+        const cant = fila[i + 1];
+        if (prov && typeof cant === "number" && cant > 0) afiliadosPorProvincia[prov] = cant;
+      }
+    }
+    return { rnas, anio, denominacion, totalBeneficiarios, afiliadosPorProvincia, hoja: nombreHoja };
+  }
+  return null;
+}
+
+// Busca la hoja del Anexo III (con el encabezado "NOMBRE COMPLETO DEL PRESTADOR") y
+// devuelve los prestadores agrupados por CUIT, con sus pares (tipo, especialidad) crudos.
+function parsearAnexoIIICartilla(workbook) {
+  for (const nombreHoja of workbook.SheetNames) {
+    const filas = window.XLSX.utils.sheet_to_json(workbook.Sheets[nombreHoja], { header: 1, defval: null });
+    const filaHeader = filas.findIndex(f => f.some(c => normalizarTexto(c).includes("nombre completo del prestador")));
+    if (filaHeader === -1) continue;
+    const prestadores = new Map();
+    for (let i = filaHeader + 1; i < filas.length; i++) {
+      const [nombre, cuit, tipo, especialidad, adultoPed, provincia, partido, localidad, , domicilio, telefono, email] = filas[i];
+      if (!nombre) continue;
+      const cuitLimpio = cuit != null ? String(cuit).trim() : null;
+      const key = cuitLimpio || normalizarTexto(nombre);
+      if (!prestadores.has(key)) {
+        prestadores.set(key, {
+          nombre: String(nombre).trim(), cuit: cuitLimpio,
+          adultoPediatrico: ["ADULTO", "PEDIATRICO", "AMBOS"].includes(String(adultoPed || "").trim().toUpperCase()) ? String(adultoPed).trim().toUpperCase() : null,
+          provincia: provincia ? String(provincia).trim() : null,
+          partido: partido ? String(partido).trim() : null,
+          localidad: localidad ? String(localidad).trim() : null,
+          domicilio: domicilio ? String(domicilio).trim() : null,
+          telefono: telefono != null ? String(telefono).trim() : null,
+          email: email ? String(email).trim() : null,
+          especialidadesCrudo: []
+        });
+      }
+      if (tipo && especialidad) prestadores.get(key).especialidadesCrudo.push([String(tipo).trim(), String(especialidad).trim()]);
+    }
+    return [...prestadores.values()];
+  }
+  return null;
+}
+
+let importarCartillaEstado = null;
+
+function matchearEspecialidadesImportacion(prestadores) {
+  const lookup = new Map();
+  especialidadesPrestadorCache.forEach(e => {
+    const tipo = tiposPrestadorCache.find(t => t.id === e.tipo_prestador_id);
+    if (tipo) lookup.set(`${normalizarTexto(tipo.nombre)}|${normalizarTexto(e.nombre)}`, e.id);
+  });
+  const sinMatch = new Map();
+  let paresOk = 0, paresTotal = 0;
+  prestadores.forEach(p => {
+    const ids = new Set();
+    p.especialidadesCrudo.forEach(([tipo, especialidad]) => {
+      paresTotal++;
+      const eid = lookup.get(`${normalizarTexto(tipo)}|${normalizarTexto(especialidad)}`);
+      if (eid) { ids.add(eid); paresOk++; }
+      else sinMatch.set(`${tipo} · ${especialidad}`, (sinMatch.get(`${tipo} · ${especialidad}`) || 0) + 1);
+    });
+    p.especialidadIds = [...ids];
+  });
+  return { paresOk, paresTotal, sinMatch };
+}
+
+async function manejarArchivoImportarCartilla(file) {
+  if (!file) return;
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el lector de Excel. Recargá la página."); return; }
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = window.XLSX.read(buffer, { type: "array" });
+    const caratula = parsearCaratulaCartilla(workbook);
+    const prestadoresRaw = parsearAnexoIIICartilla(workbook);
+    if (!caratula || !caratula.rnas) throw new Error("No encontré la Carátula (RNAS) en el Excel. ¿Es el archivo correcto?");
+    if (!prestadoresRaw) throw new Error("No encontré la hoja del Anexo III (con la columna 'Nombre completo del prestador').");
+    const rnasNormalizado = caratula.rnas.replace(/\D/g, "");
+    const os = obrasSociales.find(o => (o.rnos || "").replace(/\D/g, "").replace(/^0+/, "") === rnasNormalizado.replace(/^0+/, ""));
+    const matcheo = matchearEspecialidadesImportacion(prestadoresRaw);
+    importarCartillaEstado = { caratula, prestadores: prestadoresRaw, os, matcheo };
+    renderPreviewImportarCartilla();
+    abrirModal("importar-cartilla-modal");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo leer el archivo.");
+  } finally {
+    document.getElementById("importar-cartilla-file").value = "";
+  }
+}
+
+function renderPreviewImportarCartilla() {
+  const { caratula, prestadores, os, matcheo } = importarCartillaEstado;
+  const resumen = document.getElementById("importar-cartilla-resumen");
+  const avisos = document.getElementById("importar-cartilla-avisos");
+  const totalAfiliados = Object.values(caratula.afiliadosPorProvincia).reduce((a, b) => a + b, 0);
+  resumen.innerHTML = `
+    <div class="deadline-card neutral">
+      <div><span>Obra Social (por RNAS ${escaparHtml(caratula.rnas)})</span><strong>${os ? escaparHtml(getObraSocialDisplay(os)) : "⚠️ No encontrada en el sistema"}</strong></div>
+      <div><span>Período</span><strong>${escaparHtml(String(caratula.anio || "—"))}</strong></div>
+      <div><span>Prestadores a importar</span><strong>${prestadores.length}</strong></div>
+      <div><span>Especialidades matcheadas</span><strong>${matcheo.paresOk} / ${matcheo.paresTotal}</strong></div>
+      <div><span>Beneficiarios (Carátula)</span><strong>${caratula.totalBeneficiarios ?? "—"}</strong></div>
+      <div><span>Suma por provincia</span><strong>${totalAfiliados}${caratula.totalBeneficiarios && totalAfiliados !== caratula.totalBeneficiarios ? " ⚠️ no coincide" : ""}</strong></div>
+    </div>`;
+  let avisosHtml = "";
+  if (!os) avisosHtml += `<p class="notificaciones-hint">⚠️ No encontré ninguna Obra Social con RNAS ${escaparHtml(caratula.rnas)} en el sistema — no se puede importar hasta que exista.</p>`;
+  if (matcheo.sinMatch.size) {
+    avisosHtml += `<p class="notificaciones-hint">Quedaron afuera ${[...matcheo.sinMatch.values()].reduce((a, b) => a + b, 0)} filas por combinaciones de Tipo/Especialidad que no matchean con el sistema:</p><ul style="font-size:12px;color:var(--muted);margin:4px 0 0 18px">${[...matcheo.sinMatch.entries()].map(([k, v]) => `<li>${escaparHtml(k)} (${v})</li>`).join("")}</ul>`;
+  }
+  avisos.innerHTML = avisosHtml;
+  const confirmar = document.getElementById("importar-cartilla-confirmar");
+  if (confirmar) confirmar.disabled = !os;
+}
+
+async function confirmarImportarCartilla() {
+  const { caratula, prestadores, os } = importarCartillaEstado;
+  if (!os) return;
+  const boton = document.getElementById("importar-cartilla-confirmar");
+  boton.disabled = true; boton.textContent = "Importando...";
+  setFormMessage("importar-cartilla-message", "");
+  try {
+    const session = await asegurarSesionVigente();
+    const headers = { ...authHeaders(session.access_token), Prefer: "return=representation" };
+
+    const idPorClave = new Map();
+    const BATCH = 200;
+    for (let i = 0; i < prestadores.length; i += BATCH) {
+      const lote = prestadores.slice(i, i + BATCH);
+      const payload = lote.map(p => ({
+        obra_social_id: os.id, nombre_completo: p.nombre.slice(0, 300), cuit: p.cuit,
+        adulto_pediatrico: p.adultoPediatrico, telefono: p.telefono, email: p.email,
+        provincia: p.provincia, partido: p.partido, localidad: p.localidad, domicilio: p.domicilio,
+        contrato_presentado: true, activo: true
+      }));
+      const response = await fetchConTimeout(buildPrestadorWriteUrl(), { method: "POST", headers, body: JSON.stringify(payload) }, 20000, fetch);
+      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+      const filas = await response.json();
+      lote.forEach((p, idx) => idPorClave.set(p.cuit || normalizarTexto(p.nombre), filas[idx].id));
+    }
+
+    const vinculos = [];
+    prestadores.forEach(p => {
+      const prestadorId = idPorClave.get(p.cuit || normalizarTexto(p.nombre));
+      (p.especialidadIds || []).forEach(eid => vinculos.push({ prestador_id: prestadorId, especialidad_id: eid }));
+    });
+    for (let i = 0; i < vinculos.length; i += 500) {
+      const lote = vinculos.slice(i, i + 500);
+      const response = await fetchConTimeout(buildPrestadorEspecialidadesUrl(), {
+        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" }, body: JSON.stringify(lote)
+      }, 20000, fetch);
+      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    }
+
+    const filasAfiliados = Object.entries(caratula.afiliadosPorProvincia).map(([provincia, cantidad]) => ({
+      obra_social_id: os.id, provincia, cantidad_beneficiarios: cantidad, actualizado_en: new Date().toISOString()
+    }));
+    if (filasAfiliados.length) {
+      const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, on_conflict: "obra_social_id,provincia" });
+      const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_provincia?${params.toString()}`, {
+        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify(filasAfiliados)
+      }, 20000, fetch);
+      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    }
+
+    cerrarModal("importar-cartilla-modal");
+    mostrarToast(`Se importaron ${prestadores.length} prestadores de ${getObraSocialDisplay(os)}.`);
+    document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
+    await handleSeleccionObraSocialPrestadores();
+  } catch (error) {
+    setFormMessage("importar-cartilla-message", error.message || "No se pudo completar la importación.");
+  } finally {
+    boton.disabled = false; boton.textContent = "Confirmar importación";
+  }
+}
+
 async function inicializarVistaPrestadores() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
@@ -6628,6 +6839,8 @@ async function inicializarVistaPrestadores() {
   if (picker) picker.hidden = false;
   poblarObrasSocialesPrestadores();
   llenarDatalistsPrestador();
+  const btnImportar = document.getElementById("btn-importar-cartilla");
+  if (btnImportar) btnImportar.hidden = false;
 }
 
 function actualizarControlesPrestadores(habilitado) {
@@ -7307,6 +7520,9 @@ async function initBrowser() {
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("btn-nuevo-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalPrestadorNuevo));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
+  document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
+  document.getElementById("importar-cartilla-file")?.addEventListener("change", event => manejarArchivoImportarCartilla(event.target.files[0]));
+  document.getElementById("importar-cartilla-confirmar")?.addEventListener("click", confirmarImportarCartilla);
   document.getElementById("prestador-form")?.addEventListener("submit", handlePrestadorSubmit);
   document.getElementById("prestador-eliminar")?.addEventListener("click", eliminarPrestadorActual);
   document.getElementById("prestador-contrato-presentado")?.addEventListener("change", actualizarVisibilidadCampoContratoEx);

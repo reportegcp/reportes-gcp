@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=356e4aed">
+  <link rel="stylesheet" href="styles.css?v=7835a526">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -92,7 +92,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 356e4aed</span>
+        <span>Versión 7835a526</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -254,6 +254,8 @@
       <section id="prestadores" class="view">
         <div class="module-actions">
           <button class="secondary" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
+          <button class="secondary" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla histórica (Excel)</button>
+          <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
           <button class="primary" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
         </div>
 
@@ -369,6 +371,25 @@
               <button type="submit" class="primary" id="prestador-save">Guardar</button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div class="modal-backdrop" id="importar-cartilla-modal" hidden>
+        <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="importar-cartilla-title">
+          <div class="modal-header">
+            <div>
+              <span class="eyebrow">IMPORTAR CARTILLA</span>
+              <h2 id="importar-cartilla-title">Previsualización de la importación</h2>
+            </div>
+            <button class="icon-button" type="button" data-close-modal="importar-cartilla-modal" aria-label="Cerrar">×</button>
+          </div>
+          <div id="importar-cartilla-resumen"></div>
+          <div id="importar-cartilla-avisos"></div>
+          <div class="form-message" id="importar-cartilla-message" hidden></div>
+          <div class="modal-actions">
+            <button type="button" class="secondary" data-close-modal="importar-cartilla-modal">Cancelar</button>
+            <button type="button" class="primary" id="importar-cartilla-confirmar">Confirmar importación</button>
+          </div>
         </div>
       </div>
 
@@ -1669,6 +1690,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=356e4aed"></script>
+  <script src="app.js?v=7835a526"></script>
 </body>
 </html>
