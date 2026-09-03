@@ -5937,6 +5937,14 @@ async function handlePmaSubmit(event){
 let cartillaNotificacionesActuales = [];
 let cartillaNotificacionesCartillaId = null;
 
+// Fecha de HOY en el huso horario local del navegador (no UTC): usar
+// new Date().toISOString() acá corre el día para adelante después de las
+// 21:00 en Argentina (UTC-3), porque toISOString() siempre da la fecha en UTC.
+function hoyLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function sumarDiasHabiles(fechaISO, dias) {
   const d = new Date(`${fechaISO}T00:00:00`);
   let agregados = 0;
@@ -5963,7 +5971,7 @@ function diasHabilesTranscurridos(fechaISO, hastaISO) {
 // Estado visual (color) de UNA notificación puntual, en base a días hábiles transcurridos
 // desde que se notificó (verde 1-3, amarillo 4-6, naranja 7-9, rojo 10+) o a si ya se marcó
 // respondida / no respondida.
-function colorNotificacion(notif, hoyISO = new Date().toISOString().slice(0, 10)) {
+function colorNotificacion(notif, hoyISO = hoyLocalISO()) {
   if (notif.estado === "RESPONDIO") return "verde";
   if (notif.estado === "NO_RESPONDIO") return "rojo";
   const transcurridos = diasHabilesTranscurridos(notif.fecha_notificacion, hoyISO);
@@ -5975,7 +5983,7 @@ function colorNotificacion(notif, hoyISO = new Date().toISOString().slice(0, 10)
 
 // Estado "resumen" de la cartilla en base a su ÚLTIMA notificación — usado para el
 // filtro "Notificadas" de la tabla y para la columna del punto de color.
-function estadoNotificacionesCartilla(cartillaId, hoyISO = new Date().toISOString().slice(0, 10)) {
+function estadoNotificacionesCartilla(cartillaId, hoyISO = hoyLocalISO()) {
   const notifs = (cartillaNotificacionesPorCartilla.get(Number(cartillaId)) || []);
   if (!notifs.length) return { estado: "SIN_NOTIFICAR", color: null, ultima: null };
   const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
@@ -6044,7 +6052,7 @@ function textoEstadoNotificacion(notif) {
 function renderNotificacionesCartilla() {
   const cont = document.getElementById("cartilla-notificaciones-lista");
   if (!cont) return;
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  const hoyISO = hoyLocalISO();
   cont.innerHTML = cartillaNotificacionesActuales.map(n => {
     const color = colorNotificacion(n, hoyISO);
     const clase = n.estado === "RESPONDIO" ? "respondio" : n.estado === "NO_RESPONDIO" ? "no-respondio" : "pendiente";
@@ -6095,7 +6103,7 @@ async function agregarNotificacionCartilla() {
   const cont = document.getElementById("cartilla-notificaciones-lista");
   if (!cont || cont.querySelector(".notificacion-nueva-row")) return;
   const proximoNumero = (cartillaNotificacionesActuales.reduce((max, n) => Math.max(max, n.numero || 0), 0)) + 1;
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyLocalISO();
   const fila = document.createElement("div");
   fila.className = "notificacion-nueva-row";
   fila.innerHTML = `
@@ -6139,7 +6147,7 @@ async function agregarNotificacionCartilla() {
 async function marcarNotificacionEstado(id, estado) {
   try {
     const session = await asegurarSesionVigente();
-    const payload = { estado, updated_at: new Date().toISOString(), fecha_respuesta: estado === "RESPONDIO" ? new Date().toISOString().slice(0, 10) : null };
+    const payload = { estado, updated_at: new Date().toISOString(), fecha_respuesta: estado === "RESPONDIO" ? hoyLocalISO() : null };
     const response = await fetchConTimeout(buildCartillaNotificacionesUrl(null, id), {
       method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" }, body: JSON.stringify(payload)
     }, 10000, fetch);
@@ -6172,7 +6180,7 @@ function renderReporteNotificaciones() {
   const empty = document.getElementById("notif-reporte-empty");
   const count = document.getElementById("notif-reporte-count");
   if (!tbody) return;
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  const hoyISO = hoyLocalISO();
 
   // Filas: cartillas cuya ÚLTIMA notificación quedó en NO_RESPONDIO, o PENDIENTE y ya venció
   // el plazo de 10 días hábiles sin que se haya cargado una notificación siguiente.
