@@ -269,7 +269,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   box-shadow:0 0 0 3px rgba(38,74,113,.08)
 }
 .search-box{position:relative}
-.search-box input{width:100%;padding-left:42px}
+.search-box input{width:100%;padding-left:42px!important}
 .transaction-agent-search{width:100%}
 .transaction-agent-search .search-icon{z-index:1}
 .search-icon{
@@ -1486,7 +1486,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 
 
 /* V38: búsqueda por fechas, orden por ejercicio y ayuda flotante de historial */
-.search-box-compact input{padding-left:40px}
+.search-box-compact input{padding-left:40px!important}
 .search-box-date input::placeholder{font-size:13px}
 .pma-toolbar{grid-template-columns:minmax(320px,1.55fr) minmax(165px,.7fr) minmax(165px,.7fr) minmax(150px,.55fr) minmax(150px,.55fr)}
 .cartillas-toolbar{grid-template-columns:minmax(260px,1.3fr) minmax(140px,.62fr) minmax(140px,.62fr) minmax(140px,.62fr) minmax(145px,.5fr) minmax(145px,.5fr)}
