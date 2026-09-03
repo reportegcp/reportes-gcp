@@ -7027,18 +7027,33 @@ async function handleSeleccionObraSocialAfiliados() {
   }
 }
 
+function filtrarAfiliadosLocalidad() {
+  const busqueda = normalizarTexto(document.getElementById("afiliados-buscar")?.value || "");
+  if (!busqueda) return afiliadosLocalidadActuales;
+  return afiliadosLocalidadActuales.filter(r =>
+    normalizarTexto(r.localidad).includes(busqueda) ||
+    normalizarTexto(r.partido).includes(busqueda) ||
+    normalizarTexto(r.provincia).includes(busqueda)
+  );
+}
+
 function renderAfiliadosTabla() {
   const totalDeclarado = Number(document.getElementById("afiliados-total-input")?.value || 0);
   const cargados = afiliadosLocalidadActuales.reduce((a, r) => a + (r.cantidad_beneficiarios || 0), 0);
   const resumen = document.getElementById("afiliados-total-resumen");
   if (resumen) resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Faltan: ${Math.max(0, totalDeclarado - cargados).toLocaleString("es-AR")}`;
 
+  const filtradas = filtrarAfiliadosLocalidad();
   const body = document.getElementById("afiliados-table-body");
   const count = document.getElementById("afiliados-count");
   const empty = document.getElementById("afiliados-empty");
-  if (count) count.textContent = `${afiliadosLocalidadActuales.length} ${afiliadosLocalidadActuales.length === 1 ? "localidad cargada" : "localidades cargadas"}`;
-  if (empty) empty.hidden = afiliadosLocalidadActuales.length !== 0;
-  body.innerHTML = afiliadosLocalidadActuales.map(r => `<tr>
+  if (count) {
+    count.textContent = filtradas.length === afiliadosLocalidadActuales.length
+      ? `${afiliadosLocalidadActuales.length} ${afiliadosLocalidadActuales.length === 1 ? "localidad cargada" : "localidades cargadas"}`
+      : `${filtradas.length} de ${afiliadosLocalidadActuales.length} localidades`;
+  }
+  if (empty) empty.hidden = filtradas.length !== 0;
+  body.innerHTML = filtradas.map(r => `<tr>
     <td>${escaparHtml(r.provincia)}</td><td>${escaparHtml(r.partido)}</td><td>${escaparHtml(r.localidad)}</td>
     <td>${r.cantidad_beneficiarios}</td>
     <td>${afiliadosSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-afiliado-borrar="${r.id}" title="Borrar">×</button>`}</td>
@@ -7814,6 +7829,7 @@ async function initBrowser() {
   document.getElementById("afiliados-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
+  document.getElementById("afiliados-buscar")?.addEventListener("input", renderAfiliadosTabla);
   document.getElementById("afiliados-provincia")?.addEventListener("change", event => {
     poblarSelectPartidoAfiliados(event.target.value);
     poblarSelectLocalidadAfiliados("", "");
