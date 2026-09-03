@@ -6726,6 +6726,67 @@ function renderPrestadores() {
   }
 }
 
+// ---------- Buscador REFES (autocompletar prestador nuevo) ----------
+let refesBuscarTimeout = null;
+
+async function buscarEnRefes(texto) {
+  const params = new URLSearchParams();
+  params.set("select", "id,nombre,provincia,partido,localidad,domicilio,latitud,longitud");
+  params.set("nombre", `ilike.*${texto.replace(/[%*]/g, "")}*`);
+  params.set("limit", "15");
+  params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/refes_establecimientos?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return [];
+  return response.json();
+}
+
+function renderResultadosRefes(resultados) {
+  const cont = document.getElementById("prestador-refes-resultados");
+  if (!cont) return;
+  if (!resultados.length) { cont.hidden = true; cont.innerHTML = ""; return; }
+  cont.innerHTML = resultados.map(r => `<div class="refes-resultado-item" data-refes-id="${r.id}">
+    <strong>${escaparHtml(r.nombre)}</strong>
+    <span>${escaparHtml([r.localidad, r.partido, r.provincia].filter(Boolean).join(", "))}</span>
+  </div>`).join("");
+  cont.hidden = false;
+  cont.querySelectorAll("[data-refes-id]").forEach(item => {
+    item.addEventListener("click", () => {
+      const r = resultados.find(x => String(x.id) === item.dataset.refesId);
+      if (r) aplicarResultadoRefes(r);
+      cont.hidden = true;
+    });
+  });
+}
+
+function aplicarResultadoRefes(r) {
+  document.getElementById("prestador-nombre").value = r.nombre || "";
+  document.getElementById("prestador-domicilio").value = r.domicilio || "";
+  document.getElementById("prestador-latitud").value = r.latitud ?? "";
+  document.getElementById("prestador-longitud").value = r.longitud ?? "";
+  document.getElementById("prestador-refes-search").value = "";
+
+  // Provincia/Partido/Localidad del REFES no siempre coinciden textualmente con las
+  // de localidades_ar (distintas fuentes) — intentamos matchear, y si no hay
+  // coincidencia exacta dejamos el combo para que lo elijan a mano.
+  const selectProvincia = document.getElementById("prestador-provincia");
+  const normaliza = t => normalizar(String(t || ""));
+  const provinciaOpcion = [...selectProvincia.options].find(o => normaliza(o.value) === normaliza(r.provincia));
+  if (provinciaOpcion) {
+    selectProvincia.value = provinciaOpcion.value;
+    poblarSelectPartidoPrestador(provinciaOpcion.value);
+    const selectPartido = document.getElementById("prestador-partido");
+    const partidoOpcion = [...selectPartido.options].find(o => normaliza(o.value) === normaliza(r.partido));
+    if (partidoOpcion) {
+      selectPartido.value = partidoOpcion.value;
+      poblarSelectLocalidadPrestador(provinciaOpcion.value, partidoOpcion.value);
+      const selectLocalidad = document.getElementById("prestador-localidad");
+      const localidadOpcion = [...selectLocalidad.options].find(o => normaliza(o.value) === normaliza(r.localidad));
+      if (localidadOpcion) selectLocalidad.value = localidadOpcion.value;
+    }
+  }
+  mostrarToast("Se completaron los datos desde el REFES. Revisá Provincia/Partido/Localidad.");
+}
+
 function actualizarVisibilidadCampoContratoEx() {
   const select = document.getElementById("prestador-contrato-presentado");
   const campoEx = document.getElementById("prestador-contrato-ex");
@@ -6735,6 +6796,10 @@ function actualizarVisibilidadCampoContratoEx() {
 function limpiarFormularioPrestador() {
   document.getElementById("prestador-form")?.reset();
   document.getElementById("prestador-id").value = "";
+  const refesSearch = document.getElementById("prestador-refes-search");
+  if (refesSearch) refesSearch.value = "";
+  const refesResultados = document.getElementById("prestador-refes-resultados");
+  if (refesResultados) refesResultados.hidden = true;
   const activo = document.getElementById("prestador-activo");
   if (activo) activo.checked = true;
   const contratoPresentado = document.getElementById("prestador-contrato-presentado");
@@ -6777,6 +6842,8 @@ function abrirModalPrestadorEdicion(id) {
   poblarSelectLocalidadPrestador(p.provincia || "", p.partido || "", p.localidad || "");
   document.getElementById("prestador-domicilio").value = p.domicilio || "";
   document.getElementById("prestador-beneficiarios").value = p.cantidad_beneficiarios_localidad ?? "";
+  document.getElementById("prestador-latitud").value = p.latitud ?? "";
+  document.getElementById("prestador-longitud").value = p.longitud ?? "";
   document.getElementById("prestador-contratacion").value = p.tipo_contratacion || "";
   document.getElementById("prestador-contrato-presentado").value = p.contrato_presentado ? "SI" : "NO";
   document.getElementById("prestador-contrato-ex").value = p.contrato_numero_ex || "";
@@ -6844,6 +6911,8 @@ async function handlePrestadorSubmit(event) {
       localidad: document.getElementById("prestador-localidad")?.value.trim() || null,
       domicilio: document.getElementById("prestador-domicilio")?.value.trim() || null,
       cantidad_beneficiarios_localidad: beneficiariosValor ? Number(beneficiariosValor) : null,
+      latitud: document.getElementById("prestador-latitud")?.value ? Number(document.getElementById("prestador-latitud").value) : null,
+      longitud: document.getElementById("prestador-longitud")?.value ? Number(document.getElementById("prestador-longitud").value) : null,
       tipo_contratacion: document.getElementById("prestador-contratacion")?.value.trim() || null,
       contrato_presentado: contratoPresentado,
       contrato_numero_ex: contratoPresentado ? (document.getElementById("prestador-contrato-ex")?.value.trim() || null) : null,
@@ -7237,6 +7306,20 @@ async function initBrowser() {
   document.getElementById("prestador-form")?.addEventListener("submit", handlePrestadorSubmit);
   document.getElementById("prestador-eliminar")?.addEventListener("click", eliminarPrestadorActual);
   document.getElementById("prestador-contrato-presentado")?.addEventListener("change", actualizarVisibilidadCampoContratoEx);
+  document.getElementById("prestador-refes-search")?.addEventListener("input", event => {
+    const texto = event.target.value.trim();
+    clearTimeout(refesBuscarTimeout);
+    if (texto.length < 3) { document.getElementById("prestador-refes-resultados").hidden = true; return; }
+    refesBuscarTimeout = setTimeout(async () => {
+      const resultados = await buscarEnRefes(texto);
+      renderResultadosRefes(resultados);
+    }, 300);
+  });
+  document.addEventListener("click", event => {
+    const cont = document.getElementById("prestador-refes-resultados");
+    const buscador = document.getElementById("prestador-refes-search");
+    if (cont && !cont.hidden && event.target !== buscador && !cont.contains(event.target)) cont.hidden = true;
+  });
   document.getElementById("prestador-provincia")?.addEventListener("change", event => {
     poblarSelectPartidoPrestador(event.target.value);
     poblarSelectLocalidadPrestador("", "");

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=3b352efb">
+  <link rel="stylesheet" href="styles.css?v=1ce46949">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -92,7 +92,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 3b352efb</span>
+        <span>Versión 1ce46949</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -315,7 +315,17 @@
             <input type="hidden" id="prestador-id">
             <input type="hidden" id="prestador-os-id">
             <div class="form-grid">
+              <div class="full refes-buscador">
+                <span class="tipos-especialidades-label">Buscar en el REFES (opcional, autocompleta nombre y ubicación)</span>
+                <div class="search-box">
+                  <span class="search-icon" aria-hidden="true">⌕</span>
+                  <input id="prestador-refes-search" type="text" placeholder="Escribí el nombre del establecimiento..." autocomplete="off">
+                </div>
+                <div id="prestador-refes-resultados" class="refes-resultados" hidden></div>
+              </div>
               <label class="full"><span>Nombre / Razón social</span><input id="prestador-nombre" type="text" maxlength="300" required></label>
+              <input type="hidden" id="prestador-latitud">
+              <input type="hidden" id="prestador-longitud">
               <div class="form-inline-grid cols-3 full">
                 <label><span>CUIT</span><input id="prestador-cuit" type="text" maxlength="20"></label>
                 <label><span>Teléfono</span><input id="prestador-telefono" type="text" maxlength="60"></label>
@@ -1654,6 +1664,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=3b352efb"></script>
+  <script src="app.js?v=1ce46949"></script>
 </body>
 </html>
