@@ -7375,6 +7375,8 @@ async function handleCambioPeriodoPrestadoresOs() {
   if (acciones) acciones.hidden = true;
   const panelPresentar = document.getElementById("presentar-cartilla-panel");
   if (panelPresentar) panelPresentar.hidden = true;
+  const resumenContratos = document.getElementById("prestadores-resumen");
+  if (resumenContratos) resumenContratos.hidden = true;
   actualizarControlesPrestadores(false);
   const opcionTexto = select.options[select.selectedIndex]?.textContent || "";
   if (aviso) {
