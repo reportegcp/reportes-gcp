@@ -4259,7 +4259,10 @@ function actualizarAuthUI() {
 
   if (conectado) {
     const identidad = getSessionIdentity(authSession);
-    if (nombre) nombre.textContent = identidad.nombre;
+    // Para el perfil Cartilla OS el nombre ya se repite debajo del subtítulo de cada
+    // pantalla (Prestadores/Afiliados/Cobertura), así que acá alcanza con el rol.
+    const esCartillaOsIdentidad = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
+    if (nombre) nombre.textContent = esCartillaOsIdentidad ? "" : identidad.nombre;
     if (perfil) perfil.textContent = identidad.perfil;
   } else {
     if (nombre) nombre.textContent = "";
