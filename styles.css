@@ -251,6 +251,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   gap:12px;
   margin-bottom:18px
 }
+.prestadores-toolbar{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 .toolbar input,.toolbar select,
 .form-grid input,.form-grid select,.form-grid textarea{
   border:1px solid var(--line);
