@@ -7301,6 +7301,89 @@ async function eliminarAfiliadoLocalidad(id) {
 
 // ---------- Presentar Cartilla (perfil Cartilla OS) ----------
 
+// ---------- Presentar Cartilla (perfil Cartilla OS) ----------
+
+async function cargarPeriodosOs(osId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${osId}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return [];
+  return response.json();
+}
+
+function resumenSnapshotTexto(texto) {
+  if (!texto) return { tipos: [], cantidad: 0 };
+  const partes = String(texto).split(";").map(s => s.trim()).filter(Boolean);
+  const tipos = [];
+  let cantidad = 0;
+  partes.forEach(p => {
+    const idx = p.indexOf(":");
+    if (idx === -1) return;
+    const tipo = p.slice(0, idx).trim();
+    const esp = p.slice(idx + 1).trim();
+    if (tipo) tipos.push(tipo);
+    if (esp) cantidad += esp.split(",").filter(Boolean).length;
+  });
+  return { tipos, cantidad };
+}
+
+async function renderPrestadoresDesdeSnapshot(cartillaId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "*", cartilla_id: `eq.${cartillaId}`, order: "nombre_completo.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  const filas = response.ok ? await response.json() : [];
+  const body = document.getElementById("prestadores-table-body");
+  const count = document.getElementById("prestadores-count");
+  const empty = document.getElementById("prestadores-empty");
+  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "prestador presentado" : "prestadores presentados"} en esta Cartilla`;
+  if (empty) empty.hidden = filas.length !== 0;
+  if (body) body.innerHTML = filas.map(p => {
+    const resumen = resumenSnapshotTexto(p.tipos_y_especialidades);
+    return `<tr>
+      <td><strong>${escaparHtml(p.nombre_completo || "—")}</strong></td>
+      <td>${escaparHtml(p.cuit || "—")}</td>
+      <td>${escaparHtml(resumen.tipos.join(", ") || "—")}</td>
+      <td>${resumen.cantidad ? `${resumen.cantidad} especialidad${resumen.cantidad === 1 ? "" : "es"}` : "—"}</td>
+      <td>${escaparHtml(p.adulto_pediatrico || "—")}</td>
+      <td>${escaparHtml(p.localidad || "—")}</td>
+      <td>${escaparHtml(p.tipo_contratacion || "—")}</td>
+      <td style="text-align:center">${p.contrato_presentado ? `<span style="color:#278664;font-weight:800">✓</span> ${escaparHtml(p.contrato_numero_ex || "")}` : `<span style="color:#c0392b;font-weight:800">✕</span>`}</td>
+      <td>${p.activo ? '<span style="color:#278664;font-weight:700">Activo</span>' : '<span style="color:#a33846;font-weight:700">De baja</span>'}</td>
+    </tr>`;
+  }).join("");
+  const pag = document.getElementById("prestadores-pagination");
+  if (pag) pag.innerHTML = "";
+}
+
+async function handleCambioPeriodoPrestadoresOs() {
+  const select = document.getElementById("prestadores-periodo-os");
+  const valor = select?.value || "vigente";
+  const acciones = document.getElementById("prestadores-acciones-editar");
+  const aviso = document.getElementById("prestadores-snapshot-aviso");
+  const os = prestadorObraSocialActual;
+  if (!os) return;
+
+  if (valor === "vigente") {
+    if (acciones) acciones.hidden = false;
+    if (aviso) aviso.hidden = true;
+    actualizarControlesPrestadores(true);
+    await handleSeleccionObraSocialPrestadores();
+    await verificarYRenderizarPresentacionCartillaOs(os);
+    return;
+  }
+
+  if (acciones) acciones.hidden = true;
+  const panelPresentar = document.getElementById("presentar-cartilla-panel");
+  if (panelPresentar) panelPresentar.hidden = true;
+  actualizarControlesPrestadores(false);
+  const opcionTexto = select.options[select.selectedIndex]?.textContent || "";
+  if (aviso) {
+    aviso.hidden = false;
+    aviso.textContent = `Estás viendo ${opcionTexto} — es la foto congelada de tu red tal como quedó al presentarla, no se puede editar. Para modificar tu red actual, volvé al "Período vigente".`;
+  }
+  await renderPrestadoresDesdeSnapshot(valor);
+}
+
 async function verificarYRenderizarPresentacionCartillaOs(os) {
   const panel = document.getElementById("presentar-cartilla-panel");
   const label = document.getElementById("presentar-cartilla-estado-label");
@@ -7358,6 +7441,18 @@ async function presentarCartillaOs() {
     }
     mostrarToast("¡Cartilla presentada! La Superintendencia la va a revisar.");
     await verificarYRenderizarPresentacionCartillaOs(os);
+    try {
+      const periodos = await cargarPeriodosOs(os.id);
+      const toolbar = document.getElementById("prestadores-periodo-toolbar");
+      const selectPeriodo = document.getElementById("prestadores-periodo-os");
+      const ejercicioVigente = ejercicioVigenteParaOs(os);
+      if (selectPeriodo) {
+        selectPeriodo.innerHTML = `<option value="vigente">Período vigente (${escaparHtml(ejercicioVigente)}) — editable</option>` +
+          periodos.map(p => `<option value="${p.id}">${escaparHtml(p.ejercicio)} — presentada el ${formatFechaPantalla(p.fecha_ingreso)}</option>`).join("");
+        selectPeriodo.value = "vigente";
+      }
+      if (toolbar) toolbar.hidden = periodos.length === 0;
+    } catch (error) { console.error(error); }
   } catch (error) {
     mostrarToast(error.message || "No se pudo presentar la Cartilla.");
     boton.disabled = false;
@@ -7390,11 +7485,29 @@ async function inicializarVistaPrestadores() {
     document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
     await handleSeleccionObraSocialPrestadores();
     await verificarYRenderizarPresentacionCartillaOs(os);
+    try {
+      const periodos = await cargarPeriodosOs(os.id);
+      const toolbar = document.getElementById("prestadores-periodo-toolbar");
+      const selectPeriodo = document.getElementById("prestadores-periodo-os");
+      const ejercicioVigente = ejercicioVigenteParaOs(os);
+      if (selectPeriodo) {
+        selectPeriodo.innerHTML = `<option value="vigente">Período vigente (${escaparHtml(ejercicioVigente)}) — editable</option>` +
+          periodos.map(p => `<option value="${p.id}">${escaparHtml(p.ejercicio)} — presentada el ${formatFechaPantalla(p.fecha_ingreso)}</option>`).join("");
+        selectPeriodo.value = "vigente";
+      }
+      if (toolbar) toolbar.hidden = periodos.length === 0;
+    } catch (error) { console.error(error); }
     return;
   }
 
   const panelPresentar = document.getElementById("presentar-cartilla-panel");
   if (panelPresentar) panelPresentar.hidden = true;
+  const toolbarPeriodo = document.getElementById("prestadores-periodo-toolbar");
+  if (toolbarPeriodo) toolbarPeriodo.hidden = true;
+  const avisoSnapshot = document.getElementById("prestadores-snapshot-aviso");
+  if (avisoSnapshot) avisoSnapshot.hidden = true;
+  const accionesEditar = document.getElementById("prestadores-acciones-editar");
+  if (accionesEditar) accionesEditar.hidden = false;
   if (picker) picker.hidden = false;
   if (selectEjercicio) selectEjercicio.hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
@@ -8118,6 +8231,7 @@ async function initBrowser() {
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("btn-nuevo-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalPrestadorNuevo));
   document.getElementById("btn-presentar-cartilla")?.addEventListener("click", () => requiereAutenticacion(presentarCartillaOs));
+  document.getElementById("prestadores-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoPrestadoresOs));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
   document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
   document.getElementById("importar-cartilla-file")?.addEventListener("change", event => manejarArchivoImportarCartilla(event.target.files[0]));
