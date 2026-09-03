@@ -1227,7 +1227,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 
 /* V29: filtros múltiples, historial y ayuda contextual */
 .module-actions{gap:10px;align-items:center}
-.exercise-multi-select{min-width:190px}
+.exercise-multi-select{min-width:0}
 .exercise-multi-select > summary{height:42px;background:#fff}
 .pma-toolbar{grid-template-columns:minmax(280px,1.45fr) minmax(185px,.75fr) minmax(170px,.7fr) minmax(180px,.75fr)}
 .cartillas-toolbar{grid-template-columns:minmax(300px,1fr) minmax(190px,.65fr) minmax(190px,.65fr)}
