@@ -6930,6 +6930,7 @@ function renderCoberturaTabla(os, afiliados, prestadores) {
 
 let afiliadosObraSocialActual = null;
 let afiliadosLocalidadActuales = [];
+let afiliadosSoloLectura = false;
 
 function poblarSelectProvinciaAfiliados() {
   const select = document.getElementById("afiliados-provincia");
@@ -6964,6 +6965,11 @@ async function inicializarVistaAfiliados() {
 
   if (esCartillaOs) {
     if (picker) picker.hidden = true;
+    afiliadosSoloLectura = false;
+    document.getElementById("afiliados-total-editar").hidden = false;
+    document.getElementById("afiliados-agregar-block").hidden = false;
+    document.getElementById("afiliados-total-input").readOnly = false;
+    document.getElementById("afiliados-solo-lectura-aviso").hidden = true;
     if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
     const osId = obraSocialIdSesionActual();
     const os = obrasSociales.find(o => Number(o.id) === Number(osId));
@@ -6974,6 +6980,11 @@ async function inicializarVistaAfiliados() {
   }
 
   if (picker) picker.hidden = false;
+  afiliadosSoloLectura = true;
+  document.getElementById("afiliados-total-editar").hidden = true;
+  document.getElementById("afiliados-agregar-block").hidden = true;
+  document.getElementById("afiliados-total-input").readOnly = true;
+  document.getElementById("afiliados-solo-lectura-aviso").hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   const list = document.getElementById("afiliados-os-list");
   if (list) list.innerHTML = obrasSociales
@@ -7030,7 +7041,7 @@ function renderAfiliadosTabla() {
   body.innerHTML = afiliadosLocalidadActuales.map(r => `<tr>
     <td>${escaparHtml(r.provincia)}</td><td>${escaparHtml(r.partido)}</td><td>${escaparHtml(r.localidad)}</td>
     <td>${r.cantidad_beneficiarios}</td>
-    <td><button type="button" class="notificacion-borrar" data-afiliado-borrar="${r.id}" title="Borrar">×</button></td>
+    <td>${afiliadosSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-afiliado-borrar="${r.id}" title="Borrar">×</button>`}</td>
   </tr>`).join("");
   body.querySelectorAll("[data-afiliado-borrar]").forEach(btn => {
     btn.addEventListener("click", () => eliminarAfiliadoLocalidad(btn.dataset.afiliadoBorrar));
