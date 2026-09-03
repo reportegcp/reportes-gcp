@@ -248,6 +248,8 @@ button{cursor:pointer}
   outline:none;
   font-size:13.5px
 }
+.toolbar select{height:52px}
+.toolbar input{height:52px;box-sizing:border-box}
 .toolbar input:focus,.toolbar select:focus,
 .form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{
   border-color:#7f98b3;
@@ -1416,7 +1418,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .search-box-compact input{padding-left:40px}
 .search-box-date input::placeholder{font-size:13px}
 .pma-toolbar{grid-template-columns:minmax(320px,1.55fr) repeat(4,minmax(165px,.7fr))}
-.cartillas-toolbar{grid-template-columns:minmax(320px,1.45fr) repeat(4,minmax(165px,.65fr))}
+.cartillas-toolbar{grid-template-columns:minmax(300px,1.3fr) repeat(5,minmax(150px,.62fr))}
 .report-floating-help-wrap{margin-top:12px;display:flex;justify-content:flex-start}
 .report-floating-help .section-help-popover{width:min(420px,calc(100vw - 52px))}
 .report-floating-help .section-help-popover p{margin:0;color:#34465f}

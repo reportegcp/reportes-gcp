@@ -5152,11 +5152,6 @@ async function cargarYRenderizarCartillas() {
       cartillas = await cargarCartillasDesdeSupabase(fetch, true);
       cartillasCargadas = true;
     }
-    if (!cartillaNotificacionesTodasCargadas) await cargarTodasLasNotificacionesCartillas();
-    llenarFiltroEjercicios();
-    renderCartillas();
-    actualizarAvisoHistoricoCartillas();
-
   } catch (error) {
     cartillas = [];
     cartillasCargadas = false;
@@ -5164,7 +5159,18 @@ async function cargarYRenderizarCartillas() {
     if (status) status.textContent = "Error de conexión con Supabase";
     const empty = document.getElementById("cartilla-empty");
     if (empty) { empty.hidden = false; empty.textContent = error?.message || "No se pudieron cargar las presentaciones."; }
+    return;
   }
+
+  try {
+    if (!cartillaNotificacionesTodasCargadas) await cargarTodasLasNotificacionesCartillas();
+  } catch (error) {
+    console.error("No se pudieron cargar las notificaciones:", error);
+  }
+
+  llenarFiltroEjercicios();
+  renderCartillas();
+  actualizarAvisoHistoricoCartillas();
 }
 
 function actualizarAvisoHistoricoCartillas() {
