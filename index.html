@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=0fd58209">
+  <link rel="stylesheet" href="styles.css?v=d0d4370c">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -110,7 +110,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 0fd58209</span>
+        <span>Versión d0d4370c</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -575,6 +575,13 @@
             </div>
           </details>
           <select id="pma-condicion-filter"><option value="TODOS">Condición: Todas</option></select>
+          <select id="pma-notificadas-filter" aria-label="Filtrar por notificaciones">
+            <option value="TODOS">Notificadas: Todas</option>
+            <option value="SIN_NOTIFICAR">Sin notificar</option>
+            <option value="PENDIENTE">Notificación pendiente</option>
+            <option value="RESPONDIO">Respondió</option>
+            <option value="NO_RESPONDIO">No respondió</option>
+          </select>
           <div class="date-filter-inline">
             <span class="date-filter-label">Fecha</span>
             <input id="pma-ingreso-search" type="date" autocomplete="off" aria-label="Filtrar por fecha de ingreso">
@@ -1686,6 +1693,15 @@
             <label><span>Nº Disposición</span><input id="pma-disposicion" type="text" maxlength="300"></label>
           </div>
 
+          <div class="full notificaciones-block" id="pma-notificaciones-block">
+            <div class="notificaciones-header">
+              <span>Notificaciones a la Obra Social</span>
+              <button type="button" class="secondary small" id="pma-notificacion-add">+ Agregar notificación</button>
+            </div>
+            <div id="pma-notificaciones-lista" class="notificaciones-lista"></div>
+            <p class="notificaciones-hint" id="pma-notificaciones-hint" hidden>Guardá la presentación primero para poder cargar notificaciones.</p>
+          </div>
+
           <label class="full"><span>Observaciones PMA</span><textarea id="pma-observaciones" rows="4" maxlength="2000"></textarea></label>
         </div>
         <div class="form-message" id="pma-form-message" hidden></div>
@@ -1852,6 +1868,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=0fd58209"></script>
+  <script src="app.js?v=d0d4370c"></script>
 </body>
 </html>
