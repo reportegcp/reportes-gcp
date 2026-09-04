@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=4d3c12f9">
+  <link rel="stylesheet" href="styles.css?v=7e8352db">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -110,7 +110,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 4d3c12f9</span>
+        <span>Versión 7e8352db</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -327,16 +327,19 @@
       </section>
 
       <section id="prestadores" class="view">
-        <div class="toolbar prestadores-toolbar" id="prestadores-periodo-toolbar" hidden style="margin-bottom:16px">
+        <div class="prestadores-header-compacto" id="prestadores-header-os" hidden>
           <select id="prestadores-periodo-os" aria-label="Elegí qué período ver"></select>
+          <span id="presentar-cartilla-pill"></span>
         </div>
-        <p class="notificaciones-hint" id="prestadores-snapshot-aviso" hidden style="padding:8px 12px;background:#eef3f8;border-radius:8px;margin-bottom:12px"></p>
-        <div id="presentar-cartilla-panel" hidden style="margin-bottom:16px"></div>
-        <div class="module-actions" id="prestadores-acciones-editar">
-          <button class="secondary" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
-          <button class="secondary" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla histórica (Excel)</button>
+        <p class="notificaciones-hint" id="prestadores-snapshot-aviso" hidden style="padding:8px 12px;background:#eef3f8;border-radius:8px;margin-bottom:10px"></p>
+
+        <div class="prestadores-header-compacto" id="prestadores-acciones-editar">
+          <span class="stat-pill-inline"><span>Presentados</span><strong id="prestadores-resumen-si">—</strong></span>
+          <span class="stat-pill-inline"><span>Sin presentar</span><strong id="prestadores-resumen-no">—</strong></span>
+          <button class="secondary small" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
+          <button class="secondary small" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla histórica (Excel)</button>
           <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
-          <button class="primary" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
+          <button class="primary small" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
         </div>
 
         <div class="toolbar prestadores-toolbar">
@@ -366,11 +369,6 @@
             <option value="SI">Presentado</option>
             <option value="NO">No presentado</option>
           </select>
-        </div>
-
-        <div id="prestadores-resumen" class="deadline-card neutral" hidden style="margin-bottom:16px">
-          <div><span>Contratos presentados</span><strong id="prestadores-resumen-si">—</strong></div>
-          <div><span>Contratos sin presentar</span><strong id="prestadores-resumen-no">—</strong></div>
         </div>
 
         <div class="table-card">
@@ -1848,6 +1846,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=4d3c12f9"></script>
+  <script src="app.js?v=7e8352db"></script>
 </body>
 </html>

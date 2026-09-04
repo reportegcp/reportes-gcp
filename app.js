@@ -400,11 +400,15 @@ function derivarEjercicio(inicioEjercicio, anioInicio) {
 function anioInicioVigenteParaOs(os) {
   const normalizado = normalizarDiaMes(os?.inicio_ejercicio || "");
   if (!normalizado) return null;
-  const hoy = new Date();
-  const anioActual = hoy.getFullYear();
   const [dia, mes] = normalizado.split("-").map(Number);
-  const inicioEsteAnio = new Date(anioActual, mes - 1, dia);
-  return hoy >= inicioEsteAnio ? anioActual + 1 : anioActual;
+  const hoy = new Date();
+  const inicioEsteAnio = new Date(hoy.getFullYear(), mes - 1, dia);
+  // El ciclo "en curso" es el que ya arrancó (o el del año pasado, si este año todavía no arrancó).
+  const anioEnCurso = hoy >= inicioEsteAnio ? hoy.getFullYear() : hoy.getFullYear() - 1;
+  // Recién habilitamos el ciclo siguiente cuando faltan 120 días o menos para que arranque.
+  const inicioProximo = new Date(anioEnCurso + 1, mes - 1, dia);
+  const diasHastaProximo = (inicioProximo - hoy) / 86400000;
+  return diasHastaProximo <= 120 ? anioEnCurso + 1 : anioEnCurso;
 }
 
 function ejercicioVigenteParaOs(os) {
@@ -7387,6 +7391,23 @@ async function cargarPeriodosOs(osId) {
   return response.json();
 }
 
+// Llena el combo de período con solo el vigente + el anterior (no todo el historial),
+// que es lo único con lo que la OS puede operar en un momento dado.
+async function poblarSelectPeriodoOs(os) {
+  const toolbar = document.getElementById("prestadores-header-os");
+  const selectPeriodo = document.getElementById("prestadores-periodo-os");
+  if (!selectPeriodo) return;
+  const vigente = ejercicioVigenteParaOs(os);
+  const anterior = ejercicioAnteriorParaOs(os);
+  const relevantes = new Set([vigente, anterior].filter(Boolean));
+  const todosLosPeriodos = await cargarPeriodosOs(os.id);
+  const periodos = todosLosPeriodos.filter(p => relevantes.has(p.ejercicio));
+  selectPeriodo.innerHTML = `<option value="vigente">Período vigente (${escaparHtml(vigente)}) — editable</option>` +
+    periodos.map(p => `<option value="${p.id}">${escaparHtml(p.ejercicio)} — presentada el ${formatFechaPantalla(p.fecha_ingreso)}</option>`).join("");
+  selectPeriodo.value = "vigente";
+  if (toolbar) toolbar.hidden = false;
+}
+
 function resumenSnapshotTexto(texto) {
   if (!texto) return { tipos: [], cantidad: 0 };
   const partes = String(texto).split(";").map(s => s.trim()).filter(Boolean);
@@ -7449,10 +7470,8 @@ async function handleCambioPeriodoPrestadoresOs() {
   }
 
   if (acciones) acciones.hidden = true;
-  const panelPresentar = document.getElementById("presentar-cartilla-panel");
-  if (panelPresentar) panelPresentar.hidden = true;
-  const resumenContratos = document.getElementById("prestadores-resumen");
-  if (resumenContratos) resumenContratos.hidden = true;
+  const pillPresentar = document.getElementById("presentar-cartilla-pill");
+  if (pillPresentar) pillPresentar.innerHTML = "";
   actualizarControlesPrestadores(false);
   const opcionTexto = select.options[select.selectedIndex]?.textContent || "";
   if (aviso) {
@@ -7463,13 +7482,12 @@ async function handleCambioPeriodoPrestadoresOs() {
 }
 
 async function verificarYRenderizarPresentacionCartillaOs(os) {
-  const panel = document.getElementById("presentar-cartilla-panel");
-  if (!panel) return;
+  const pill = document.getElementById("presentar-cartilla-pill");
+  if (!pill) return;
   const vigente = ejercicioVigenteParaOs(os);
   const anterior = ejercicioAnteriorParaOs(os);
-  if (!vigente) { panel.hidden = true; return; }
-  panel.hidden = false;
-  panel.innerHTML = `<p class="notificaciones-hint">Consultando el estado de tu Cartilla...</p>`;
+  if (!vigente) { pill.innerHTML = ""; return; }
+  pill.innerHTML = `<span class="stat-pill-inline">Consultando...</span>`;
   try {
     const session = await asegurarSesionVigente();
     const candidatos = [...new Set([vigente, anterior].filter(Boolean))];
@@ -7485,32 +7503,25 @@ async function verificarYRenderizarPresentacionCartillaOs(os) {
 
     if (!pendientes.length) {
       const p = porEjercicio.get(vigente);
-      panel.innerHTML = `<div class="deadline-card neutral">
-        <div><span>Cartilla del período ${escaparHtml(vigente)}</span><strong>Presentada el ${formatFechaPantalla(p.fecha_ingreso)} · Condición: ${escaparHtml(p.condicion || "—")}</strong></div>
-      </div>`;
+      pill.innerHTML = `<span class="stat-pill-inline ok" title="Cartilla del período ${escaparHtml(vigente)}">✓ Presentada ${formatFechaPantalla(p.fecha_ingreso)} · ${escaparHtml(p.condicion || "—")}</span>`;
       return;
     }
 
-    panel.innerHTML = pendientes.map((ej, i) => `
-      <div class="deadline-card neutral" style="margin-bottom:10px">
-        <div>
-          <span>Cartilla del período ${escaparHtml(ej)}${ej === anterior ? " (atrasada)" : ""}</span>
-          <strong>Todavía no presentada</strong>
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-          <label style="display:grid;gap:4px"><span style="font-size:11px;font-weight:800;color:var(--muted)">Período a presentar</span><input type="text" class="presentar-cartilla-periodo-input" data-idx="${i}" value="${escaparHtml(ej)}" style="max-width:140px"></label>
-          <button type="button" class="primary btn-presentar-cartilla" data-idx="${i}" style="height:38px">Presentar</button>
-        </div>
-      </div>`).join("");
+    pill.innerHTML = pendientes.map((ej, i) => `
+      <span class="stat-pill-inline pendiente">
+        <span>${ej === anterior ? "Atrasada" : "Sin presentar"}</span>
+        <input type="text" class="presentar-cartilla-periodo-input" data-idx="${i}" value="${escaparHtml(ej)}">
+        <button type="button" class="primary btn-presentar-cartilla" data-idx="${i}">Presentar</button>
+      </span>`).join("");
 
-    panel.querySelectorAll(".btn-presentar-cartilla").forEach(btn => {
+    pill.querySelectorAll(".btn-presentar-cartilla").forEach(btn => {
       btn.addEventListener("click", () => {
-        const input = panel.querySelector(`.presentar-cartilla-periodo-input[data-idx="${btn.dataset.idx}"]`);
+        const input = pill.querySelector(`.presentar-cartilla-periodo-input[data-idx="${btn.dataset.idx}"]`);
         presentarCartillaOs(os, input?.value.trim(), btn);
       });
     });
   } catch (error) {
-    panel.innerHTML = `<p class="notificaciones-hint">No se pudo consultar el estado de tu Cartilla.</p>`;
+    pill.innerHTML = `<span class="stat-pill-inline">No se pudo consultar el estado</span>`;
   }
 }
 
@@ -7536,18 +7547,7 @@ async function presentarCartillaOs(os, ejercicio, boton) {
     }
     mostrarToast("¡Cartilla presentada! La Superintendencia la va a revisar.");
     await verificarYRenderizarPresentacionCartillaOs(os);
-    try {
-      const periodos = await cargarPeriodosOs(os.id);
-      const toolbar = document.getElementById("prestadores-periodo-toolbar");
-      const selectPeriodo = document.getElementById("prestadores-periodo-os");
-      const ejercicioVigente = ejercicioVigenteParaOs(os);
-      if (selectPeriodo) {
-        selectPeriodo.innerHTML = `<option value="vigente">Período vigente (${escaparHtml(ejercicioVigente)}) — editable</option>` +
-          periodos.map(p => `<option value="${p.id}">${escaparHtml(p.ejercicio)} — presentada el ${formatFechaPantalla(p.fecha_ingreso)}</option>`).join("");
-        selectPeriodo.value = "vigente";
-      }
-      if (toolbar) toolbar.hidden = periodos.length === 0;
-    } catch (error) { console.error(error); }
+    try { await poblarSelectPeriodoOs(os); } catch (error) { console.error(error); }
   } catch (error) {
     mostrarToast(error.message || "No se pudo presentar la Cartilla.");
     if (boton) boton.disabled = false;
@@ -7580,25 +7580,14 @@ async function inicializarVistaPrestadores() {
     document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
     await handleSeleccionObraSocialPrestadores();
     await verificarYRenderizarPresentacionCartillaOs(os);
-    try {
-      const periodos = await cargarPeriodosOs(os.id);
-      const toolbar = document.getElementById("prestadores-periodo-toolbar");
-      const selectPeriodo = document.getElementById("prestadores-periodo-os");
-      const ejercicioVigente = ejercicioVigenteParaOs(os);
-      if (selectPeriodo) {
-        selectPeriodo.innerHTML = `<option value="vigente">Período vigente (${escaparHtml(ejercicioVigente)}) — editable</option>` +
-          periodos.map(p => `<option value="${p.id}">${escaparHtml(p.ejercicio)} — presentada el ${formatFechaPantalla(p.fecha_ingreso)}</option>`).join("");
-        selectPeriodo.value = "vigente";
-      }
-      if (toolbar) toolbar.hidden = periodos.length === 0;
-    } catch (error) { console.error(error); }
+    try { await poblarSelectPeriodoOs(os); } catch (error) { console.error(error); }
     return;
   }
 
-  const panelPresentar = document.getElementById("presentar-cartilla-panel");
-  if (panelPresentar) panelPresentar.hidden = true;
-  const toolbarPeriodo = document.getElementById("prestadores-periodo-toolbar");
-  if (toolbarPeriodo) toolbarPeriodo.hidden = true;
+  const pillPresentar = document.getElementById("presentar-cartilla-pill");
+  if (pillPresentar) pillPresentar.innerHTML = "";
+  const headerOs = document.getElementById("prestadores-header-os");
+  if (headerOs) headerOs.hidden = true;
   const avisoSnapshot = document.getElementById("prestadores-snapshot-aviso");
   if (avisoSnapshot) avisoSnapshot.hidden = true;
   const accionesEditar = document.getElementById("prestadores-acciones-editar");
@@ -7641,7 +7630,6 @@ async function handleSeleccionObraSocialPrestadores() {
   const valor = document.getElementById("prestadores-os-search")?.value || "";
   const os = resolverObraSocialCartilla(valor);
   mostrarOsActualEnCabecera(os);
-  const resumen = document.getElementById("prestadores-resumen");
   if (!os) {
     prestadorObraSocialActual = null;
     prestadores = [];
@@ -7650,7 +7638,6 @@ async function handleSeleccionObraSocialPrestadores() {
     const count = document.getElementById("prestadores-count");
     if (count) count.textContent = "Elegí una Obra Social arriba para ver su red de prestadores.";
     actualizarControlesPrestadores(false);
-    if (resumen) resumen.hidden = true;
     return;
   }
   prestadorObraSocialActual = os;
@@ -7718,16 +7705,13 @@ function renderPrestadores() {
     row.addEventListener("click", editar);
     row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); } });
   });
-  const resumen = document.getElementById("prestadores-resumen");
-  if (resumen) {
-    if (prestadorObraSocialActual) {
-      resumen.hidden = false;
-      const si = prestadores.filter(p => p.contrato_presentado).length;
-      document.getElementById("prestadores-resumen-si").textContent = String(si);
-      document.getElementById("prestadores-resumen-no").textContent = String(prestadores.length - si);
-    } else {
-      resumen.hidden = true;
-    }
+  if (prestadorObraSocialActual) {
+    const si = prestadores.filter(p => p.contrato_presentado).length;
+    document.getElementById("prestadores-resumen-si").textContent = String(si);
+    document.getElementById("prestadores-resumen-no").textContent = String(prestadores.length - si);
+  } else {
+    document.getElementById("prestadores-resumen-si").textContent = "—";
+    document.getElementById("prestadores-resumen-no").textContent = "—";
   }
 }
 
