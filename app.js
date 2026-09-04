@@ -585,6 +585,19 @@ function resumirCartillasPorPeriodo(reporte, periodos) {
   return resumirPresentacionesPorPeriodo(reporte, periodos);
 }
 
+// Combina varios ejercicios en un solo resultado: "presentó" si presentó en AL MENOS UNO
+// de los ejercicios seleccionados, "no presentó" si no presentó en NINGUNO de ellos.
+function resumirCombinadoPeriodos(reporte, periodos) {
+  const periodosValidos = ordenarEjercicios(periodos, false);
+  if (!periodosValidos.length) return null;
+  let presentaron = 0, noPresentaron = 0;
+  for (const row of reporte || []) {
+    const presentoAlguno = periodosValidos.some(p => row?.periodos?.[p]?.estado === "PRESENTO");
+    if (presentoAlguno) presentaron += 1; else noPresentaron += 1;
+  }
+  return { periodo: periodosValidos.join(" + "), presentaron, noPresentaron };
+}
+
 function obtenerResumenPeriodoGrafico(resumen, periodo) {
   const objetivo = ejercicioCanonico(periodo) || String(periodo || "").trim();
   if (!objetivo) return null;
@@ -5482,10 +5495,9 @@ function sincronizarPeriodoGrafico(selectId, periodos) {
   return elegido;
 }
 
-function renderGraficoCartillas(resumen) {
+function renderGraficoCartillas(reporte) {
   const periodos = getPeriodosReporteSeleccionados();
-  const elegido = sincronizarPeriodoGrafico("report-cartillas-chart-period", periodos);
-  renderGraficoUnPeriodo("report-cartillas-chart", obtenerResumenPeriodoGrafico(resumen, elegido));
+  renderGraficoUnPeriodo("report-cartillas-chart", resumirCombinadoPeriodos(reporte, periodos));
 }
 
 
@@ -5611,7 +5623,7 @@ function renderReporteFaltantesCartillas() {
   const reporte = generarReporteFaltantesPorEjercicio(obrasSociales, cartillas, ejercicios);
   const filtrado = obtenerFilasReporteCartillas(reporte, ejercicios);
   const sector = document.getElementById("report-cartillas-chart-sector");
-  if (sector && !sector.hidden) renderGraficoCartillas(resumirCartillasPorPeriodo(reporte, ejercicios));
+  if (sector && !sector.hidden) renderGraficoCartillas(reporte);
 
   const pageInfo = paginarRegistros(filtrado, reportCartillasPage, PAGE_SIZE);
   reportCartillasPage = pageInfo.page;
@@ -5862,10 +5874,9 @@ function obtenerFilasReportePma(reporte, periodos) {
   return ordenarReportePorRnas(filtradas, reportPmaRnasSortDirection);
 }
 
-function renderGraficoPma(resumen) {
+function renderGraficoPma(reporte) {
   const periodos = getPeriodosPmaSeleccionados();
-  const elegido = sincronizarPeriodoGrafico("report-pma-chart-period", periodos);
-  renderGraficoUnPeriodo("report-pma-chart", obtenerResumenPeriodoGrafico(resumen, elegido));
+  renderGraficoUnPeriodo("report-pma-chart", resumirCombinadoPeriodos(reporte, periodos));
 }
 
 function renderReporteFaltantesPma() {
@@ -5898,7 +5909,7 @@ function renderReporteFaltantesPma() {
   const reporte = generarReporteFaltantesPorEjercicio(obrasSociales, pma, ejercicios);
   const filtrado = obtenerFilasReportePma(reporte, ejercicios);
   const sector = document.getElementById("report-pma-chart-sector");
-  if (sector && !sector.hidden) renderGraficoPma(resumirPresentacionesPorPeriodo(reporte, ejercicios));
+  if (sector && !sector.hidden) renderGraficoPma(reporte);
 
   const pageInfo = paginarRegistros(filtrado, reportPmaPage, PAGE_SIZE);
   reportPmaPage = pageInfo.page;
@@ -8566,8 +8577,6 @@ async function initBrowser() {
   document.getElementById("btn-hide-cartillas-chart")?.addEventListener("click", () => mostrarGraficoReporte("cartillas", false));
   document.getElementById("btn-report-pma-chart")?.addEventListener("click", () => mostrarGraficoReporte("pma", true));
   document.getElementById("btn-hide-pma-chart")?.addEventListener("click", () => mostrarGraficoReporte("pma", false));
-  document.getElementById("report-cartillas-chart-period")?.addEventListener("change", renderReporteFaltantesCartillas);
-  document.getElementById("report-pma-chart-period")?.addEventListener("change", renderReporteFaltantesPma);
 
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
   document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
