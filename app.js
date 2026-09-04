@@ -4173,6 +4173,66 @@ function cerrarModal(id) {
   }
 }
 
+// Reemplazan a window.confirm / window.prompt con el mismo estilo del sitio.
+function mostrarConfirmacion(mensaje, opciones = {}) {
+  return new Promise(resolve => {
+    document.getElementById("confirm-modal-title").textContent = opciones.titulo || "Confirmar";
+    document.getElementById("confirm-modal-mensaje").textContent = mensaje;
+    document.getElementById("confirm-modal-input").hidden = true;
+    const btnAceptar = document.getElementById("confirm-modal-aceptar");
+    const btnCancelar = document.getElementById("confirm-modal-cancelar");
+    btnAceptar.textContent = opciones.textoAceptar || "Aceptar";
+    btnCancelar.hidden = false;
+    btnCancelar.textContent = opciones.textoCancelar || "Cancelar";
+    const finalizar = resultado => {
+      cerrarModal("confirm-modal");
+      btnAceptar.removeEventListener("click", onAceptar);
+      btnCancelar.removeEventListener("click", onCancelar);
+      document.getElementById("confirm-modal-x").removeEventListener("click", onCancelar);
+      resolve(resultado);
+    };
+    const onAceptar = () => finalizar(true);
+    const onCancelar = () => finalizar(false);
+    btnAceptar.addEventListener("click", onAceptar);
+    btnCancelar.addEventListener("click", onCancelar);
+    document.getElementById("confirm-modal-x").addEventListener("click", onCancelar);
+    abrirModal("confirm-modal");
+  });
+}
+
+function mostrarPrompt(mensaje, valorInicial = "", opciones = {}) {
+  return new Promise(resolve => {
+    document.getElementById("confirm-modal-title").textContent = opciones.titulo || "Ingresar valor";
+    document.getElementById("confirm-modal-mensaje").textContent = mensaje;
+    const input = document.getElementById("confirm-modal-input");
+    input.hidden = false;
+    input.type = opciones.tipo || "text";
+    input.value = valorInicial ?? "";
+    const btnAceptar = document.getElementById("confirm-modal-aceptar");
+    const btnCancelar = document.getElementById("confirm-modal-cancelar");
+    btnAceptar.textContent = opciones.textoAceptar || "Aceptar";
+    btnCancelar.hidden = false;
+    btnCancelar.textContent = "Cancelar";
+    const finalizar = resultado => {
+      cerrarModal("confirm-modal");
+      btnAceptar.removeEventListener("click", onAceptar);
+      btnCancelar.removeEventListener("click", onCancelar);
+      document.getElementById("confirm-modal-x").removeEventListener("click", onCancelar);
+      input.removeEventListener("keydown", onKeydown);
+      resolve(resultado);
+    };
+    const onAceptar = () => finalizar(input.value);
+    const onCancelar = () => finalizar(null);
+    const onKeydown = event => { if (event.key === "Enter") { event.preventDefault(); onAceptar(); } };
+    btnAceptar.addEventListener("click", onAceptar);
+    btnCancelar.addEventListener("click", onCancelar);
+    document.getElementById("confirm-modal-x").addEventListener("click", onCancelar);
+    input.addEventListener("keydown", onKeydown);
+    abrirModal("confirm-modal");
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  });
+}
+
 function cerrarTodosLosModales() {
   document.querySelectorAll(".modal-backdrop").forEach(m => m.hidden = true);
   document.body.classList.remove("modal-open");
@@ -6156,7 +6216,7 @@ function renderNotificacionesCartilla() {
 }
 
 async function borrarNotificacionCartilla(id) {
-  if (!window.confirm("¿Borrar esta notificación? No se puede deshacer.")) return;
+  if (!(await mostrarConfirmacion("¿Borrar esta notificación? No se puede deshacer.", { titulo: "Borrar notificación", textoAceptar: "Borrar" }))) return;
   try {
     const session = await asegurarSesionVigente();
     const response = await fetchConTimeout(buildCartillaNotificacionesUrl(null, id), {
@@ -7224,7 +7284,7 @@ function renderAfiliadosTabla() {
 async function editarCantidadAfiliadoLocalidad(id) {
   const fila = afiliadosLocalidadActuales.find(r => r.id === id);
   if (!fila) return;
-  const nuevoValor = window.prompt(`Nueva cantidad de afiliados para ${fila.localidad}:`, fila.cantidad_beneficiarios);
+  const nuevoValor = await mostrarPrompt(`Nueva cantidad de afiliados para ${fila.localidad}:`, fila.cantidad_beneficiarios, { titulo: "Editar cantidad", tipo: "number" });
   if (nuevoValor === null) return;
   const cantidad = Number(nuevoValor);
   if (!Number.isFinite(cantidad) || cantidad < 0) { mostrarToast("Ingresá un número válido."); return; }
@@ -7288,7 +7348,7 @@ async function agregarAfiliadoLocalidad() {
 }
 
 async function eliminarAfiliadoLocalidad(id) {
-  if (!window.confirm("¿Borrar esta localidad?")) return;
+  if (!(await mostrarConfirmacion("¿Borrar esta localidad?", { titulo: "Borrar localidad", textoAceptar: "Borrar" }))) return;
   try {
     const session = await asegurarSesionVigente();
     const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, id: `eq.${id}` });
@@ -7425,7 +7485,7 @@ async function presentarCartillaOs() {
   const ejercicio = boton?.dataset.ejercicio;
   const os = afiliadosObraSocialActual || prestadorObraSocialActual;
   if (!ejercicio || !os) return;
-  if (!window.confirm(`¿Presentar la Cartilla del período ${ejercicio}? Se va a guardar una foto de tu red de prestadores tal como está ahora mismo, y ya no vas a poder modificar esta presentación (sí podés seguir editando tu red para la próxima).`)) return;
+  if (!(await mostrarConfirmacion(`¿Presentar la Cartilla del período ${ejercicio}? Se va a guardar una foto de tu red de prestadores tal como está ahora mismo, y ya no vas a poder modificar esta presentación (sí podés seguir editando tu red para la próxima).`, { titulo: "Presentar Cartilla", textoAceptar: "Presentar" }))) return;
   boton.disabled = true; boton.textContent = "Presentando...";
   try {
     const session = await asegurarSesionVigente();
@@ -7861,7 +7921,7 @@ async function handlePrestadorSubmit(event) {
 async function eliminarPrestadorActual() {
   const id = document.getElementById("prestador-id")?.value;
   if (!id) return;
-  if (!window.confirm("¿Eliminar este prestador de la red? No se puede deshacer.")) return;
+  if (!(await mostrarConfirmacion("¿Eliminar este prestador de la red? No se puede deshacer.", { titulo: "Eliminar prestador", textoAceptar: "Eliminar" }))) return;
   try {
     const session = await asegurarSesionVigente();
     const response = await fetchConTimeout(buildPrestadorWriteUrl(id), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000, fetch);

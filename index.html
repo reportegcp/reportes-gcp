@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=5993735b">
+  <link rel="stylesheet" href="styles.css?v=056d1c4d">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -110,7 +110,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 5993735b</span>
+        <span>Versión 056d1c4d</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -503,6 +503,21 @@
               <button type="submit" class="primary" id="prestador-save">Guardar</button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div class="modal-backdrop" id="confirm-modal" hidden>
+        <div class="modal" style="max-width:440px" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+          <div class="modal-header">
+            <div><h2 id="confirm-modal-title">Confirmar</h2></div>
+            <button class="icon-button" type="button" id="confirm-modal-x" aria-label="Cerrar">×</button>
+          </div>
+          <p id="confirm-modal-mensaje" style="font-size:13.5px;color:var(--text);line-height:1.5"></p>
+          <input id="confirm-modal-input" type="text" hidden style="width:100%;margin-top:4px">
+          <div class="modal-actions">
+            <button type="button" class="secondary" id="confirm-modal-cancelar">Cancelar</button>
+            <button type="button" class="primary" id="confirm-modal-aceptar">Aceptar</button>
+          </div>
         </div>
       </div>
 
@@ -1841,6 +1856,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=5993735b"></script>
+  <script src="app.js?v=056d1c4d"></script>
 </body>
 </html>
