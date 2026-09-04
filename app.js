@@ -394,15 +394,26 @@ function derivarEjercicio(inicioEjercicio, anioInicio) {
   return normalizado === "01-01" ? String(year) : `${year}/${String(year + 1).slice(-2)}`;
 }
 
-function ejercicioVigenteParaOs(os) {
+function anioInicioVigenteParaOs(os) {
   const normalizado = normalizarDiaMes(os?.inicio_ejercicio || "");
-  if (!normalizado) return "";
+  if (!normalizado) return null;
   const hoy = new Date();
   const anioActual = hoy.getFullYear();
   const [dia, mes] = normalizado.split("-").map(Number);
   const inicioEsteAnio = new Date(anioActual, mes - 1, dia);
-  const anioInicio = hoy >= inicioEsteAnio ? anioActual + 1 : anioActual;
+  return hoy >= inicioEsteAnio ? anioActual + 1 : anioActual;
+}
+
+function ejercicioVigenteParaOs(os) {
+  const anioInicio = anioInicioVigenteParaOs(os);
+  if (!anioInicio) return "";
   return derivarEjercicio(os.inicio_ejercicio, anioInicio);
+}
+
+function ejercicioAnteriorParaOs(os) {
+  const anioInicio = anioInicioVigenteParaOs(os);
+  if (!anioInicio) return "";
+  return derivarEjercicio(os.inicio_ejercicio, anioInicio - 1);
 }
 
 function ejercicioCanonico(valor) {
@@ -7450,43 +7461,60 @@ async function handleCambioPeriodoPrestadoresOs() {
 
 async function verificarYRenderizarPresentacionCartillaOs(os) {
   const panel = document.getElementById("presentar-cartilla-panel");
-  const label = document.getElementById("presentar-cartilla-estado-label");
-  const valor = document.getElementById("presentar-cartilla-estado-valor");
-  const boton = document.getElementById("btn-presentar-cartilla");
   if (!panel) return;
-  const ejercicio = ejercicioVigenteParaOs(os);
-  if (!ejercicio) { panel.hidden = true; return; }
+  const vigente = ejercicioVigenteParaOs(os);
+  const anterior = ejercicioAnteriorParaOs(os);
+  if (!vigente) { panel.hidden = true; return; }
   panel.hidden = false;
-  label.textContent = `Cartilla del período ${ejercicio}`;
-  valor.textContent = "Consultando...";
-  boton.hidden = true;
+  panel.innerHTML = `<p class="notificaciones-hint">Consultando el estado de tu Cartilla...</p>`;
   try {
     const session = await asegurarSesionVigente();
-    const params = new URLSearchParams({ select: "id,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, ejercicio: `eq.${ejercicio}`, apikey: SUPABASE_PUBLISHABLE_KEY });
+    const candidatos = [...new Set([vigente, anterior].filter(Boolean))];
+    const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, ejercicio: `in.(${candidatos.map(e => `"${e}"`).join(",")})`, apikey: SUPABASE_PUBLISHABLE_KEY });
     const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
     if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
-    const filas = await response.json();
-    if (filas.length) {
-      valor.textContent = `Presentada el ${formatFechaPantalla(filas[0].fecha_ingreso)} · Condición: ${filas[0].condicion || "—"}`;
-      boton.hidden = true;
-    } else {
-      valor.textContent = "Todavía no presentada";
-      boton.hidden = false;
-      boton.textContent = `Presentar Cartilla del período ${ejercicio}`;
-      boton.dataset.ejercicio = ejercicio;
+    const presentadas = await response.json();
+    const porEjercicio = new Map(presentadas.map(p => [p.ejercicio, p]));
+
+    const pendientes = candidatos.filter(e => !porEjercicio.has(e));
+    // El anterior (atrasado) primero si corresponde, después el vigente.
+    pendientes.sort((a, b) => (a === anterior ? -1 : b === anterior ? 1 : 0));
+
+    if (!pendientes.length) {
+      const p = porEjercicio.get(vigente);
+      panel.innerHTML = `<div class="deadline-card neutral">
+        <div><span>Cartilla del período ${escaparHtml(vigente)}</span><strong>Presentada el ${formatFechaPantalla(p.fecha_ingreso)} · Condición: ${escaparHtml(p.condicion || "—")}</strong></div>
+      </div>`;
+      return;
     }
+
+    panel.innerHTML = pendientes.map((ej, i) => `
+      <div class="deadline-card neutral" style="margin-bottom:10px">
+        <div>
+          <span>Cartilla del período ${escaparHtml(ej)}${ej === anterior ? " (atrasada)" : ""}</span>
+          <strong>Todavía no presentada</strong>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <label style="display:grid;gap:4px"><span style="font-size:11px;font-weight:800;color:var(--muted)">Período a presentar</span><input type="text" class="presentar-cartilla-periodo-input" data-idx="${i}" value="${escaparHtml(ej)}" style="max-width:140px"></label>
+          <button type="button" class="primary btn-presentar-cartilla" data-idx="${i}" style="height:38px">Presentar</button>
+        </div>
+      </div>`).join("");
+
+    panel.querySelectorAll(".btn-presentar-cartilla").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const input = panel.querySelector(`.presentar-cartilla-periodo-input[data-idx="${btn.dataset.idx}"]`);
+        presentarCartillaOs(os, input?.value.trim(), btn);
+      });
+    });
   } catch (error) {
-    valor.textContent = "No se pudo consultar el estado.";
+    panel.innerHTML = `<p class="notificaciones-hint">No se pudo consultar el estado de tu Cartilla.</p>`;
   }
 }
 
-async function presentarCartillaOs() {
-  const boton = document.getElementById("btn-presentar-cartilla");
-  const ejercicio = boton?.dataset.ejercicio;
-  const os = afiliadosObraSocialActual || prestadorObraSocialActual;
+async function presentarCartillaOs(os, ejercicio, boton) {
   if (!ejercicio || !os) return;
   if (!(await mostrarConfirmacion(`¿Presentar la Cartilla del período ${ejercicio}? Se va a guardar una foto de tu red de prestadores tal como está ahora mismo, y ya no vas a poder modificar esta presentación (sí podés seguir editando tu red para la próxima).`, { titulo: "Presentar Cartilla", textoAceptar: "Presentar" }))) return;
-  boton.disabled = true; boton.textContent = "Presentando...";
+  if (boton) { boton.disabled = true; boton.textContent = "Presentando..."; }
   try {
     const session = await asegurarSesionVigente();
     const anioInicio = anioInicioDesdeEjercicio(ejercicio);
@@ -7519,7 +7547,7 @@ async function presentarCartillaOs() {
     } catch (error) { console.error(error); }
   } catch (error) {
     mostrarToast(error.message || "No se pudo presentar la Cartilla.");
-    boton.disabled = false;
+    if (boton) boton.disabled = false;
   }
 }
 
@@ -8291,7 +8319,6 @@ async function initBrowser() {
   document.getElementById("prestadores-estado-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("btn-nuevo-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalPrestadorNuevo));
-  document.getElementById("btn-presentar-cartilla")?.addEventListener("click", () => requiereAutenticacion(presentarCartillaOs));
   document.getElementById("prestadores-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoPrestadoresOs));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
   document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
