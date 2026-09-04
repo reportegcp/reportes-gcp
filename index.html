@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=7e8352db">
+  <link rel="stylesheet" href="styles.css?v=8da87923">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -110,7 +110,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 7e8352db</span>
+        <span>Versión 8da87923</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -327,22 +327,21 @@
       </section>
 
       <section id="prestadores" class="view">
-        <div class="prestadores-header-compacto" id="prestadores-header-os" hidden>
-          <select id="prestadores-periodo-os" aria-label="Elegí qué período ver"></select>
-          <span id="presentar-cartilla-pill"></span>
+        <div class="prestadores-fila-superior">
+          <div class="prestadores-fila-superior-izq prestadores-fila-superior-col" id="prestadores-header-os" hidden>
+            <select id="prestadores-periodo-os" aria-label="Elegí qué período ver"></select>
+            <span id="presentar-cartilla-pill"></span>
+          </div>
+          <div class="prestadores-fila-superior-der" id="prestadores-acciones-editar">
+            <button class="secondary small" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
+            <button class="secondary small" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla histórica (Excel)</button>
+            <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
+            <button class="primary small" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
+          </div>
         </div>
         <p class="notificaciones-hint" id="prestadores-snapshot-aviso" hidden style="padding:8px 12px;background:#eef3f8;border-radius:8px;margin-bottom:10px"></p>
 
-        <div class="prestadores-header-compacto" id="prestadores-acciones-editar">
-          <span class="stat-pill-inline"><span>Presentados</span><strong id="prestadores-resumen-si">—</strong></span>
-          <span class="stat-pill-inline"><span>Sin presentar</span><strong id="prestadores-resumen-no">—</strong></span>
-          <button class="secondary small" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
-          <button class="secondary small" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla histórica (Excel)</button>
-          <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
-          <button class="primary small" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
-        </div>
-
-        <div class="toolbar prestadores-toolbar">
+        <div class="toolbar prestadores-toolbar" style="margin-bottom:8px">
           <details class="period-select exercise-multi-select" id="prestadores-ejercicio-select">
             <summary><span id="prestadores-ejercicio-summary">Ejercicio: elegí uno o más</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
             <div class="period-select-menu">
@@ -355,20 +354,29 @@
             <input id="prestadores-os-search" type="text" list="prestadores-os-list" placeholder="Elegí la Obra Social cuya red querés ver..." autocomplete="off" disabled>
             <datalist id="prestadores-os-list"></datalist>
           </div>
-          <div class="search-box">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="prestadores-search" type="search" placeholder="Buscar por nombre, CUIT o localidad..." autocomplete="off" disabled>
+        </div>
+
+        <div class="prestadores-fila-superior">
+          <div class="prestadores-fila-superior-izq">
+            <span class="stat-pill-inline"><span>Presentados</span><strong id="prestadores-resumen-si">—</strong></span>
+            <span class="stat-pill-inline"><span>Sin presentar</span><strong id="prestadores-resumen-no">—</strong></span>
           </div>
-          <select id="prestadores-estado-filter" aria-label="Filtrar por estado" disabled>
-            <option value="TODOS">Estado: Todos</option>
-            <option value="ACTIVO">Activos</option>
-            <option value="INACTIVO">De baja</option>
-          </select>
-          <select id="prestadores-contrato-filter" aria-label="Filtrar por contrato presentado" disabled>
-            <option value="TODOS">Contrato: Todos</option>
-            <option value="SI">Presentado</option>
-            <option value="NO">No presentado</option>
-          </select>
+          <div class="prestadores-fila-superior-der prestadores-filtros-chicos">
+            <div class="search-box">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="prestadores-search" type="search" placeholder="Buscar por nombre, CUIT o localidad..." autocomplete="off" disabled>
+            </div>
+            <select id="prestadores-estado-filter" aria-label="Filtrar por estado" disabled>
+              <option value="TODOS">Estado: Todos</option>
+              <option value="ACTIVO">Activos</option>
+              <option value="INACTIVO">De baja</option>
+            </select>
+            <select id="prestadores-contrato-filter" aria-label="Filtrar por contrato presentado" disabled>
+              <option value="TODOS">Contrato: Todos</option>
+              <option value="SI">Presentado</option>
+              <option value="NO">No presentado</option>
+            </select>
+          </div>
         </div>
 
         <div class="table-card">
@@ -1846,6 +1854,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=7e8352db"></script>
+  <script src="app.js?v=8da87923"></script>
 </body>
 </html>
