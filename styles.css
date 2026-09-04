@@ -1398,7 +1398,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .table-scroll{overflow-x:auto}
 .pma-table,.cartillas-table{width:100%;min-width:0;table-layout:fixed}
 .pma-table th,.pma-table td,.cartillas-table th,.cartillas-table td{white-space:normal;overflow-wrap:anywhere;word-break:normal;font-size:10.5px;padding:8px 7px;vertical-align:middle;line-height:1.2}
-.pma-table th:nth-child(1){width:6%}.pma-table th:nth-child(2){width:22%}.pma-table th:nth-child(3){width:6%}.pma-table th:nth-child(4){width:8%}.pma-table th:nth-child(5){width:8%}.pma-table th:nth-child(6){width:6%}.pma-table th:nth-child(7){width:6%}.pma-table th:nth-child(8){width:10%}.pma-table th:nth-child(9){width:16%}.pma-table th:nth-child(10){width:12%}
+.pma-table th:nth-child(1){width:8%}.pma-table th:nth-child(2){width:20%}.pma-table th:nth-child(3){width:6%}.pma-table th:nth-child(4){width:8%}.pma-table th:nth-child(5){width:8%}.pma-table th:nth-child(6){width:6%}.pma-table th:nth-child(7){width:6%}.pma-table th:nth-child(8){width:10%}.pma-table th:nth-child(9){width:16%}.pma-table th:nth-child(10){width:12%}
 .cartillas-table th:nth-child(1){width:6%}.cartillas-table th:nth-child(2){width:20%}.cartillas-table th:nth-child(3){width:6%}.cartillas-table th:nth-child(4){width:8%}.cartillas-table th:nth-child(5){width:8%}.cartillas-table th:nth-child(6){width:6%}.cartillas-table th:nth-child(7){width:6%}.cartillas-table th:nth-child(8){width:10%}.cartillas-table th:nth-child(9){width:16%}.cartillas-table th:nth-child(10){width:14%}
 .pma-table .denominacion-cell,.cartillas-table .denominacion-cell{max-width:none;overflow:visible;text-overflow:clip}
 .pma-table td.date-cell,.cartillas-table td.date-cell{min-width:0;white-space:nowrap}
@@ -1575,6 +1575,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 
 .pma-table th,.cartillas-table th{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important;font-size:11px;padding-top:10px;padding-bottom:10px}
 .pma-table td,.cartillas-table td{font-size:10.5px}
+.pma-table th:nth-child(1),.pma-table td:nth-child(1){white-space:nowrap}
 .pma-table th:nth-child(3),.pma-table td:nth-child(3){width:92px;white-space:nowrap}
 .pma-table th:nth-child(4),.pma-table td:nth-child(4){width:110px;white-space:nowrap}
 .pma-table th:nth-child(5),.pma-table td:nth-child(5){width:118px;white-space:nowrap}
