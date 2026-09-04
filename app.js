@@ -258,6 +258,7 @@ function perfilPuedeVerVista(perfil, vista) {
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "cartilla os") return ["prestadores", "afiliados"].includes(id);
   return false;
 }
@@ -266,6 +267,7 @@ function primeraVistaPermitida(perfil) {
   const p = normalizarPerfilAcceso(perfil);
   if (p === "admin presentaciones") return "obras-sociales";
   if (p === "carga presentaciones") return "pma";
+  if (p === "administrativo") return "obras-sociales";
   if (p === "cartilla os") return "prestadores";
   return "inicio";
 }
@@ -302,20 +304,21 @@ function aplicarPermisosNavegacion() {
   const esAdminPrestacional = ["admin prestacional", "administrador", "admin"].includes(p);
   const esAdminPresentaciones = p === "admin presentaciones";
   const esCargaPresentaciones = p === "carga presentaciones";
+  const esAdministrativo = p === "administrativo";
   const esAdministrador = ["administrador", "admin"].includes(p);
   const esAdminPreexistencias = p === "admin preexistencias";
   const esCartillaOs = p === "cartilla os";
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
-  document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   const labelAnalisisCartilla = document.getElementById("analisis-cartilla-label");
   if (labelAnalisisCartilla) labelAnalisisCartilla.textContent = esCartillaOs ? "Presentación de Cartilla" : "Análisis de Cartilla";
-  document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
-  document.querySelector('[data-nav-access="normativa"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones));
+  document.querySelector('[data-nav-access="presentaciones"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones || esAdministrativo));
+  document.querySelector('[data-nav-access="normativa"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
