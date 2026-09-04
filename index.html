@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=0d795729">
+  <link rel="stylesheet" href="styles.css?v=5993735b">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -110,7 +110,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 0d795729</span>
+        <span>Versión 5993735b</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -272,7 +272,13 @@
 
       <section id="afiliados" class="view">
         <div class="toolbar prestadores-toolbar">
-          <select id="afiliados-ejercicio" aria-label="Elegí el ejercicio"><option value="">Ejercicio: elegí uno primero</option></select>
+          <details class="period-select exercise-multi-select" id="afiliados-ejercicio-select">
+            <summary><span id="afiliados-ejercicio-summary">Ejercicio: elegí uno o más</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="afiliados-ejercicio-all">Todos</button><button type="button" id="afiliados-ejercicio-clear">Limpiar</button></div>
+              <div class="period-options" id="afiliados-ejercicio-options"></div>
+            </div>
+          </details>
           <div class="search-box transaction-agent-search">
             <span class="search-icon" aria-hidden="true">⌕</span>
             <input id="afiliados-os-search" type="text" list="afiliados-os-list" placeholder="Elegí la Obra Social..." autocomplete="off" disabled>
@@ -347,7 +353,13 @@
         </div>
 
         <div class="toolbar prestadores-toolbar">
-          <select id="prestadores-ejercicio" aria-label="Elegí el ejercicio"><option value="">Ejercicio: elegí uno primero</option></select>
+          <details class="period-select exercise-multi-select" id="prestadores-ejercicio-select">
+            <summary><span id="prestadores-ejercicio-summary">Ejercicio: elegí uno o más</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="prestadores-ejercicio-all">Todos</button><button type="button" id="prestadores-ejercicio-clear">Limpiar</button></div>
+              <div class="period-options" id="prestadores-ejercicio-options"></div>
+            </div>
+          </details>
           <div class="search-box transaction-agent-search">
             <span class="search-icon" aria-hidden="true">⌕</span>
             <input id="prestadores-os-search" type="text" list="prestadores-os-list" placeholder="Elegí la Obra Social cuya red querés ver..." autocomplete="off" disabled>
@@ -397,7 +409,13 @@
           <button class="secondary" id="btn-configurar-basicas" type="button">Configurar especialidades básicas</button>
         </div>
         <div class="toolbar prestadores-toolbar">
-          <select id="cobertura-ejercicio" aria-label="Elegí el ejercicio"><option value="">Ejercicio: elegí uno primero</option></select>
+          <details class="period-select exercise-multi-select" id="cobertura-ejercicio-select">
+            <summary><span id="cobertura-ejercicio-summary">Ejercicio: elegí uno o más</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="cobertura-ejercicio-all">Todos</button><button type="button" id="cobertura-ejercicio-clear">Limpiar</button></div>
+              <div class="period-options" id="cobertura-ejercicio-options"></div>
+            </div>
+          </details>
           <div class="search-box transaction-agent-search">
             <span class="search-icon" aria-hidden="true">⌕</span>
             <input id="cobertura-os-search" type="text" list="cobertura-os-list" placeholder="Elegí la Obra Social..." autocomplete="off" disabled>
@@ -1828,6 +1846,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=0d795729"></script>
+  <script src="app.js?v=5993735b"></script>
 </body>
 </html>

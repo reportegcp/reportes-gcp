@@ -6904,8 +6904,10 @@ async function cargarEjerciciosCartilla() {
   return ejerciciosCartillaCache;
 }
 
-async function obtenerObraSocialIdsConCartillaPresentada(ejercicio) {
-  const params = new URLSearchParams({ select: "obra_social_id", ejercicio: `eq.${ejercicio}`, fecha_ingreso: "not.is.null", apikey: SUPABASE_PUBLISHABLE_KEY });
+async function obtenerObraSocialIdsConCartillaPresentada(ejercicios) {
+  const lista = (Array.isArray(ejercicios) ? ejercicios : [ejercicios]).filter(Boolean);
+  if (!lista.length) return new Set();
+  const params = new URLSearchParams({ select: "obra_social_id", ejercicio: `in.(${lista.map(e => `"${e}"`).join(",")})`, fecha_ingreso: "not.is.null", apikey: SUPABASE_PUBLISHABLE_KEY });
   const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
   if (!response.ok) return new Set();
   const filas = await response.json();
@@ -6916,26 +6918,26 @@ async function inicializarVistaCobertura() {
   if (typeof document === "undefined") return;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
-  const selectEjercicio = document.getElementById("cobertura-ejercicio");
   const ejercicios = await cargarEjerciciosCartilla();
-  if (selectEjercicio) selectEjercicio.innerHTML = `<option value="">Ejercicio: elegí uno primero</option>` + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
+  poblarSelectorMultipleEjercicios("cobertura", ejercicios, () => requiereAutenticacion(handleCambioEjercicioCobertura));
 }
 
 async function handleCambioEjercicioCobertura() {
-  const ejercicio = document.getElementById("cobertura-ejercicio")?.value || "";
+  const seleccionados = ejerciciosFiltroSeleccionados("cobertura");
   const osInput = document.getElementById("cobertura-os-search");
   const list = document.getElementById("cobertura-os-list");
-  if (osInput) { osInput.value = ""; osInput.disabled = !ejercicio; }
+  if (osInput) { osInput.value = ""; osInput.disabled = !seleccionados.length; }
   await handleSeleccionObraSocialCobertura();
-  if (!ejercicio) { if (list) list.innerHTML = ""; return; }
-  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(ejercicio);
+  if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
+  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
   if (list) list.innerHTML = obrasSociales
     .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+  const etiqueta = seleccionados.join(" / ");
   if (osInput) osInput.placeholder = idsPresentaron.size
-    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${ejercicio}...`
-    : `Ninguna Obra Social presentó Cartilla para ${ejercicio} todavía`;
+    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${etiqueta}...`
+    : `Ninguna Obra Social presentó Cartilla para ${etiqueta} todavía`;
 }
 
 async function handleSeleccionObraSocialCobertura() {
@@ -7051,7 +7053,7 @@ async function inicializarVistaAfiliados() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
   const picker = document.getElementById("afiliados-os-search")?.closest(".search-box");
-  const selectEjercicio = document.getElementById("afiliados-ejercicio");
+  const selectEjercicio = document.getElementById("afiliados-ejercicio-select");
   try { await cargarLocalidadesAr(); poblarSelectProvinciaAfiliados(); } catch (error) { console.error(error); }
 
   if (esCartillaOs) {
@@ -7080,24 +7082,24 @@ async function inicializarVistaAfiliados() {
   document.getElementById("afiliados-solo-lectura-aviso").hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   const ejercicios = await cargarEjerciciosCartilla();
-  if (selectEjercicio) selectEjercicio.innerHTML = `<option value="">Ejercicio: elegí uno primero</option>` + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
+  poblarSelectorMultipleEjercicios("afiliados", ejercicios, () => requiereAutenticacion(handleCambioEjercicioAfiliados));
 }
 
 async function handleCambioEjercicioAfiliados() {
-  const ejercicio = document.getElementById("afiliados-ejercicio")?.value || "";
+  const seleccionados = ejerciciosFiltroSeleccionados("afiliados");
   const osInput = document.getElementById("afiliados-os-search");
   const list = document.getElementById("afiliados-os-list");
-  if (osInput) { osInput.value = ""; osInput.disabled = !ejercicio; }
+  if (osInput) { osInput.value = ""; osInput.disabled = !seleccionados.length; }
   await handleSeleccionObraSocialAfiliados();
-  if (!ejercicio) { if (list) list.innerHTML = ""; return; }
-  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(ejercicio);
+  if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
+  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
   if (list) list.innerHTML = obrasSociales
     .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
   if (osInput) osInput.placeholder = idsPresentaron.size
-    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${ejercicio}...`
-    : `Ninguna Obra Social presentó Cartilla para ${ejercicio} todavía`;
+    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${seleccionados.join(" / ")}...`
+    : `Ninguna Obra Social presentó Cartilla para ${seleccionados.join(" / ")} todavía`;
 }
 
 // ---------- Configurar especialidades básicas obligatorias ----------
@@ -7465,7 +7467,7 @@ async function inicializarVistaPrestadores() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
   const picker = document.getElementById("prestadores-os-search")?.closest(".search-box");
-  const selectEjercicio = document.getElementById("prestadores-ejercicio");
+  const selectEjercicio = document.getElementById("prestadores-ejercicio-select");
 
   if (!tiposContratacionCache.length) {
     try { tiposContratacionCache = await cargarTiposContratacion(); } catch (error) { console.error(error); }
@@ -7514,27 +7516,27 @@ async function inicializarVistaPrestadores() {
   if (selectEjercicio) selectEjercicio.hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   const ejercicios = await cargarEjerciciosCartilla();
-  if (selectEjercicio) selectEjercicio.innerHTML = `<option value="">Ejercicio: elegí uno primero</option>` + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
+  poblarSelectorMultipleEjercicios("prestadores", ejercicios, () => requiereAutenticacion(handleCambioEjercicioPrestadores));
   llenarDatalistsPrestador();
   const btnImportar = document.getElementById("btn-importar-cartilla");
   if (btnImportar) btnImportar.hidden = false;
 }
 
 async function handleCambioEjercicioPrestadores() {
-  const ejercicio = document.getElementById("prestadores-ejercicio")?.value || "";
+  const seleccionados = ejerciciosFiltroSeleccionados("prestadores");
   const osInput = document.getElementById("prestadores-os-search");
   const list = document.getElementById("prestadores-os-list");
-  if (osInput) { osInput.value = ""; osInput.disabled = !ejercicio; }
+  if (osInput) { osInput.value = ""; osInput.disabled = !seleccionados.length; }
   await handleSeleccionObraSocialPrestadores();
-  if (!ejercicio) { if (list) list.innerHTML = ""; return; }
-  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(ejercicio);
+  if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
+  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
   if (list) list.innerHTML = obrasSociales
     .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
   if (osInput) osInput.placeholder = idsPresentaron.size
-    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${ejercicio}...`
-    : `Ninguna Obra Social presentó Cartilla para ${ejercicio} todavía`;
+    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${seleccionados.join(" / ")}...`
+    : `Ninguna Obra Social presentó Cartilla para ${seleccionados.join(" / ")} todavía`;
 }
 
 function actualizarControlesPrestadores(habilitado) {
@@ -8211,12 +8213,9 @@ async function initBrowser() {
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
   document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
-  document.getElementById("prestadores-ejercicio")?.addEventListener("change", () => requiereAutenticacion(handleCambioEjercicioPrestadores));
   document.getElementById("cobertura-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialCobertura));
-  document.getElementById("cobertura-ejercicio")?.addEventListener("change", () => requiereAutenticacion(handleCambioEjercicioCobertura));
   document.getElementById("btn-configurar-basicas")?.addEventListener("click", () => requiereAutenticacion(abrirModalBasicas));
   document.getElementById("afiliados-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
-  document.getElementById("afiliados-ejercicio")?.addEventListener("change", () => requiereAutenticacion(handleCambioEjercicioAfiliados));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
   document.getElementById("afiliados-buscar")?.addEventListener("input", renderAfiliadosTabla);
