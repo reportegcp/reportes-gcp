@@ -1294,6 +1294,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .stat-pill-inline.pendiente{background:#fdf0e4;color:#a85d13}
 .stat-pill-inline.pendiente input{width:66px;padding:2px 6px;font-size:11px;height:auto}
 .stat-pill-inline.pendiente button{padding:3px 10px;font-size:11px;height:auto;border-radius:999px}
+.afiliados-compacto input,.afiliados-compacto select{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}
+#afiliados-buscar{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}
 .exercise-multi-select{min-width:0}
 .exercise-multi-select > summary{height:42px;background:#fff}
 .pma-toolbar{grid-template-columns:minmax(280px,1.45fr) minmax(185px,.75fr) minmax(170px,.7fr) minmax(180px,.75fr)}
