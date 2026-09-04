@@ -680,10 +680,9 @@
       </section>
 
       <section id="criticidad" class="view">
-        <div class="toolbar" style="align-items:flex-end;gap:10px;grid-template-columns:none;display:flex;flex-wrap:wrap">
-          <label><span style="display:block;font-size:12px;font-weight:800;color:#4d5d70;margin-bottom:6px">Año del ciclo (el 1º trimestre arranca el 1º de diciembre del año anterior)</span>
-            <input id="criticidad-anio" type="number" min="2020" max="2100" style="width:100px;height:34px;padding:5px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:9px">
-          </label>
+        <p style="font-size:12px;font-weight:800;color:#4d5d70;margin:0 0 6px">Año del ciclo (el 1º trimestre arranca el 1º de diciembre del año anterior)</p>
+        <div class="toolbar" style="align-items:center;gap:10px;grid-template-columns:none;display:flex;flex-wrap:wrap">
+          <input id="criticidad-anio" type="number" min="2020" max="2100" style="width:100px;height:34px;padding:5px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:9px">
           <button class="primary small" id="criticidad-generar" type="button">Generar</button>
           <button class="secondary small" id="criticidad-exportar-t1" type="button" hidden title="Descargar Trimestre 1">⬇ T1</button>
           <button class="secondary small" id="criticidad-exportar-t2" type="button" hidden title="Descargar Trimestre 2">⬇ T2</button>
