@@ -1398,7 +1398,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .table-scroll{overflow-x:auto}
 .pma-table,.cartillas-table{width:100%;min-width:0;table-layout:fixed}
 .pma-table th,.pma-table td,.cartillas-table th,.cartillas-table td{white-space:normal;overflow-wrap:anywhere;word-break:normal;font-size:10.5px;padding:8px 7px;vertical-align:middle;line-height:1.2}
-.pma-table th:nth-child(1){width:7%}.pma-table th:nth-child(2){width:25%}.pma-table th:nth-child(3){width:7%}.pma-table th:nth-child(4){width:9%}.pma-table th:nth-child(5){width:9%}.pma-table th:nth-child(6){width:7%}.pma-table th:nth-child(7){width:10%}.pma-table th:nth-child(8){width:15%}.pma-table th:nth-child(9){width:11%}
+.pma-table th:nth-child(1){width:6%}.pma-table th:nth-child(2){width:22%}.pma-table th:nth-child(3){width:6%}.pma-table th:nth-child(4){width:8%}.pma-table th:nth-child(5){width:8%}.pma-table th:nth-child(6){width:6%}.pma-table th:nth-child(7){width:6%}.pma-table th:nth-child(8){width:10%}.pma-table th:nth-child(9){width:16%}.pma-table th:nth-child(10){width:12%}
 .cartillas-table th:nth-child(1){width:6%}.cartillas-table th:nth-child(2){width:20%}.cartillas-table th:nth-child(3){width:6%}.cartillas-table th:nth-child(4){width:8%}.cartillas-table th:nth-child(5){width:8%}.cartillas-table th:nth-child(6){width:6%}.cartillas-table th:nth-child(7){width:6%}.cartillas-table th:nth-child(8){width:10%}.cartillas-table th:nth-child(9){width:16%}.cartillas-table th:nth-child(10){width:14%}
 .pma-table .denominacion-cell,.cartillas-table .denominacion-cell{max-width:none;overflow:visible;text-overflow:clip}
 .pma-table td.date-cell,.cartillas-table td.date-cell{min-width:0;white-space:nowrap}
@@ -1466,7 +1466,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .deadline-icon.neutral{background:#eef2f6;color:#667789}
 .pma-table .deadline-cell,.cartillas-table .deadline-cell{text-align:center}
 .pma-table th,.pma-table td,.cartillas-table th,.cartillas-table td{vertical-align:middle}
-.pma-table td:nth-child(8),.pma-table td:nth-child(9){
+.pma-table td:nth-child(9),.pma-table td:nth-child(10){
   overflow-wrap:anywhere;word-break:break-word;
 }
 .cartillas-table td:nth-child(9),.cartillas-table td:nth-child(10){
@@ -1480,7 +1480,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .pma-table{height:auto!important}
 .pma-table tbody{height:auto!important;vertical-align:top}
 .pma-table tr{height:auto!important}
-.pma-table td:nth-child(8),.pma-table td:nth-child(9){overflow-wrap:break-word;word-break:normal}
+.pma-table td:nth-child(9),.pma-table td:nth-child(10){overflow-wrap:break-word;word-break:normal}
 
 
 /* V35: salto directo de página, plazo en una línea y versión visible consistente */
@@ -1579,7 +1579,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .pma-table th:nth-child(4),.pma-table td:nth-child(4){width:110px;white-space:nowrap}
 .pma-table th:nth-child(5),.pma-table td:nth-child(5){width:118px;white-space:nowrap}
 .pma-table th:nth-child(6),.pma-table td:nth-child(6){width:88px;text-align:center;white-space:nowrap}
-.pma-table th:nth-child(7),.pma-table td:nth-child(7){width:120px;white-space:nowrap}
+.pma-table th:nth-child(7),.pma-table td:nth-child(7){width:50px;text-align:center;white-space:nowrap}
+.pma-table th:nth-child(8),.pma-table td:nth-child(8){width:120px;white-space:nowrap}
 .cartillas-table th:nth-child(3),.cartillas-table td:nth-child(3){width:92px;white-space:nowrap}
 .cartillas-table th:nth-child(4),.cartillas-table td:nth-child(4){width:110px;white-space:nowrap}
 .cartillas-table th:nth-child(5),.cartillas-table td:nth-child(5){width:118px;white-space:nowrap}
@@ -1587,7 +1588,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .cartillas-table th:nth-child(7),.cartillas-table td:nth-child(7){width:50px;text-align:center;white-space:nowrap}
 .cartillas-table th:nth-child(8),.cartillas-table td:nth-child(8){width:120px;white-space:nowrap}
 .pma-table .denominacion-cell,.cartillas-table .denominacion-cell{line-height:1.25}
-.pma-table td:nth-child(8),.pma-table td:nth-child(9){font-size:10px;line-height:1.2}
+.pma-table td:nth-child(9),.pma-table td:nth-child(10){font-size:10px;line-height:1.2}
 .cartillas-table td:nth-child(9),.cartillas-table td:nth-child(10){font-size:10px;line-height:1.2}
 
 @media(max-width:1180px){
