@@ -908,6 +908,51 @@ async function authUpdatePassword(accessToken, password, fetchImpl = fetch) {
   return response.json();
 }
 
+// Se muestra un modal bloqueante cuando el usuario fue creado con
+// user_metadata.debe_cambiar_password = true (primer ingreso).
+function verificarCambioPasswordObligatorio() {
+  const debeCambiar = Boolean(authSession?.user?.user_metadata?.debe_cambiar_password);
+  const modal = document.getElementById("cambiar-password-modal");
+  if (!modal) return;
+  if (debeCambiar) {
+    const nueva = document.getElementById("cambiar-password-nueva");
+    const repetir = document.getElementById("cambiar-password-repetir");
+    if (nueva) nueva.value = "";
+    if (repetir) repetir.value = "";
+    setFormMessage("cambiar-password-message", "");
+    abrirModal("cambiar-password-modal");
+  } else if (!modal.hidden) {
+    cerrarModal("cambiar-password-modal");
+  }
+}
+
+async function confirmarCambioPasswordObligatorio() {
+  const nueva = document.getElementById("cambiar-password-nueva")?.value || "";
+  const repetir = document.getElementById("cambiar-password-repetir")?.value || "";
+  if (nueva.length < 8) { setFormMessage("cambiar-password-message", "La contraseña tiene que tener al menos 8 caracteres."); return; }
+  if (nueva !== repetir) { setFormMessage("cambiar-password-message", "Las dos contraseñas no coinciden."); return; }
+  const boton = document.getElementById("cambiar-password-confirmar");
+  boton.disabled = true; boton.textContent = "Guardando...";
+  setFormMessage("cambiar-password-message", "");
+  try {
+    const metadataActual = authSession?.user?.user_metadata || {};
+    const response = await fetchConTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+      method: "PUT",
+      headers: authHeaders(authSession.access_token),
+      body: JSON.stringify({ password: nueva, data: { ...metadataActual, debe_cambiar_password: false } })
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || "No se pudo actualizar la contraseña.");
+    const usuarioActualizado = await response.json();
+    if (authSession?.user) authSession.user.user_metadata = usuarioActualizado.user_metadata || { ...metadataActual, debe_cambiar_password: false };
+    cerrarModal("cambiar-password-modal");
+    mostrarToast("Contraseña actualizada.");
+  } catch (error) {
+    setFormMessage("cambiar-password-message", error.message || "No se pudo actualizar la contraseña.");
+  } finally {
+    boton.disabled = false; boton.textContent = "Guardar y continuar";
+  }
+}
+
 function decodeJwtPayload(token) {
   try {
     const part = String(token || "").split(".")[1];
@@ -4355,6 +4400,7 @@ function actualizarAuthUI() {
     const esCartillaOsIdentidad = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
     if (nombre) nombre.textContent = esCartillaOsIdentidad ? "" : identidad.nombre;
     if (perfil) perfil.textContent = identidad.perfil;
+    verificarCambioPasswordObligatorio();
   } else {
     if (nombre) nombre.textContent = "";
     if (perfil) perfil.textContent = "";
@@ -8580,6 +8626,8 @@ async function initBrowser() {
 
   document.getElementById("login-form")?.addEventListener("submit", handleLoginSubmit);
   document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
+  document.getElementById("cambiar-password-confirmar")?.addEventListener("click", confirmarCambioPasswordObligatorio);
+  document.getElementById("cambiar-password-repetir")?.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); confirmarCambioPasswordObligatorio(); } });
   document.getElementById("btn-forgot-password")?.addEventListener("click", () => {
     const email = document.getElementById("auth-user")?.value.trim() || "";
     document.getElementById("forgot-email").value = email;

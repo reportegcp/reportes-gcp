@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=6c1eb8b9">
+  <link rel="stylesheet" href="styles.css?v=be221ab3">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -110,7 +110,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 6c1eb8b9</span>
+        <span>Versión be221ab3</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -501,6 +501,24 @@
               <button type="submit" class="primary" id="prestador-save">Guardar</button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div class="modal-backdrop" id="cambiar-password-modal" hidden>
+        <div class="modal" style="max-width:440px" role="dialog" aria-modal="true" aria-labelledby="cambiar-password-title">
+          <div class="modal-header">
+            <div>
+              <span class="eyebrow">SEGURIDAD</span>
+              <h2 id="cambiar-password-title">Cambiá tu contraseña</h2>
+            </div>
+          </div>
+          <p class="notificaciones-hint">Por seguridad, antes de seguir tenés que elegir una contraseña nueva.</p>
+          <label><span>Contraseña nueva</span><input id="cambiar-password-nueva" type="password" autocomplete="new-password" minlength="8"></label>
+          <label style="margin-top:10px"><span>Repetir contraseña</span><input id="cambiar-password-repetir" type="password" autocomplete="new-password" minlength="8"></label>
+          <div class="form-message" id="cambiar-password-message" hidden></div>
+          <div class="modal-actions">
+            <button type="button" class="primary" id="cambiar-password-confirmar">Guardar y continuar</button>
+          </div>
         </div>
       </div>
 
@@ -1866,6 +1884,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=6c1eb8b9"></script>
+  <script src="app.js?v=be221ab3"></script>
 </body>
 </html>
