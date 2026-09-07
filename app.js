@@ -8012,30 +8012,99 @@ async function handleEliminarAnexoIAdjunto(adjuntoId) {
 }
 
 // El texto de cada seccion viene extraido del PDF con un salto de linea por cada renglon
-// impreso (no por párrafo), así que hay que reunir esos renglones en párrafos reales antes
-// de mostrarlo — si no, el navegador respeta cada salto y el texto queda angosto y sin poder
-// justificarse. Un renglón que arranca con viñeta/letra/número + ")" o "." se trata como el
-// inicio de un ítem nuevo; el resto se concatena al párrafo en curso.
+// impreso (no por párrafo), y además el documento original tenía viñetas, sub-viñetas e
+// ítems con letra (a), b), c)...) que hay que reconstruir como listas reales — si no, el
+// navegador respeta cada salto y el texto queda angosto, sin poder justificarse y "pegado"
+// como si fuera un solo bloque plano. Reglas de reconocimiento por renglón:
+//   "•texto"        -> viñeta de primer nivel
+//   "otexto" (con "o" pegado a una mayúscula) -> sub-viñeta anidada bajo la última viñeta
+//   "a)texto"        -> ítem de lista con letra (a, b, c...)
+//   "9.3.1. texto"   -> encabezado numerado (se resalta el número en negrita)
+//   cualquier otro renglón se concatena al párrafo en curso, como antes.
 function formatearTextoAnexoI(texto) {
   if (!texto) return "";
   const lineas = String(texto).split("\n");
-  const esInicioDeItem = linea => /^[•\-–]|^\d+[.)]|^[a-zA-Z][.)]/.test(linea);
-  const parrafos = [];
-  let actual = "";
+  const RE_VINETA = /^[•\-–]\s*(.+)/;
+  const RE_SUBVINETA = /^o([A-ZÁÉÍÓÚÑ].*)/;
+  const RE_LETRA = /^([a-záéíóúñ])\)\s*(.+)/;
+  const RE_NUM_MULTI = /^(\d+(?:\.\d+)+\.)\s*(.+)/;
+
+  const bloques = [];
+  let parrafoActual = "";
+  let listaActual = null;
+
+  const cerrarParrafo = () => {
+    if (parrafoActual) { bloques.push({ tipo: "p", texto: parrafoActual }); parrafoActual = ""; }
+  };
+  const cerrarLista = () => {
+    if (listaActual && listaActual.items.length) bloques.push(listaActual);
+    listaActual = null;
+  };
+
   lineas.forEach(linea => {
     const l = linea.trim();
-    if (!l) { if (actual) { parrafos.push(actual); actual = ""; } return; }
-    if (actual && esInicioDeItem(l)) { parrafos.push(actual); actual = l; }
-    else { actual = actual ? `${actual} ${l}` : l; }
+    if (!l) { cerrarParrafo(); cerrarLista(); return; }
+
+    let m;
+    if ((m = l.match(RE_VINETA))) {
+      cerrarParrafo();
+      if (!listaActual || listaActual.tipo !== "vinetas") { cerrarLista(); listaActual = { tipo: "vinetas", items: [] }; }
+      listaActual.items.push({ texto: m[1], sub: [] });
+      return;
+    }
+    if ((m = l.match(RE_SUBVINETA))) {
+      cerrarParrafo();
+      if (!listaActual || listaActual.tipo !== "vinetas" || !listaActual.items.length) { cerrarLista(); listaActual = { tipo: "vinetas", items: [{ texto: "", sub: [] }] }; }
+      listaActual.items[listaActual.items.length - 1].sub.push(m[1]);
+      return;
+    }
+    if ((m = l.match(RE_LETRA))) {
+      cerrarParrafo();
+      if (!listaActual || listaActual.tipo !== "letras") { cerrarLista(); listaActual = { tipo: "letras", items: [] }; }
+      listaActual.items.push({ texto: m[2], sub: [] });
+      return;
+    }
+    if ((m = l.match(RE_NUM_MULTI))) {
+      cerrarParrafo();
+      cerrarLista();
+      bloques.push({ tipo: "p-num", numero: m[1], texto: m[2] });
+      return;
+    }
+    // Renglón de continuación: sigue el párrafo o el ítem de lista abierto (bullets con
+    // varios renglones impresos, como "•Estimulación temprana: ... del\nMinisterio de Salud...").
+    if (listaActual && listaActual.items.length) {
+      const ultimo = listaActual.items[listaActual.items.length - 1];
+      if (ultimo.sub.length) ultimo.sub[ultimo.sub.length - 1] = `${ultimo.sub[ultimo.sub.length - 1]} ${l}`;
+      else ultimo.texto = `${ultimo.texto} ${l}`;
+    } else {
+      parrafoActual = parrafoActual ? `${parrafoActual} ${l}` : l;
+    }
   });
-  if (actual) parrafos.push(actual);
-  return parrafos.map(p => `<p>${escaparHtml(p)}</p>`).join("");
+  cerrarParrafo();
+  cerrarLista();
+
+  const renderItems = items => items.map(it => `<li>${escaparHtml(it.texto)}${it.sub.length ? `<ul>${it.sub.map(s => `<li>${escaparHtml(s)}</li>`).join("")}</ul>` : ""}</li>`).join("");
+
+  return bloques.map(b => {
+    if (b.tipo === "p") return `<p>${escaparHtml(b.texto)}</p>`;
+    if (b.tipo === "p-num") return `<p><strong>${escaparHtml(b.numero)}</strong> ${escaparHtml(b.texto)}</p>`;
+    if (b.tipo === "vinetas") return `<ul>${renderItems(b.items)}</ul>`;
+    if (b.tipo === "letras") return `<ol class="anexo-i-lista-alfa">${renderItems(b.items)}</ol>`;
+    return "";
+  }).join("");
 }
 
 function opcionesPorcentajeAnexoI(seleccionado) {
   const sel = Number.isFinite(seleccionado) && seleccionado >= 40 && seleccionado <= 100 ? seleccionado : 40;
   let html = "";
   for (let n = 40; n <= 100; n++) html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}%</option>`;
+  return html;
+}
+
+function opcionesSesionesAnexoI(seleccionado) {
+  const sel = Number.isFinite(seleccionado) && seleccionado >= 1 && seleccionado <= 100 ? seleccionado : 30;
+  let html = "";
+  for (let n = 1; n <= 100; n++) html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}</option>`;
   return html;
 }
 
@@ -8051,9 +8120,13 @@ function renderAnexoISecciones() {
       const valorGuardado = valores[clave] || "";
       if (cv.tipo === "porcentaje") {
         const seleccionado = parseInt(valorGuardado, 10);
-        return `<label><span>${escaparHtml(cv.label)}</span><select data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="porcentaje" ${soloLectura ? "disabled" : ""}>${opcionesPorcentajeAnexoI(seleccionado)}</select></label>`;
+        return `<label class="anexo-i-campo-compacto"><span>${escaparHtml(cv.label)}</span><select data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="porcentaje" ${soloLectura ? "disabled" : ""}>${opcionesPorcentajeAnexoI(seleccionado)}</select></label>`;
       }
-      return `<label><span>${escaparHtml(cv.label)}</span><input type="text" data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="numero" value="${escaparHtml(valorGuardado)}" ${soloLectura ? "disabled" : ""}></label>`;
+      if (cv.tipo === "sesiones") {
+        const seleccionado = parseInt(valorGuardado, 10);
+        return `<label class="anexo-i-campo-compacto"><span>${escaparHtml(cv.label)}</span><select data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="sesiones" ${soloLectura ? "disabled" : ""}>${opcionesSesionesAnexoI(seleccionado)}</select></label>`;
+      }
+      return `<label class="anexo-i-campo-full"><span>${escaparHtml(cv.label)}</span><input type="text" data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="numero" value="${escaparHtml(valorGuardado)}" ${soloLectura ? "disabled" : ""}></label>`;
     }).join("")}</div>` : "";
     const aclaracionHtml = sec.tiene_aclaracion ? `<div class="anexo-i-aclaracion">
       <span>Aclaraciones (opcional)</span>
@@ -8110,8 +8183,11 @@ function bindAnexoIRteToolbars() {
 function recolectarValoresAnexoI() {
   const valores = {};
   document.querySelectorAll("#anexo-i-secciones [data-campo-valor]").forEach(el => {
-    const esPorcentaje = el.dataset.tipoValor === "porcentaje";
-    const v = esPorcentaje ? (el.value ? `${el.value}%` : "") : (el.value || "").trim();
+    const tipo = el.dataset.tipoValor;
+    let v;
+    if (tipo === "porcentaje") v = el.value ? `${el.value}%` : "";
+    else if (tipo === "sesiones") v = el.value || "";
+    else v = (el.value || "").trim();
     if (v) valores[el.dataset.campoValor] = v;
   });
   return valores;
