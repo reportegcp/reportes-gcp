@@ -1721,4 +1721,6 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-i-admin-col .anexo-i-texto{padding:0}
 .anexo-i-admin-titulo-input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;font-weight:700;box-sizing:border-box;width:100%}
 .anexo-i-admin-texto-rte{min-height:120px}
+.anexo-i-admin-codigo{color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+.anexo-i-admin-seccion-unica{grid-template-columns:1fr}
 @media(max-width:900px){.anexo-i-admin-seccion,.anexo-i-admin-columnas{grid-template-columns:1fr}}

@@ -31,7 +31,7 @@ const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
-  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Actualización</strong><ul><li>La columna izquierda muestra la versión vigente, de solo lectura: es la que están usando las Obras Sociales para presentar ahora y no se puede tocar.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión.</li><li>“Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
+  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Actualización</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>“Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
@@ -8331,6 +8331,7 @@ async function inicializarVistaAnexoI() {
 let anexoIAdminTodasSecciones = [];
 let anexoIAdminVersionVigente = null;
 let anexoIAdminVersionFutura = null;
+let anexoIAdminVigenteBloqueada = true; // false solo cuando confirmamos que ninguna OS presentó todavía con este texto
 let anexoIAdminCambiosPendientes = new Map(); // id de sección -> { titulo?, texto? }
 
 async function cargarPmaSeccionesTodas() {
@@ -8338,6 +8339,19 @@ async function cargarPmaSeccionesTodas() {
   const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/pma_secciones?${params.toString()}`, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
   if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
   return await response.json();
+}
+
+// La versión vigente solo puede editarse mientras NINGUNA declaración haya sido presentada
+// todavía con ese texto (pma_secciones_version). En cuanto la primera OS presenta, el texto
+// vigente queda protegido para siempre y cualquier corrección nueva debe ir a una próxima
+// versión — así nunca se rompe la congelación de lo ya presentado.
+async function versionTieneDeclaracionesPresentadas(version, accessToken) {
+  if (!version) return false;
+  const params = new URLSearchParams({ select: "id", estado: "eq.presentada", pma_secciones_version: `eq.${version}`, limit: "1" });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/pma_declaraciones?${params.toString()}`, { method: "GET", headers: authHeaders(accessToken), cache: "no-store" }, 10000);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  return Array.isArray(filas) && filas.length > 0;
 }
 
 function calcularVersionesAnexoIAdmin() {
@@ -8352,15 +8366,16 @@ function renderAnexoIAdminEncabezado() {
   const vigenteLabel = anexoIAdminVersionVigente
     ? `${escaparHtml(anexoIAdminVersionVigente.version)}${Number.isFinite(anexoIAdminVersionVigente.anioInicioDesde) ? ` (desde ejercicio ${anexoIAdminVersionVigente.anioInicioDesde})` : ""}`
     : "—";
+  const estadoVigenteHtml = anexoIAdminVigenteBloqueada
+    ? `<p>Versión vigente <strong>(no editable)</strong>: ${vigenteLabel}. Ya hay declaraciones presentadas con este texto, así que queda protegido; cualquier corrección nueva tiene que ir a una próxima versión.</p>`
+    : `<p>Versión vigente <strong>(editable por ahora)</strong>: ${vigenteLabel}. Todavía ninguna Obra Social presentó una declaración con este texto, así que podés corregir errores de tipeo o formato directamente acá. En cuanto la primera Obra Social presente, esta versión queda protegida y ya no se va a poder editar.</p>`;
   if (anexoIAdminVersionFutura) {
-    cont.innerHTML = `
-      <p>Versión vigente <strong>(no editable)</strong>: ${vigenteLabel}</p>
-      <p>Editando la <strong>próxima versión</strong>, vigente a partir del ejercicio <strong>${escaparHtml(String(anexoIAdminVersionFutura.anioInicioDesde))}</strong>. Mientras ese ejercicio no llegue, las Obras Sociales siguen viendo la versión vigente sin cambios.</p>`;
+    cont.innerHTML = estadoVigenteHtml + `
+      <p>Además hay una <strong>próxima versión</strong> en preparación, vigente a partir del ejercicio <strong>${escaparHtml(String(anexoIAdminVersionFutura.anioInicioDesde))}</strong>. Mientras ese ejercicio no llegue, las Obras Sociales siguen viendo la versión vigente.</p>`;
     return;
   }
   const anioSugerido = (Number.isFinite(anexoIAdminVersionVigente?.anioInicioDesde) ? anexoIAdminVersionVigente.anioInicioDesde : new Date().getFullYear()) + 1;
-  cont.innerHTML = `
-    <p>Versión vigente <strong>(no editable)</strong>: ${vigenteLabel}</p>
+  cont.innerHTML = estadoVigenteHtml + `
     <p style="color:var(--muted)">Todavía no hay una próxima versión en preparación. Creála clonando el contenido vigente y elegí a partir de qué ejercicio entra en vigencia — la versión actual sigue intacta y en uso hasta ese momento.</p>
     <div class="form-grid" style="max-width:360px">
       <label><span>Vigente a partir del ejercicio</span><input type="number" id="anexo-i-admin-anio-nuevo" value="${anioSugerido}"></label>
@@ -8391,11 +8406,31 @@ function actualizarBotonGuardarAnexoIAdmin() {
   if (boton) boton.disabled = anexoIAdminCambiosPendientes.size === 0;
 }
 
+// Mientras la versión vigente esté editable, una corrección ahí se refleja también en la
+// próxima versión (si existe) — pero solo en las secciones que todavía son un espejo exacto
+// del texto vigente (mismo título y texto). Si esa sección de la próxima versión ya fue
+// editada de forma distinta a mano, no la tocamos: se respeta lo que se haya customizado.
 function bindAnexoIAdminCambios() {
+  const espejosVigenteAFutura = new Map(); // id fila vigente -> id fila futura, mientras coincidan
+  if (anexoIAdminVersionVigente && anexoIAdminVersionFutura) {
+    const futuraPorCodigo = new Map(anexoIAdminVersionFutura.secciones.map(s => [s.codigo, s]));
+    anexoIAdminVersionVigente.secciones.forEach(v => {
+      const f = futuraPorCodigo.get(v.codigo);
+      if (f && f.titulo === v.titulo && (f.texto || "") === (v.texto || "")) espejosVigenteAFutura.set(v.id, f.id);
+    });
+  }
   const marcarCambio = (id, campo, valor) => {
     const previo = anexoIAdminCambiosPendientes.get(id) || {};
     previo[campo] = valor;
     anexoIAdminCambiosPendientes.set(id, previo);
+    const idFuturaEspejo = espejosVigenteAFutura.get(id);
+    if (idFuturaEspejo) {
+      const previoFutura = anexoIAdminCambiosPendientes.get(idFuturaEspejo) || {};
+      previoFutura[campo] = valor;
+      anexoIAdminCambiosPendientes.set(idFuturaEspejo, previoFutura);
+      const elFutura = document.querySelector(`[data-anexo-i-admin-${campo}="${CSS.escape(idFuturaEspejo)}"]`);
+      if (elFutura && elFutura !== document.activeElement) { if (campo === "titulo") elFutura.value = valor; else elFutura.innerHTML = valor; }
+    }
     actualizarBotonGuardarAnexoIAdmin();
   };
   document.querySelectorAll("#anexo-i-admin-secciones [data-anexo-i-admin-titulo]").forEach(input => {
@@ -8406,32 +8441,59 @@ function bindAnexoIAdminCambios() {
   });
 }
 
+function campoEditableAnexoIAdmin(sec) {
+  return `
+    <input type="text" class="anexo-i-admin-titulo-input" data-anexo-i-admin-titulo="${escaparHtml(sec.id)}" value="${escaparHtml(sec.titulo)}">
+    <div class="anexo-i-rte-toolbar" data-rte-toolbar-admin="${escaparHtml(sec.id)}">
+      <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
+      <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
+      <span class="anexo-i-rte-sep"></span>
+      <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
+      <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
+    </div>
+    <div class="anexo-i-rte anexo-i-admin-texto-rte" data-anexo-i-admin-texto="${escaparHtml(sec.id)}" contenteditable="true">${sec.texto || ""}</div>`;
+}
+
+function campoSoloLecturaAnexoIAdmin(titulo, texto) {
+  return `
+    <div class="table-meta"><strong>${escaparHtml(titulo)}</strong></div>
+    ${texto ? `<div class="anexo-i-texto">${texto}</div>` : `<p style="color:var(--muted)">Sin texto.</p>`}`;
+}
+
 function renderAnexoIAdminSecciones() {
   const cont = document.getElementById("anexo-i-admin-secciones");
   if (!cont) return;
-  if (!anexoIAdminVersionFutura) { cont.innerHTML = ""; return; }
-  const vigentePorCodigo = new Map((anexoIAdminVersionVigente?.secciones || []).map(s => [s.codigo, s]));
-  cont.innerHTML = `<div class="anexo-i-admin-columnas"><span>Vigente</span><span>Próxima versión (ejercicio ${escaparHtml(String(anexoIAdminVersionFutura.anioInicioDesde))})</span></div>` +
-    anexoIAdminVersionFutura.secciones.map(sec => {
-      const vigente = vigentePorCodigo.get(sec.codigo);
-      return `<div class="table-card anexo-i-admin-seccion">
-        <div class="anexo-i-admin-col">
-          <div class="table-meta"><strong>${escaparHtml(sec.codigo)} — ${escaparHtml(vigente?.titulo ?? sec.titulo)}</strong></div>
-          ${vigente?.texto ? `<div class="anexo-i-texto">${vigente.texto}</div>` : `<p style="color:var(--muted)">Sin texto.</p>`}
-        </div>
-        <div class="anexo-i-admin-col">
-          <input type="text" class="anexo-i-admin-titulo-input" data-anexo-i-admin-titulo="${escaparHtml(sec.id)}" value="${escaparHtml(sec.titulo)}">
-          <div class="anexo-i-rte-toolbar" data-rte-toolbar-admin="${escaparHtml(sec.id)}">
-            <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
-            <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
-            <span class="anexo-i-rte-sep"></span>
-            <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
-            <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
+  const vigenteEditable = anexoIAdminVersionVigente && !anexoIAdminVigenteBloqueada;
+
+  if (!anexoIAdminVersionFutura && !vigenteEditable) { cont.innerHTML = ""; return; }
+
+  if (anexoIAdminVersionFutura) {
+    const vigentePorCodigo = new Map((anexoIAdminVersionVigente?.secciones || []).map(s => [s.codigo, s]));
+    cont.innerHTML = `<div class="anexo-i-admin-columnas"><span>Vigente${vigenteEditable ? " (editable)" : ""}</span><span>Próxima versión (ejercicio ${escaparHtml(String(anexoIAdminVersionFutura.anioInicioDesde))})</span></div>` +
+      anexoIAdminVersionFutura.secciones.map(sec => {
+        const vigente = vigentePorCodigo.get(sec.codigo);
+        return `<div class="table-card anexo-i-admin-seccion">
+          <div class="anexo-i-admin-col">
+            <div class="table-meta anexo-i-admin-codigo">${escaparHtml(sec.codigo)}</div>
+            ${vigente && vigenteEditable ? campoEditableAnexoIAdmin(vigente) : campoSoloLecturaAnexoIAdmin(vigente?.titulo ?? sec.titulo, vigente?.texto)}
           </div>
-          <div class="anexo-i-rte anexo-i-admin-texto-rte" data-anexo-i-admin-texto="${escaparHtml(sec.id)}" contenteditable="true">${sec.texto || ""}</div>
-        </div>
-      </div>`;
-    }).join("");
+          <div class="anexo-i-admin-col">
+            ${campoEditableAnexoIAdmin(sec)}
+          </div>
+        </div>`;
+      }).join("");
+  } else {
+    // Todavía no hay próxima versión, pero la vigente se puede editar directamente.
+    cont.innerHTML = `<div class="anexo-i-admin-columnas"><span>Vigente (editable)</span></div>` +
+      anexoIAdminVersionVigente.secciones.map(sec => `
+        <div class="table-card anexo-i-admin-seccion anexo-i-admin-seccion-unica">
+          <div class="anexo-i-admin-col">
+            <div class="table-meta anexo-i-admin-codigo">${escaparHtml(sec.codigo)}</div>
+            ${campoEditableAnexoIAdmin(sec)}
+          </div>
+        </div>`).join("");
+  }
+
   bindAnexoIAdminRteToolbars();
   bindAnexoIAdminCambios();
 }
@@ -8509,6 +8571,15 @@ async function inicializarVistaAnexoIAdmin() {
     anexoIAdminTodasSecciones = [];
   }
   calcularVersionesAnexoIAdmin();
+  anexoIAdminVigenteBloqueada = true; // por defecto protegida, hasta confirmar que nadie presentó con este texto
+  try {
+    const session = await asegurarSesionVigente();
+    anexoIAdminVigenteBloqueada = anexoIAdminVersionVigente
+      ? await versionTieneDeclaracionesPresentadas(anexoIAdminVersionVigente.version, session.access_token)
+      : true;
+  } catch (error) {
+    console.error(error);
+  }
   renderAnexoIAdminEncabezado();
   renderAnexoIAdminSecciones();
   actualizarBotonGuardarAnexoIAdmin();
