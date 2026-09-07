@@ -8011,6 +8011,27 @@ async function handleEliminarAnexoIAdjunto(adjuntoId) {
   }
 }
 
+// El texto de cada seccion viene extraido del PDF con un salto de linea por cada renglon
+// impreso (no por párrafo), así que hay que reunir esos renglones en párrafos reales antes
+// de mostrarlo — si no, el navegador respeta cada salto y el texto queda angosto y sin poder
+// justificarse. Un renglón que arranca con viñeta/letra/número + ")" o "." se trata como el
+// inicio de un ítem nuevo; el resto se concatena al párrafo en curso.
+function formatearTextoAnexoI(texto) {
+  if (!texto) return "";
+  const lineas = String(texto).split("\n");
+  const esInicioDeItem = linea => /^[•\-–]|^\d+[.)]|^[a-zA-Z][.)]/.test(linea);
+  const parrafos = [];
+  let actual = "";
+  lineas.forEach(linea => {
+    const l = linea.trim();
+    if (!l) { if (actual) { parrafos.push(actual); actual = ""; } return; }
+    if (actual && esInicioDeItem(l)) { parrafos.push(actual); actual = l; }
+    else { actual = actual ? `${actual} ${l}` : l; }
+  });
+  if (actual) parrafos.push(actual);
+  return parrafos.map(p => `<p>${escaparHtml(p)}</p>`).join("");
+}
+
 function opcionesPorcentajeAnexoI(seleccionado) {
   const sel = Number.isFinite(seleccionado) && seleccionado >= 40 && seleccionado <= 100 ? seleccionado : 40;
   let html = "";
@@ -8052,7 +8073,7 @@ function renderAnexoISecciones() {
     </div>` : "";
     return `<div class="table-card anexo-i-seccion">
       <div class="table-meta"><strong>${escaparHtml(sec.codigo)} — ${escaparHtml(sec.titulo)}</strong></div>
-      ${sec.texto ? `<p class="anexo-i-texto">${escaparHtml(sec.texto)}</p>` : ""}
+      ${sec.texto ? `<div class="anexo-i-texto">${formatearTextoAnexoI(sec.texto)}</div>` : ""}
       ${camposHtml}
       ${aclaracionHtml}
     </div>`;
