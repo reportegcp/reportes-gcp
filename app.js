@@ -7,6 +7,7 @@ const views = {
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   "anexo-i": { title: "Anexo I", subtitle: "Declaración jurada de cobertura del PMO" },
+  "anexo-i-admin": { title: "Anexo I · Actualización", subtitle: "Edición del texto normativo del Anexo I, por ejercicio" },
   cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
   afiliados: { title: "Afiliados", subtitle: "Total y distribución geográfica de afiliados por Obra Social" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
@@ -30,6 +31,7 @@ const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
+  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Actualización</strong><ul><li>La columna izquierda muestra la versión vigente, de solo lectura: es la que están usando las Obras Sociales para presentar ahora y no se puede tocar.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión.</li><li>“Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
@@ -258,7 +260,7 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "anexo-i-admin", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "cartilla os") return ["prestadores", "afiliados", "anexo-i"].includes(id);
@@ -316,6 +318,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="anexo-i-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   const labelAnalisisCartilla = document.getElementById("analisis-cartilla-label");
@@ -4057,7 +4060,7 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -4069,7 +4072,7 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-i-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -4114,6 +4117,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
   if (resolved === "prestadores") inicializarVistaPrestadores();
   if (resolved === "anexo-i") inicializarVistaAnexoI();
+  if (resolved === "anexo-i-admin") inicializarVistaAnexoIAdmin();
   if (resolved === "cobertura") inicializarVistaCobertura();
   if (resolved === "afiliados") inicializarVistaAfiliados();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
@@ -7876,10 +7880,46 @@ async function inicializarVistaPrestadores() {
 // presentar queda congelada (estado="presentada") y la RLS ya no permite modificarla salvo staff.
 // Al presentar también se crea/vincula una fila en "pma" (seguimiento administrativo interno).
 
-let anexoISeccionesCache = [];
+let anexoISeccionesCache = []; // TODAS las filas activas de pma_secciones, de TODAS las versiones
+let anexoISeccionesVistaActual = []; // la versión ya resuelta para lo que se está mostrando ahora
 let anexoIObraSocialActual = null;
 let anexoIDeclaracionActual = null; // fila de pma_declaraciones del período que se está mostrando (null = todavía no hay borrador guardado)
 let anexoIEjercicioActual = null;
+
+// pma_secciones se agrupa por "version" (una etiqueta de texto) y cada grupo tiene un
+// anio_inicio_desde: el primer ejercicio (anio_inicio) para el que ese contenido aplica. NULL =
+// versión base, vigente desde siempre hasta que otra versión con anio_inicio_desde definido la
+// reemplace. Estas funciones eligen, de todas las filas activas, cuál versión corresponde:
+// - por ejercicio (para una OS que todavía puede seguir editando su borrador), o
+// - por el nombre exacto de versión que ya quedó congelado en una declaración presentada
+//   (así el texto que ve una OS que ya presentó nunca cambia, aunque después se cree una
+//   versión nueva para ejercicios futuros).
+function agruparPmaSeccionesPorVersion(secciones) {
+  const grupos = new Map();
+  (secciones || []).forEach(sec => {
+    if (!grupos.has(sec.version)) grupos.set(sec.version, []);
+    grupos.get(sec.version).push(sec);
+  });
+  return [...grupos.entries()].map(([version, filas]) => ({
+    version,
+    anioInicioDesde: Number.isFinite(filas[0]?.anio_inicio_desde) ? filas[0].anio_inicio_desde : null,
+    secciones: filas.slice().sort((a, b) => (a.orden || 0) - (b.orden || 0))
+  })).sort((a, b) => (a.anioInicioDesde ?? -Infinity) - (b.anioInicioDesde ?? -Infinity));
+}
+
+function resolverSeccionesPorAnioInicio(secciones, anioInicio) {
+  const grupos = agruparPmaSeccionesPorVersion(secciones);
+  let elegido = null;
+  grupos.forEach(g => {
+    const desde = g.anioInicioDesde ?? -Infinity;
+    if (desde <= anioInicio && (!elegido || desde > (elegido.anioInicioDesde ?? -Infinity))) elegido = g;
+  });
+  return elegido?.secciones || [];
+}
+
+function resolverSeccionesPorVersion(secciones, version) {
+  return (secciones || []).filter(sec => sec.version === version).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+}
 
 async function cargarPmaSeccionesActivas(fetchImpl = fetch) {
   if (anexoISeccionesCache.length) return anexoISeccionesCache;
@@ -8011,129 +8051,12 @@ async function handleEliminarAnexoIAdjunto(adjuntoId) {
   }
 }
 
-// El texto de cada seccion viene extraido del PDF con un salto de linea por cada renglon
-// impreso (no por párrafo), y además el documento original tenía viñetas, sub-viñetas,
-// ítems con letra (a), b), c)...) y tramos en negrita que hay que reconstruir como HTML real
-// — si no, el navegador respeta cada salto y el texto queda angosto, sin poder justificarse
-// y "pegado" como si fuera un solo bloque plano. El texto guardado usa "**tramo**" (estilo
-// markdown) para marcar negrita — así quedó reconstruido a partir del PDF original y así
-// puede seguir editándose desde el admin. Reglas de reconocimiento por renglón (sobre el
-// texto SIN las marcas de negrita, para que un ítem que arranca en negrita — ej. "a)" bold —
-// se siga detectando igual):
-//   "•texto"        -> viñeta de primer nivel
-//   "otexto" (con "o" pegado a una mayúscula) -> sub-viñeta anidada bajo la última viñeta
-//   "a)texto"        -> ítem de lista con letra (a, b, c...)
-//   "9.3.1. texto"   -> encabezado numerado (se resalta el número en negrita)
-//   cualquier otro renglón se concatena al párrafo en curso, como antes.
-function segmentarNegritaAnexoI(s) {
-  const partes = String(s).split("**");
-  const segmentos = [];
-  partes.forEach((parte, i) => { if (parte) segmentos.push({ texto: parte, bold: i % 2 === 1 }); });
-  return segmentos;
-}
-function textoPlanoAnexoI(segmentos) {
-  return segmentos.map(s => s.texto).join("");
-}
-function serializarNegritaAnexoI(segmentos) {
-  return segmentos.map(s => (s.bold ? `**${s.texto}**` : s.texto)).join("");
-}
-// Devuelve, a partir de una lista de segmentos {texto,bold} y una posición de corte medida
-// sobre el texto plano concatenado, el sub-tramo de segmentos que arranca ahí — conservando
-// qué partes eran negrita, sin romper ningún par de "**".
-function cortarSegmentosAnexoI(segmentos, desdeCharPlano) {
-  let acumulado = 0;
-  const resultado = [];
-  segmentos.forEach(seg => {
-    const len = seg.texto.length;
-    if (acumulado + len > desdeCharPlano) {
-      const inicioLocal = Math.max(0, desdeCharPlano - acumulado);
-      resultado.push({ texto: seg.texto.slice(inicioLocal), bold: seg.bold });
-    }
-    acumulado += len;
-  });
-  return resultado;
-}
-function aplicarNegritaAnexoI(html) {
-  return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-}
-
-function formatearTextoAnexoI(texto) {
-  if (!texto) return "";
-  const lineas = String(texto).split("\n");
-  const RE_VINETA = /^[•\-–]\s*(.+)/d;
-  const RE_SUBVINETA = /^o([A-ZÁÉÍÓÚÑ].*)/d;
-  const RE_LETRA = /^([a-záéíóúñ])\)\s*(.+)/d;
-  const RE_NUM_MULTI = /^(\d+(?:\.\d+)+\.)\s*(.+)/d;
-
-  const bloques = [];
-  let parrafoActual = "";
-  let listaActual = null;
-
-  const cerrarParrafo = () => {
-    if (parrafoActual) { bloques.push({ tipo: "p", texto: parrafoActual }); parrafoActual = ""; }
-  };
-  const cerrarLista = () => {
-    if (listaActual && listaActual.items.length) bloques.push(listaActual);
-    listaActual = null;
-  };
-
-  lineas.forEach(linea => {
-    const l = linea.trim();
-    if (!l) { cerrarParrafo(); cerrarLista(); return; }
-
-    const segmentos = segmentarNegritaAnexoI(l);
-    const plano = textoPlanoAnexoI(segmentos);
-    const contenidoDesde = pos => serializarNegritaAnexoI(cortarSegmentosAnexoI(segmentos, pos));
-
-    let m;
-    if ((m = plano.match(RE_VINETA))) {
-      cerrarParrafo();
-      if (!listaActual || listaActual.tipo !== "vinetas") { cerrarLista(); listaActual = { tipo: "vinetas", items: [] }; }
-      listaActual.items.push({ texto: contenidoDesde(m.indices[1][0]), sub: [] });
-      return;
-    }
-    if ((m = plano.match(RE_SUBVINETA))) {
-      cerrarParrafo();
-      if (!listaActual || listaActual.tipo !== "vinetas" || !listaActual.items.length) { cerrarLista(); listaActual = { tipo: "vinetas", items: [{ texto: "", sub: [] }] }; }
-      listaActual.items[listaActual.items.length - 1].sub.push(contenidoDesde(m.indices[1][0]));
-      return;
-    }
-    if ((m = plano.match(RE_LETRA))) {
-      cerrarParrafo();
-      if (!listaActual || listaActual.tipo !== "letras") { cerrarLista(); listaActual = { tipo: "letras", items: [] }; }
-      listaActual.items.push({ texto: contenidoDesde(m.indices[2][0]), sub: [] });
-      return;
-    }
-    if ((m = plano.match(RE_NUM_MULTI))) {
-      cerrarParrafo();
-      cerrarLista();
-      bloques.push({ tipo: "p-num", numero: m[1], texto: contenidoDesde(m.indices[2][0]) });
-      return;
-    }
-    // Renglón de continuación: sigue el párrafo o el ítem de lista abierto (bullets con
-    // varios renglones impresos, como "•Estimulación temprana: ... del\nMinisterio de Salud...").
-    if (listaActual && listaActual.items.length) {
-      const ultimo = listaActual.items[listaActual.items.length - 1];
-      if (ultimo.sub.length) ultimo.sub[ultimo.sub.length - 1] = `${ultimo.sub[ultimo.sub.length - 1]} ${l}`;
-      else ultimo.texto = `${ultimo.texto} ${l}`;
-    } else {
-      parrafoActual = parrafoActual ? `${parrafoActual} ${l}` : l;
-    }
-  });
-  cerrarParrafo();
-  cerrarLista();
-
-  const negrita = s => aplicarNegritaAnexoI(escaparHtml(s));
-  const renderItems = items => items.map(it => `<li>${negrita(it.texto)}${it.sub.length ? `<ul>${it.sub.map(s => `<li>${negrita(s)}</li>`).join("")}</ul>` : ""}</li>`).join("");
-
-  return bloques.map(b => {
-    if (b.tipo === "p") return `<p>${negrita(b.texto)}</p>`;
-    if (b.tipo === "p-num") return `<p><strong>${escaparHtml(b.numero)}</strong> ${negrita(b.texto)}</p>`;
-    if (b.tipo === "vinetas") return `<ul>${renderItems(b.items)}</ul>`;
-    if (b.tipo === "letras") return `<ol class="anexo-i-lista-alfa">${renderItems(b.items)}</ol>`;
-    return "";
-  }).join("");
-}
+// pma_secciones.texto guarda HTML real (párrafos, listas, <strong> para negrita), producido por
+// el mismo editor de texto enriquecido que ya se usaba para las aclaraciones (ver "Anexo I ·
+// Actualización" más abajo). Antes de esto el texto se guardaba como texto plano con marcas
+// "**negrita**" reconstruidas a mano desde el PDF original del PMO, y un parser en el navegador
+// lo convertía a HTML en cada render; esa migración ya se hizo una vez sobre los datos existentes
+// y el parser ya no se usa — el texto se inserta directamente.
 
 function opcionesPorcentajeAnexoI(seleccionado) {
   const sel = Number.isFinite(seleccionado) && seleccionado >= 40 && seleccionado <= 100 ? seleccionado : 40;
@@ -8157,7 +8080,7 @@ function renderAnexoISecciones() {
   const soloLectura = anexoIDeclaracionActual?.estado === "presentada";
   const valores = anexoIDeclaracionActual?.valores || {};
   const aclaraciones = anexoIDeclaracionActual?.aclaraciones || {};
-  cont.innerHTML = anexoISeccionesCache.map(sec => {
+  cont.innerHTML = anexoISeccionesVistaActual.map(sec => {
     const camposHtml = (sec.campos_valor || []).length ? `<div class="form-grid anexo-i-campos-valor">${sec.campos_valor.map(cv => {
       const clave = `${sec.codigo}.${cv.campo}`;
       const valorGuardado = valores[clave] || "";
@@ -8189,7 +8112,7 @@ function renderAnexoISecciones() {
     </div>` : "";
     return `<div class="table-card anexo-i-seccion">
       <div class="table-meta"><strong>${escaparHtml(sec.codigo)} — ${escaparHtml(sec.titulo)}</strong></div>
-      ${sec.texto ? `<div class="anexo-i-texto">${formatearTextoAnexoI(sec.texto)}</div>` : ""}
+      ${sec.texto ? `<div class="anexo-i-texto">${sec.texto}</div>` : ""}
       ${camposHtml}
       ${aclaracionHtml}
     </div>`;
@@ -8249,7 +8172,7 @@ function construirRegistroAnexoI(os, ejercicio, estado) {
     obra_social_id: Number(os.id),
     anio_inicio: anioInicioDesdeEjercicio(ejercicio),
     ejercicio,
-    pma_secciones_version: anexoISeccionesCache[0]?.version || "",
+    pma_secciones_version: anexoISeccionesVistaActual[0]?.version || "",
     valores: recolectarValoresAnexoI(),
     aclaraciones: recolectarAclaracionesAnexoI(),
     estado
@@ -8267,6 +8190,15 @@ async function cargarYRenderizarPeriodoAnexoI(os, ejercicio) {
     console.error(error);
     anexoIDeclaracionActual = null;
   }
+  // Si ya está presentada, el texto normativo queda congelado para siempre en la versión que
+  // estaba vigente al momento de presentar (nunca el contenido "vivo" actual, aunque después se
+  // haya creado una versión nueva). Si todavía es un borrador (o no existe), se resuelve según
+  // el ejercicio que se está viendo.
+  let secciones = anexoIDeclaracionActual?.estado === "presentada"
+    ? resolverSeccionesPorVersion(anexoISeccionesCache, anexoIDeclaracionActual.pma_secciones_version)
+    : [];
+  if (!secciones.length) secciones = resolverSeccionesPorAnioInicio(anexoISeccionesCache, anioInicioDesdeEjercicio(ejercicio));
+  anexoISeccionesVistaActual = secciones;
   renderAnexoISecciones();
   await actualizarAnexoIAdjuntos();
   await verificarYRenderizarPresentacionAnexoIOs(os);
@@ -8386,6 +8318,200 @@ async function inicializarVistaAnexoI() {
   if (header) header.hidden = false;
   await poblarSelectPeriodoAnexoI(os);
   await cargarYRenderizarPeriodoAnexoI(os, document.getElementById("anexo-i-periodo-os")?.value || ejercicioVigenteParaOs(os));
+}
+
+// ---------- Anexo I · Actualización: edición administrativa del texto normativo (staff interno) ----------
+//
+// Esta pantalla (menú Análisis de Cartilla → Anexo I · Actualización, visible solo para el staff
+// interno) es la única forma de tocar pma_secciones desde la app. Muestra la versión VIGENTE de
+// solo lectura (para no alterar lo que las Obras Sociales ya están presentando) y, al lado, la
+// PRÓXIMA versión editable, que entra en vigencia recién a partir del ejercicio elegido — mientras
+// ese ejercicio no llegue, todo sigue mostrando la versión vigente sin cambios.
+
+let anexoIAdminTodasSecciones = [];
+let anexoIAdminVersionVigente = null;
+let anexoIAdminVersionFutura = null;
+let anexoIAdminCambiosPendientes = new Map(); // id de sección -> { titulo?, texto? }
+
+async function cargarPmaSeccionesTodas() {
+  const params = new URLSearchParams({ select: "*", activa: "eq.true", order: "orden.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/pma_secciones?${params.toString()}`, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return await response.json();
+}
+
+function calcularVersionesAnexoIAdmin() {
+  const grupos = agruparPmaSeccionesPorVersion(anexoIAdminTodasSecciones);
+  anexoIAdminVersionVigente = grupos[0] || null;
+  anexoIAdminVersionFutura = grupos.length > 1 ? grupos[grupos.length - 1] : null;
+}
+
+function renderAnexoIAdminEncabezado() {
+  const cont = document.getElementById("anexo-i-admin-encabezado");
+  if (!cont) return;
+  const vigenteLabel = anexoIAdminVersionVigente
+    ? `${escaparHtml(anexoIAdminVersionVigente.version)}${Number.isFinite(anexoIAdminVersionVigente.anioInicioDesde) ? ` (desde ejercicio ${anexoIAdminVersionVigente.anioInicioDesde})` : ""}`
+    : "—";
+  if (anexoIAdminVersionFutura) {
+    cont.innerHTML = `
+      <p>Versión vigente <strong>(no editable)</strong>: ${vigenteLabel}</p>
+      <p>Editando la <strong>próxima versión</strong>, vigente a partir del ejercicio <strong>${escaparHtml(String(anexoIAdminVersionFutura.anioInicioDesde))}</strong>. Mientras ese ejercicio no llegue, las Obras Sociales siguen viendo la versión vigente sin cambios.</p>`;
+    return;
+  }
+  const anioSugerido = (Number.isFinite(anexoIAdminVersionVigente?.anioInicioDesde) ? anexoIAdminVersionVigente.anioInicioDesde : new Date().getFullYear()) + 1;
+  cont.innerHTML = `
+    <p>Versión vigente <strong>(no editable)</strong>: ${vigenteLabel}</p>
+    <p style="color:var(--muted)">Todavía no hay una próxima versión en preparación. Creála clonando el contenido vigente y elegí a partir de qué ejercicio entra en vigencia — la versión actual sigue intacta y en uso hasta ese momento.</p>
+    <div class="form-grid" style="max-width:360px">
+      <label><span>Vigente a partir del ejercicio</span><input type="number" id="anexo-i-admin-anio-nuevo" value="${anioSugerido}"></label>
+      <button type="button" class="primary" id="btn-crear-version-anexo-i-admin">Crear próxima versión</button>
+    </div>`;
+  document.getElementById("btn-crear-version-anexo-i-admin")?.addEventListener("click", () => requiereAutenticacion(handleCrearVersionFuturaAnexoIAdmin));
+}
+
+function bindAnexoIAdminRteToolbars() {
+  document.querySelectorAll("#anexo-i-admin-secciones [data-rte-toolbar-admin]").forEach(toolbar => {
+    const id = toolbar.dataset.rteToolbarAdmin;
+    const rte = document.querySelector(`[data-anexo-i-admin-texto="${CSS.escape(id)}"]`);
+    if (!rte) return;
+    toolbar.querySelectorAll("[data-cmd]").forEach(btn => {
+      btn.addEventListener("mousedown", event => event.preventDefault());
+      btn.addEventListener("click", () => { rte.focus(); document.execCommand(btn.dataset.cmd, false, null); });
+    });
+  });
+  document.querySelectorAll("#anexo-i-admin-secciones [data-anexo-i-admin-texto]").forEach(rte => {
+    rte.addEventListener("keydown", event => {
+      if (event.key === "Tab") { event.preventDefault(); document.execCommand("insertHTML", false, "&emsp;"); }
+    });
+  });
+}
+
+function actualizarBotonGuardarAnexoIAdmin() {
+  const boton = document.getElementById("btn-guardar-anexo-i-admin");
+  if (boton) boton.disabled = anexoIAdminCambiosPendientes.size === 0;
+}
+
+function bindAnexoIAdminCambios() {
+  const marcarCambio = (id, campo, valor) => {
+    const previo = anexoIAdminCambiosPendientes.get(id) || {};
+    previo[campo] = valor;
+    anexoIAdminCambiosPendientes.set(id, previo);
+    actualizarBotonGuardarAnexoIAdmin();
+  };
+  document.querySelectorAll("#anexo-i-admin-secciones [data-anexo-i-admin-titulo]").forEach(input => {
+    input.addEventListener("input", () => marcarCambio(input.dataset.anexoIAdminTitulo, "titulo", input.value));
+  });
+  document.querySelectorAll("#anexo-i-admin-secciones [data-anexo-i-admin-texto]").forEach(rte => {
+    rte.addEventListener("input", () => marcarCambio(rte.dataset.anexoIAdminTexto, "texto", rte.innerHTML));
+  });
+}
+
+function renderAnexoIAdminSecciones() {
+  const cont = document.getElementById("anexo-i-admin-secciones");
+  if (!cont) return;
+  if (!anexoIAdminVersionFutura) { cont.innerHTML = ""; return; }
+  const vigentePorCodigo = new Map((anexoIAdminVersionVigente?.secciones || []).map(s => [s.codigo, s]));
+  cont.innerHTML = `<div class="anexo-i-admin-columnas"><span>Vigente</span><span>Próxima versión (ejercicio ${escaparHtml(String(anexoIAdminVersionFutura.anioInicioDesde))})</span></div>` +
+    anexoIAdminVersionFutura.secciones.map(sec => {
+      const vigente = vigentePorCodigo.get(sec.codigo);
+      return `<div class="table-card anexo-i-admin-seccion">
+        <div class="anexo-i-admin-col">
+          <div class="table-meta"><strong>${escaparHtml(sec.codigo)} — ${escaparHtml(vigente?.titulo ?? sec.titulo)}</strong></div>
+          ${vigente?.texto ? `<div class="anexo-i-texto">${vigente.texto}</div>` : `<p style="color:var(--muted)">Sin texto.</p>`}
+        </div>
+        <div class="anexo-i-admin-col">
+          <input type="text" class="anexo-i-admin-titulo-input" data-anexo-i-admin-titulo="${escaparHtml(sec.id)}" value="${escaparHtml(sec.titulo)}">
+          <div class="anexo-i-rte-toolbar" data-rte-toolbar-admin="${escaparHtml(sec.id)}">
+            <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
+            <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
+            <span class="anexo-i-rte-sep"></span>
+            <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
+            <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
+          </div>
+          <div class="anexo-i-rte anexo-i-admin-texto-rte" data-anexo-i-admin-texto="${escaparHtml(sec.id)}" contenteditable="true">${sec.texto || ""}</div>
+        </div>
+      </div>`;
+    }).join("");
+  bindAnexoIAdminRteToolbars();
+  bindAnexoIAdminCambios();
+}
+
+async function handleCrearVersionFuturaAnexoIAdmin() {
+  const anioInput = document.getElementById("anexo-i-admin-anio-nuevo");
+  const anio = parseInt(anioInput?.value, 10);
+  if (!Number.isFinite(anio)) { mostrarToast("Ingresá un ejercicio (año) válido."); return; }
+  if (!anexoIAdminVersionVigente?.secciones?.length) { mostrarToast("No hay una versión vigente para clonar."); return; }
+  if (!(await mostrarConfirmacion(`¿Crear una nueva versión del Anexo I, vigente a partir del ejercicio ${anio}, clonando el contenido de la versión vigente? La versión actual sigue intacta y en uso hasta ese ejercicio.`, { titulo: "Crear próxima versión", textoAceptar: "Crear" }))) return;
+  const boton = document.getElementById("btn-crear-version-anexo-i-admin");
+  if (boton) boton.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const etiqueta = `${new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" }).toUpperCase()} (EJERCICIO ${anio})`;
+    const filas = anexoIAdminVersionVigente.secciones.map(sec => ({
+      version: etiqueta,
+      anio_inicio_desde: anio,
+      codigo: sec.codigo,
+      titulo: sec.titulo,
+      texto: sec.texto,
+      orden: sec.orden,
+      tiene_aclaracion: sec.tiene_aclaracion,
+      campos_valor: sec.campos_valor,
+      activa: true
+    }));
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/pma_secciones`, {
+      method: "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify(filas)
+    }, 15000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    mostrarToast("Próxima versión creada. Ya podés editar los textos.");
+    await inicializarVistaAnexoIAdmin();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo crear la nueva versión.");
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function guardarCambiosAnexoIAdmin() {
+  if (!anexoIAdminCambiosPendientes.size) return;
+  const boton = document.getElementById("btn-guardar-anexo-i-admin");
+  const msg = document.getElementById("anexo-i-admin-guardado-msg");
+  if (boton) boton.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    for (const [id, cambios] of anexoIAdminCambiosPendientes.entries()) {
+      const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/pma_secciones?id=eq.${id}`, {
+        method: "PATCH",
+        headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" },
+        body: JSON.stringify(cambios)
+      }, 10000);
+      if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+    }
+    anexoIAdminCambiosPendientes.clear();
+    if (msg) { msg.textContent = "Cambios guardados."; setTimeout(() => { if (msg.textContent === "Cambios guardados.") msg.textContent = ""; }, 4000); }
+    await inicializarVistaAnexoIAdmin();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudieron guardar los cambios.");
+    actualizarBotonGuardarAnexoIAdmin();
+  }
+}
+
+async function inicializarVistaAnexoIAdmin() {
+  if (typeof document === "undefined") return;
+  const cont = document.getElementById("anexo-i-admin-secciones");
+  if (cont) cont.innerHTML = `<p style="color:var(--muted)">Cargando...</p>`;
+  anexoIAdminCambiosPendientes.clear();
+  try {
+    anexoIAdminTodasSecciones = await cargarPmaSeccionesTodas();
+  } catch (error) {
+    console.error(error);
+    mostrarToast("No se pudo cargar el contenido del Anexo I.");
+    anexoIAdminTodasSecciones = [];
+  }
+  calcularVersionesAnexoIAdmin();
+  renderAnexoIAdminEncabezado();
+  renderAnexoIAdminSecciones();
+  actualizarBotonGuardarAnexoIAdmin();
 }
 
 async function handleCambioEjercicioPrestadores() {
@@ -9102,6 +9228,7 @@ async function initBrowser() {
   document.getElementById("anexo-i-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoI));
   document.getElementById("btn-guardar-borrador-anexo-i")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoI));
   document.getElementById("anexo-i-adjunto-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarAnexoIAdjunto));
+  document.getElementById("btn-guardar-anexo-i-admin")?.addEventListener("click", () => requiereAutenticacion(guardarCambiosAnexoIAdmin));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
   document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
   document.getElementById("importar-cartilla-file")?.addEventListener("change", event => manejarArchivoImportarCartilla(event.target.files[0]));

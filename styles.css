@@ -1710,3 +1710,15 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-i-rte p{margin:0 0 8px}
 .anexo-i-rte ul,.anexo-i-rte ol{margin:6px 0;padding-left:22px}
 .anexo-i-campos-valor:last-child,.anexo-i-texto:last-child{padding-bottom:18px}
+
+/* Anexo I · Actualización: edición administrativa del texto normativo (staff interno) */
+#anexo-i-admin-encabezado{padding:16px 20px}
+#anexo-i-admin-encabezado p{margin:0 0 8px;font-size:13.5px;line-height:1.5}
+#anexo-i-admin-encabezado p:last-child{margin-bottom:0}
+.anexo-i-admin-columnas{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 4px 8px;font-size:12px;font-weight:800;color:#4d5d70;text-transform:uppercase;letter-spacing:.02em}
+.anexo-i-admin-seccion{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;padding:16px 20px}
+.anexo-i-admin-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.anexo-i-admin-col .anexo-i-texto{padding:0}
+.anexo-i-admin-titulo-input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;font-weight:700;box-sizing:border-box;width:100%}
+.anexo-i-admin-texto-rte{min-height:120px}
+@media(max-width:900px){.anexo-i-admin-seccion,.anexo-i-admin-columnas{grid-template-columns:1fr}}
