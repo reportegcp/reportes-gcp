@@ -4046,6 +4046,12 @@ function exportarMetasFisicasExcel() {
 
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
+  const vistaAnteriorActiva = document.querySelector(".view.active")?.id;
+  if (vistaAnteriorActiva === "anexo-i-admin" && anexoIAdminCambiosPendientes.size > 0 && id !== "anexo-i-admin") {
+    const salir = window.confirm("Tenés cambios sin guardar en Anexo I · Actualización. Si salís ahora se van a perder. ¿Salir de todas formas?");
+    if (!salir) return;
+    anexoIAdminCambiosPendientes.clear();
+  }
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
   const resolved = vistaPermitidaParaSesion(requested) ? requested : primeraVistaPermitida(perfilSesionActual());
 
@@ -8403,7 +8409,20 @@ function bindAnexoIAdminRteToolbars() {
 
 function actualizarBotonGuardarAnexoIAdmin() {
   const boton = document.getElementById("btn-guardar-anexo-i-admin");
-  if (boton) boton.disabled = anexoIAdminCambiosPendientes.size === 0;
+  const msg = document.getElementById("anexo-i-admin-guardado-msg");
+  const pendientes = anexoIAdminCambiosPendientes.size;
+  if (boton) boton.disabled = pendientes === 0;
+  if (msg) {
+    if (pendientes > 0) {
+      msg.textContent = `${pendientes} ${pendientes === 1 ? "sección" : "secciones"} con cambios sin guardar`;
+      msg.style.color = "var(--accent)";
+      msg.style.fontWeight = "700";
+    } else if (msg.textContent !== "Cambios guardados.") {
+      msg.textContent = "";
+      msg.style.color = "";
+      msg.style.fontWeight = "";
+    }
+  }
 }
 
 // Mientras la versión vigente esté editable, una corrección ahí se refleja también en la
@@ -8569,7 +8588,12 @@ async function guardarCambiosAnexoIAdmin() {
       if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
     }
     anexoIAdminCambiosPendientes.clear();
-    if (msg) { msg.textContent = "Cambios guardados."; setTimeout(() => { if (msg.textContent === "Cambios guardados.") msg.textContent = ""; }, 4000); }
+    if (msg) {
+      msg.textContent = "Cambios guardados.";
+      msg.style.color = "var(--success)";
+      msg.style.fontWeight = "700";
+      setTimeout(() => { if (msg.textContent === "Cambios guardados.") { msg.textContent = ""; msg.style.color = ""; msg.style.fontWeight = ""; } }, 4000);
+    }
     await inicializarVistaAnexoIAdmin();
   } catch (error) {
     mostrarToast(error.message || "No se pudieron guardar los cambios.");
@@ -9409,6 +9433,11 @@ async function initBrowser() {
   });
 
   window.addEventListener("popstate", () => showView(getInitialView(location.hash), false));
+
+  // Avisar antes de cerrar/recargar la pestaña si hay ediciones de Anexo I · Actualización sin guardar.
+  window.addEventListener("beforeunload", event => {
+    if (anexoIAdminCambiosPendientes.size > 0) { event.preventDefault(); event.returnValue = ""; }
+  });
 
   await restaurarSesion();
   if (authSession?.access_token) {
