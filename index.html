@@ -58,6 +58,7 @@
             <button class="nav-subitem" data-view="afiliados" data-nav-access="afiliados" type="button">Afiliados</button>
             <button class="nav-subitem" data-view="prestadores" data-nav-access="prestadores" type="button">Prestadores</button>
             <button class="nav-subitem" data-view="cobertura" data-nav-access="cobertura" type="button">Cobertura</button>
+            <button class="nav-subitem" data-view="anexo-i" data-nav-access="anexo-i" type="button">Anexo I</button>
           </div>
         </div>
 
@@ -394,6 +395,35 @@
           </div>
           <div class="table-pagination" id="prestadores-pagination"></div>
           <div class="table-empty" id="prestadores-empty" hidden>No hay prestadores cargados para esta Obra Social todavía.</div>
+        </div>
+      </section>
+
+      <section id="anexo-i" class="view">
+        <div class="prestadores-fila-superior" id="anexo-i-header-os" hidden>
+          <div class="prestadores-fila-superior-izq prestadores-fila-superior-col">
+            <select id="anexo-i-periodo-os" aria-label="Elegí qué período ver"></select>
+            <span id="presentar-anexo-i-pill"></span>
+          </div>
+        </div>
+
+        <div class="table-card anexo-i-card" style="margin-bottom:16px">
+          <div class="table-meta"><strong>Foto del Anexo III presentado</strong></div>
+          <div class="anexo-i-card-body">
+            <p class="anexo-i-hint">Adjuntá una foto o captura del ejercicio de Anexo III (Prestadores) ya presentado para este período.</p>
+            <div class="anexo-i-adjuntos-list" id="anexo-i-adjuntos-list"></div>
+            <div class="anexo-i-adjunto-add-row" id="anexo-i-adjunto-agregar-row">
+              <input type="file" id="anexo-i-adjunto-file" accept="image/*,.pdf">
+              <input type="text" id="anexo-i-adjunto-descripcion" placeholder="Descripción (opcional)">
+              <button type="button" class="secondary small" id="anexo-i-adjunto-agregar">Agregar</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="anexo-i-secciones"></div>
+
+        <div class="module-actions" id="anexo-i-acciones-borrador" style="justify-content:flex-start;align-items:center;gap:10px;margin-top:4px">
+          <button class="primary" id="btn-guardar-borrador-anexo-i" type="button">Guardar borrador</button>
+          <span id="anexo-i-guardado-msg" style="color:var(--muted);font-size:13px"></span>
         </div>
       </section>
 

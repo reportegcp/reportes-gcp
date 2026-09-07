@@ -1284,7 +1284,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .prestadores-fila-superior-izq{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .prestadores-fila-superior-izq.prestadores-fila-superior-col{flex-direction:column;align-items:flex-start;gap:6px}
 .prestadores-fila-superior-der{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
-.prestadores-fila-superior select#prestadores-periodo-os{max-width:230px;height:34px;padding:5px 10px;font-size:12.5px}
+.prestadores-fila-superior select#prestadores-periodo-os,
+.prestadores-fila-superior select#anexo-i-periodo-os{max-width:230px;height:34px;padding:5px 10px;font-size:12.5px}
 .prestadores-filtros-chicos .search-box input,.prestadores-filtros-chicos select{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}
 .prestadores-filtros-chicos .search-box{max-width:210px}
 .prestadores-filtros-chicos select{max-width:140px}
@@ -1666,3 +1667,21 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .home-kpi-current-count{font-size:30px;line-height:1;color:#fff;font-weight:900}
 .home-kpi-grid-v49 .is-current-period .home-kpi-note{color:#dbe7f1;font-size:12px;text-transform:none;letter-spacing:0}
 @media(max-width:1050px){.home-kpi-grid-v49{grid-template-columns:1fr}}
+
+/* Anexo I: declaración jurada de cobertura del PMO (perfil Cartilla OS) */
+.anexo-i-card-body{padding:0 20px 18px}
+.anexo-i-hint{color:var(--muted);font-size:13px;margin:0 0 10px}
+.anexo-i-adjuntos-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.anexo-i-adjunto-add-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+.anexo-i-adjunto-add-row input[type="file"]{font-size:12.5px}
+.anexo-i-adjunto-add-row input[type="text"]{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;box-sizing:border-box}
+.anexo-i-adjunto-add-row button{white-space:nowrap}
+@media(max-width:700px){.anexo-i-adjunto-add-row{grid-template-columns:1fr}}
+.anexo-i-seccion{margin-bottom:12px}
+.anexo-i-seccion .table-meta{border-bottom:1px solid var(--line)}
+.anexo-i-texto{white-space:pre-line;padding:14px 20px 0;margin:0;font-size:13.5px;line-height:1.5;color:#33404d}
+.anexo-i-campos-valor{padding:14px 20px 4px}
+.anexo-i-aclaracion{display:grid;gap:5px;padding:14px 20px 18px}
+.anexo-i-aclaracion>span{font-size:12px;font-weight:800;color:#4d5d70}
+.anexo-i-aclaracion textarea{resize:vertical;min-height:52px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;box-sizing:border-box}
+.anexo-i-campos-valor:last-child,.anexo-i-texto:last-child{padding-bottom:18px}

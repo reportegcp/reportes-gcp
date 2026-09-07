@@ -6,6 +6,7 @@ const views = {
   inicio: { title: "", subtitle: "" },
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
+  "anexo-i": { title: "Anexo I", subtitle: "Declaración jurada de cobertura del PMO" },
   cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
   afiliados: { title: "Afiliados", subtitle: "Total y distribución geográfica de afiliados por Obra Social" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
@@ -28,6 +29,7 @@ const views = {
 const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
+  "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
@@ -259,7 +261,7 @@ function perfilPuedeVerVista(perfil, vista) {
   if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
-  if (p === "cartilla os") return ["prestadores", "afiliados"].includes(id);
+  if (p === "cartilla os") return ["prestadores", "afiliados", "anexo-i"].includes(id);
   return false;
 }
 
@@ -312,6 +314,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
+  document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
@@ -4054,7 +4057,7 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -4066,7 +4069,7 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -4091,7 +4094,7 @@ function showView(id, updateHistory = true) {
     if (copy) copy.hidden = false;
     if (title) title.textContent = meta.title;
     if (subtitle) subtitle.textContent = meta.subtitle;
-    if (!["prestadores", "afiliados", "cobertura"].includes(resolved)) mostrarOsActualEnCabecera(null);
+    if (!["prestadores", "afiliados", "cobertura", "anexo-i"].includes(resolved)) mostrarOsActualEnCabecera(null);
     const helpContent = document.getElementById("section-help-content");
     const help = document.getElementById("section-help");
     if (helpContent) helpContent.innerHTML = manualesSeccion[resolved] || "";
@@ -4110,6 +4113,7 @@ function showView(id, updateHistory = true) {
   }
   if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
   if (resolved === "prestadores") inicializarVistaPrestadores();
+  if (resolved === "anexo-i") inicializarVistaAnexoI();
   if (resolved === "cobertura") inicializarVistaCobertura();
   if (resolved === "afiliados") inicializarVistaAfiliados();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
@@ -7863,6 +7867,336 @@ async function inicializarVistaPrestadores() {
   if (btnImportar) btnImportar.hidden = false;
 }
 
+// ---------- Anexo I: declaración jurada de cobertura del PMO (perfil Cartilla OS) ----------
+//
+// Contenido fijo (pma_secciones): versionado y editable solo por staff interno (Admin). La versión
+// "activa" es la que se usa para nuevas presentaciones; las anteriores quedan intactas.
+// Contenido vivo (pma_declaraciones): un registro por Obra Social + ejercicio, con los valores
+// numéricos y aclaraciones cargadas. Mientras estado="borrador" la OS puede seguir editando; al
+// presentar queda congelada (estado="presentada") y la RLS ya no permite modificarla salvo staff.
+// Al presentar también se crea/vincula una fila en "pma" (seguimiento administrativo interno).
+
+let anexoISeccionesCache = [];
+let anexoIObraSocialActual = null;
+let anexoIDeclaracionActual = null; // fila de pma_declaraciones del período que se está mostrando (null = todavía no hay borrador guardado)
+let anexoIEjercicioActual = null;
+
+async function cargarPmaSeccionesActivas(fetchImpl = fetch) {
+  if (anexoISeccionesCache.length) return anexoISeccionesCache;
+  const params = new URLSearchParams({ select: "*", activa: "eq.true", order: "orden.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/pma_secciones?${params.toString()}`, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetchImpl);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  anexoISeccionesCache = await response.json();
+  return anexoISeccionesCache;
+}
+
+function buildPmaDeclaracionesUrl(params = {}) {
+  const p = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, ...params });
+  return `${SUPABASE_URL}/rest/v1/pma_declaraciones?${p.toString()}`;
+}
+
+async function cargarPmaDeclaracionOs(obraSocialId, ejercicio, accessToken) {
+  const response = await fetchConTimeout(buildPmaDeclaracionesUrl({ select: "*", obra_social_id: `eq.${obraSocialId}`, ejercicio: `eq.${ejercicio}`, order: "created_at.desc", limit: "1" }), { method: "GET", headers: authHeaders(accessToken), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  return Array.isArray(filas) && filas.length ? filas[0] : null;
+}
+
+async function guardarPmaDeclaracionEnSupabase(registro, id, accessToken) {
+  const editando = Boolean(id);
+  const payload = editando ? { ...registro, updated_at: new Date().toISOString() } : registro;
+  const response = await fetchConTimeout(buildPmaDeclaracionesUrl(editando ? { id: `eq.${id}` } : {}), {
+    method: editando ? "PATCH" : "POST",
+    headers: { ...authHeaders(accessToken), Prefer: "return=representation" },
+    body: JSON.stringify(payload)
+  }, 10000, fetch);
+  if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+  const filas = await response.json();
+  return Array.isArray(filas) ? filas[0] : filas;
+}
+
+function buildPmaAdjuntosUrl(params = {}) {
+  const p = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, ...params });
+  return `${SUPABASE_URL}/rest/v1/pma_adjuntos?${p.toString()}`;
+}
+
+async function cargarPmaAdjuntos(declaracionId) {
+  if (!declaracionId) return [];
+  const response = await fetchConTimeout(buildPmaAdjuntosUrl({ select: "id,archivo_url,nombre_archivo,descripcion,created_at", pma_declaracion_id: `eq.${declaracionId}`, order: "created_at.desc" }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function renderAnexoIAdjuntosList(lista) {
+  const cont = document.getElementById("anexo-i-adjuntos-list");
+  if (!cont) return;
+  const soloLectura = anexoIDeclaracionActual?.estado === "presentada";
+  cont.innerHTML = lista.length
+    ? lista.map(a => `
+      <div class="subform-item">
+        ${esImagen(a.nombre_archivo) ? `<img src="${escaparHtml(a.archivo_url)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0">` : `<div style="width:56px;height:56px;border-radius:6px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);flex-shrink:0">PDF</div>`}
+        <div class="subform-item-text" style="margin-left:4px">
+          <strong><a href="${escaparHtml(a.archivo_url)}" target="_blank" rel="noopener" style="color:inherit">${escaparHtml(a.nombre_archivo)}</a></strong>
+          ${a.descripcion ? escaparHtml(a.descripcion) : ""}
+        </div>
+        ${soloLectura ? "" : `<button type="button" class="subform-item-remove" data-quitar-anexo-i-adjunto="${a.id}" aria-label="Quitar">×</button>`}
+      </div>`).join("")
+    : `<p style="color:var(--muted);font-size:13px;margin:0">Sin adjuntos cargados.</p>`;
+  cont.querySelectorAll("[data-quitar-anexo-i-adjunto]").forEach(btn => {
+    btn.addEventListener("click", () => handleEliminarAnexoIAdjunto(btn.dataset.quitarAnexoIAdjunto));
+  });
+  const agregarRow = document.getElementById("anexo-i-adjunto-agregar-row");
+  if (agregarRow) agregarRow.hidden = soloLectura;
+}
+
+async function actualizarAnexoIAdjuntos() {
+  renderAnexoIAdjuntosList(await cargarPmaAdjuntos(anexoIDeclaracionActual?.id));
+}
+
+async function handleAgregarAnexoIAdjunto() {
+  if (anexoIDeclaracionActual?.estado === "presentada") return;
+  if (!anexoIDeclaracionActual?.id) { mostrarToast("Guardá el borrador antes de adjuntar un archivo."); return; }
+  const fileInput = document.getElementById("anexo-i-adjunto-file");
+  const file = fileInput?.files?.[0];
+  if (!file) { mostrarToast("Elegí un archivo para subir."); return; }
+  if (file.size > 10 * 1024 * 1024) { mostrarToast("El archivo no puede superar los 10 MB."); return; }
+  const boton = document.getElementById("anexo-i-adjunto-agregar");
+  try {
+    if (boton) boton.disabled = true;
+    const session = await asegurarSesionVigente();
+    const nombreArchivo = `${Date.now()}_${file.name}`;
+    const path = `anexo-i/${anexoIDeclaracionActual.id}/${nombreArchivo}`;
+    const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": file.type || "application/octet-stream" },
+      body: file
+    });
+    if (!uploadResp.ok) throw new Error("No se pudo subir el archivo.");
+    const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+    const descripcion = document.getElementById("anexo-i-adjunto-descripcion")?.value.trim() || null;
+    const insertResp = await fetch(buildPmaAdjuntosUrl({}), {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify({ pma_declaracion_id: anexoIDeclaracionActual.id, archivo_url: archivoUrl, nombre_archivo: file.name, descripcion, subido_por: session.user?.email || null })
+    });
+    if (!insertResp.ok) throw new Error("El archivo se subió pero no se pudo registrar.");
+    fileInput.value = "";
+    document.getElementById("anexo-i-adjunto-descripcion").value = "";
+    mostrarToast("Adjunto subido.");
+    await actualizarAnexoIAdjuntos();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo subir el adjunto.");
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function handleEliminarAnexoIAdjunto(adjuntoId) {
+  if (!(await mostrarConfirmacion("¿Eliminar este adjunto?", { titulo: "Eliminar adjunto", textoAceptar: "Eliminar" }))) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const filaResp = await fetchConTimeout(buildPmaAdjuntosUrl({ id: `eq.${adjuntoId}`, select: "archivo_url" }), { method: "GET", headers: { Accept: "application/json" } }, 10000);
+    const filas = filaResp.ok ? await filaResp.json() : [];
+    const response = await fetchConTimeout(buildPmaAdjuntosUrl({ id: `eq.${adjuntoId}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    if (!response.ok) throw new Error((await leerErrorApi(response)) || "No se pudo eliminar el adjunto.");
+    const url = filas[0]?.archivo_url;
+    if (url) {
+      const path = url.split("/storage/v1/object/public/adjuntos/")[1];
+      if (path) await fetchConTimeout(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, { method: "DELETE", headers: authHeaders(session.access_token) }, 10000);
+    }
+    mostrarToast("Adjunto eliminado.");
+    await actualizarAnexoIAdjuntos();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo eliminar el adjunto.");
+  }
+}
+
+function renderAnexoISecciones() {
+  const cont = document.getElementById("anexo-i-secciones");
+  if (!cont) return;
+  const soloLectura = anexoIDeclaracionActual?.estado === "presentada";
+  const valores = anexoIDeclaracionActual?.valores || {};
+  const aclaraciones = anexoIDeclaracionActual?.aclaraciones || {};
+  cont.innerHTML = anexoISeccionesCache.map(sec => {
+    const camposHtml = (sec.campos_valor || []).length ? `<div class="form-grid anexo-i-campos-valor">${sec.campos_valor.map(cv => {
+      const clave = `${sec.codigo}.${cv.campo}`;
+      const valor = valores[clave] || "";
+      return `<label><span>${escaparHtml(cv.label)}</span><input type="text" data-campo-valor="${escaparHtml(clave)}" value="${escaparHtml(valor)}" ${soloLectura ? "disabled" : ""}></label>`;
+    }).join("")}</div>` : "";
+    const aclaracionHtml = sec.tiene_aclaracion ? `<label class="anexo-i-aclaracion"><span>Aclaraciones (opcional)</span><textarea data-aclaracion="${escaparHtml(sec.codigo)}" ${soloLectura ? "disabled" : ""}>${escaparHtml(aclaraciones[sec.codigo] || "")}</textarea></label>` : "";
+    return `<div class="table-card anexo-i-seccion">
+      <div class="table-meta"><strong>${escaparHtml(sec.codigo)} — ${escaparHtml(sec.titulo)}</strong></div>
+      ${sec.texto ? `<p class="anexo-i-texto">${escaparHtml(sec.texto)}</p>` : ""}
+      ${camposHtml}
+      ${aclaracionHtml}
+    </div>`;
+  }).join("");
+  const accionesBorrador = document.getElementById("anexo-i-acciones-borrador");
+  if (accionesBorrador) accionesBorrador.hidden = soloLectura;
+}
+
+function recolectarValoresAnexoI() {
+  const valores = {};
+  document.querySelectorAll("#anexo-i-secciones [data-campo-valor]").forEach(input => {
+    const v = input.value.trim();
+    if (v) valores[input.dataset.campoValor] = v;
+  });
+  return valores;
+}
+
+function recolectarAclaracionesAnexoI() {
+  const aclaraciones = {};
+  document.querySelectorAll("#anexo-i-secciones [data-aclaracion]").forEach(textarea => {
+    const v = textarea.value.trim();
+    if (v) aclaraciones[textarea.dataset.aclaracion] = v;
+  });
+  return aclaraciones;
+}
+
+function construirRegistroAnexoI(os, ejercicio, estado) {
+  return {
+    obra_social_id: Number(os.id),
+    anio_inicio: anioInicioDesdeEjercicio(ejercicio),
+    ejercicio,
+    pma_secciones_version: anexoISeccionesCache[0]?.version || "",
+    valores: recolectarValoresAnexoI(),
+    aclaraciones: recolectarAclaracionesAnexoI(),
+    estado
+  };
+}
+
+async function cargarYRenderizarPeriodoAnexoI(os, ejercicio) {
+  anexoIEjercicioActual = ejercicio;
+  const cont = document.getElementById("anexo-i-secciones");
+  if (cont) cont.innerHTML = `<p style="color:var(--muted)">Cargando...</p>`;
+  try {
+    const session = await asegurarSesionVigente();
+    anexoIDeclaracionActual = await cargarPmaDeclaracionOs(os.id, ejercicio, session.access_token);
+  } catch (error) {
+    console.error(error);
+    anexoIDeclaracionActual = null;
+  }
+  renderAnexoISecciones();
+  await actualizarAnexoIAdjuntos();
+  await verificarYRenderizarPresentacionAnexoIOs(os);
+}
+
+async function handleCambioPeriodoAnexoI() {
+  const select = document.getElementById("anexo-i-periodo-os");
+  const ejercicio = select?.value;
+  if (!ejercicio || !anexoIObraSocialActual) return;
+  await cargarYRenderizarPeriodoAnexoI(anexoIObraSocialActual, ejercicio);
+}
+
+async function poblarSelectPeriodoAnexoI(os) {
+  const select = document.getElementById("anexo-i-periodo-os");
+  if (!select) return;
+  const vigente = ejercicioVigenteParaOs(os);
+  const anterior = ejercicioAnteriorParaOs(os);
+  const candidatos = [...new Set([vigente, anterior].filter(Boolean))];
+  select.innerHTML = candidatos.map(ej => `<option value="${escaparHtml(ej)}">${escaparHtml(ej)}${ej === anterior ? " (atrasado)" : ""}</option>`).join("");
+  select.value = vigente || candidatos[0] || "";
+}
+
+async function verificarYRenderizarPresentacionAnexoIOs(os) {
+  const pill = document.getElementById("presentar-anexo-i-pill");
+  if (!pill) return;
+  const ejercicio = anexoIEjercicioActual;
+  if (!ejercicio) { pill.innerHTML = ""; return; }
+  if (anexoIDeclaracionActual?.estado === "presentada") {
+    pill.innerHTML = `<span class="stat-pill-inline ok" title="Anexo I del período ${escaparHtml(ejercicio)}">✓ Presentado ${formatFechaPantalla((anexoIDeclaracionActual.presentada_en || "").slice(0, 10))}</span>`;
+    return;
+  }
+  const esAtrasado = ejercicio === ejercicioAnteriorParaOs(os);
+  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="primary" id="btn-presentar-anexo-i">Presentar</button></span>`;
+  document.getElementById("btn-presentar-anexo-i")?.addEventListener("click", event => presentarAnexoI(os, ejercicio, event.currentTarget));
+}
+
+async function guardarBorradorAnexoI() {
+  if (!anexoIObraSocialActual || !anexoIEjercicioActual) return;
+  if (anexoIDeclaracionActual?.estado === "presentada") return;
+  const boton = document.getElementById("btn-guardar-borrador-anexo-i");
+  const msg = document.getElementById("anexo-i-guardado-msg");
+  if (boton) boton.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const registro = construirRegistroAnexoI(anexoIObraSocialActual, anexoIEjercicioActual, "borrador");
+    anexoIDeclaracionActual = await guardarPmaDeclaracionEnSupabase(registro, anexoIDeclaracionActual?.id || null, session.access_token);
+    if (msg) { msg.textContent = "Borrador guardado."; setTimeout(() => { if (msg.textContent === "Borrador guardado.") msg.textContent = ""; }, 4000); }
+    await actualizarAnexoIAdjuntos();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar el borrador.");
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function presentarAnexoI(os, ejercicio, boton) {
+  if (!os || !ejercicio) return;
+  if (!(await mostrarConfirmacion(`¿Presentar el Anexo I (declaración jurada de cobertura del PMO) del período ${ejercicio}? El texto y los valores cargados van a quedar congelados y no vas a poder modificarlos después (sí podés seguir editando para la próxima presentación).`, { titulo: "Presentar Anexo I", textoAceptar: "Presentar" }))) return;
+  if (boton) { boton.disabled = true; boton.textContent = "Presentando..."; }
+  try {
+    const session = await asegurarSesionVigente();
+    const anioInicio = anioInicioDesdeEjercicio(ejercicio);
+
+    // Fila administrativa de seguimiento interno (mismo patrón que Cartilla/PMA).
+    const finPeriodo = finPeriodoDesdeInicio(os.inicio_ejercicio, anioInicio);
+    let pmaId = anexoIDeclaracionActual?.pma_id || null;
+    if (!pmaId) {
+      try {
+        const registroPma = {
+          obra_social_id: Number(os.id),
+          anio_inicio: anioInicio,
+          ejercicio,
+          inicio_periodo: os.inicio_ejercicio || null,
+          fin_periodo: finPeriodo ? diaMesDesdeFechaIso(finPeriodo) : null,
+          fecha_inicio_ejercicio: fechaInicioEjercicioDesdeDiaMes(os.inicio_ejercicio, anioInicio),
+          fecha_fin_ejercicio: finPeriodo || null,
+          fecha_ingreso: hoyLocalISO(),
+          condicion: "EN ESTUDIO"
+        };
+        const filaPma = await guardarPmaEnSupabase(registroPma, null, session.access_token);
+        pmaId = Array.isArray(filaPma) ? filaPma[0]?.id : filaPma?.id;
+      } catch (error) { console.error("No se pudo crear la fila administrativa de PMA:", error); }
+    }
+
+    const registro = {
+      ...construirRegistroAnexoI(os, ejercicio, "presentada"),
+      presentada_en: new Date().toISOString(),
+      presentada_por: session.user?.email || null,
+      pma_id: pmaId || null
+    };
+    anexoIDeclaracionActual = await guardarPmaDeclaracionEnSupabase(registro, anexoIDeclaracionActual?.id || null, session.access_token);
+    renderAnexoISecciones();
+    await actualizarAnexoIAdjuntos();
+    mostrarToast("¡Anexo I presentado! La Superintendencia lo va a revisar.");
+    await verificarYRenderizarPresentacionAnexoIOs(os);
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo presentar el Anexo I.");
+    if (boton) { boton.disabled = false; boton.textContent = "Presentar"; }
+  }
+}
+
+async function inicializarVistaAnexoI() {
+  if (typeof document === "undefined") return;
+  try { await cargarPmaSeccionesActivas(); } catch (error) { console.error(error); mostrarToast("No se pudo cargar el contenido del Anexo I."); }
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  const osId = obraSocialIdSesionActual();
+  const os = obrasSociales.find(o => Number(o.id) === Number(osId));
+  const header = document.getElementById("anexo-i-header-os");
+  if (!os) {
+    const cont = document.getElementById("anexo-i-secciones");
+    if (cont) cont.innerHTML = `<p style="color:var(--muted)">Tu usuario no tiene una Obra Social asignada. Avisá a la Superintendencia.</p>`;
+    if (header) header.hidden = true;
+    return;
+  }
+  anexoIObraSocialActual = os;
+  mostrarOsActualEnCabecera(os);
+  if (header) header.hidden = false;
+  await poblarSelectPeriodoAnexoI(os);
+  await cargarYRenderizarPeriodoAnexoI(os, document.getElementById("anexo-i-periodo-os")?.value || ejercicioVigenteParaOs(os));
+}
+
 async function handleCambioEjercicioPrestadores() {
   const seleccionados = ejerciciosFiltroSeleccionados("prestadores");
   const osInput = document.getElementById("prestadores-os-search");
@@ -8574,6 +8908,9 @@ async function initBrowser() {
   document.getElementById("prestadores-contrato-filter")?.addEventListener("change", () => { prestadoresPage = 1; renderPrestadores(); });
   document.getElementById("btn-nuevo-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalPrestadorNuevo));
   document.getElementById("prestadores-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoPrestadoresOs));
+  document.getElementById("anexo-i-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoI));
+  document.getElementById("btn-guardar-borrador-anexo-i")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoI));
+  document.getElementById("anexo-i-adjunto-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarAnexoIAdjunto));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
   document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
   document.getElementById("importar-cartilla-file")?.addEventListener("change", event => manejarArchivoImportarCartilla(event.target.files[0]));
