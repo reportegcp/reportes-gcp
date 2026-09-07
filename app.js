@@ -8011,6 +8011,13 @@ async function handleEliminarAnexoIAdjunto(adjuntoId) {
   }
 }
 
+function opcionesPorcentajeAnexoI(seleccionado) {
+  const sel = Number.isFinite(seleccionado) && seleccionado >= 40 && seleccionado <= 100 ? seleccionado : 40;
+  let html = "";
+  for (let n = 40; n <= 100; n++) html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}%</option>`;
+  return html;
+}
+
 function renderAnexoISecciones() {
   const cont = document.getElementById("anexo-i-secciones");
   if (!cont) return;
@@ -8020,10 +8027,29 @@ function renderAnexoISecciones() {
   cont.innerHTML = anexoISeccionesCache.map(sec => {
     const camposHtml = (sec.campos_valor || []).length ? `<div class="form-grid anexo-i-campos-valor">${sec.campos_valor.map(cv => {
       const clave = `${sec.codigo}.${cv.campo}`;
-      const valor = valores[clave] || "";
-      return `<label><span>${escaparHtml(cv.label)}</span><input type="text" data-campo-valor="${escaparHtml(clave)}" value="${escaparHtml(valor)}" ${soloLectura ? "disabled" : ""}></label>`;
+      const valorGuardado = valores[clave] || "";
+      if (cv.tipo === "porcentaje") {
+        const seleccionado = parseInt(valorGuardado, 10);
+        return `<label><span>${escaparHtml(cv.label)}</span><select data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="porcentaje" ${soloLectura ? "disabled" : ""}>${opcionesPorcentajeAnexoI(seleccionado)}</select></label>`;
+      }
+      return `<label><span>${escaparHtml(cv.label)}</span><input type="text" data-campo-valor="${escaparHtml(clave)}" data-tipo-valor="numero" value="${escaparHtml(valorGuardado)}" ${soloLectura ? "disabled" : ""}></label>`;
     }).join("")}</div>` : "";
-    const aclaracionHtml = sec.tiene_aclaracion ? `<label class="anexo-i-aclaracion"><span>Aclaraciones (opcional)</span><textarea data-aclaracion="${escaparHtml(sec.codigo)}" ${soloLectura ? "disabled" : ""}>${escaparHtml(aclaraciones[sec.codigo] || "")}</textarea></label>` : "";
+    const aclaracionHtml = sec.tiene_aclaracion ? `<div class="anexo-i-aclaracion">
+      <span>Aclaraciones (opcional)</span>
+      ${soloLectura ? "" : `<div class="anexo-i-rte-toolbar" data-rte-toolbar="${escaparHtml(sec.codigo)}">
+        <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
+        <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
+        <span class="anexo-i-rte-sep"></span>
+        <button type="button" data-cmd="justifyLeft" title="Alinear a la izquierda">⇤</button>
+        <button type="button" data-cmd="justifyCenter" title="Centrar">≡</button>
+        <button type="button" data-cmd="justifyRight" title="Alinear a la derecha">⇥</button>
+        <button type="button" data-cmd="justifyFull" title="Justificar">☰</button>
+        <span class="anexo-i-rte-sep"></span>
+        <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
+        <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
+      </div>`}
+      <div class="anexo-i-rte" data-aclaracion="${escaparHtml(sec.codigo)}" contenteditable="${soloLectura ? "false" : "true"}">${aclaraciones[sec.codigo] || ""}</div>
+    </div>` : "";
     return `<div class="table-card anexo-i-seccion">
       <div class="table-meta"><strong>${escaparHtml(sec.codigo)} — ${escaparHtml(sec.titulo)}</strong></div>
       ${sec.texto ? `<p class="anexo-i-texto">${escaparHtml(sec.texto)}</p>` : ""}
@@ -8033,22 +8059,47 @@ function renderAnexoISecciones() {
   }).join("");
   const accionesBorrador = document.getElementById("anexo-i-acciones-borrador");
   if (accionesBorrador) accionesBorrador.hidden = soloLectura;
+  bindAnexoIRteToolbars();
+}
+
+function bindAnexoIRteToolbars() {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll("#anexo-i-secciones [data-rte-toolbar]").forEach(toolbar => {
+    const codigo = toolbar.dataset.rteToolbar;
+    const rte = document.querySelector(`#anexo-i-secciones .anexo-i-rte[data-aclaracion="${CSS.escape(codigo)}"]`);
+    if (!rte) return;
+    toolbar.querySelectorAll("[data-cmd]").forEach(btn => {
+      btn.addEventListener("mousedown", event => event.preventDefault());
+      btn.addEventListener("click", () => {
+        rte.focus();
+        document.execCommand(btn.dataset.cmd, false, null);
+      });
+    });
+  });
+  document.querySelectorAll('#anexo-i-secciones .anexo-i-rte[contenteditable="true"]').forEach(rte => {
+    rte.addEventListener("keydown", event => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        document.execCommand("insertHTML", false, "&emsp;");
+      }
+    });
+  });
 }
 
 function recolectarValoresAnexoI() {
   const valores = {};
-  document.querySelectorAll("#anexo-i-secciones [data-campo-valor]").forEach(input => {
-    const v = input.value.trim();
-    if (v) valores[input.dataset.campoValor] = v;
+  document.querySelectorAll("#anexo-i-secciones [data-campo-valor]").forEach(el => {
+    const esPorcentaje = el.dataset.tipoValor === "porcentaje";
+    const v = esPorcentaje ? (el.value ? `${el.value}%` : "") : (el.value || "").trim();
+    if (v) valores[el.dataset.campoValor] = v;
   });
   return valores;
 }
 
 function recolectarAclaracionesAnexoI() {
   const aclaraciones = {};
-  document.querySelectorAll("#anexo-i-secciones [data-aclaracion]").forEach(textarea => {
-    const v = textarea.value.trim();
-    if (v) aclaraciones[textarea.dataset.aclaracion] = v;
+  document.querySelectorAll("#anexo-i-secciones .anexo-i-rte[data-aclaracion]").forEach(rte => {
+    if (rte.textContent.trim()) aclaraciones[rte.dataset.aclaracion] = rte.innerHTML.trim();
   });
   return aclaraciones;
 }

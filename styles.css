@@ -1679,9 +1679,25 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 @media(max-width:700px){.anexo-i-adjunto-add-row{grid-template-columns:1fr}}
 .anexo-i-seccion{margin-bottom:12px}
 .anexo-i-seccion .table-meta{border-bottom:1px solid var(--line)}
-.anexo-i-texto{white-space:pre-line;padding:14px 20px 0;margin:0;font-size:13.5px;line-height:1.5;color:#33404d}
-.anexo-i-campos-valor{padding:14px 20px 4px}
-.anexo-i-aclaracion{display:grid;gap:5px;padding:14px 20px 18px}
+.anexo-i-texto{white-space:pre-line;padding:14px 20px 0;margin:0;font-size:13.5px;line-height:1.5;color:#33404d;text-align:justify}
+.anexo-i-campos-valor{padding:14px 20px 4px;grid-template-columns:1fr}
+.anexo-i-campos-valor label{width:100%}
+.anexo-i-campos-valor input,.anexo-i-campos-valor select{width:100%;box-sizing:border-box;height:40px}
+.anexo-i-aclaracion{display:grid;gap:6px;padding:14px 20px 18px}
 .anexo-i-aclaracion>span{font-size:12px;font-weight:800;color:#4d5d70}
-.anexo-i-aclaracion textarea{resize:vertical;min-height:52px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;box-sizing:border-box}
+.anexo-i-rte-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.anexo-i-rte-toolbar button{
+  width:28px;height:28px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  color:var(--text);font-size:12.5px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center
+}
+.anexo-i-rte-toolbar button:hover{background:var(--surface-soft)}
+.anexo-i-rte-sep{width:1px;align-self:stretch;background:var(--line);margin:2px 3px}
+.anexo-i-rte{
+  min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+  font-size:13px;font-family:inherit;line-height:1.5;background:#fff;outline:none;box-sizing:border-box
+}
+.anexo-i-rte:focus{border-color:#7f98b3;box-shadow:0 0 0 3px rgba(38,74,113,.08)}
+.anexo-i-rte[contenteditable="false"]{background:#f4f6f8;color:#526174}
+.anexo-i-rte p{margin:0 0 8px}
+.anexo-i-rte ul,.anexo-i-rte ol{margin:6px 0;padding-left:22px}
 .anexo-i-campos-valor:last-child,.anexo-i-texto:last-child{padding-bottom:18px}
