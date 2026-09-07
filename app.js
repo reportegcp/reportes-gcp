@@ -8442,16 +8442,34 @@ function bindAnexoIAdminCambios() {
 }
 
 function campoEditableAnexoIAdmin(sec) {
+  // Algunas secciones son solo un título de agrupación (sin texto propio, ej. "1.1 PROGRAMAS DE
+  // PREVENCIÓN PRIMARIA"). Para esas no tiene sentido mostrar de entrada un recuadro de texto
+  // enriquecido vacío — se oculta y se deja un botón chico para agregarlo si hiciera falta.
+  const tieneTexto = Boolean(sec.texto && sec.texto.trim());
   return `
     <input type="text" class="anexo-i-admin-titulo-input" data-anexo-i-admin-titulo="${escaparHtml(sec.id)}" value="${escaparHtml(sec.titulo)}">
-    <div class="anexo-i-rte-toolbar" data-rte-toolbar-admin="${escaparHtml(sec.id)}">
+    ${tieneTexto ? "" : `<button type="button" class="link-button" data-agregar-texto-admin="${escaparHtml(sec.id)}">+ Agregar texto</button>`}
+    <div class="anexo-i-rte-toolbar" data-rte-toolbar-admin="${escaparHtml(sec.id)}"${tieneTexto ? "" : " hidden"}>
       <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
       <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
       <span class="anexo-i-rte-sep"></span>
       <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
       <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
     </div>
-    <div class="anexo-i-rte anexo-i-admin-texto-rte" data-anexo-i-admin-texto="${escaparHtml(sec.id)}" contenteditable="true">${sec.texto || ""}</div>`;
+    <div class="anexo-i-rte anexo-i-admin-texto-rte" data-anexo-i-admin-texto="${escaparHtml(sec.id)}" contenteditable="true"${tieneTexto ? "" : " hidden"}>${sec.texto || ""}</div>`;
+}
+
+function bindAnexoIAdminAgregarTexto() {
+  document.querySelectorAll("#anexo-i-admin-secciones [data-agregar-texto-admin]").forEach(boton => {
+    boton.addEventListener("click", () => {
+      const id = boton.dataset.agregarTextoAdmin;
+      document.querySelector(`[data-rte-toolbar-admin="${CSS.escape(id)}"]`)?.removeAttribute("hidden");
+      const rte = document.querySelector(`[data-anexo-i-admin-texto="${CSS.escape(id)}"]`);
+      rte?.removeAttribute("hidden");
+      rte?.focus();
+      boton.remove();
+    });
+  });
 }
 
 function campoSoloLecturaAnexoIAdmin(titulo, texto) {
@@ -8496,6 +8514,7 @@ function renderAnexoIAdminSecciones() {
 
   bindAnexoIAdminRteToolbars();
   bindAnexoIAdminCambios();
+  bindAnexoIAdminAgregarTexto();
 }
 
 async function handleCrearVersionFuturaAnexoIAdmin() {
