@@ -1686,6 +1686,11 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-i-texto ol.anexo-i-lista-alfa{list-style-type:lower-alpha}
 .anexo-i-texto li{margin:0 0 4px}
 .anexo-i-texto>*:last-child{margin-bottom:0}
+/* Si todo el contenido de un ítem es negrita (ej. "Acciones:" como subtítulo de una lista), la
+   viñeta o el número también se ven en negrita — por defecto el navegador no lo hace porque el
+   marcador toma el peso de fuente del <li>, no el de un <strong> que esté adentro. */
+.anexo-i-texto li:has(>strong:only-child)::marker,
+.anexo-i-rte li:has(>strong:only-child)::marker{font-weight:700}
 .anexo-i-campos-valor{padding:14px 20px 4px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 24px}
 .anexo-i-campos-valor label{display:grid;gap:5px}
 .anexo-i-campos-valor label.anexo-i-campo-full{width:100%}
@@ -1709,6 +1714,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-i-rte[contenteditable="false"]{background:#f4f6f8;color:#526174}
 .anexo-i-rte p{margin:0 0 8px}
 .anexo-i-rte ul,.anexo-i-rte ol{margin:6px 0;padding-left:22px}
+.anexo-i-rte ul ul{list-style-type:circle}
+.anexo-i-rte ol.anexo-i-lista-alfa{list-style-type:lower-alpha}
 .anexo-i-campos-valor:last-child,.anexo-i-texto:last-child{padding-bottom:18px}
 
 /* Anexo I · Actualización: edición administrativa del texto normativo (staff interno) */
