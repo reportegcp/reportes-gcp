@@ -8397,7 +8397,11 @@ function bindAnexoIAdminRteToolbars() {
     if (!rte) return;
     toolbar.querySelectorAll("[data-cmd]").forEach(btn => {
       btn.addEventListener("mousedown", event => event.preventDefault());
-      btn.addEventListener("click", () => { rte.focus(); document.execCommand(btn.dataset.cmd, false, null); });
+      btn.addEventListener("click", () => {
+        rte.focus();
+        if (btn.dataset.cmd === "tab") document.execCommand("insertHTML", false, "&emsp;");
+        else document.execCommand(btn.dataset.cmd, false, null);
+      });
     });
   });
   document.querySelectorAll("#anexo-i-admin-secciones [data-anexo-i-admin-texto]").forEach(rte => {
@@ -8474,6 +8478,8 @@ function campoEditableAnexoIAdmin(sec) {
       <span class="anexo-i-rte-sep"></span>
       <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
       <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
+      <span class="anexo-i-rte-sep"></span>
+      <button type="button" data-cmd="tab" title="Tabulador (sangría)">⇥</button>
     </div>
     <div class="anexo-i-rte anexo-i-admin-texto-rte" data-anexo-i-admin-texto="${escaparHtml(sec.id)}" contenteditable="true"${tieneTexto ? "" : " hidden"}>${sec.texto || ""}</div>`;
 }

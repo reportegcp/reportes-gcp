@@ -1686,11 +1686,12 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-i-texto ol.anexo-i-lista-alfa{list-style-type:lower-alpha}
 .anexo-i-texto li{margin:0 0 4px}
 .anexo-i-texto>*:last-child{margin-bottom:0}
-/* Si todo el contenido de un ítem es negrita (ej. "Acciones:" como subtítulo de una lista), la
-   viñeta o el número también se ven en negrita — por defecto el navegador no lo hace porque el
-   marcador toma el peso de fuente del <li>, no el de un <strong> que esté adentro. */
-.anexo-i-texto li:has(>strong:only-child)::marker,
-.anexo-i-rte li:has(>strong:only-child)::marker{font-weight:700}
+/* Si un ítem empieza en negrita (ej. "Acciones:" solo, o un subtítulo en negrita seguido de
+   texto normal como "Atención del embarazo En embarazos normales..."), la viñeta o el número
+   también se ven en negrita — por defecto el navegador no lo hace porque el marcador toma el
+   peso de fuente del <li>, no el de un <strong> que esté adentro. */
+.anexo-i-texto li:has(>strong:first-child)::marker,
+.anexo-i-rte li:has(>strong:first-child)::marker{font-weight:700}
 .anexo-i-campos-valor{padding:14px 20px 4px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 24px}
 .anexo-i-campos-valor label{display:grid;gap:5px}
 .anexo-i-campos-valor label.anexo-i-campo-full{width:100%}
