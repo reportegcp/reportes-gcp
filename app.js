@@ -8012,22 +8012,58 @@ async function handleEliminarAnexoIAdjunto(adjuntoId) {
 }
 
 // El texto de cada seccion viene extraido del PDF con un salto de linea por cada renglon
-// impreso (no por párrafo), y además el documento original tenía viñetas, sub-viñetas e
-// ítems con letra (a), b), c)...) que hay que reconstruir como listas reales — si no, el
-// navegador respeta cada salto y el texto queda angosto, sin poder justificarse y "pegado"
-// como si fuera un solo bloque plano. Reglas de reconocimiento por renglón:
+// impreso (no por párrafo), y además el documento original tenía viñetas, sub-viñetas,
+// ítems con letra (a), b), c)...) y tramos en negrita que hay que reconstruir como HTML real
+// — si no, el navegador respeta cada salto y el texto queda angosto, sin poder justificarse
+// y "pegado" como si fuera un solo bloque plano. El texto guardado usa "**tramo**" (estilo
+// markdown) para marcar negrita — así quedó reconstruido a partir del PDF original y así
+// puede seguir editándose desde el admin. Reglas de reconocimiento por renglón (sobre el
+// texto SIN las marcas de negrita, para que un ítem que arranca en negrita — ej. "a)" bold —
+// se siga detectando igual):
 //   "•texto"        -> viñeta de primer nivel
 //   "otexto" (con "o" pegado a una mayúscula) -> sub-viñeta anidada bajo la última viñeta
 //   "a)texto"        -> ítem de lista con letra (a, b, c...)
 //   "9.3.1. texto"   -> encabezado numerado (se resalta el número en negrita)
 //   cualquier otro renglón se concatena al párrafo en curso, como antes.
+function segmentarNegritaAnexoI(s) {
+  const partes = String(s).split("**");
+  const segmentos = [];
+  partes.forEach((parte, i) => { if (parte) segmentos.push({ texto: parte, bold: i % 2 === 1 }); });
+  return segmentos;
+}
+function textoPlanoAnexoI(segmentos) {
+  return segmentos.map(s => s.texto).join("");
+}
+function serializarNegritaAnexoI(segmentos) {
+  return segmentos.map(s => (s.bold ? `**${s.texto}**` : s.texto)).join("");
+}
+// Devuelve, a partir de una lista de segmentos {texto,bold} y una posición de corte medida
+// sobre el texto plano concatenado, el sub-tramo de segmentos que arranca ahí — conservando
+// qué partes eran negrita, sin romper ningún par de "**".
+function cortarSegmentosAnexoI(segmentos, desdeCharPlano) {
+  let acumulado = 0;
+  const resultado = [];
+  segmentos.forEach(seg => {
+    const len = seg.texto.length;
+    if (acumulado + len > desdeCharPlano) {
+      const inicioLocal = Math.max(0, desdeCharPlano - acumulado);
+      resultado.push({ texto: seg.texto.slice(inicioLocal), bold: seg.bold });
+    }
+    acumulado += len;
+  });
+  return resultado;
+}
+function aplicarNegritaAnexoI(html) {
+  return html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
 function formatearTextoAnexoI(texto) {
   if (!texto) return "";
   const lineas = String(texto).split("\n");
-  const RE_VINETA = /^[•\-–]\s*(.+)/;
-  const RE_SUBVINETA = /^o([A-ZÁÉÍÓÚÑ].*)/;
-  const RE_LETRA = /^([a-záéíóúñ])\)\s*(.+)/;
-  const RE_NUM_MULTI = /^(\d+(?:\.\d+)+\.)\s*(.+)/;
+  const RE_VINETA = /^[•\-–]\s*(.+)/d;
+  const RE_SUBVINETA = /^o([A-ZÁÉÍÓÚÑ].*)/d;
+  const RE_LETRA = /^([a-záéíóúñ])\)\s*(.+)/d;
+  const RE_NUM_MULTI = /^(\d+(?:\.\d+)+\.)\s*(.+)/d;
 
   const bloques = [];
   let parrafoActual = "";
@@ -8045,29 +8081,33 @@ function formatearTextoAnexoI(texto) {
     const l = linea.trim();
     if (!l) { cerrarParrafo(); cerrarLista(); return; }
 
+    const segmentos = segmentarNegritaAnexoI(l);
+    const plano = textoPlanoAnexoI(segmentos);
+    const contenidoDesde = pos => serializarNegritaAnexoI(cortarSegmentosAnexoI(segmentos, pos));
+
     let m;
-    if ((m = l.match(RE_VINETA))) {
+    if ((m = plano.match(RE_VINETA))) {
       cerrarParrafo();
       if (!listaActual || listaActual.tipo !== "vinetas") { cerrarLista(); listaActual = { tipo: "vinetas", items: [] }; }
-      listaActual.items.push({ texto: m[1], sub: [] });
+      listaActual.items.push({ texto: contenidoDesde(m.indices[1][0]), sub: [] });
       return;
     }
-    if ((m = l.match(RE_SUBVINETA))) {
+    if ((m = plano.match(RE_SUBVINETA))) {
       cerrarParrafo();
       if (!listaActual || listaActual.tipo !== "vinetas" || !listaActual.items.length) { cerrarLista(); listaActual = { tipo: "vinetas", items: [{ texto: "", sub: [] }] }; }
-      listaActual.items[listaActual.items.length - 1].sub.push(m[1]);
+      listaActual.items[listaActual.items.length - 1].sub.push(contenidoDesde(m.indices[1][0]));
       return;
     }
-    if ((m = l.match(RE_LETRA))) {
+    if ((m = plano.match(RE_LETRA))) {
       cerrarParrafo();
       if (!listaActual || listaActual.tipo !== "letras") { cerrarLista(); listaActual = { tipo: "letras", items: [] }; }
-      listaActual.items.push({ texto: m[2], sub: [] });
+      listaActual.items.push({ texto: contenidoDesde(m.indices[2][0]), sub: [] });
       return;
     }
-    if ((m = l.match(RE_NUM_MULTI))) {
+    if ((m = plano.match(RE_NUM_MULTI))) {
       cerrarParrafo();
       cerrarLista();
-      bloques.push({ tipo: "p-num", numero: m[1], texto: m[2] });
+      bloques.push({ tipo: "p-num", numero: m[1], texto: contenidoDesde(m.indices[2][0]) });
       return;
     }
     // Renglón de continuación: sigue el párrafo o el ítem de lista abierto (bullets con
@@ -8083,11 +8123,12 @@ function formatearTextoAnexoI(texto) {
   cerrarParrafo();
   cerrarLista();
 
-  const renderItems = items => items.map(it => `<li>${escaparHtml(it.texto)}${it.sub.length ? `<ul>${it.sub.map(s => `<li>${escaparHtml(s)}</li>`).join("")}</ul>` : ""}</li>`).join("");
+  const negrita = s => aplicarNegritaAnexoI(escaparHtml(s));
+  const renderItems = items => items.map(it => `<li>${negrita(it.texto)}${it.sub.length ? `<ul>${it.sub.map(s => `<li>${negrita(s)}</li>`).join("")}</ul>` : ""}</li>`).join("");
 
   return bloques.map(b => {
-    if (b.tipo === "p") return `<p>${escaparHtml(b.texto)}</p>`;
-    if (b.tipo === "p-num") return `<p><strong>${escaparHtml(b.numero)}</strong> ${escaparHtml(b.texto)}</p>`;
+    if (b.tipo === "p") return `<p>${negrita(b.texto)}</p>`;
+    if (b.tipo === "p-num") return `<p><strong>${escaparHtml(b.numero)}</strong> ${negrita(b.texto)}</p>`;
     if (b.tipo === "vinetas") return `<ul>${renderItems(b.items)}</ul>`;
     if (b.tipo === "letras") return `<ol class="anexo-i-lista-alfa">${renderItems(b.items)}</ol>`;
     return "";
@@ -8102,9 +8143,11 @@ function opcionesPorcentajeAnexoI(seleccionado) {
 }
 
 function opcionesSesionesAnexoI(seleccionado) {
-  const sel = Number.isFinite(seleccionado) && seleccionado >= 1 && seleccionado <= 100 ? seleccionado : 30;
+  const validos = [];
+  for (let n = 5; n <= 100; n += 5) validos.push(n);
+  const sel = validos.includes(seleccionado) ? seleccionado : 30;
   let html = "";
-  for (let n = 1; n <= 100; n++) html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}</option>`;
+  validos.forEach(n => { html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}</option>`; });
   return html;
 }
 
