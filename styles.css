@@ -87,8 +87,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
   font-size:13.5px;font-weight:600
 }
 .nav-group-toggle:hover{background:rgba(255,255,255,.07);color:#fff}
-.nav-group.active>.nav-group-toggle{background:#ffb066;color:var(--navy);font-weight:800}
-.nav-group:not(.collapsed):not(.active)>.nav-group-toggle{background:rgba(255,255,255,.08);color:#fff}
+.nav-group.active>.nav-group-toggle,.nav-group:not(.collapsed)>.nav-group-toggle{background:#ffb066;color:var(--navy);font-weight:800}
 .nav-group-chevron{font-size:14px;line-height:1;transition:transform .16s ease}
 .nav-group.collapsed .nav-group-chevron{transform:rotate(-90deg)}
 .nav-submenu{display:grid;gap:1px;padding:2px 0 2px 10px}
