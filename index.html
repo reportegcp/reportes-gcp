@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -68,6 +68,8 @@
             <button class="nav-subitem" data-view="prestadores" data-nav-access="prestadores" type="button">Prestadores</button>
             <button class="nav-subitem" data-view="cobertura" data-nav-access="cobertura" type="button">Cobertura</button>
             <button class="nav-subitem" data-view="anexo-i" data-nav-access="anexo-i" type="button">Anexo I</button>
+            <button class="nav-subitem" data-view="anexo-ii" data-nav-access="anexo-ii" type="button">Anexo II</button>
+            <button class="nav-subitem" data-view="anexo-ii-admin" data-nav-access="anexo-ii-admin" type="button">Anexo II</button>
           </div>
         </div>
 
@@ -120,7 +122,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 11</span>
+        <span>Versión 12</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -444,6 +446,36 @@
         <div class="module-actions" id="anexo-i-acciones-borrador" style="justify-content:flex-start;align-items:center;gap:10px;margin-top:4px">
           <button class="primary" id="btn-guardar-borrador-anexo-i" type="button">Guardar borrador</button>
           <span id="anexo-i-guardado-msg" style="color:var(--muted);font-size:13px"></span>
+        </div>
+      </section>
+
+      <section id="anexo-ii" class="view">
+        <div class="prestadores-fila-superior" id="anexo-ii-header-os" hidden>
+          <div class="prestadores-fila-superior-izq prestadores-fila-superior-col">
+            <select id="anexo-ii-periodo-os" aria-label="Elegí qué período ver"></select>
+            <span id="presentar-anexo-ii-pill"></span>
+          </div>
+        </div>
+
+        <div id="anexo-ii-contenido"></div>
+
+        <div class="module-actions" id="anexo-ii-acciones-borrador" style="justify-content:flex-start;align-items:center;gap:10px;margin-top:4px">
+          <button class="primary" id="btn-guardar-borrador-anexo-ii" type="button">Guardar borrador</button>
+          <span id="anexo-ii-guardado-msg" style="color:var(--muted);font-size:13px"></span>
+        </div>
+      </section>
+
+      <section id="anexo-ii-admin" class="view">
+        <div class="toolbar prestadores-toolbar">
+          <div class="search-box transaction-agent-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="anexo-ii-admin-os-search" type="text" list="anexo-ii-admin-os-list" placeholder="Elegí la Obra Social..." autocomplete="off">
+            <datalist id="anexo-ii-admin-os-list"></datalist>
+          </div>
+          <select id="anexo-ii-admin-periodo" hidden></select>
+        </div>
+        <div class="table-card anexo-i-seccion" id="anexo-ii-admin-contenido">
+          <p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Anexo II.</p>
         </div>
       </section>
 
@@ -1934,6 +1966,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>

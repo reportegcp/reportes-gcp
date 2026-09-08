@@ -8,6 +8,8 @@ const views = {
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   "anexo-i": { title: "Anexo I", subtitle: "Declaración jurada de cobertura del PMO" },
   "anexo-i-admin": { title: "Anexo I · Actualización", subtitle: "Edición del texto normativo del Anexo I, por ejercicio" },
+  "anexo-ii": { title: "Anexo II", subtitle: "Texto redactado por la Obra Social" },
+  "anexo-ii-admin": { title: "Anexo II", subtitle: "Consulta del texto redactado por cada Obra Social (solo lectura)" },
   cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
   afiliados: { title: "Afiliados", subtitle: "Total y distribución geográfica de afiliados por Obra Social" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
@@ -31,7 +33,9 @@ const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
-  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Actualización</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>“Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
+  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Actualización</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>”Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
+  "anexo-ii": `<strong>Qué hacer en Anexo II</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Redactá el texto con el editor (negrita, itálica, viñetas, numeración y tabulador).</li><li>"Guardar borrador" conserva lo escrito sin presentarlo; podés volver a entrar y seguir editando.</li><li>"Presentar" envía el texto a la Superintendencia. Una vez presentado queda congelado y no se puede modificar.</li></ul>`,
+  "anexo-ii-admin": `<strong>Qué hacer en Anexo II</strong><ul><li>Buscá la Obra Social arriba.</li><li>Si ya cargó uno o más períodos, elegilos en el desplegable para ver el texto que redactó, sea borrador o ya presentado.</li><li>Es de solo lectura: la edición del texto es exclusiva de la Obra Social.</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
@@ -260,10 +264,10 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "anexo-i-admin", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "anexo-i-admin", "anexo-ii-admin", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
-  if (p === "cartilla os") return ["prestadores", "afiliados", "anexo-i"].includes(id);
+  if (p === "cartilla os") return ["prestadores", "afiliados", "anexo-i", "anexo-ii"].includes(id);
   return false;
 }
 
@@ -317,6 +321,8 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
+  document.querySelector('[data-nav-access="anexo-ii"]')?.toggleAttribute("hidden", !esCartillaOs);
+  document.querySelector('[data-nav-access="anexo-ii-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="anexo-i-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="configuracion-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
@@ -4067,7 +4073,7 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (["anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
@@ -4080,7 +4086,7 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
   if (["anexo-i-admin"].includes(resolved)) {
@@ -4129,6 +4135,8 @@ function showView(id, updateHistory = true) {
   if (resolved === "prestadores") inicializarVistaPrestadores();
   if (resolved === "anexo-i") inicializarVistaAnexoI();
   if (resolved === "anexo-i-admin") inicializarVistaAnexoIAdmin();
+  if (resolved === "anexo-ii") inicializarVistaAnexoII();
+  if (resolved === "anexo-ii-admin") inicializarVistaAnexoIIAdmin();
   if (resolved === "cobertura") inicializarVistaCobertura();
   if (resolved === "afiliados") inicializarVistaAfiliados();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
@@ -8331,6 +8339,264 @@ async function inicializarVistaAnexoI() {
   await cargarYRenderizarPeriodoAnexoI(os, document.getElementById("anexo-i-periodo-os")?.value || ejercicioVigenteParaOs(os));
 }
 
+// ---------- Anexo II: texto redactado libremente por la Obra Social (sin secciones fijas) ----------
+//
+// A diferencia del Anexo I (donde la Superintendencia define el texto normativo y la OS solo
+// completa campos puntuales), el Anexo II es un texto que redacta la propia Obra Social de punta
+// a punta con un procesador de texto simple. El staff interno solo puede consultarlo, nunca
+// editarlo. Mismo patrón de guardar borrador / presentar / congelar que el Anexo I.
+
+let anexoIIObraSocialActual = null;
+let anexoIIEjercicioActual = null;
+let anexoIIDeclaracionActual = null;
+
+function buildPmaAnexoIIUrl(params = {}) {
+  const p = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, ...params });
+  return `${SUPABASE_URL}/rest/v1/pma_anexo_ii_declaraciones?${p.toString()}`;
+}
+
+async function cargarPmaAnexoIIDeclaracionOs(obraSocialId, ejercicio, accessToken) {
+  const response = await fetchConTimeout(buildPmaAnexoIIUrl({ select: "*", obra_social_id: `eq.${obraSocialId}`, ejercicio: `eq.${ejercicio}`, order: "created_at.desc", limit: "1" }), { method: "GET", headers: authHeaders(accessToken), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  return Array.isArray(filas) && filas.length ? filas[0] : null;
+}
+
+async function guardarPmaAnexoIIDeclaracionEnSupabase(registro, id, accessToken) {
+  const editando = Boolean(id);
+  const payload = editando ? { ...registro, updated_at: new Date().toISOString() } : registro;
+  const response = await fetchConTimeout(buildPmaAnexoIIUrl(editando ? { id: `eq.${id}` } : {}), {
+    method: editando ? "PATCH" : "POST",
+    headers: { ...authHeaders(accessToken), Prefer: "return=representation" },
+    body: JSON.stringify(payload)
+  }, 10000, fetch);
+  if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
+  const filas = await response.json();
+  return Array.isArray(filas) ? filas[0] : filas;
+}
+
+function construirRegistroAnexoII(os, ejercicio, estado) {
+  return {
+    obra_social_id: Number(os.id),
+    anio_inicio: anioInicioDesdeEjercicio(ejercicio),
+    ejercicio,
+    texto: (document.getElementById("anexo-ii-rte")?.innerHTML || anexoIIDeclaracionActual?.texto || "").trim(),
+    estado
+  };
+}
+
+function bindAnexoIIRteToolbar() {
+  if (typeof document === "undefined") return;
+  const rte = document.getElementById("anexo-ii-rte");
+  if (!rte) return;
+  document.querySelectorAll('[data-rte-toolbar-anexo-ii] [data-cmd]').forEach(btn => {
+    btn.addEventListener("mousedown", event => event.preventDefault());
+    btn.addEventListener("click", () => {
+      rte.focus();
+      if (btn.dataset.cmd === "tab") document.execCommand("insertHTML", false, "&emsp;");
+      else document.execCommand(btn.dataset.cmd, false, null);
+    });
+  });
+  if (rte.getAttribute("contenteditable") === "true") {
+    rte.addEventListener("keydown", event => {
+      if (event.key === "Tab") { event.preventDefault(); document.execCommand("insertHTML", false, "&emsp;"); }
+    });
+  }
+}
+
+function renderAnexoIISeccion() {
+  const cont = document.getElementById("anexo-ii-contenido");
+  if (!cont) return;
+  const soloLectura = anexoIIDeclaracionActual?.estado === "presentada";
+  const texto = anexoIIDeclaracionActual?.texto || "";
+  cont.innerHTML = `<div class="table-card anexo-i-seccion">
+    ${soloLectura ? "" : `<div class="anexo-i-rte-toolbar" data-rte-toolbar-anexo-ii="1">
+      <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
+      <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
+      <span class="anexo-i-rte-sep"></span>
+      <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
+      <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
+      <span class="anexo-i-rte-sep"></span>
+      <button type="button" data-cmd="tab" title="Tabulador (sangría)">⇥</button>
+    </div>`}
+    <div class="anexo-i-rte" id="anexo-ii-rte" contenteditable="${soloLectura ? "false" : "true"}">${texto}</div>
+  </div>`;
+  const acciones = document.getElementById("anexo-ii-acciones-borrador");
+  if (acciones) acciones.hidden = soloLectura;
+  bindAnexoIIRteToolbar();
+}
+
+async function cargarYRenderizarPeriodoAnexoII(os, ejercicio) {
+  anexoIIEjercicioActual = ejercicio;
+  const cont = document.getElementById("anexo-ii-contenido");
+  if (cont) cont.innerHTML = `<p style="color:var(--muted)">Cargando...</p>`;
+  try {
+    const session = await asegurarSesionVigente();
+    anexoIIDeclaracionActual = await cargarPmaAnexoIIDeclaracionOs(os.id, ejercicio, session.access_token);
+  } catch (error) {
+    console.error(error);
+    anexoIIDeclaracionActual = null;
+  }
+  renderAnexoIISeccion();
+  await verificarYRenderizarPresentacionAnexoIIOs(os);
+}
+
+async function handleCambioPeriodoAnexoII() {
+  const select = document.getElementById("anexo-ii-periodo-os");
+  const ejercicio = select?.value;
+  if (!ejercicio || !anexoIIObraSocialActual) return;
+  await cargarYRenderizarPeriodoAnexoII(anexoIIObraSocialActual, ejercicio);
+}
+
+async function poblarSelectPeriodoAnexoII(os) {
+  const select = document.getElementById("anexo-ii-periodo-os");
+  if (!select) return;
+  const vigente = ejercicioVigenteParaOs(os);
+  const anterior = ejercicioAnteriorParaOs(os);
+  const candidatos = [...new Set([vigente, anterior].filter(Boolean))];
+  select.innerHTML = candidatos.map(ej => `<option value="${escaparHtml(ej)}">${escaparHtml(ej)}${ej === anterior ? " (atrasado)" : ""}</option>`).join("");
+  select.value = vigente || candidatos[0] || "";
+}
+
+async function verificarYRenderizarPresentacionAnexoIIOs(os) {
+  const pill = document.getElementById("presentar-anexo-ii-pill");
+  if (!pill) return;
+  const ejercicio = anexoIIEjercicioActual;
+  if (!ejercicio) { pill.innerHTML = ""; return; }
+  if (anexoIIDeclaracionActual?.estado === "presentada") {
+    pill.innerHTML = `<span class="stat-pill-inline ok" title="Anexo II del período ${escaparHtml(ejercicio)}">✓ Presentado ${formatFechaPantalla((anexoIIDeclaracionActual.presentada_en || "").slice(0, 10))}</span>`;
+    return;
+  }
+  const esAtrasado = ejercicio === ejercicioAnteriorParaOs(os);
+  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="primary" id="btn-presentar-anexo-ii">Presentar</button></span>`;
+  document.getElementById("btn-presentar-anexo-ii")?.addEventListener("click", event => presentarAnexoII(os, ejercicio, event.currentTarget));
+}
+
+async function guardarBorradorAnexoII() {
+  if (!anexoIIObraSocialActual || !anexoIIEjercicioActual) return;
+  if (anexoIIDeclaracionActual?.estado === "presentada") return;
+  const boton = document.getElementById("btn-guardar-borrador-anexo-ii");
+  const msg = document.getElementById("anexo-ii-guardado-msg");
+  if (boton) boton.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const registro = construirRegistroAnexoII(anexoIIObraSocialActual, anexoIIEjercicioActual, "borrador");
+    anexoIIDeclaracionActual = await guardarPmaAnexoIIDeclaracionEnSupabase(registro, anexoIIDeclaracionActual?.id || null, session.access_token);
+    if (msg) { msg.textContent = "Borrador guardado."; setTimeout(() => { if (msg.textContent === "Borrador guardado.") msg.textContent = ""; }, 4000); }
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar el borrador.");
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function presentarAnexoII(os, ejercicio, boton) {
+  if (!os || !ejercicio) return;
+  if (!(await mostrarConfirmacion(`¿Presentar el Anexo II del período ${ejercicio}? El texto cargado va a quedar congelado y no vas a poder modificarlo después (sí podés seguir editando para la próxima presentación).`, { titulo: "Presentar Anexo II", textoAceptar: "Presentar" }))) return;
+  if (boton) { boton.disabled = true; boton.textContent = "Presentando..."; }
+  try {
+    const session = await asegurarSesionVigente();
+    const registro = {
+      ...construirRegistroAnexoII(os, ejercicio, "presentada"),
+      presentada_en: new Date().toISOString(),
+      presentada_por: session.user?.email || null
+    };
+    anexoIIDeclaracionActual = await guardarPmaAnexoIIDeclaracionEnSupabase(registro, anexoIIDeclaracionActual?.id || null, session.access_token);
+    renderAnexoIISeccion();
+    mostrarToast("¡Anexo II presentado! La Superintendencia lo va a revisar.");
+    await verificarYRenderizarPresentacionAnexoIIOs(os);
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo presentar el Anexo II.");
+    if (boton) { boton.disabled = false; boton.textContent = "Presentar"; }
+  }
+}
+
+async function inicializarVistaAnexoII() {
+  if (typeof document === "undefined") return;
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  const osId = obraSocialIdSesionActual();
+  const os = obrasSociales.find(o => Number(o.id) === Number(osId));
+  const header = document.getElementById("anexo-ii-header-os");
+  if (!os) {
+    const cont = document.getElementById("anexo-ii-contenido");
+    if (cont) cont.innerHTML = `<p style="color:var(--muted)">Tu usuario no tiene una Obra Social asignada. Avisá a la Superintendencia.</p>`;
+    if (header) header.hidden = true;
+    return;
+  }
+  anexoIIObraSocialActual = os;
+  mostrarOsActualEnCabecera(os);
+  if (header) header.hidden = false;
+  await poblarSelectPeriodoAnexoII(os);
+  await cargarYRenderizarPeriodoAnexoII(os, document.getElementById("anexo-ii-periodo-os")?.value || ejercicioVigenteParaOs(os));
+}
+
+// ---------- Anexo II: consulta de solo lectura para el staff interno ----------
+//
+// El staff interno (Análisis de Cartilla → Anexo II) solo puede CONSULTAR lo que cada Obra Social
+// redactó, nunca editarlo: buscan la OS y, si ya cargó algún período, eligen cuál ver.
+
+let anexoIIAdminObraSocialActual = null;
+let anexoIIAdminDeclaraciones = [];
+
+async function inicializarVistaAnexoIIAdmin() {
+  if (typeof document === "undefined") return;
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  const list = document.getElementById("anexo-ii-admin-os-list");
+  if (list) list.innerHTML = obrasSociales
+    .slice()
+    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
+    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+async function handleSeleccionObraSocialAnexoIIAdmin() {
+  const valor = document.getElementById("anexo-ii-admin-os-search")?.value || "";
+  const os = resolverObraSocialCartilla(valor);
+  anexoIIAdminObraSocialActual = os;
+  mostrarOsActualEnCabecera(os);
+  const periodoSelect = document.getElementById("anexo-ii-admin-periodo");
+  const cont = document.getElementById("anexo-ii-admin-contenido");
+  if (!os) {
+    if (periodoSelect) periodoSelect.hidden = true;
+    if (cont) cont.innerHTML = `<p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Anexo II.</p>`;
+    return;
+  }
+  if (cont) cont.innerHTML = `<p style="color:var(--muted)">Cargando...</p>`;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildPmaAnexoIIUrl({ select: "*", obra_social_id: `eq.${os.id}`, order: "anio_inicio.desc" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+    anexoIIAdminDeclaraciones = await response.json();
+  } catch (error) {
+    console.error(error);
+    anexoIIAdminDeclaraciones = [];
+    mostrarToast("No se pudo cargar el Anexo II de esta Obra Social.");
+  }
+  if (!anexoIIAdminDeclaraciones.length) {
+    if (periodoSelect) periodoSelect.hidden = true;
+    if (cont) cont.innerHTML = `<p style="color:var(--muted)">Esta Obra Social todavía no cargó ningún Anexo II.</p>`;
+    return;
+  }
+  if (periodoSelect) {
+    periodoSelect.hidden = false;
+    periodoSelect.innerHTML = anexoIIAdminDeclaraciones.map(d => `<option value="${escaparHtml(d.id)}">${escaparHtml(d.ejercicio || "")}${d.estado === "presentada" ? "" : " (borrador)"}</option>`).join("");
+  }
+  renderAnexoIIAdminSeleccionado();
+}
+
+function renderAnexoIIAdminSeleccionado() {
+  const periodoSelect = document.getElementById("anexo-ii-admin-periodo");
+  const cont = document.getElementById("anexo-ii-admin-contenido");
+  if (!cont) return;
+  const id = periodoSelect?.value;
+  const decl = anexoIIAdminDeclaraciones.find(d => d.id === id) || anexoIIAdminDeclaraciones[0];
+  if (!decl) { cont.innerHTML = `<p style="color:var(--muted)">Esta Obra Social todavía no cargó ningún Anexo II.</p>`; return; }
+  const estadoTxt = decl.estado === "presentada"
+    ? `<span class="stat-pill-inline ok">✓ Presentado ${escaparHtml(formatFechaPantalla((decl.presentada_en || "").slice(0, 10)))}</span>`
+    : `<span class="stat-pill-inline pendiente"><span>Borrador (sin presentar)</span></span>`;
+  cont.innerHTML = `<div class="table-meta" style="margin-bottom:10px">${estadoTxt}</div>` +
+    (decl.texto ? `<div class="anexo-i-texto">${decl.texto}</div>` : `<p style="color:var(--muted)">Todavía no escribió texto.</p>`);
+}
+
 // ---------- Anexo I · Actualización: edición administrativa del texto normativo (staff interno) ----------
 //
 // Esta pantalla (menú Análisis de Cartilla → Anexo I · Actualización, visible solo para el staff
@@ -9352,6 +9618,10 @@ async function initBrowser() {
   document.getElementById("prestadores-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoPrestadoresOs));
   document.getElementById("anexo-i-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoI));
   document.getElementById("btn-guardar-borrador-anexo-i")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoI));
+  document.getElementById("anexo-ii-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoII));
+  document.getElementById("btn-guardar-borrador-anexo-ii")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoII));
+  document.getElementById("anexo-ii-admin-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAnexoIIAdmin));
+  document.getElementById("anexo-ii-admin-periodo")?.addEventListener("change", () => renderAnexoIIAdminSeleccionado());
   document.getElementById("anexo-i-adjunto-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarAnexoIAdjunto));
   document.getElementById("btn-guardar-anexo-i-admin")?.addEventListener("click", () => requiereAutenticacion(guardarCambiosAnexoIAdmin));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
