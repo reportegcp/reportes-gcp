@@ -4073,8 +4073,8 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
-      (["anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["anexo-i-admin", "anexo-ii-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -4086,10 +4086,10 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
-  if (["anexo-i-admin"].includes(resolved)) {
+  if (["anexo-i-admin", "anexo-ii-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="configuracion-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
