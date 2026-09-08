@@ -319,6 +319,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="anexo-i-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="configuracion-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   const labelAnalisisCartilla = document.getElementById("analisis-cartilla-label");
@@ -4066,7 +4067,8 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -4078,8 +4080,11 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-i-admin"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "anexo-i"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
+  }
+  if (["anexo-i-admin"].includes(resolved)) {
+    document.querySelector('[data-nav-group="configuracion-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
     document.querySelector('[data-nav-group="urgencias-prestacionales"]')?.classList.add("active");
