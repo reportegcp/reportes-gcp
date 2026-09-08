@@ -9168,6 +9168,26 @@ function inicializarVistaCoberturaConfig() {
   cargarTaxonomiaPrestador().catch(error => console.error(error));
 }
 
+// La Especialidad solo tiene sentido (y solo tiene nomenclador cargado) cuando el Tipo de
+// prestación es "Prestaciones de Apoyo" — para cualquier otro tipo se deshabilita en vez de
+// ofrecer un combo vacío o sugerencias que no corresponden.
+function actualizarEspecialidadAnexoIVPrestador() {
+  const tipoInput = document.getElementById("anexo-iv-prestador-tipo");
+  const espInput = document.getElementById("anexo-iv-prestador-especialidad");
+  if (!tipoInput || !espInput) return;
+  const esApoyo = tipoInput.value.trim().toLowerCase() === "prestaciones de apoyo";
+  if (esApoyo) {
+    espInput.disabled = false;
+    espInput.setAttribute("list", "anexo-iv-prestador-especialidad-list");
+    espInput.placeholder = "";
+  } else {
+    espInput.value = "";
+    espInput.disabled = true;
+    espInput.removeAttribute("list");
+    espInput.placeholder = "No aplica para este tipo de prestación";
+  }
+}
+
 function limpiarFormularioAnexoIVPrestador() {
   ["anexo-iv-prestador-id", "anexo-iv-prestador-nombre", "anexo-iv-prestador-tipo", "anexo-iv-prestador-especialidad", "anexo-iv-prestador-domicilio", "anexo-iv-prestador-telefono", "anexo-iv-prestador-email"].forEach(id => {
     const el = document.getElementById(id);
@@ -9177,6 +9197,7 @@ function limpiarFormularioAnexoIVPrestador() {
   if (provincia) provincia.value = "";
   poblarSelectPartidoAnexoIVPrestador("");
   poblarSelectLocalidadAnexoIVPrestador("", "");
+  actualizarEspecialidadAnexoIVPrestador();
   setFormMessage("anexo-iv-prestador-form-message", "");
   const eliminar = document.getElementById("anexo-iv-prestador-eliminar");
   if (eliminar) eliminar.hidden = true;
@@ -9199,6 +9220,7 @@ function abrirModalAnexoIVPrestadorEdicion(id) {
   document.getElementById("anexo-iv-prestador-nombre").value = p.nombre || "";
   document.getElementById("anexo-iv-prestador-tipo").value = p.tipo_prestacion || "";
   document.getElementById("anexo-iv-prestador-especialidad").value = p.especialidad || "";
+  actualizarEspecialidadAnexoIVPrestador();
   document.getElementById("anexo-iv-prestador-domicilio").value = p.domicilio || "";
   document.getElementById("anexo-iv-prestador-provincia").value = p.provincia || "";
   poblarSelectPartidoAnexoIVPrestador(p.provincia || "", p.partido || "");
@@ -10349,6 +10371,25 @@ async function tomarSnapshotPrestadores(cartillaId, obraSocialId, accessToken) {
 async function initBrowser() {
   const recoveryDetected = procesarRecuperacionDesdeUrl();
 
+  // Selectores de "escribir para buscar" (Obra Social, Tipo de prestación, etc.): son
+  // inputs de texto con <datalist>, y el navegador solo despliega las opciones cuando el
+  // campo cambia de valor — un clic sobre un campo que ya tiene algo cargado no vuelve a
+  // abrir la lista, dando la sensación de que "no deja cambiar" la selección. Forzamos la
+  // apertura del listado completo en cada clic/foco, en todo el sitio y también en
+  // cualquier campo con datalist que se agregue más adelante.
+  document.addEventListener("click", event => {
+    const el = event.target;
+    if (el && el.tagName === "INPUT" && el.hasAttribute("list") && typeof el.showPicker === "function") {
+      try { el.showPicker(); } catch (error) { /* el navegador puede rechazarlo (ej. campo deshabilitado); no es crítico */ }
+    }
+  });
+  document.addEventListener("focus", event => {
+    const el = event.target;
+    if (el && el.tagName === "INPUT" && el.hasAttribute("list") && typeof el.showPicker === "function") {
+      try { el.showPicker(); } catch (error) { /* idem */ }
+    }
+  }, true);
+
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
   document.querySelectorAll(".nav-group-toggle").forEach(btn => btn.addEventListener("click", () => {
     const group = btn.closest(".nav-group");
@@ -10657,6 +10698,11 @@ async function initBrowser() {
     const provincia = document.getElementById("anexo-iv-prestador-provincia")?.value || "";
     poblarSelectLocalidadAnexoIVPrestador(provincia, event.target.value);
   });
+  // La Especialidad (Fonoaudiología, Psicología, etc.) solo existe, dentro del nomenclador
+  // de la Resolución 428/99, para el Tipo de prestación "Prestaciones de Apoyo" — para
+  // cualquier otro tipo (Transporte, Centro de Día, Hogar, etc.) no aplica.
+  document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("input", actualizarEspecialidadAnexoIVPrestador);
+  document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("change", actualizarEspecialidadAnexoIVPrestador);
   document.getElementById("btn-anexo-iv-pegar")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPegar));
   document.getElementById("anexo-iv-pegar-textarea")?.addEventListener("input", actualizarPreviewAnexoIVPegar);
   document.getElementById("anexo-iv-pegar-confirmar")?.addEventListener("click", confirmarAnexoIVPegar);
