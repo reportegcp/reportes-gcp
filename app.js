@@ -10298,8 +10298,19 @@ async function initBrowser() {
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
   document.querySelectorAll(".nav-group-toggle").forEach(btn => btn.addEventListener("click", () => {
     const group = btn.closest(".nav-group");
-    const collapsed = group?.classList.toggle("collapsed") || false;
-    btn.setAttribute("aria-expanded", String(!collapsed));
+    if (!group) return;
+    const seVaAExpandir = group.classList.contains("collapsed");
+    // Acordeón: al abrir un grupo se colapsan y desmarcan todos los demás, así
+    // solo queda naranja el último botón seleccionado.
+    document.querySelectorAll(".nav-group").forEach(g => {
+      if (g === group) return;
+      g.classList.add("collapsed");
+      g.classList.remove("active");
+      g.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", "false");
+    });
+    group.classList.toggle("collapsed", !seVaAExpandir);
+    group.classList.toggle("active", seVaAExpandir);
+    btn.setAttribute("aria-expanded", String(seVaAExpandir));
   }));
   document.querySelectorAll("[data-go]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.go)));
   document.querySelectorAll("[data-close-modal]").forEach(btn => btn.addEventListener("click", () => cerrarModal(btn.dataset.closeModal)));
