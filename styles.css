@@ -412,6 +412,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
   padding:22px
 }
 .modal-backdrop[hidden]{display:none}
+#confirm-modal{z-index:1100}
 .modal{
   width:min(680px,100%);
   max-height:calc(100vh - 44px);
