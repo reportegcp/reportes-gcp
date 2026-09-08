@@ -4805,7 +4805,8 @@ function actualizarResumenEjercicios(prefix) {
   const seleccionados = inputs.filter(input => input.checked).map(input => input.value);
   const resumen = document.getElementById(`${prefix}-ejercicio-summary`);
   if (!resumen) return;
-  if (!inputs.length || !seleccionados.length || seleccionados.length === inputs.length) resumen.textContent = "Ejercicio: Todos";
+  if (!inputs.length || seleccionados.length === inputs.length) resumen.textContent = "Ejercicio: Todos";
+  else if (!seleccionados.length) resumen.textContent = "Ejercicio: ninguno seleccionado";
   else if (seleccionados.length === 1) resumen.textContent = `Ejercicio: ${seleccionados[0]}`;
   else resumen.textContent = `${seleccionados.length} ejercicios`;
 }
@@ -4817,16 +4818,17 @@ function seleccionarEjerciciosFiltro(prefix, seleccionar, renderFn) {
   if (typeof renderFn === "function") renderFn();
 }
 
-function poblarSelectorMultipleEjercicios(prefix, valores, renderFn) {
+function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = {}) {
   if (typeof document === "undefined") return;
   const container = document.getElementById(`${prefix}-ejercicio-options`);
   if (!container) return;
   const anteriores = new Set(ejerciciosFiltroSeleccionados(prefix));
   const teniaOpciones = container.querySelectorAll('input').length > 0;
+  const defaultChecked = opciones.defaultChecked !== false;
   const ejercicios = [...new Set((valores || []).filter(Boolean).map(String))]
     .sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
   container.innerHTML = ejercicios.map(e => {
-    const checked = teniaOpciones ? anteriores.has(e) : true;
+    const checked = teniaOpciones ? anteriores.has(e) : defaultChecked;
     return `<label class="period-check"><input type="checkbox" name="${prefix}-ejercicio-opcion" value="${escaparHtml(e)}" ${checked ? "checked" : ""}><span>${escaparHtml(e)}</span></label>`;
   }).join("");
   container.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).forEach(input => {
@@ -7285,7 +7287,8 @@ async function inicializarVistaCobertura() {
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
   const ejercicios = await cargarEjerciciosCartilla();
-  poblarSelectorMultipleEjercicios("cobertura", ejercicios, () => requiereAutenticacion(handleCambioEjercicioCobertura));
+  poblarSelectorMultipleEjercicios("cobertura", ejercicios, () => requiereAutenticacion(handleCambioEjercicioCobertura), { defaultChecked: false });
+  await handleCambioEjercicioCobertura();
 }
 
 async function handleCambioEjercicioCobertura() {
@@ -7448,7 +7451,8 @@ async function inicializarVistaAfiliados() {
   document.getElementById("afiliados-solo-lectura-aviso").hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   const ejercicios = await cargarEjerciciosCartilla();
-  poblarSelectorMultipleEjercicios("afiliados", ejercicios, () => requiereAutenticacion(handleCambioEjercicioAfiliados));
+  poblarSelectorMultipleEjercicios("afiliados", ejercicios, () => requiereAutenticacion(handleCambioEjercicioAfiliados), { defaultChecked: false });
+  await handleCambioEjercicioAfiliados();
 }
 
 async function handleCambioEjercicioAfiliados() {
@@ -7884,7 +7888,8 @@ async function inicializarVistaPrestadores() {
   if (selectEjercicio) selectEjercicio.hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   const ejercicios = await cargarEjerciciosCartilla();
-  poblarSelectorMultipleEjercicios("prestadores", ejercicios, () => requiereAutenticacion(handleCambioEjercicioPrestadores));
+  poblarSelectorMultipleEjercicios("prestadores", ejercicios, () => requiereAutenticacion(handleCambioEjercicioPrestadores), { defaultChecked: false });
+  await handleCambioEjercicioPrestadores();
   llenarDatalistsPrestador();
   const btnImportar = document.getElementById("btn-importar-cartilla");
   if (btnImportar) btnImportar.hidden = false;
@@ -8339,12 +8344,17 @@ async function inicializarVistaAnexoI() {
   await cargarYRenderizarPeriodoAnexoI(os, document.getElementById("anexo-i-periodo-os")?.value || ejercicioVigenteParaOs(os));
 }
 
-// ---------- Anexo II: texto redactado libremente por la Obra Social (sin secciones fijas) ----------
+// ---------- Anexo II: redactado libremente por la Obra Social, en secciones propias ----------
 //
 // A diferencia del Anexo I (donde la Superintendencia define el texto normativo y la OS solo
-// completa campos puntuales), el Anexo II es un texto que redacta la propia Obra Social de punta
-// a punta con un procesador de texto simple. El staff interno solo puede consultarlo, nunca
-// editarlo. Mismo patrón de guardar borrador / presentar / congelar que el Anexo I.
+// completa campos puntuales), el Anexo II lo arma la propia Obra Social de punta a punta. No hay
+// secciones fijas: cada OS agrega las secciones que necesite (título propio + texto con un
+// procesador simple), porque cada una organiza sus áreas de otra forma (Afiliaciones,
+// Autorizaciones, Prestaciones médicas, etc.). Además tiene un bloque aparte de "Sedes / Filiales"
+// con datos de contacto estructurados (domicilio/localidad/provincia + uno o más teléfonos/mails
+// por sede, cada uno con una etiqueta libre como "Derivaciones" o "Afiliaciones").
+// El staff interno solo puede consultarlo, nunca editarlo. Mismo patrón de guardar borrador /
+// presentar / congelar que el Anexo I.
 
 let anexoIIObraSocialActual = null;
 let anexoIIEjercicioActual = null;
@@ -8375,42 +8385,108 @@ async function guardarPmaAnexoIIDeclaracionEnSupabase(registro, id, accessToken)
   return Array.isArray(filas) ? filas[0] : filas;
 }
 
+function nuevoIdLocalAnexoII(prefijo) {
+  return `${prefijo}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function leerSeccionesAnexoIIDesdeDom() {
+  if (typeof document === "undefined") return anexoIIDeclaracionActual?.secciones || [];
+  const nodos = [...document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-seccion]")];
+  if (!nodos.length) return anexoIIDeclaracionActual?.secciones || [];
+  return nodos.map(el => ({
+    id: el.dataset.anexoIiSeccion,
+    titulo: el.querySelector("[data-seccion-titulo]")?.value || "",
+    texto: el.querySelector("[data-seccion-texto]")?.innerHTML || ""
+  }));
+}
+
+function leerFilialesAnexoIIDesdeDom() {
+  if (typeof document === "undefined") return anexoIIDeclaracionActual?.filiales || [];
+  const nodos = [...document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-filial]")];
+  if (!nodos.length) return anexoIIDeclaracionActual?.filiales || [];
+  return nodos.map(el => ({
+    id: el.dataset.anexoIiFilial,
+    domicilio: el.querySelector("[data-filial-domicilio]")?.value || "",
+    localidad: el.querySelector("[data-filial-localidad]")?.value || "",
+    provincia: el.querySelector("[data-filial-provincia]")?.value || "",
+    contactos: [...el.querySelectorAll("[data-anexo-ii-contacto]")].map(c => ({
+      id: c.dataset.anexoIiContacto,
+      etiqueta: c.querySelector("[data-contacto-etiqueta]")?.value || "",
+      telefono: c.querySelector("[data-contacto-telefono]")?.value || "",
+      mail: c.querySelector("[data-contacto-mail]")?.value || ""
+    }))
+  }));
+}
+
 function construirRegistroAnexoII(os, ejercicio, estado) {
   return {
     obra_social_id: Number(os.id),
     anio_inicio: anioInicioDesdeEjercicio(ejercicio),
     ejercicio,
-    texto: (document.getElementById("anexo-ii-rte")?.innerHTML || anexoIIDeclaracionActual?.texto || "").trim(),
+    secciones: leerSeccionesAnexoIIDesdeDom(),
+    filiales: leerFilialesAnexoIIDesdeDom(),
     estado
   };
 }
 
-function bindAnexoIIRteToolbar() {
+function bindAnexoIIRteToolbars() {
   if (typeof document === "undefined") return;
-  const rte = document.getElementById("anexo-ii-rte");
-  if (!rte) return;
-  document.querySelectorAll('[data-rte-toolbar-anexo-ii] [data-cmd]').forEach(btn => {
-    btn.addEventListener("mousedown", event => event.preventDefault());
-    btn.addEventListener("click", () => {
-      rte.focus();
-      if (btn.dataset.cmd === "tab") document.execCommand("insertHTML", false, "&emsp;");
-      else document.execCommand(btn.dataset.cmd, false, null);
+  document.querySelectorAll("#anexo-ii-contenido [data-rte-toolbar-anexo-ii]").forEach(toolbar => {
+    const id = toolbar.dataset.rteToolbarAnexoIi;
+    const rte = document.querySelector(`#anexo-ii-contenido [data-seccion-texto="${CSS.escape(id)}"]`);
+    if (!rte) return;
+    toolbar.querySelectorAll("[data-cmd]").forEach(btn => {
+      btn.addEventListener("mousedown", event => event.preventDefault());
+      btn.addEventListener("click", () => {
+        rte.focus();
+        if (btn.dataset.cmd === "tab") document.execCommand("insertHTML", false, "&emsp;");
+        else document.execCommand(btn.dataset.cmd, false, null);
+      });
     });
   });
-  if (rte.getAttribute("contenteditable") === "true") {
+  document.querySelectorAll("#anexo-ii-contenido [data-seccion-texto]").forEach(rte => {
     rte.addEventListener("keydown", event => {
       if (event.key === "Tab") { event.preventDefault(); document.execCommand("insertHTML", false, "&emsp;"); }
     });
-  }
+  });
 }
 
-function renderAnexoIISeccion() {
-  const cont = document.getElementById("anexo-ii-contenido");
-  if (!cont) return;
-  const soloLectura = anexoIIDeclaracionActual?.estado === "presentada";
-  const texto = anexoIIDeclaracionActual?.texto || "";
-  cont.innerHTML = `<div class="table-card anexo-i-seccion">
-    ${soloLectura ? "" : `<div class="anexo-i-rte-toolbar" data-rte-toolbar-anexo-ii="1">
+function contactoAnexoIIHtml(filialId, contacto) {
+  return `<div class="anexo-ii-contacto-row" data-anexo-ii-contacto="${escaparHtml(contacto.id)}">
+    <input type="text" data-contacto-etiqueta value="${escaparHtml(contacto.etiqueta)}" placeholder="Para qué (opcional), ej: Derivaciones">
+    <input type="text" data-contacto-telefono value="${escaparHtml(contacto.telefono)}" placeholder="Teléfono">
+    <input type="email" data-contacto-mail value="${escaparHtml(contacto.mail)}" placeholder="Mail">
+    <button type="button" class="icon-button" data-anexo-ii-quitar-contacto="${escaparHtml(filialId)}::${escaparHtml(contacto.id)}" aria-label="Quitar este teléfono/mail">×</button>
+  </div>`;
+}
+
+function filialAnexoIIHtml(filial) {
+  return `<div class="table-card anexo-ii-filial-card" data-anexo-ii-filial="${escaparHtml(filial.id)}">
+    <div class="table-meta" style="padding:12px 16px">
+      <strong>Sede</strong>
+      <button type="button" class="icon-button" data-anexo-ii-quitar-filial="${escaparHtml(filial.id)}" aria-label="Quitar esta sede">×</button>
+    </div>
+    <div style="padding:4px 16px 16px">
+      <div class="form-grid form-grid-3">
+        <label><span>Domicilio</span><input type="text" data-filial-domicilio value="${escaparHtml(filial.domicilio)}" placeholder="Calle y número"></label>
+        <label><span>Localidad</span><input type="text" data-filial-localidad value="${escaparHtml(filial.localidad)}"></label>
+        <label><span>Provincia</span><input type="text" data-filial-provincia value="${escaparHtml(filial.provincia)}"></label>
+      </div>
+      <div style="margin-top:10px">
+        ${(filial.contactos || []).map(c => contactoAnexoIIHtml(filial.id, c)).join("")}
+        <button type="button" class="text-button" data-anexo-ii-add-contacto="${escaparHtml(filial.id)}">+ Agregar teléfono / mail</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function seccionAnexoIIHtml(seccion) {
+  return `<div class="anexo-ii-seccion-card" data-anexo-ii-seccion="${escaparHtml(seccion.id)}">
+    <div class="anexo-ii-seccion-titulo-fila">
+      <input type="text" data-seccion-titulo value="${escaparHtml(seccion.titulo)}" placeholder="Título de la sección, ej: Coseguros">
+      <button type="button" class="icon-button" data-anexo-ii-quitar-seccion="${escaparHtml(seccion.id)}" aria-label="Quitar esta sección">×</button>
+    </div>
+    <div class="anexo-i-rte-toolbar" data-rte-toolbar-anexo-ii="${escaparHtml(seccion.id)}">
       <button type="button" data-cmd="bold" title="Negrita"><strong>N</strong></button>
       <button type="button" data-cmd="italic" title="Itálica"><em>I</em></button>
       <span class="anexo-i-rte-sep"></span>
@@ -8418,12 +8494,96 @@ function renderAnexoIISeccion() {
       <button type="button" data-cmd="insertOrderedList" title="Numeración">1.</button>
       <span class="anexo-i-rte-sep"></span>
       <button type="button" data-cmd="tab" title="Tabulador (sangría)">⇥</button>
-    </div>`}
-    <div class="anexo-i-rte" id="anexo-ii-rte" contenteditable="${soloLectura ? "false" : "true"}">${texto}</div>
+    </div>
+    <div class="anexo-i-rte" data-seccion-texto="${escaparHtml(seccion.id)}" contenteditable="true">${seccion.texto || ""}</div>
   </div>`;
+}
+
+function bindAccionesAnexoIIEditable() {
+  document.getElementById("anexo-ii-contenido")?.querySelector("[data-anexo-ii-add-filial]")?.addEventListener("click", () => {
+    const filiales = leerFilialesAnexoIIDesdeDom();
+    filiales.push({ id: nuevoIdLocalAnexoII("fil"), domicilio: "", localidad: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
+    renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
+  });
+  document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-filial]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const filiales = leerFilialesAnexoIIDesdeDom().filter(f => f.id !== btn.dataset.anexoIiQuitarFilial);
+      renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
+    });
+  });
+  document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-add-contacto]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const filiales = leerFilialesAnexoIIDesdeDom();
+      const filial = filiales.find(f => f.id === btn.dataset.anexoIiAddContacto);
+      if (filial) filial.contactos.push({ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" });
+      renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
+    });
+  });
+  document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-contacto]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const [filialId, contactoId] = String(btn.dataset.anexoIiQuitarContacto).split("::");
+      const filiales = leerFilialesAnexoIIDesdeDom();
+      const filial = filiales.find(f => f.id === filialId);
+      if (filial) filial.contactos = filial.contactos.filter(c => c.id !== contactoId);
+      renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
+    });
+  });
+  document.getElementById("anexo-ii-contenido")?.querySelector("[data-anexo-ii-add-seccion]")?.addEventListener("click", () => {
+    const secciones = leerSeccionesAnexoIIDesdeDom();
+    secciones.push({ id: nuevoIdLocalAnexoII("sec"), titulo: "", texto: "" });
+    renderAnexoIISeccion(secciones, leerFilialesAnexoIIDesdeDom());
+  });
+  document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-seccion]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const secciones = leerSeccionesAnexoIIDesdeDom().filter(s => s.id !== btn.dataset.anexoIiQuitarSeccion);
+      renderAnexoIISeccion(secciones, leerFilialesAnexoIIDesdeDom());
+    });
+  });
+}
+
+function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
+  const cont = document.getElementById("anexo-ii-contenido");
+  if (!cont) return;
+  const soloLectura = anexoIIDeclaracionActual?.estado === "presentada";
+  const secciones = seccionesOverride || anexoIIDeclaracionActual?.secciones || [];
+  const filiales = filialesOverride || anexoIIDeclaracionActual?.filiales || [];
+
+  const filialesHtml = soloLectura
+    ? `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
+        <div class="table-meta"><strong>Sedes / Filiales</strong></div>
+        <div style="padding:14px 20px">
+          ${filiales.length ? filiales.map(f => `<div style="margin-bottom:14px">
+            <strong>${escaparHtml([f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ")) || "Sede"}</strong>
+            ${(f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail).length ? `<ul style="margin:6px 0 0;padding-left:18px">${f.contactos.filter(c => c.etiqueta || c.telefono || c.mail).map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
+          </div>`).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
+        </div>
+      </div>`
+    : `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
+        <div class="table-meta"><strong>Sedes / Filiales</strong><button type="button" class="secondary" data-anexo-ii-add-filial>+ Agregar sede</button></div>
+        <div style="padding:14px 20px">
+          ${filiales.length ? filiales.map(f => filialAnexoIIHtml(f)).join("") : `<p style="color:var(--muted)">Todavía no cargaste ninguna sede. Usá "+ Agregar sede" para sumar la primera (domicilio, localidad, provincia y sus teléfonos/mails).</p>`}
+        </div>
+      </div>`;
+
+  const seccionesHtml = soloLectura
+    ? (secciones.length ? secciones.map(s => `<div class="anexo-i-seccion" style="margin-bottom:16px">
+        ${s.titulo ? `<h3 style="margin:0 0 6px">${escaparHtml(s.titulo)}</h3>` : ""}
+        <div class="anexo-i-texto">${s.texto || ""}</div>
+      </div>`).join("") : `<p style="color:var(--muted)">No cargó texto.</p>`)
+    : `<div class="table-card anexo-i-seccion">
+        <div class="table-meta"><strong>Secciones del Anexo II</strong><button type="button" class="secondary" data-anexo-ii-add-seccion>+ Agregar sección</button></div>
+        <div style="padding:14px 20px">
+          ${secciones.length ? secciones.map(s => seccionAnexoIIHtml(s)).join("") : `<p style="color:var(--muted)">Todavía no cargaste ninguna sección. Usá "+ Agregar sección" para escribir la primera (por ejemplo "Cómo utilizar el servicio" o "Coseguros"). Cada Obra Social organiza sus propias secciones.</p>`}
+        </div>
+      </div>`;
+
+  cont.innerHTML = filialesHtml + seccionesHtml;
   const acciones = document.getElementById("anexo-ii-acciones-borrador");
   if (acciones) acciones.hidden = soloLectura;
-  bindAnexoIIRteToolbar();
+  if (!soloLectura) {
+    bindAnexoIIRteToolbars();
+    bindAccionesAnexoIIEditable();
+  }
 }
 
 async function cargarYRenderizarPeriodoAnexoII(os, ejercicio) {
@@ -8593,8 +8753,24 @@ function renderAnexoIIAdminSeleccionado() {
   const estadoTxt = decl.estado === "presentada"
     ? `<span class="stat-pill-inline ok">✓ Presentado ${escaparHtml(formatFechaPantalla((decl.presentada_en || "").slice(0, 10)))}</span>`
     : `<span class="stat-pill-inline pendiente"><span>Borrador (sin presentar)</span></span>`;
-  cont.innerHTML = `<div class="table-meta" style="margin-bottom:10px">${estadoTxt}</div>` +
-    (decl.texto ? `<div class="anexo-i-texto">${decl.texto}</div>` : `<p style="color:var(--muted)">Todavía no escribió texto.</p>`);
+  const filiales = decl.filiales || [];
+  const secciones = decl.secciones || [];
+  const filialesHtml = `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
+    <div class="table-meta"><strong>Sedes / Filiales</strong></div>
+    <div style="padding:14px 20px">
+      ${filiales.length ? filiales.map(f => `<div style="margin-bottom:14px">
+        <strong>${escaparHtml([f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ")) || "Sede"}</strong>
+        ${(f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail).length ? `<ul style="margin:6px 0 0;padding-left:18px">${f.contactos.filter(c => c.etiqueta || c.telefono || c.mail).map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
+      </div>`).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
+    </div>
+  </div>`;
+  const seccionesHtml = secciones.length
+    ? secciones.map(s => `<div class="anexo-i-seccion" style="margin-bottom:16px">
+        ${s.titulo ? `<h3 style="margin:0 0 6px">${escaparHtml(s.titulo)}</h3>` : ""}
+        <div class="anexo-i-texto">${s.texto || ""}</div>
+      </div>`).join("")
+    : `<p style="color:var(--muted)">No cargó texto.</p>`;
+  cont.innerHTML = `<div class="table-meta" style="margin-bottom:10px">${estadoTxt}</div>` + filialesHtml + seccionesHtml;
 }
 
 // ---------- Anexo I · Actualización: edición administrativa del texto normativo (staff interno) ----------
