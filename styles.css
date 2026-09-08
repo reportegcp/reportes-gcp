@@ -98,7 +98,7 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 }
 .nav-subitem::before{content:"";position:absolute;left:7px;top:50%;width:4px;height:4px;border-radius:50%;background:#5f7188;transform:translateY(-50%)}
 .nav-subitem:hover{background:rgba(255,255,255,.07);color:#fff}
-.nav-subitem.active{background:#ffb066;color:var(--navy);font-weight:800}
+.nav-subitem.active{background:#ffe3c4;color:var(--navy);font-weight:800}
 .nav-subitem.active::before{background:var(--navy)}
 .sidebar-footer{
   margin-top:auto;
