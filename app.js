@@ -8406,6 +8406,7 @@ function leerFilialesAnexoIIDesdeDom() {
   if (!nodos.length) return anexoIIDeclaracionActual?.filiales || [];
   return nodos.map(el => ({
     id: el.dataset.anexoIiFilial,
+    nombre: el.querySelector("[data-filial-nombre]")?.value || "",
     domicilio: el.querySelector("[data-filial-domicilio]")?.value || "",
     localidad: el.querySelector("[data-filial-localidad]")?.value || "",
     provincia: el.querySelector("[data-filial-provincia]")?.value || "",
@@ -8467,6 +8468,9 @@ function filialAnexoIIHtml(filial) {
       <button type="button" class="icon-button" data-anexo-ii-quitar-filial="${escaparHtml(filial.id)}" aria-label="Quitar esta sede">×</button>
     </div>
     <div style="padding:4px 16px 16px">
+      <div class="form-grid">
+        <label class="full"><span>Nombre de la sede</span><input type="text" data-filial-nombre value="${escaparHtml(filial.nombre)}" placeholder="Ej: Casa Central, Sucursal Rosario"></label>
+      </div>
       <div class="form-grid form-grid-3">
         <label><span>Domicilio</span><input type="text" data-filial-domicilio value="${escaparHtml(filial.domicilio)}" placeholder="Calle y número"></label>
         <label><span>Localidad</span><input type="text" data-filial-localidad value="${escaparHtml(filial.localidad)}"></label>
@@ -8502,7 +8506,7 @@ function seccionAnexoIIHtml(seccion) {
 function bindAccionesAnexoIIEditable() {
   document.getElementById("anexo-ii-contenido")?.querySelector("[data-anexo-ii-add-filial]")?.addEventListener("click", () => {
     const filiales = leerFilialesAnexoIIDesdeDom();
-    filiales.push({ id: nuevoIdLocalAnexoII("fil"), domicilio: "", localidad: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
+    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
     renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
   });
   document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-filial]").forEach(btn => {
@@ -8541,6 +8545,16 @@ function bindAccionesAnexoIIEditable() {
   });
 }
 
+function filialAnexoIISoloLecturaHtml(f) {
+  const direccion = [f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ");
+  const contactos = (f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail);
+  return `<div style="margin-bottom:14px">
+    <strong>${escaparHtml(f.nombre) || escaparHtml(direccion) || "Sede"}</strong>
+    ${f.nombre && direccion ? `<div style="color:var(--muted);font-size:12.5px;margin-top:2px">${escaparHtml(direccion)}</div>` : ""}
+    ${contactos.length ? `<ul style="margin:6px 0 0;padding-left:18px">${contactos.map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
+  </div>`;
+}
+
 function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
   const cont = document.getElementById("anexo-ii-contenido");
   if (!cont) return;
@@ -8552,10 +8566,7 @@ function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
     ? `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
         <div class="table-meta"><strong>Sedes / Filiales</strong></div>
         <div style="padding:14px 20px">
-          ${filiales.length ? filiales.map(f => `<div style="margin-bottom:14px">
-            <strong>${escaparHtml([f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ")) || "Sede"}</strong>
-            ${(f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail).length ? `<ul style="margin:6px 0 0;padding-left:18px">${f.contactos.filter(c => c.etiqueta || c.telefono || c.mail).map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
-          </div>`).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
+          ${filiales.length ? filiales.map(f => filialAnexoIISoloLecturaHtml(f)).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
         </div>
       </div>`
     : `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
@@ -8758,10 +8769,7 @@ function renderAnexoIIAdminSeleccionado() {
   const filialesHtml = `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
     <div class="table-meta"><strong>Sedes / Filiales</strong></div>
     <div style="padding:14px 20px">
-      ${filiales.length ? filiales.map(f => `<div style="margin-bottom:14px">
-        <strong>${escaparHtml([f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ")) || "Sede"}</strong>
-        ${(f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail).length ? `<ul style="margin:6px 0 0;padding-left:18px">${f.contactos.filter(c => c.etiqueta || c.telefono || c.mail).map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
-      </div>`).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
+      ${filiales.length ? filiales.map(f => filialAnexoIISoloLecturaHtml(f)).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
     </div>
   </div>`;
   const seccionesHtml = secciones.length
