@@ -7261,12 +7261,17 @@ async function confirmarImportarCartilla() {
 // ---------- Cobertura (vista del analista) ----------
 
 const BASICAS_NOMBRES_CORTOS = {
+  "Cirugía general": "Cirugía",
   "Clínica médica": "Clínica",
   "Pediatría": "Pediatría",
   "Traumatología y Ortopedia": "Traumatología",
   "Ginecología": "Ginecología",
   "Urología": "Urología",
-  "Emergencia/Urgencia Clínica Médica": "Urgencias"
+  "Emergencia/Urgencia Clínica Médica": "Urg. Clínica",
+  "Emergencia/Urgencia Ginecología/Obstetricia": "Urg. Gineco-Obst.",
+  "Medicamentos en ambulatorio": "Medicamentos",
+  "Medicina familiar": "Medicina familiar",
+  "Obstetricia": "Obstetricia"
 };
 
 async function cargarAfiliadosProvincia(obraSocialId) {
