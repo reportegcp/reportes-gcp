@@ -9316,16 +9316,16 @@ function detectarColumnasAnexoIVPegado(primeraFila) {
   });
 }
 
-function parseAnexoIVPegado(texto) {
-  const lineas = String(texto || "").split(/\r?\n/).map(l => l.replace(/\s+$/, "")).filter(l => l.trim());
-  if (!lineas.length) return [];
-  const filas = lineas.map(l => l.split("\t").map(c => c.trim()));
-  let columnas = detectarColumnasAnexoIVPegado(filas[0]);
-  let datos = filas;
-  if (columnas) datos = filas.slice(1);
+// Construye los objetos {nombre, tipo_prestacion, ...} a partir de una matriz de filas
+// (array de arrays de texto) sea que vengan de pegar celdas de Excel o de leer un .xlsx.
+function construirFilasAnexoIVDesdeMatriz(filas) {
+  const limpias = (filas || []).map(f => (f || []).map(c => String(c ?? "").trim())).filter(f => f.some(c => c));
+  if (!limpias.length) return [];
+  let columnas = detectarColumnasAnexoIVPegado(limpias[0]);
+  let datos = limpias;
+  if (columnas) datos = limpias.slice(1);
   else columnas = ["nombre", "tipo_prestacion", "especialidad", "domicilio", "localidad", "partido", "provincia", "telefono", "email"];
   return datos
-    .filter(f => f.some(c => c))
     .map(f => {
       const obj = {};
       columnas.forEach((key, i) => { if (key) obj[key] = f[i] || ""; });
@@ -9334,9 +9334,66 @@ function parseAnexoIVPegado(texto) {
     .filter(o => o.nombre);
 }
 
+function parseAnexoIVPegado(texto) {
+  const lineas = String(texto || "").split(/\r?\n/).map(l => l.replace(/\s+$/, "")).filter(l => l.trim());
+  if (!lineas.length) return [];
+  const filas = lineas.map(l => l.split("\t"));
+  return construirFilasAnexoIVDesdeMatriz(filas);
+}
+
+// Plantilla descargable: encabezados correctos + una fila de ejemplo + una segunda hoja
+// con los valores válidos de Tipo de prestación y Especialidad (nomenclador Res. 428/99),
+// para que quien complete la planilla no tenga que adivinar cómo escribirlos.
+function descargarPlantillaAnexoIVPrestadores() {
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página."); return; }
+  const encabezados = ["Prestador", "Tipo de prestación", "Especialidad", "Domicilio", "Localidad", "Partido", "Provincia", "Teléfono", "Email"];
+  const filaEjemplo = ["Lic. Ana Gómez", "Prestaciones de Apoyo", "Fonoaudiología", "Av. Rivadavia 1234", "Ramos Mejía", "La Matanza", "Buenos Aires", "011-4444-5555", "ana.gomez@ejemplo.com"];
+  const hoja = window.XLSX.utils.aoa_to_sheet([encabezados, filaEjemplo]);
+  hoja["!cols"] = encabezados.map(() => ({ wch: 24 }));
+  const libro = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Prestadores");
+
+  const tipos = [...new Set(anexoIVNomencladorCache.filter(n => n.categoria === "tipo_prestacion").map(n => n.nombre))].sort();
+  const especialidades = [...new Set(anexoIVNomencladorCache.filter(n => n.categoria === "especialidad").map(n => n.nombre))].sort();
+  const filasReferencia = [["Tipo de prestación", "Especialidad (solo aplica dentro de Prestaciones de Apoyo)"]];
+  for (let i = 0; i < Math.max(tipos.length, especialidades.length); i++) filasReferencia.push([tipos[i] || "", especialidades[i] || ""]);
+  const hojaReferencia = window.XLSX.utils.aoa_to_sheet(filasReferencia);
+  hojaReferencia["!cols"] = [{ wch: 34 }, { wch: 46 }];
+  window.XLSX.utils.book_append_sheet(libro, hojaReferencia, "Valores válidos");
+
+  window.XLSX.writeFile(libro, `plantilla_prestadores_anexo_iv_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+async function manejarArchivoAnexoIVImportar(file) {
+  if (!file) return;
+  setFormMessage("anexo-iv-pegar-message", "");
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el lector de Excel. Recargá la página."); return; }
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = window.XLSX.read(buffer, { type: "array" });
+    const nombreHoja = workbook.SheetNames.find(n => normalizarTexto(n) !== normalizarTexto("Valores válidos")) || workbook.SheetNames[0];
+    const hoja = workbook.Sheets[nombreHoja];
+    if (!hoja) throw new Error("No encontré ninguna hoja con datos en ese archivo.");
+    const filas = window.XLSX.utils.sheet_to_json(hoja, { header: 1, defval: "", raw: false });
+    const datos = construirFilasAnexoIVDesdeMatriz(filas);
+    anexoIVPegarEstado = datos;
+    const resumen = document.getElementById("anexo-iv-pegar-resumen");
+    if (resumen) resumen.textContent = datos.length ? `Se van a agregar ${datos.length} prestador${datos.length === 1 ? "" : "es"} desde "${file.name}".` : `No encontré filas con Prestador cargado en "${file.name}".`;
+    const confirmar = document.getElementById("anexo-iv-pegar-confirmar");
+    if (confirmar) confirmar.disabled = !datos.length;
+  } catch (error) {
+    setFormMessage("anexo-iv-pegar-message", error.message || "No se pudo leer ese archivo.");
+  } finally {
+    const input = document.getElementById("anexo-iv-pegar-file");
+    if (input) input.value = "";
+  }
+}
+
 function abrirModalAnexoIVPegar() {
   const textarea = document.getElementById("anexo-iv-pegar-textarea");
   if (textarea) textarea.value = "";
+  const archivo = document.getElementById("anexo-iv-pegar-file");
+  if (archivo) archivo.value = "";
   const resumen = document.getElementById("anexo-iv-pegar-resumen");
   if (resumen) resumen.textContent = "";
   const confirmar = document.getElementById("anexo-iv-pegar-confirmar");
@@ -10703,7 +10760,10 @@ async function initBrowser() {
   // cualquier otro tipo (Transporte, Centro de Día, Hogar, etc.) no aplica.
   document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("input", actualizarEspecialidadAnexoIVPrestador);
   document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("change", actualizarEspecialidadAnexoIVPrestador);
+  document.getElementById("btn-anexo-iv-descargar-plantilla")?.addEventListener("click", () => requiereAutenticacion(descargarPlantillaAnexoIVPrestadores));
+  document.getElementById("anexo-iv-pegar-descargar-plantilla-link")?.addEventListener("click", event => { event.preventDefault(); requiereAutenticacion(descargarPlantillaAnexoIVPrestadores); });
   document.getElementById("btn-anexo-iv-pegar")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPegar));
+  document.getElementById("anexo-iv-pegar-file")?.addEventListener("change", event => manejarArchivoAnexoIVImportar(event.target.files[0]));
   document.getElementById("anexo-iv-pegar-textarea")?.addEventListener("input", actualizarPreviewAnexoIVPegar);
   document.getElementById("anexo-iv-pegar-confirmar")?.addEventListener("click", confirmarAnexoIVPegar);
   document.getElementById("anexo-i-adjunto-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarAnexoIAdjunto));

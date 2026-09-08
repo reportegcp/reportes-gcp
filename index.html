@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=35">
+  <link rel="stylesheet" href="styles.css?v=36">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 35</span>
+        <span>Versión 36</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -534,7 +534,8 @@
             <strong>Listado de prestadores</strong>
             <span id="anexo-iv-prestadores-count" style="color:var(--muted);font-size:12.5px"></span>
             <div id="anexo-iv-prestadores-acciones" style="display:flex;gap:8px;margin-left:auto">
-              <button type="button" class="secondary small" id="btn-anexo-iv-pegar">Pegar desde Excel</button>
+              <button type="button" class="secondary small" id="btn-anexo-iv-descargar-plantilla">Descargar plantilla</button>
+              <button type="button" class="secondary small" id="btn-anexo-iv-pegar">Importar planilla</button>
               <button type="button" class="primary small" id="btn-anexo-iv-agregar-prestador">+ Agregar prestador</button>
             </div>
           </div>
@@ -712,12 +713,16 @@
           <div class="modal-header">
             <div>
               <span class="eyebrow">ANEXO IV</span>
-              <h2 id="anexo-iv-pegar-title">Pegar prestadores desde Excel</h2>
+              <h2 id="anexo-iv-pegar-title">Importar prestadores desde Excel</h2>
             </div>
             <button class="icon-button" type="button" data-close-modal="anexo-iv-pegar-modal" aria-label="Cerrar">×</button>
           </div>
-          <p class="notificaciones-hint">Copiá las filas desde Excel (con encabezado, por ejemplo Prestador / Tipo de Prestación / Especialidad / Domicilio / Localidad / Partido / Provincia / Teléfono / Email, en cualquier orden) y pegalas acá abajo.</p>
-          <textarea id="anexo-iv-pegar-textarea" rows="10" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:12.5px;padding:10px;border:1px solid var(--line);border-radius:8px" placeholder="Pegá acá las filas copiadas de Excel..."></textarea>
+          <p class="notificaciones-hint">¿Todavía no tenés la planilla? <a href="#" id="anexo-iv-pegar-descargar-plantilla-link">Descargá la plantilla</a> con las columnas correctas y los valores válidos de Tipo de prestación y Especialidad, completala y subila acá.</p>
+          <label style="display:grid;gap:5px;font-size:12px;font-weight:800;color:#4d5d70"><span>Archivo (.xlsx)</span><input type="file" id="anexo-iv-pegar-file" accept=".xlsx,.xls,.csv" style="font:inherit;font-weight:400"></label>
+          <details style="margin-top:10px">
+            <summary style="cursor:pointer;color:var(--muted);font-size:12.5px">O pegá las filas manualmente en vez de subir un archivo</summary>
+            <textarea id="anexo-iv-pegar-textarea" rows="8" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:12.5px;padding:10px;border:1px solid var(--line);border-radius:8px;margin-top:8px" placeholder="Pegá acá las filas copiadas de Excel..."></textarea>
+          </details>
           <p id="anexo-iv-pegar-resumen" style="color:var(--muted);font-size:13px;margin-top:8px"></p>
           <div class="form-message" id="anexo-iv-pegar-message" hidden></div>
           <div class="modal-actions">
@@ -2107,6 +2112,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=35"></script>
+  <script src="app.js?v=36"></script>
 </body>
 </html>
