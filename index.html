@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=32">
+  <link rel="stylesheet" href="styles.css?v=33">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -55,7 +55,9 @@
             <span id="configuracion-cartilla-label">Configuración Cartilla</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
           </button>
           <div class="nav-submenu">
-            <button class="nav-subitem" data-view="anexo-i-admin" data-nav-access="anexo-i-admin" type="button">Anexo I · Actualización</button>
+            <button class="nav-subitem" data-view="anexo-i-admin" data-nav-access="anexo-i-admin" type="button">Anexo I · Edición</button>
+            <button class="nav-subitem" data-view="anexo-iv-config" data-nav-access="anexo-iv-config" type="button">Anexo IV</button>
+            <button class="nav-subitem" data-view="cobertura-config" data-nav-access="cobertura-config" type="button">Cobertura básica</button>
           </div>
         </div>
 
@@ -124,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 32</span>
+        <span>Versión 33</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -422,6 +424,37 @@
         <div id="anexo-i-admin-secciones"></div>
       </section>
 
+      <section id="anexo-iv-config" class="view">
+        <p class="notificaciones-hint">Nomenclador de referencia (hoy basado en la Resolución 428/99) que se sugiere a la Obra Social al cargar un prestador del Anexo IV. Agregar o quitar un valor acá no modifica los prestadores ya cargados, solo cambia qué se sugiere de ahora en más.</p>
+        <div class="table-card" style="margin-top:16px">
+          <div class="table-meta"><strong>Tipo de prestación</strong></div>
+          <div style="padding:14px 20px">
+            <div id="anexo-iv-nomenclador-tipo-lista"></div>
+            <div class="nomenclador-agregar">
+              <input type="text" id="anexo-iv-nomenclador-tipo-nuevo" placeholder="Agregar un tipo de prestación..." maxlength="200">
+              <button type="button" class="secondary" id="btn-anexo-iv-nomenclador-tipo-agregar">Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-card" style="margin-top:16px">
+          <div class="table-meta"><strong>Especialidad</strong></div>
+          <div style="padding:14px 20px">
+            <div id="anexo-iv-nomenclador-especialidad-lista"></div>
+            <div class="nomenclador-agregar">
+              <input type="text" id="anexo-iv-nomenclador-especialidad-nuevo" placeholder="Agregar una especialidad..." maxlength="200">
+              <button type="button" class="secondary" id="btn-anexo-iv-nomenclador-especialidad-agregar">Agregar</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="cobertura-config" class="view">
+        <p class="notificaciones-hint">Son las especialidades que se evalúan en el reporte de Cobertura (menú Análisis de Cartilla): toda Obra Social debería garantizarlas cerca de cualquier localidad con afiliados.</p>
+        <div class="module-actions" style="margin-top:16px">
+          <button class="primary" id="btn-configurar-basicas" type="button">Configurar especialidades básicas</button>
+        </div>
+      </section>
+
       <section id="anexo-i" class="view">
         <div class="prestadores-fila-superior" id="anexo-i-header-os" hidden>
           <div class="prestadores-fila-superior-izq prestadores-fila-superior-col">
@@ -531,9 +564,6 @@
       </section>
 
       <section id="cobertura" class="view">
-        <div class="module-actions">
-          <button class="secondary" id="btn-configurar-basicas" type="button">Configurar especialidades básicas</button>
-        </div>
         <div class="toolbar prestadores-toolbar">
           <details class="period-select exercise-multi-select" id="cobertura-ejercicio-select">
             <summary><span id="cobertura-ejercicio-summary">Ejercicio: elegí uno o más</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
@@ -2077,6 +2107,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>

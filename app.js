@@ -7,11 +7,13 @@ const views = {
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   "anexo-i": { title: "Anexo I", subtitle: "Declaración jurada de cobertura del PMO" },
-  "anexo-i-admin": { title: "Anexo I · Actualización", subtitle: "Edición del texto normativo del Anexo I, por ejercicio" },
+  "anexo-i-admin": { title: "Anexo I · Edición", subtitle: "Edición del texto normativo del Anexo I, por ejercicio" },
   "anexo-ii": { title: "Anexo II", subtitle: "Texto redactado por la Obra Social" },
   "anexo-ii-admin": { title: "Anexo II", subtitle: "Consulta del texto redactado por cada Obra Social (solo lectura)" },
   "anexo-iv": { title: "Anexo IV", subtitle: "Guía y red de prestadores redactada por la Obra Social" },
   "anexo-iv-admin": { title: "Anexo IV", subtitle: "Consulta de la guía y red de prestadores de cada Obra Social (solo lectura)" },
+  "anexo-iv-config": { title: "Anexo IV · Configuración", subtitle: "Nomenclador de Tipo de prestación y Especialidad que se sugiere al cargar un prestador" },
+  "cobertura-config": { title: "Cobertura básica · Configuración", subtitle: "Especialidades básicas obligatorias que se evalúan en el reporte de Cobertura" },
   cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
   afiliados: { title: "Afiliados", subtitle: "Total y distribución geográfica de afiliados por Obra Social" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
@@ -35,11 +37,13 @@ const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
-  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Actualización</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>”Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
+  "anexo-i-admin": `<strong>Qué hacer en Anexo I · Edición</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>”Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
   "anexo-ii": `<strong>Qué hacer en Anexo II</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Redactá el texto con el editor (negrita, itálica, viñetas, numeración y tabulador).</li><li>"Guardar borrador" conserva lo escrito sin presentarlo; podés volver a entrar y seguir editando.</li><li>"Presentar" envía el texto a la Superintendencia. Una vez presentado queda congelado y no se puede modificar.</li></ul>`,
   "anexo-ii-admin": `<strong>Qué hacer en Anexo II</strong><ul><li>Buscá la Obra Social arriba.</li><li>Si ya cargó uno o más períodos, elegilos en el desplegable para ver el texto que redactó, sea borrador o ya presentado.</li><li>Es de solo lectura: la edición del texto es exclusiva de la Obra Social.</li></ul>`,
-  "anexo-iv": `<strong>Qué hacer en Anexo IV</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Redactá las secciones de la guía y cargá las sedes/centros de atención, igual que en Anexo II.</li><li>Cargá el listado de prestadores: agregalos de a uno con "+ Agregar prestador" o pegá varias filas copiadas de Excel con "Pegar desde Excel". Podés dar de alta y de baja prestadores en cualquier momento; es un catálogo vivo, no depende del período.</li><li>"Guardar borrador" conserva las secciones y sedes sin presentarlas; podés volver a entrar y seguir editando.</li><li>"Presentar" congela las secciones y sedes de este período y toma una foto del listado de prestadores tal como está en ese momento (el catálogo vivo se puede seguir editando después, sin afectar lo ya presentado).</li></ul>`,
+  "anexo-iv": `<strong>Qué hacer en Anexo IV</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Redactá las secciones de la guía (por ejemplo "Cómo utilizar el servicio" o "Limitaciones").</li><li>Cargá el listado de prestadores: agregalos de a uno con "+ Agregar prestador" (eligiendo Provincia, Partido y Localidad igual que en la Cartilla) o pegá varias filas copiadas de Excel con "Pegar desde Excel". Podés dar de alta y de baja prestadores en cualquier momento; es un catálogo vivo, no depende del período.</li><li>"Guardar borrador" conserva las secciones sin presentarlas; podés volver a entrar y seguir editando.</li><li>"Presentar" congela las secciones de este período y toma una foto del listado de prestadores tal como está en ese momento (el catálogo vivo se puede seguir editando después, sin afectar lo ya presentado).</li></ul>`,
   "anexo-iv-admin": `<strong>Qué hacer en Anexo IV</strong><ul><li>Buscá la Obra Social arriba.</li><li>Si ya cargó uno o más períodos, elegilos en el desplegable para ver la guía y la red de prestadores que presentó, sea borrador o ya presentado.</li><li>Es de solo lectura: la edición es exclusiva de la Obra Social.</li></ul>`,
+  "anexo-iv-config": `<strong>Qué hacer en Anexo IV · Configuración</strong><ul><li>Acá se administra el nomenclador de referencia (hoy basado en la Resolución 428/99) que se sugiere a la Obra Social al cargar un prestador en el Anexo IV.</li><li>Agregá un valor nuevo con el campo correspondiente si cambia o se amplía la Resolución 428.</li><li>Quitá un valor si ya no corresponde sugerirlo. Esto no afecta a los prestadores que ya lo tengan cargado: solo deja de aparecer como sugerencia para las próximas cargas.</li></ul>`,
+  "cobertura-config": `<strong>Qué hacer en Cobertura básica · Configuración</strong><ul><li>Tildá las especialidades que toda Obra Social debería garantizar cerca de cualquier localidad con afiliados.</li><li>Son las que se evalúan en el reporte de Cobertura (menú Análisis de Cartilla).</li></ul>`,
   cartillas: `<strong>Qué hacer en Cartillas</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>El filtro Plazo permite ver presentaciones en término o fuera de término y también podés buscar por Fecha de ingreso y Fecha límite.</li><li>El plazo se calcula tomando como límite 90 días antes del Inicio ejercicio.</li><li>Hacé clic en una presentación para verla o editarla. El Excel incluye todos los campos.</li></ul>`,
   reportes: `<strong>Qué hacer en Reportes</strong><ul><li>Elegí el reporte de Cartillas o PMA. También podés identificar los Agentes que nunca presentaron.</li><li>Seleccioná uno o varios ejercicios, por ejemplo 2026 y 2025/26.</li><li>✓ indica que presentó y ✕ que no presentó en ese ejercicio.</li><li>Hacé clic sobre un Agente de Seguro para abrir su historial completo en los reportes de Presentaciones. En “Nunca presentaron” no hay historial porque no existen presentaciones cargadas. Podés ordenar por RNAS y exportar a Excel.</li></ul>`,
   "up-patologias": `<strong>Qué hacer en Patologías</strong><ul><li>Buscá por nombre.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
@@ -268,7 +272,10 @@ function perfilPuedeVerVista(perfil, vista) {
   }
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "anexo-i-admin", "anexo-ii-admin", "anexo-iv-admin", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
+  // de la coordinación (usuario Administrador/Admin Prestacional): el perfil "admin presentaciones"
+  // (auditor) consulta y presenta, pero no configura.
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "anexo-ii-admin", "anexo-iv-admin", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "cartilla os") return ["prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
@@ -330,8 +337,12 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="anexo-iv"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="anexo-iv-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
-  document.querySelector('[data-nav-access="anexo-i-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
-  document.querySelector('[data-nav-access="configuracion-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  // Configuración Cartilla es exclusiva de la coordinación (Administrador/Admin Prestacional):
+  // el auditor ("admin presentaciones") consulta pero no configura.
+  document.querySelector('[data-nav-access="anexo-i-admin"]')?.toggleAttribute("hidden", !esAdminPrestacional);
+  document.querySelector('[data-nav-access="anexo-iv-config"]')?.toggleAttribute("hidden", !esAdminPrestacional);
+  document.querySelector('[data-nav-access="cobertura-config"]')?.toggleAttribute("hidden", !esAdminPrestacional);
+  document.querySelector('[data-nav-access="configuracion-cartilla"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="afiliados"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   document.querySelector('[data-nav-access="analisis-cartilla"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
   const labelAnalisisCartilla = document.getElementById("analisis-cartilla-label");
@@ -4061,7 +4072,7 @@ function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const vistaAnteriorActiva = document.querySelector(".view.active")?.id;
   if (vistaAnteriorActiva === "anexo-i-admin" && anexoIAdminCambiosPendientes.size > 0 && id !== "anexo-i-admin") {
-    const salir = window.confirm("Tenés cambios sin guardar en Anexo I · Actualización. Si salís ahora se van a perder. ¿Salir de todas formas?");
+    const salir = window.confirm("Tenés cambios sin guardar en Anexo I · Edición. Si salís ahora se van a perder. ¿Salir de todas formas?");
     if (!salir) return;
     anexoIAdminCambiosPendientes.clear();
   }
@@ -4080,7 +4091,7 @@ function showView(id, updateHistory = true) {
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
       (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
-      (["anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
+      (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -4095,7 +4106,7 @@ function showView(id, updateHistory = true) {
   if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
-  if (["anexo-i-admin"].includes(resolved)) {
+  if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved)) {
     document.querySelector('[data-nav-group="configuracion-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -4145,6 +4156,8 @@ function showView(id, updateHistory = true) {
   if (resolved === "anexo-ii-admin") inicializarVistaAnexoIIAdmin();
   if (resolved === "anexo-iv") inicializarVistaAnexoIV();
   if (resolved === "anexo-iv-admin") inicializarVistaAnexoIVAdmin();
+  if (resolved === "anexo-iv-config") inicializarVistaAnexoIVConfig();
+  if (resolved === "cobertura-config") inicializarVistaCoberturaConfig();
   if (resolved === "cobertura") inicializarVistaCobertura();
   if (resolved === "afiliados") inicializarVistaAfiliados();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
@@ -7877,6 +7890,8 @@ async function inicializarVistaPrestadores() {
       if (count) count.textContent = "Tu usuario no tiene una Obra Social asignada. Avisá a la Superintendencia.";
       return;
     }
+    const btnNuevoOs = document.getElementById("btn-nuevo-prestador");
+    if (btnNuevoOs) btnNuevoOs.hidden = false;
     document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
     await handleSeleccionObraSocialPrestadores();
     await verificarYRenderizarPresentacionCartillaOs(os);
@@ -7901,6 +7916,11 @@ async function inicializarVistaPrestadores() {
   llenarDatalistsPrestador();
   const btnImportar = document.getElementById("btn-importar-cartilla");
   if (btnImportar) btnImportar.hidden = false;
+  // El auditor/admin consulta la red de prestadores pero no da altas manuales: eso es
+  // exclusivo de la propia Obra Social. "Importar Cartilla histórica" es distinto: es la
+  // herramienta de una sola vez para precargar el historial de una OS nueva en el sistema.
+  const btnNuevoAdmin = document.getElementById("btn-nuevo-prestador");
+  if (btnNuevoAdmin) btnNuevoAdmin.hidden = true;
 }
 
 // ---------- Anexo I: declaración jurada de cobertura del PMO (perfil Cartilla OS) ----------
@@ -8847,32 +8867,12 @@ function leerSeccionesAnexoIVDesdeDom() {
   }));
 }
 
-function leerFilialesAnexoIVDesdeDom() {
-  if (typeof document === "undefined") return anexoIVDeclaracionActual?.filiales || [];
-  const nodos = [...document.querySelectorAll("#anexo-iv-contenido [data-anexo-iv-filial]")];
-  if (!nodos.length) return anexoIVDeclaracionActual?.filiales || [];
-  return nodos.map(el => ({
-    id: el.dataset.anexoIvFilial,
-    nombre: el.querySelector("[data-filial-nombre]")?.value || "",
-    domicilio: el.querySelector("[data-filial-domicilio]")?.value || "",
-    localidad: el.querySelector("[data-filial-localidad]")?.value || "",
-    provincia: el.querySelector("[data-filial-provincia]")?.value || "",
-    contactos: [...el.querySelectorAll("[data-anexo-iv-contacto]")].map(c => ({
-      id: c.dataset.anexoIvContacto,
-      etiqueta: c.querySelector("[data-contacto-etiqueta]")?.value || "",
-      telefono: c.querySelector("[data-contacto-telefono]")?.value || "",
-      mail: c.querySelector("[data-contacto-mail]")?.value || ""
-    }))
-  }));
-}
-
 function construirRegistroAnexoIV(os, ejercicio, estado) {
   return {
     obra_social_id: Number(os.id),
     anio_inicio: anioInicioDesdeEjercicio(ejercicio),
     ejercicio,
     secciones: leerSeccionesAnexoIVDesdeDom(),
-    filiales: leerFilialesAnexoIVDesdeDom(),
     estado
   };
 }
@@ -8899,38 +8899,6 @@ function bindAnexoIVRteToolbars() {
   });
 }
 
-function contactoAnexoIVHtml(filialId, contacto) {
-  return `<div class="anexo-ii-contacto-row" data-anexo-iv-contacto="${escaparHtml(contacto.id)}">
-    <input type="text" data-contacto-etiqueta value="${escaparHtml(contacto.etiqueta)}" placeholder="Para qué (opcional), ej: Derivaciones">
-    <input type="text" data-contacto-telefono value="${escaparHtml(contacto.telefono)}" placeholder="Teléfono">
-    <input type="email" data-contacto-mail value="${escaparHtml(contacto.mail)}" placeholder="Mail">
-    <button type="button" class="icon-button" data-anexo-iv-quitar-contacto="${escaparHtml(filialId)}::${escaparHtml(contacto.id)}" aria-label="Quitar este teléfono/mail">×</button>
-  </div>`;
-}
-
-function filialAnexoIVHtml(filial) {
-  return `<div class="table-card anexo-ii-filial-card" data-anexo-iv-filial="${escaparHtml(filial.id)}">
-    <div class="table-meta" style="padding:12px 16px">
-      <strong>Sede</strong>
-      <button type="button" class="icon-button" data-anexo-iv-quitar-filial="${escaparHtml(filial.id)}" aria-label="Quitar esta sede">×</button>
-    </div>
-    <div style="padding:4px 16px 16px">
-      <div class="form-grid">
-        <label class="full"><span>Nombre de la sede</span><input type="text" data-filial-nombre value="${escaparHtml(filial.nombre)}" placeholder="Ej: Casa Central, Sucursal Rosario"></label>
-      </div>
-      <div class="form-grid form-grid-3">
-        <label><span>Domicilio</span><input type="text" data-filial-domicilio value="${escaparHtml(filial.domicilio)}" placeholder="Calle y número"></label>
-        <label><span>Localidad</span><input type="text" data-filial-localidad value="${escaparHtml(filial.localidad)}"></label>
-        <label><span>Provincia</span><input type="text" data-filial-provincia value="${escaparHtml(filial.provincia)}"></label>
-      </div>
-      <div style="margin-top:10px">
-        ${(filial.contactos || []).map(c => contactoAnexoIVHtml(filial.id, c)).join("")}
-        <button type="button" class="text-button" data-anexo-iv-add-contacto="${escaparHtml(filial.id)}">+ Agregar teléfono / mail</button>
-      </div>
-    </div>
-  </div>`;
-}
-
 function seccionAnexoIVHtml(seccion) {
   return `<div class="anexo-ii-seccion-card" data-anexo-iv-seccion="${escaparHtml(seccion.id)}">
     <div class="anexo-ii-seccion-titulo-fila">
@@ -8951,67 +8919,24 @@ function seccionAnexoIVHtml(seccion) {
 }
 
 function bindAccionesAnexoIVEditable() {
-  document.getElementById("anexo-iv-contenido")?.querySelector("[data-anexo-iv-add-filial]")?.addEventListener("click", () => {
-    const filiales = leerFilialesAnexoIVDesdeDom();
-    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
-    renderAnexoIVSeccion(leerSeccionesAnexoIVDesdeDom(), filiales);
-  });
-  document.querySelectorAll("#anexo-iv-contenido [data-anexo-iv-quitar-filial]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const filiales = leerFilialesAnexoIVDesdeDom().filter(f => f.id !== btn.dataset.anexoIvQuitarFilial);
-      renderAnexoIVSeccion(leerSeccionesAnexoIVDesdeDom(), filiales);
-    });
-  });
-  document.querySelectorAll("#anexo-iv-contenido [data-anexo-iv-add-contacto]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const filiales = leerFilialesAnexoIVDesdeDom();
-      const filial = filiales.find(f => f.id === btn.dataset.anexoIvAddContacto);
-      if (filial) filial.contactos.push({ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" });
-      renderAnexoIVSeccion(leerSeccionesAnexoIVDesdeDom(), filiales);
-    });
-  });
-  document.querySelectorAll("#anexo-iv-contenido [data-anexo-iv-quitar-contacto]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const [filialId, contactoId] = String(btn.dataset.anexoIvQuitarContacto).split("::");
-      const filiales = leerFilialesAnexoIVDesdeDom();
-      const filial = filiales.find(f => f.id === filialId);
-      if (filial) filial.contactos = filial.contactos.filter(c => c.id !== contactoId);
-      renderAnexoIVSeccion(leerSeccionesAnexoIVDesdeDom(), filiales);
-    });
-  });
   document.getElementById("anexo-iv-contenido")?.querySelector("[data-anexo-iv-add-seccion]")?.addEventListener("click", () => {
     const secciones = leerSeccionesAnexoIVDesdeDom();
     secciones.push({ id: nuevoIdLocalAnexoII("sec"), titulo: "", texto: "" });
-    renderAnexoIVSeccion(secciones, leerFilialesAnexoIVDesdeDom());
+    renderAnexoIVSeccion(secciones);
   });
   document.querySelectorAll("#anexo-iv-contenido [data-anexo-iv-quitar-seccion]").forEach(btn => {
     btn.addEventListener("click", () => {
       const secciones = leerSeccionesAnexoIVDesdeDom().filter(s => s.id !== btn.dataset.anexoIvQuitarSeccion);
-      renderAnexoIVSeccion(secciones, leerFilialesAnexoIVDesdeDom());
+      renderAnexoIVSeccion(secciones);
     });
   });
 }
 
-function renderAnexoIVSeccion(seccionesOverride, filialesOverride) {
+function renderAnexoIVSeccion(seccionesOverride) {
   const cont = document.getElementById("anexo-iv-contenido");
   if (!cont) return;
   const soloLectura = anexoIVDeclaracionActual?.estado === "presentada";
   const secciones = seccionesOverride || anexoIVDeclaracionActual?.secciones || [];
-  const filiales = filialesOverride || anexoIVDeclaracionActual?.filiales || [];
-
-  const filialesHtml = soloLectura
-    ? `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
-        <div class="table-meta"><strong>Sedes / Filiales</strong></div>
-        <div style="padding:14px 20px">
-          ${filiales.length ? filiales.map(f => filialAnexoIISoloLecturaHtml(f)).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
-        </div>
-      </div>`
-    : `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
-        <div class="table-meta"><strong>Sedes / Filiales</strong><button type="button" class="secondary" data-anexo-iv-add-filial>+ Agregar sede</button></div>
-        <div style="padding:14px 20px">
-          ${filiales.length ? filiales.map(f => filialAnexoIVHtml(f)).join("") : `<p style="color:var(--muted)">Todavía no cargaste ninguna sede. Usá "+ Agregar sede" para sumar la primera (domicilio, localidad, provincia y sus teléfonos/mails).</p>`}
-        </div>
-      </div>`;
 
   const seccionesHtml = soloLectura
     ? (secciones.length ? secciones.map(s => `<div class="anexo-i-seccion" style="margin-bottom:16px">
@@ -9025,7 +8950,7 @@ function renderAnexoIVSeccion(seccionesOverride, filialesOverride) {
         </div>
       </div>`;
 
-  cont.innerHTML = filialesHtml + seccionesHtml;
+  cont.innerHTML = seccionesHtml;
   const acciones = document.getElementById("anexo-iv-acciones-borrador");
   if (acciones) acciones.hidden = soloLectura;
   if (!soloLectura) {
@@ -9079,6 +9004,7 @@ async function tomarSnapshotAnexoIVPrestadores(declaracionId, obraSocialId, acce
     especialidad: p.especialidad,
     domicilio: p.domicilio,
     localidad: p.localidad,
+    partido: p.partido,
     provincia: p.provincia,
     telefono: p.telefono,
     email: p.email
@@ -9105,6 +9031,7 @@ function renderAnexoIVPrestadoresTabla() {
     <td>${escaparHtml(p.tipo_prestacion || "—")}</td>
     <td>${escaparHtml(p.especialidad || "—")}</td>
     <td>${escaparHtml(p.localidad || "—")}</td>
+    <td>${escaparHtml(p.partido || "—")}</td>
     <td>${escaparHtml(p.provincia || "—")}</td>
   </tr>`).join("");
   if (!soloLectura) {
@@ -9116,11 +9043,135 @@ function renderAnexoIVPrestadoresTabla() {
   }
 }
 
+// ---------- Anexo IV: cascada Provincia/Partido/Localidad del prestador (mismo catálogo que la Cartilla) ----------
+function poblarSelectProvinciaAnexoIVPrestador() {
+  const select = document.getElementById("anexo-iv-prestador-provincia");
+  if (!select) return;
+  const provincias = [...new Set(localidadesArCache.map(l => l.provincia))].sort();
+  select.innerHTML = `<option value="">—</option>` + provincias.map(p => `<option value="${escaparHtml(p)}">${escaparHtml(p)}</option>`).join("");
+}
+
+function poblarSelectPartidoAnexoIVPrestador(provincia, partidoSeleccionado = "") {
+  const select = document.getElementById("anexo-iv-prestador-partido");
+  if (!select) return;
+  if (!provincia) { select.innerHTML = `<option value="">—</option>`; select.disabled = true; return; }
+  const partidos = [...new Set(localidadesArCache.filter(l => l.provincia === provincia).map(l => l.partido))].sort();
+  select.innerHTML = `<option value="">—</option>` + partidos.map(p => `<option value="${escaparHtml(p)}" ${p === partidoSeleccionado ? "selected" : ""}>${escaparHtml(p)}</option>`).join("");
+  select.disabled = false;
+}
+
+function poblarSelectLocalidadAnexoIVPrestador(provincia, partido, localidadSeleccionada = "") {
+  const select = document.getElementById("anexo-iv-prestador-localidad");
+  if (!select) return;
+  if (!provincia || !partido) { select.innerHTML = `<option value="">—</option>`; select.disabled = true; return; }
+  const localidades = [...new Set(localidadesArCache.filter(l => l.provincia === provincia && l.partido === partido).map(l => l.localidad))].sort();
+  select.innerHTML = `<option value="">—</option>` + localidades.map(l => `<option value="${escaparHtml(l)}" ${l === localidadSeleccionada ? "selected" : ""}>${escaparHtml(l)}</option>`).join("");
+  select.disabled = false;
+}
+
+// ---------- Anexo IV: nomenclador de Tipo de prestación / Especialidad (configurable) ----------
+//
+// Catálogo de referencia (hoy basado en la Resolución 428/99, nomenclador de prestaciones
+// básicas de discapacidad) que se sugiere a la Obra Social al cargar un prestador del Anexo IV.
+// Antes vivía hardcodeado acá; ahora lo administra el staff interno desde "Configuración
+// Cartilla → Anexo IV" (tabla pma_anexo_iv_nomenclador) y esta pantalla solo lo consume. Es
+// solo sugerencia (datalist): la Obra Social puede escribir cualquier otro valor.
+let anexoIVNomencladorCache = [];
+
+function buildAnexoIVNomencladorUrl(params = {}) {
+  const p = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, ...params });
+  return `${SUPABASE_URL}/rest/v1/pma_anexo_iv_nomenclador?${p.toString()}`;
+}
+
+async function cargarAnexoIVNomenclador() {
+  const response = await fetchConTimeout(buildAnexoIVNomencladorUrl({ select: "*", order: "nombre.asc" }), { method: "GET", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+  anexoIVNomencladorCache = await response.json();
+}
+
+function llenarDatalistsAnexoIVPrestador() {
+  if (typeof document === "undefined") return;
+  const listTipo = document.getElementById("anexo-iv-prestador-tipo-list");
+  if (listTipo) listTipo.innerHTML = anexoIVNomencladorCache.filter(n => n.categoria === "tipo_prestacion").map(n => `<option value="${escaparHtml(n.nombre)}"></option>`).join("");
+  const listEsp = document.getElementById("anexo-iv-prestador-especialidad-list");
+  if (listEsp) listEsp.innerHTML = anexoIVNomencladorCache.filter(n => n.categoria === "especialidad").map(n => `<option value="${escaparHtml(n.nombre)}"></option>`).join("");
+}
+
+// ---------- Configuración Cartilla · Anexo IV: administración del nomenclador (staff interno) ----------
+
+async function inicializarVistaAnexoIVConfig() {
+  if (typeof document === "undefined") return;
+  try { await cargarAnexoIVNomenclador(); } catch (error) { console.error(error); }
+  renderAnexoIVNomencladorAdmin();
+}
+
+function renderAnexoIVNomencladorAdmin() {
+  ["tipo_prestacion", "especialidad"].forEach(categoria => {
+    const cont = document.getElementById(`anexo-iv-nomenclador-${categoria === "tipo_prestacion" ? "tipo" : "especialidad"}-lista`);
+    if (!cont) return;
+    const filas = anexoIVNomencladorCache.filter(n => n.categoria === categoria).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    cont.innerHTML = filas.length
+      ? filas.map(n => `<span class="chip-removible" data-anexo-iv-nomenclador-id="${escaparHtml(n.id)}">${escaparHtml(n.nombre)}<button type="button" class="icon-button" data-anexo-iv-nomenclador-quitar="${escaparHtml(n.id)}" aria-label="Quitar">×</button></span>`).join("")
+      : `<p style="color:var(--muted)">Todavía no hay valores cargados.</p>`;
+    cont.querySelectorAll("[data-anexo-iv-nomenclador-quitar]").forEach(btn => {
+      btn.addEventListener("click", () => requiereAutenticacion(() => eliminarAnexoIVNomencladorItem(btn.dataset.anexoIvNomencladorQuitar)));
+    });
+  });
+}
+
+async function agregarAnexoIVNomencladorItem(categoria, inputId) {
+  const input = document.getElementById(inputId);
+  const nombre = input?.value.trim();
+  if (!nombre) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildAnexoIVNomencladorUrl(), {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" },
+      body: JSON.stringify({ categoria, nombre })
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    if (input) input.value = "";
+    await cargarAnexoIVNomenclador();
+    renderAnexoIVNomencladorAdmin();
+    mostrarToast("Se agregó a la lista.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo agregar.");
+  }
+}
+
+async function eliminarAnexoIVNomencladorItem(id) {
+  if (!(await mostrarConfirmacion("¿Quitar este valor de la lista de sugerencias? No afecta a los prestadores que ya lo tengan cargado.", { titulo: "Quitar valor", textoAceptar: "Quitar" }))) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const response = await fetchConTimeout(buildAnexoIVNomencladorUrl({ id: `eq.${id}` }), { method: "DELETE", headers: authHeaders(session.access_token) }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    await cargarAnexoIVNomenclador();
+    renderAnexoIVNomencladorAdmin();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo quitar.");
+  }
+}
+
+// ---------- Configuración Cartilla · Cobertura básica (staff interno) ----------
+//
+// Reutiliza el mismo modal "basicas-modal" y las mismas funciones (abrirModalBasicas,
+// renderGruposBasicas, guardarBasicaObligatoria) que ya existían; lo único que cambia es
+// desde qué pantalla se dispara: antes desde Cobertura (Análisis de Cartilla, visible también
+// al auditor), ahora desde Configuración Cartilla (exclusivo de la coordinación).
+function inicializarVistaCoberturaConfig() {
+  if (typeof document === "undefined") return;
+  cargarTaxonomiaPrestador().catch(error => console.error(error));
+}
+
 function limpiarFormularioAnexoIVPrestador() {
-  ["anexo-iv-prestador-id", "anexo-iv-prestador-nombre", "anexo-iv-prestador-tipo", "anexo-iv-prestador-especialidad", "anexo-iv-prestador-domicilio", "anexo-iv-prestador-localidad", "anexo-iv-prestador-provincia", "anexo-iv-prestador-telefono", "anexo-iv-prestador-email"].forEach(id => {
+  ["anexo-iv-prestador-id", "anexo-iv-prestador-nombre", "anexo-iv-prestador-tipo", "anexo-iv-prestador-especialidad", "anexo-iv-prestador-domicilio", "anexo-iv-prestador-telefono", "anexo-iv-prestador-email"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
+  const provincia = document.getElementById("anexo-iv-prestador-provincia");
+  if (provincia) provincia.value = "";
+  poblarSelectPartidoAnexoIVPrestador("");
+  poblarSelectLocalidadAnexoIVPrestador("", "");
   setFormMessage("anexo-iv-prestador-form-message", "");
   const eliminar = document.getElementById("anexo-iv-prestador-eliminar");
   if (eliminar) eliminar.hidden = true;
@@ -9144,8 +9195,9 @@ function abrirModalAnexoIVPrestadorEdicion(id) {
   document.getElementById("anexo-iv-prestador-tipo").value = p.tipo_prestacion || "";
   document.getElementById("anexo-iv-prestador-especialidad").value = p.especialidad || "";
   document.getElementById("anexo-iv-prestador-domicilio").value = p.domicilio || "";
-  document.getElementById("anexo-iv-prestador-localidad").value = p.localidad || "";
   document.getElementById("anexo-iv-prestador-provincia").value = p.provincia || "";
+  poblarSelectPartidoAnexoIVPrestador(p.provincia || "", p.partido || "");
+  poblarSelectLocalidadAnexoIVPrestador(p.provincia || "", p.partido || "", p.localidad || "");
   document.getElementById("anexo-iv-prestador-telefono").value = p.telefono || "";
   document.getElementById("anexo-iv-prestador-email").value = p.email || "";
   const eliminar = document.getElementById("anexo-iv-prestador-eliminar");
@@ -9165,8 +9217,9 @@ async function handleAnexoIVPrestadorSubmit(event) {
     tipo_prestacion: document.getElementById("anexo-iv-prestador-tipo").value.trim() || null,
     especialidad: document.getElementById("anexo-iv-prestador-especialidad").value.trim() || null,
     domicilio: document.getElementById("anexo-iv-prestador-domicilio").value.trim() || null,
-    localidad: document.getElementById("anexo-iv-prestador-localidad").value.trim() || null,
     provincia: document.getElementById("anexo-iv-prestador-provincia").value.trim() || null,
+    partido: document.getElementById("anexo-iv-prestador-partido").value.trim() || null,
+    localidad: document.getElementById("anexo-iv-prestador-localidad").value.trim() || null,
     telefono: document.getElementById("anexo-iv-prestador-telefono").value.trim() || null,
     email: document.getElementById("anexo-iv-prestador-email").value.trim() || null
   };
@@ -9220,6 +9273,7 @@ const ANEXO_IV_COLUMNAS_PEGADO = [
   { key: "especialidad", etiquetas: ["especialidad"] },
   { key: "domicilio", etiquetas: ["domicilio", "direccion"] },
   { key: "localidad", etiquetas: ["localidad"] },
+  { key: "partido", etiquetas: ["partido"] },
   { key: "provincia", etiquetas: ["provincia"] },
   { key: "telefono", etiquetas: ["telefono", "tel"] },
   { key: "email", etiquetas: ["email", "mail", "correo"] }
@@ -9242,7 +9296,7 @@ function parseAnexoIVPegado(texto) {
   let columnas = detectarColumnasAnexoIVPegado(filas[0]);
   let datos = filas;
   if (columnas) datos = filas.slice(1);
-  else columnas = ["nombre", "tipo_prestacion", "especialidad", "domicilio", "localidad", "provincia", "telefono", "email"];
+  else columnas = ["nombre", "tipo_prestacion", "especialidad", "domicilio", "localidad", "partido", "provincia", "telefono", "email"];
   return datos
     .filter(f => f.some(c => c))
     .map(f => {
@@ -9289,6 +9343,7 @@ async function confirmarAnexoIVPegar() {
       especialidad: f.especialidad || null,
       domicilio: f.domicilio || null,
       localidad: f.localidad || null,
+      partido: f.partido || null,
       provincia: f.provincia || null,
       telefono: f.telefono || null,
       email: f.email || null
@@ -9423,6 +9478,9 @@ async function presentarAnexoIV(os, ejercicio, boton) {
 async function inicializarVistaAnexoIV() {
   if (typeof document === "undefined") return;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  try { await cargarLocalidadesAr(); poblarSelectProvinciaAnexoIVPrestador(); } catch (error) { console.error(error); }
+  try { await cargarAnexoIVNomenclador(); } catch (error) { console.error(error); }
+  llenarDatalistsAnexoIVPrestador();
   const osId = obraSocialIdSesionActual();
   const os = obrasSociales.find(o => Number(o.id) === Number(osId));
   const header = document.getElementById("anexo-iv-header-os");
@@ -9499,11 +9557,7 @@ async function renderAnexoIVAdminSeleccionado() {
   const estadoTxt = decl.estado === "presentada"
     ? `<span class="stat-pill-inline ok">✓ Presentado ${escaparHtml(formatFechaPantalla((decl.presentada_en || "").slice(0, 10)))}</span>`
     : `<span class="stat-pill-inline pendiente"><span>Borrador (sin presentar)</span></span>`;
-  const filiales = decl.filiales || [];
   const secciones = decl.secciones || [];
-  const filialesHtml = filiales.length
-    ? filiales.map(f => filialAnexoIISoloLecturaHtml(f)).join("")
-    : `<p style="color:var(--muted)">No cargó sedes.</p>`;
   const seccionesHtml = secciones.length
     ? secciones.map(s => `<div class="anexo-ii-documento-seccion">
         ${s.titulo ? `<h4>${escaparHtml(s.titulo)}</h4>` : ""}
@@ -9524,8 +9578,8 @@ async function renderAnexoIVAdminSeleccionado() {
   }
   const prestadoresHtml = prestadores.length
     ? `<div class="table-scroll"><table class="data-table">
-        <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Provincia</th></tr></thead>
-        <tbody>${prestadores.map(p => `<tr><td>${escaparHtml(p.nombre || "")}</td><td>${escaparHtml(p.tipo_prestacion || "")}</td><td>${escaparHtml(p.especialidad || "")}</td><td>${escaparHtml(p.localidad || "")}</td><td>${escaparHtml(p.provincia || "")}</td></tr>`).join("")}</tbody>
+        <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Partido</th><th>Provincia</th></tr></thead>
+        <tbody>${prestadores.map(p => `<tr><td>${escaparHtml(p.nombre || "")}</td><td>${escaparHtml(p.tipo_prestacion || "")}</td><td>${escaparHtml(p.especialidad || "")}</td><td>${escaparHtml(p.localidad || "")}</td><td>${escaparHtml(p.partido || "")}</td><td>${escaparHtml(p.provincia || "")}</td></tr>`).join("")}</tbody>
       </table></div>`
     : `<p style="color:var(--muted)">No cargó prestadores.</p>`;
 
@@ -9537,11 +9591,6 @@ async function renderAnexoIVAdminSeleccionado() {
       </div>
       ${estadoTxt}
     </div>
-    <div class="anexo-ii-documento-sedes">
-      <h3>Sedes / Filiales</h3>
-      ${filialesHtml}
-    </div>
-    <hr>
     ${seccionesHtml}
     <div class="anexo-ii-documento-seccion">
       <h4>Listado de prestadores${prestadores.length ? ` (${prestadores.length})` : ""}</h4>
@@ -9550,9 +9599,9 @@ async function renderAnexoIVAdminSeleccionado() {
   </div>`;
 }
 
-// ---------- Anexo I · Actualización: edición administrativa del texto normativo (staff interno) ----------
+// ---------- Anexo I · Edición: edición administrativa del texto normativo (staff interno) ----------
 //
-// Esta pantalla (menú Análisis de Cartilla → Anexo I · Actualización, visible solo para el staff
+// Esta pantalla (menú Configuración Cartilla → Anexo I · Edición, visible solo para el staff
 // interno) es la única forma de tocar pma_secciones desde la app. Muestra la versión VIGENTE de
 // solo lectura (para no alterar lo que las Obras Sociales ya están presentando) y, al lado, la
 // PRÓXIMA versión editable, que entra en vigencia recién a partir del ejercicio elegido — mientras
@@ -10563,6 +10612,8 @@ async function initBrowser() {
   document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
   document.getElementById("cobertura-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialCobertura));
   document.getElementById("btn-configurar-basicas")?.addEventListener("click", () => requiereAutenticacion(abrirModalBasicas));
+  document.getElementById("btn-anexo-iv-nomenclador-tipo-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("tipo_prestacion", "anexo-iv-nomenclador-tipo-nuevo")));
+  document.getElementById("btn-anexo-iv-nomenclador-especialidad-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("especialidad", "anexo-iv-nomenclador-especialidad-nuevo")));
   document.getElementById("afiliados-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
@@ -10593,6 +10644,14 @@ async function initBrowser() {
   document.getElementById("btn-anexo-iv-agregar-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPrestadorNuevo));
   document.getElementById("anexo-iv-prestador-form")?.addEventListener("submit", handleAnexoIVPrestadorSubmit);
   document.getElementById("anexo-iv-prestador-eliminar")?.addEventListener("click", eliminarAnexoIVPrestadorActual);
+  document.getElementById("anexo-iv-prestador-provincia")?.addEventListener("change", event => {
+    poblarSelectPartidoAnexoIVPrestador(event.target.value);
+    poblarSelectLocalidadAnexoIVPrestador("", "");
+  });
+  document.getElementById("anexo-iv-prestador-partido")?.addEventListener("change", event => {
+    const provincia = document.getElementById("anexo-iv-prestador-provincia")?.value || "";
+    poblarSelectLocalidadAnexoIVPrestador(provincia, event.target.value);
+  });
   document.getElementById("btn-anexo-iv-pegar")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPegar));
   document.getElementById("anexo-iv-pegar-textarea")?.addEventListener("input", actualizarPreviewAnexoIVPegar);
   document.getElementById("anexo-iv-pegar-confirmar")?.addEventListener("click", confirmarAnexoIVPegar);
@@ -10689,7 +10748,7 @@ async function initBrowser() {
 
   window.addEventListener("popstate", () => showView(getInitialView(location.hash), false));
 
-  // Avisar antes de cerrar/recargar la pestaña si hay ediciones de Anexo I · Actualización sin guardar.
+  // Avisar antes de cerrar/recargar la pestaña si hay ediciones de Anexo I · Edición sin guardar.
   window.addEventListener("beforeunload", event => {
     if (anexoIAdminCambiosPendientes.size > 0) { event.preventDefault(); event.returnValue = ""; }
   });
