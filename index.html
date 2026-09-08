@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=36">
+  <link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -67,7 +67,7 @@
           </button>
           <div class="nav-submenu">
             <button class="nav-subitem" data-view="afiliados" data-nav-access="afiliados" type="button">Afiliados</button>
-            <button class="nav-subitem" data-view="prestadores" data-nav-access="prestadores" type="button">Prestadores</button>
+            <button class="nav-subitem" data-view="prestadores" data-nav-access="prestadores" type="button">Anexo III</button>
             <button class="nav-subitem" data-view="cobertura" data-nav-access="cobertura" type="button">Cobertura</button>
             <button class="nav-subitem" data-view="anexo-ii-admin" data-nav-access="anexo-ii-admin" type="button">Anexo II</button>
             <button class="nav-subitem" data-view="anexo-iv-admin" data-nav-access="anexo-iv-admin" type="button">Anexo IV</button>
@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 36</span>
+        <span>Versión 37</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -682,8 +682,8 @@
             <div class="form-grid">
               <label class="full"><span>Prestador</span><input id="anexo-iv-prestador-nombre" type="text" maxlength="300" required></label>
               <div class="form-inline-grid cols-2 full">
-                <label><span>Tipo de prestación</span><input id="anexo-iv-prestador-tipo" type="text" maxlength="200" list="anexo-iv-prestador-tipo-list"></label>
-                <label><span>Especialidad</span><input id="anexo-iv-prestador-especialidad" type="text" maxlength="200" list="anexo-iv-prestador-especialidad-list"></label>
+                <label><span>Tipo de prestación</span><select id="anexo-iv-prestador-tipo"><option value="">—</option></select></label>
+                <label><span>Especialidad</span><select id="anexo-iv-prestador-especialidad" disabled><option value="">—</option></select></label>
               </div>
               <label class="full"><span>Domicilio</span><input id="anexo-iv-prestador-domicilio" type="text" maxlength="300"></label>
               <div class="form-inline-grid cols-3 full">
@@ -696,8 +696,6 @@
                 <label><span>Email</span><input id="anexo-iv-prestador-email" type="email" maxlength="180"></label>
               </div>
             </div>
-            <datalist id="anexo-iv-prestador-tipo-list"></datalist>
-            <datalist id="anexo-iv-prestador-especialidad-list"></datalist>
             <div class="form-message" id="anexo-iv-prestador-form-message" hidden></div>
             <div class="modal-actions">
               <button type="button" class="secondary danger" id="anexo-iv-prestador-eliminar" hidden>Eliminar</button>
@@ -2112,6 +2110,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=37"></script>
 </body>
 </html>

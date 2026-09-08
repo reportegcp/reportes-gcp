@@ -7720,8 +7720,15 @@ async function poblarSelectPeriodoOs(os) {
   const relevantes = new Set([vigente, anterior].filter(Boolean));
   const todosLosPeriodos = await cargarPeriodosOs(os.id);
   const periodos = todosLosPeriodos.filter(p => relevantes.has(p.ejercicio));
-  selectPeriodo.innerHTML = `<option value="vigente">Período vigente (${escaparHtml(vigente)}) — editable</option>` +
-    periodos.map(p => `<option value="${p.id}">${escaparHtml(p.ejercicio)} — presentada el ${formatFechaPantalla(p.fecha_ingreso)}</option>`).join("");
+  // El catálogo vivo ("Red actual") y una presentación ya enviada pueden coincidir en el mismo
+  // año (ej. "2027"), lo que confunde si se etiquetan igual. Marcamos cada opción presentada con
+  // a qué corresponde (el período vigente u otro anterior) y aclaramos que es de solo lectura.
+  const etiquetaPeriodoPresentado = p => {
+    const cual = p.ejercicio === vigente ? "el mismo período vigente" : "período anterior";
+    return `Presentación ${escaparHtml(p.ejercicio)} (${cual}) — enviada el ${formatFechaPantalla(p.fecha_ingreso)} · ${escaparHtml(p.condicion || "presentada")} · solo lectura`;
+  };
+  selectPeriodo.innerHTML = `<option value="vigente">Red actual (${escaparHtml(vigente)}) — catálogo vivo, editable en todo momento</option>` +
+    periodos.map(p => `<option value="${p.id}">${etiquetaPeriodoPresentado(p)}</option>`).join("");
   selectPeriodo.value = "vigente";
   if (toolbar) toolbar.hidden = false;
 }
@@ -7751,7 +7758,10 @@ async function renderPrestadoresDesdeSnapshot(cartillaId) {
   const count = document.getElementById("prestadores-count");
   const empty = document.getElementById("prestadores-empty");
   if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "prestador presentado" : "prestadores presentados"} en esta Cartilla`;
-  if (empty) empty.hidden = filas.length !== 0;
+  if (empty) {
+    empty.hidden = filas.length !== 0;
+    empty.textContent = "Esta presentación (la foto tomada al momento de enviarla) no tenía prestadores cargados.";
+  }
   if (body) body.innerHTML = filas.map(p => {
     const resumen = resumenSnapshotTexto(p.tipos_y_especialidades);
     return `<tr>
@@ -7821,7 +7831,16 @@ async function verificarYRenderizarPresentacionCartillaOs(os) {
 
     if (!pendientes.length) {
       const p = porEjercicio.get(vigente);
-      pill.innerHTML = `<span class="stat-pill-inline ok" title="Cartilla del período ${escaparHtml(vigente)}">✓ Presentada ${formatFechaPantalla(p.fecha_ingreso)} · ${escaparHtml(p.condicion || "—")}</span>`;
+      pill.innerHTML = `<span class="stat-pill-inline ok" title="Cartilla del período ${escaparHtml(vigente)}">✓ Presentada ${formatFechaPantalla(p.fecha_ingreso)} · ${escaparHtml(p.condicion || "—")}</span> <button type="button" class="link-button" id="btn-ver-presentacion-vigente">Ver esta presentación</button>`;
+      const btnVer = document.getElementById("btn-ver-presentacion-vigente");
+      if (btnVer) btnVer.addEventListener("click", () => {
+        // Lleva directo a la foto congelada que está EN ESTUDIO, distinta de la "Red actual"
+        // (que sigue siendo editable aunque ya se haya presentado).
+        const select = document.getElementById("prestadores-periodo-os");
+        if (!select || !select.querySelector(`option[value="${p.id}"]`)) return;
+        select.value = String(p.id);
+        select.dispatchEvent(new Event("change"));
+      });
       return;
     }
 
@@ -9094,12 +9113,18 @@ async function cargarAnexoIVNomenclador() {
   anexoIVNomencladorCache = await response.json();
 }
 
-function llenarDatalistsAnexoIVPrestador() {
+// Tipo de prestación es una lista chica y cerrada (nomenclador Res. 428/99): un <select> de
+// verdad, igual que Provincia/Partido/Localidad, siempre muestra todas las opciones con un solo
+// clic — a diferencia de un input con datalist, que filtra por lo ya escrito y no deja "cambiar"
+// una vez que el texto coincide exactamente con una opción.
+function llenarSelectTipoAnexoIVPrestador() {
   if (typeof document === "undefined") return;
-  const listTipo = document.getElementById("anexo-iv-prestador-tipo-list");
-  if (listTipo) listTipo.innerHTML = anexoIVNomencladorCache.filter(n => n.categoria === "tipo_prestacion").map(n => `<option value="${escaparHtml(n.nombre)}"></option>`).join("");
-  const listEsp = document.getElementById("anexo-iv-prestador-especialidad-list");
-  if (listEsp) listEsp.innerHTML = anexoIVNomencladorCache.filter(n => n.categoria === "especialidad").map(n => `<option value="${escaparHtml(n.nombre)}"></option>`).join("");
+  const selectTipo = document.getElementById("anexo-iv-prestador-tipo");
+  if (!selectTipo) return;
+  const valorPrevio = selectTipo.value;
+  const tipos = anexoIVNomencladorCache.filter(n => n.categoria === "tipo_prestacion").sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  selectTipo.innerHTML = `<option value="">—</option>` + tipos.map(n => `<option value="${escaparHtml(n.nombre)}">${escaparHtml(n.nombre)}</option>`).join("");
+  if (valorPrevio && tipos.some(n => n.nombre === valorPrevio)) selectTipo.value = valorPrevio;
 }
 
 // ---------- Configuración Cartilla · Anexo IV: administración del nomenclador (staff interno) ----------
@@ -9170,21 +9195,22 @@ function inicializarVistaCoberturaConfig() {
 
 // La Especialidad solo tiene sentido (y solo tiene nomenclador cargado) cuando el Tipo de
 // prestación es "Prestaciones de Apoyo" — para cualquier otro tipo se deshabilita en vez de
-// ofrecer un combo vacío o sugerencias que no corresponden.
+// ofrecer un combo vacío o valores que no corresponden.
 function actualizarEspecialidadAnexoIVPrestador() {
-  const tipoInput = document.getElementById("anexo-iv-prestador-tipo");
-  const espInput = document.getElementById("anexo-iv-prestador-especialidad");
-  if (!tipoInput || !espInput) return;
-  const esApoyo = tipoInput.value.trim().toLowerCase() === "prestaciones de apoyo";
+  const tipoSelect = document.getElementById("anexo-iv-prestador-tipo");
+  const espSelect = document.getElementById("anexo-iv-prestador-especialidad");
+  if (!tipoSelect || !espSelect) return;
+  const esApoyo = tipoSelect.value.trim().toLowerCase() === "prestaciones de apoyo";
   if (esApoyo) {
-    espInput.disabled = false;
-    espInput.setAttribute("list", "anexo-iv-prestador-especialidad-list");
-    espInput.placeholder = "";
+    const valorPrevio = espSelect.value;
+    const especialidades = anexoIVNomencladorCache.filter(n => n.categoria === "especialidad").sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    espSelect.disabled = false;
+    espSelect.innerHTML = `<option value="">—</option>` + especialidades.map(n => `<option value="${escaparHtml(n.nombre)}">${escaparHtml(n.nombre)}</option>`).join("");
+    if (valorPrevio && especialidades.some(n => n.nombre === valorPrevio)) espSelect.value = valorPrevio;
   } else {
-    espInput.value = "";
-    espInput.disabled = true;
-    espInput.removeAttribute("list");
-    espInput.placeholder = "No aplica para este tipo de prestación";
+    espSelect.innerHTML = `<option value="">No aplica para este tipo de prestación</option>`;
+    espSelect.value = "";
+    espSelect.disabled = true;
   }
 }
 
@@ -9219,8 +9245,8 @@ function abrirModalAnexoIVPrestadorEdicion(id) {
   document.getElementById("anexo-iv-prestador-id").value = p.id;
   document.getElementById("anexo-iv-prestador-nombre").value = p.nombre || "";
   document.getElementById("anexo-iv-prestador-tipo").value = p.tipo_prestacion || "";
-  document.getElementById("anexo-iv-prestador-especialidad").value = p.especialidad || "";
   actualizarEspecialidadAnexoIVPrestador();
+  document.getElementById("anexo-iv-prestador-especialidad").value = p.especialidad || "";
   document.getElementById("anexo-iv-prestador-domicilio").value = p.domicilio || "";
   document.getElementById("anexo-iv-prestador-provincia").value = p.provincia || "";
   poblarSelectPartidoAnexoIVPrestador(p.provincia || "", p.partido || "");
@@ -9564,7 +9590,8 @@ async function inicializarVistaAnexoIV() {
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   try { await cargarLocalidadesAr(); poblarSelectProvinciaAnexoIVPrestador(); } catch (error) { console.error(error); }
   try { await cargarAnexoIVNomenclador(); } catch (error) { console.error(error); }
-  llenarDatalistsAnexoIVPrestador();
+  llenarSelectTipoAnexoIVPrestador();
+  actualizarEspecialidadAnexoIVPrestador();
   const osId = obraSocialIdSesionActual();
   const os = obrasSociales.find(o => Number(o.id) === Number(osId));
   const header = document.getElementById("anexo-iv-header-os");
@@ -10088,7 +10115,10 @@ function renderPrestadores() {
   if (count && prestadorObraSocialActual) count.textContent = `${filtradas.length} ${filtradas.length === 1 ? "prestador" : "prestadores"} de ${getObraSocialDisplay(prestadorObraSocialActual)}`;
   renderPaginacion("prestadores-pagination", pageInfo, page => { prestadoresPage = page; renderPrestadores(); });
   const empty = document.getElementById("prestadores-empty");
-  if (empty) empty.hidden = filtradas.length !== 0 || !prestadorObraSocialActual;
+  if (empty) {
+    empty.hidden = filtradas.length !== 0 || !prestadorObraSocialActual;
+    empty.textContent = "No hay prestadores cargados para esta Obra Social todavía.";
+  }
   document.querySelectorAll("#prestadores-table-body [data-prestador-id]").forEach(row => {
     const editar = () => requiereAutenticacion(() => abrirModalPrestadorEdicion(row.dataset.prestadorId));
     row.addEventListener("click", editar);
@@ -10428,12 +10458,15 @@ async function tomarSnapshotPrestadores(cartillaId, obraSocialId, accessToken) {
 async function initBrowser() {
   const recoveryDetected = procesarRecuperacionDesdeUrl();
 
-  // Selectores de "escribir para buscar" (Obra Social, Tipo de prestación, etc.): son
-  // inputs de texto con <datalist>, y el navegador solo despliega las opciones cuando el
-  // campo cambia de valor — un clic sobre un campo que ya tiene algo cargado no vuelve a
-  // abrir la lista, dando la sensación de que "no deja cambiar" la selección. Forzamos la
-  // apertura del listado completo en cada clic/foco, en todo el sitio y también en
-  // cualquier campo con datalist que se agregue más adelante.
+  // Selectores de "escribir para buscar" (Obra Social, Tipo de contratación, etc.): son inputs
+  // de texto con <datalist>. El problema no es solo que el navegador no reabra la lista al
+  // clickear un campo ya cargado — es que, aunque la reabra, Chrome sigue filtrando las
+  // sugerencias por el texto actual, y si ese texto coincide exactamente con una opción
+  // (porque ya se eligió antes) el filtro deja ver solo esa una, sin forma de ver las demás.
+  // La solución estándar: al enfocar el campo, vaciarlo (así el filtro no descarta nada) y
+  // guardar el valor anterior; si el usuario se va sin elegir nada nuevo, se lo restauramos al
+  // perder el foco. Vale para todo el sitio y para cualquier campo con datalist que se agregue
+  // más adelante.
   document.addEventListener("click", event => {
     const el = event.target;
     if (el && el.tagName === "INPUT" && el.hasAttribute("list") && typeof el.showPicker === "function") {
@@ -10442,10 +10475,29 @@ async function initBrowser() {
   });
   document.addEventListener("focus", event => {
     const el = event.target;
-    if (el && el.tagName === "INPUT" && el.hasAttribute("list") && typeof el.showPicker === "function") {
-      try { el.showPicker(); } catch (error) { /* idem */ }
+    if (el && el.tagName === "INPUT" && el.hasAttribute("list")) {
+      el.dataset.prevValue = el.value;
+      el.value = "";
+      if (typeof el.showPicker === "function") {
+        try { el.showPicker(); } catch (error) { /* idem */ }
+      }
     }
   }, true);
+  document.addEventListener("blur", event => {
+    const el = event.target;
+    if (el && el.tagName === "INPUT" && el.hasAttribute("list") && el.dataset.prevValue !== undefined) {
+      if (!el.value) el.value = el.dataset.prevValue;
+      delete el.dataset.prevValue;
+    }
+  }, true);
+  // Con el vaciado-al-enfocar de arriba, un clic que no termina en una elección nueva (el
+  // usuario mira la lista y se va sin tocar nada) puede, en teoría, dejar pasar un 'change' con
+  // el campo vacío antes de que se restaure el valor anterior. Como red de seguridad, estos
+  // campos ignoran ese 'change' fantasma en vez de vaciar la selección ya cargada.
+  const soloConValor = handler => event => {
+    if (!event.target.value || !event.target.value.trim()) return;
+    handler(event);
+  };
 
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
   document.querySelectorAll(".nav-group-toggle").forEach(btn => btn.addEventListener("click", () => {
@@ -10521,10 +10573,10 @@ async function initBrowser() {
   document.getElementById("expediente-es-denunciante")?.addEventListener("change", actualizarVisibilidadDenunciante);
   document.getElementById("expediente-droga-select")?.addEventListener("change", poblarSelectMarcasParaDroga);
   document.getElementById("expediente-droga-agregar")?.addEventListener("click", agregarDrogaTemporalExpediente);
-  document.getElementById("expediente-os-input")?.addEventListener("change", event => {
+  document.getElementById("expediente-os-input")?.addEventListener("change", soloConValor(event => {
     event.target.dataset.selectedId = obrasSocialesTodasPorEtiqueta.get(event.target.value) || "";
     poblarSelectFiliales(event.target.dataset.selectedId);
-  });
+  }));
   document.getElementById("expediente-filial-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarFilial));
   document.querySelectorAll(".form-section-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -10628,9 +10680,9 @@ async function initBrowser() {
   document.getElementById("expediente-os-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("expediente-os-input")?.dataset.selectedId));
   document.getElementById("preexistencia-emp-contacto")?.addEventListener("click", () => abrirModalContactoOs(document.getElementById("preexistencia-emp-input")?.dataset.selectedId, "EMP"));
 
-  document.getElementById("preexistencia-emp-input")?.addEventListener("change", event => {
+  document.getElementById("preexistencia-emp-input")?.addEventListener("change", soloConValor(event => {
     event.target.dataset.selectedId = empSoloPorEtiqueta.get(event.target.value) || "";
-  });
+  }));
   document.getElementById("preexistencia-patologia")?.addEventListener("change", event => {
     const patologia = pxPatologias.find(p => String(p.id) === String(event.target.value));
     if (patologia?.plantilla_id) document.getElementById("preexistencia-plantilla").value = patologia.plantilla_id;
@@ -10684,7 +10736,7 @@ async function initBrowser() {
   document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-condicion-filter")?.addEventListener("change", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
-  document.getElementById("pma-os-search")?.addEventListener("change", recalcularDatosPma);
+  document.getElementById("pma-os-search")?.addEventListener("change", soloConValor(recalcularDatosPma));
   document.getElementById("pma-ejercicio")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-ejercicio")?.addEventListener("change", recalcularDatosPma);
   document.getElementById("pma-fecha-ingreso")?.addEventListener("change", actualizarAlertaPma);
@@ -10712,12 +10764,12 @@ async function initBrowser() {
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
-  document.getElementById("prestadores-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialPrestadores));
-  document.getElementById("cobertura-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialCobertura));
+  document.getElementById("prestadores-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialPrestadores)));
+  document.getElementById("cobertura-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialCobertura)));
   document.getElementById("btn-configurar-basicas")?.addEventListener("click", () => requiereAutenticacion(abrirModalBasicas));
   document.getElementById("btn-anexo-iv-nomenclador-tipo-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("tipo_prestacion", "anexo-iv-nomenclador-tipo-nuevo")));
   document.getElementById("btn-anexo-iv-nomenclador-especialidad-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("especialidad", "anexo-iv-nomenclador-especialidad-nuevo")));
-  document.getElementById("afiliados-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
+  document.getElementById("afiliados-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAfiliados)));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
   document.getElementById("afiliados-buscar")?.addEventListener("input", renderAfiliadosTabla);
@@ -10738,11 +10790,11 @@ async function initBrowser() {
   document.getElementById("btn-guardar-borrador-anexo-i")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoI));
   document.getElementById("anexo-ii-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoII));
   document.getElementById("btn-guardar-borrador-anexo-ii")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoII));
-  document.getElementById("anexo-ii-admin-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAnexoIIAdmin));
+  document.getElementById("anexo-ii-admin-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAnexoIIAdmin)));
   document.getElementById("anexo-ii-admin-periodo")?.addEventListener("change", () => renderAnexoIIAdminSeleccionado());
   document.getElementById("anexo-iv-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoIV));
   document.getElementById("btn-guardar-borrador-anexo-iv")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoIV));
-  document.getElementById("anexo-iv-admin-os-search")?.addEventListener("change", () => requiereAutenticacion(handleSeleccionObraSocialAnexoIVAdmin));
+  document.getElementById("anexo-iv-admin-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAnexoIVAdmin)));
   document.getElementById("anexo-iv-admin-periodo")?.addEventListener("change", () => renderAnexoIVAdminSeleccionado());
   document.getElementById("btn-anexo-iv-agregar-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPrestadorNuevo));
   document.getElementById("anexo-iv-prestador-form")?.addEventListener("submit", handleAnexoIVPrestadorSubmit);
@@ -10758,7 +10810,6 @@ async function initBrowser() {
   // La Especialidad (Fonoaudiología, Psicología, etc.) solo existe, dentro del nomenclador
   // de la Resolución 428/99, para el Tipo de prestación "Prestaciones de Apoyo" — para
   // cualquier otro tipo (Transporte, Centro de Día, Hogar, etc.) no aplica.
-  document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("input", actualizarEspecialidadAnexoIVPrestador);
   document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("change", actualizarEspecialidadAnexoIVPrestador);
   document.getElementById("btn-anexo-iv-descargar-plantilla")?.addEventListener("click", () => requiereAutenticacion(descargarPlantillaAnexoIVPrestadores));
   document.getElementById("anexo-iv-pegar-descargar-plantilla-link")?.addEventListener("click", event => { event.preventDefault(); requiereAutenticacion(descargarPlantillaAnexoIVPrestadores); });
@@ -10798,7 +10849,7 @@ async function initBrowser() {
     poblarSelectLocalidadPrestador(provincia, event.target.value);
   });
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
-  document.getElementById("cartilla-os-search")?.addEventListener("change", recalcularDatosCartilla);
+  document.getElementById("cartilla-os-search")?.addEventListener("change", soloConValor(recalcularDatosCartilla));
   document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
