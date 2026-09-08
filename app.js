@@ -4073,8 +4073,8 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
-      (["anexo-i-admin", "anexo-ii-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["anexo-i-admin"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
@@ -4086,10 +4086,10 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
-  if (["anexo-i-admin", "anexo-ii-admin"].includes(resolved)) {
+  if (["anexo-i-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="configuracion-cartilla"]')?.classList.add("active");
   }
   if (resolved.startsWith("up-")) {
@@ -8548,10 +8548,10 @@ function bindAccionesAnexoIIEditable() {
 function filialAnexoIISoloLecturaHtml(f) {
   const direccion = [f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ");
   const contactos = (f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail);
-  return `<div style="margin-bottom:14px">
+  return `<div class="anexo-ii-documento-sede">
     <strong>${escaparHtml(f.nombre) || escaparHtml(direccion) || "Sede"}</strong>
-    ${f.nombre && direccion ? `<div style="color:var(--muted);font-size:12.5px;margin-top:2px">${escaparHtml(direccion)}</div>` : ""}
-    ${contactos.length ? `<ul style="margin:6px 0 0;padding-left:18px">${contactos.map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
+    ${f.nombre && direccion ? `<div class="anexo-ii-documento-direccion">${escaparHtml(direccion)}</div>` : ""}
+    ${contactos.length ? `<ul>${contactos.map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
   </div>`;
 }
 
@@ -8766,19 +8766,30 @@ function renderAnexoIIAdminSeleccionado() {
     : `<span class="stat-pill-inline pendiente"><span>Borrador (sin presentar)</span></span>`;
   const filiales = decl.filiales || [];
   const secciones = decl.secciones || [];
-  const filialesHtml = `<div class="table-card anexo-i-seccion" style="margin-bottom:14px">
-    <div class="table-meta"><strong>Sedes / Filiales</strong></div>
-    <div style="padding:14px 20px">
-      ${filiales.length ? filiales.map(f => filialAnexoIISoloLecturaHtml(f)).join("") : `<p style="color:var(--muted)">No cargó sedes.</p>`}
-    </div>
-  </div>`;
+  const filialesHtml = filiales.length
+    ? filiales.map(f => filialAnexoIISoloLecturaHtml(f)).join("")
+    : `<p style="color:var(--muted)">No cargó sedes.</p>`;
   const seccionesHtml = secciones.length
-    ? secciones.map(s => `<div class="anexo-i-seccion" style="margin-bottom:16px">
-        ${s.titulo ? `<h3 style="margin:0 0 6px">${escaparHtml(s.titulo)}</h3>` : ""}
-        <div class="anexo-i-texto">${s.texto || ""}</div>
+    ? secciones.map(s => `<div class="anexo-ii-documento-seccion">
+        ${s.titulo ? `<h4>${escaparHtml(s.titulo)}</h4>` : ""}
+        <div class="anexo-i-texto" style="padding:0">${s.texto || ""}</div>
       </div>`).join("")
     : `<p style="color:var(--muted)">No cargó texto.</p>`;
-  cont.innerHTML = `<div class="table-meta" style="margin-bottom:10px">${estadoTxt}</div>` + filialesHtml + seccionesHtml;
+  cont.innerHTML = `<div class="anexo-ii-documento">
+    <div class="anexo-ii-documento-encabezado">
+      <div>
+        <h2>Anexo II</h2>
+        <p>Ejercicio ${escaparHtml(decl.ejercicio || "")}</p>
+      </div>
+      ${estadoTxt}
+    </div>
+    <div class="anexo-ii-documento-sedes">
+      <h3>Sedes / Filiales</h3>
+      ${filialesHtml}
+    </div>
+    <hr>
+    ${seccionesHtml}
+  </div>`;
 }
 
 // ---------- Anexo I · Actualización: edición administrativa del texto normativo (staff interno) ----------

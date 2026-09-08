@@ -1715,6 +1715,21 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-ii-seccion-titulo-fila{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .anexo-ii-seccion-titulo-fila input{flex:1;font-weight:800;font-size:14.5px}
 .anexo-ii-contacto-row .icon-button,.anexo-ii-filial-card .table-meta .icon-button,.anexo-ii-seccion-titulo-fila .icon-button{width:30px;height:30px;font-size:17px;border-radius:8px;flex:none}
+.anexo-ii-documento{background:#fff;border:1px solid var(--line);border-radius:10px;padding:30px 36px;max-width:820px}
+.anexo-ii-documento-encabezado{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;padding-bottom:16px;border-bottom:2px solid var(--line)}
+.anexo-ii-documento-encabezado h2{margin:0;font-size:17px;color:var(--navy)}
+.anexo-ii-documento-encabezado p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.anexo-ii-documento h3{margin:0 0 10px;font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#4d5d70}
+.anexo-ii-documento-sede{margin-bottom:14px;font-size:13.5px}
+.anexo-ii-documento-sede:last-child{margin-bottom:0}
+.anexo-ii-documento-sede strong{font-size:14px}
+.anexo-ii-documento-sede .anexo-ii-documento-direccion{color:var(--muted);font-size:12.5px;margin-top:2px}
+.anexo-ii-documento-sede ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+.anexo-ii-documento-sedes{margin-bottom:26px}
+.anexo-ii-documento-seccion{margin:0 0 22px}
+.anexo-ii-documento-seccion:last-child{margin-bottom:0}
+.anexo-ii-documento-seccion h4{margin:0 0 6px;font-size:14px;color:var(--navy)}
+.anexo-ii-documento hr{border:0;border-top:1px solid var(--line);margin:0 0 22px}
 .anexo-i-aclaracion{display:grid;gap:6px;padding:14px 20px 18px}
 .anexo-i-aclaracion>span{font-size:12px;font-weight:800;color:#4d5d70}
 .anexo-i-rte-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
