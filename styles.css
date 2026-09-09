@@ -1258,7 +1258,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .afiliados-total-resumen.afiliados-resumen-alerta{
   display:inline-block;max-width:420px;
   color:#a3195b;background:#fde3ef;border:1px solid #f7b8d8;border-radius:10px;
-  padding:6px 10px;font-weight:800;line-height:1.35
+  padding:6px 10px;font-weight:500;line-height:1.35
 }
 .notificacion-nueva-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 9px;border-radius:8px;border:1px dashed var(--line);font-size:12px}
 .notificacion-nueva-row input[type="date"]{padding:5px 8px;font-size:12px;height:auto}
