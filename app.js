@@ -7282,6 +7282,15 @@ function parsearCaratulaCartilla(workbook) {
 
 // Busca la hoja del Anexo III (con el encabezado "NOMBRE COMPLETO DEL PRESTADOR") y
 // devuelve los prestadores agrupados por CUIT, con sus pares (tipo, especialidad) crudos.
+//
+// OJO: el CUIT NO es una clave única de prestador — una misma financiadora/CUIT puede
+// tener varias sedes con nombre y domicilio distintos (verificado en archivos reales:
+// mismo CUIT, "Sanatorio X" en Buenos Aires y "Clínica Y" en San Juan). Por eso la clave
+// de agrupación combina nombre + provincia + localidad + domicilio, no solo el CUIT.
+function claveUnicaPrestadorImportacion(nombre, provincia, localidad, domicilio) {
+  return [nombre, provincia, localidad, domicilio].map(v => normalizarTexto(v || "")).join("|");
+}
+
 function parsearAnexoIIICartilla(workbook) {
   for (const nombreHoja of workbook.SheetNames) {
     const filas = window.XLSX.utils.sheet_to_json(workbook.Sheets[nombreHoja], { header: 1, defval: null });
@@ -7292,7 +7301,7 @@ function parsearAnexoIIICartilla(workbook) {
       const [nombre, cuit, tipo, especialidad, adultoPed, provincia, partido, localidad, , domicilio, telefono, email] = filas[i];
       if (!nombre) continue;
       const cuitLimpio = cuit != null ? String(cuit).trim() : null;
-      const key = cuitLimpio || normalizarTexto(nombre);
+      const key = claveUnicaPrestadorImportacion(nombre, provincia, localidad, domicilio);
       if (!prestadores.has(key)) {
         prestadores.set(key, {
           nombre: String(nombre).trim(), cuit: cuitLimpio,
@@ -7350,7 +7359,7 @@ async function manejarArchivoImportarCartilla(file) {
     const os = obrasSociales.find(o => (o.rnos || "").replace(/\D/g, "").replace(/^0+/, "") === rnasNormalizado.replace(/^0+/, ""));
     const matcheo = matchearEspecialidadesImportacion(prestadoresRaw);
     importarCartillaEstado = { caratula, prestadores: prestadoresRaw, os, matcheo };
-    renderPreviewImportarCartilla();
+    await renderPreviewImportarCartilla();
     abrirModal("importar-cartilla-modal");
   } catch (error) {
     mostrarToast(error.message || "No se pudo leer el archivo.");
@@ -7359,7 +7368,7 @@ async function manejarArchivoImportarCartilla(file) {
   }
 }
 
-function renderPreviewImportarCartilla() {
+async function renderPreviewImportarCartilla() {
   const { caratula, prestadores, os, matcheo } = importarCartillaEstado;
   const resumen = document.getElementById("importar-cartilla-resumen");
   const avisos = document.getElementById("importar-cartilla-avisos");
@@ -7375,12 +7384,24 @@ function renderPreviewImportarCartilla() {
     </div>`;
   let avisosHtml = "";
   if (!os) avisosHtml += `<p class="notificaciones-hint">⚠️ No encontré ninguna Obra Social con RNAS ${escaparHtml(caratula.rnas)} en el sistema — no se puede importar hasta que exista.</p>`;
+  let yaTienePrestadores = false;
+  if (os) {
+    try {
+      const session = await asegurarSesionVigente();
+      const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "id", obra_social_id: `eq.${os.id}`, limit: "1" });
+      const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/prestadores?${params.toString()}`, { headers: authHeaders(session.access_token) }, 10000, fetch);
+      if (response.ok) { const filas = await response.json(); yaTienePrestadores = filas.length > 0; }
+    } catch (error) { console.error(error); }
+  }
+  if (yaTienePrestadores) {
+    avisosHtml += `<p class="notificaciones-hint">⚠️ Esta Obra Social ya tiene prestadores cargados en el sistema. Esta herramienta es para la carga inicial única — si volvés a importar, se van a <b>duplicar</b>. Si es un reemplazo intencional, borrá los prestadores existentes antes de confirmar.</p>`;
+  }
   if (matcheo.sinMatch.size) {
     avisosHtml += `<p class="notificaciones-hint">Quedaron afuera ${[...matcheo.sinMatch.values()].reduce((a, b) => a + b, 0)} filas por combinaciones de Tipo/Especialidad que no matchean con el sistema:</p><ul style="font-size:12px;color:var(--muted);margin:4px 0 0 18px">${[...matcheo.sinMatch.entries()].map(([k, v]) => `<li>${escaparHtml(k)} (${v})</li>`).join("")}</ul>`;
   }
   avisos.innerHTML = avisosHtml;
   const confirmar = document.getElementById("importar-cartilla-confirmar");
-  if (confirmar) confirmar.disabled = !os;
+  if (confirmar) confirmar.disabled = !os || yaTienePrestadores;
 }
 
 async function confirmarImportarCartilla() {
@@ -7406,12 +7427,12 @@ async function confirmarImportarCartilla() {
       const response = await fetchConTimeout(buildPrestadorWriteUrl(), { method: "POST", headers, body: JSON.stringify(payload) }, 20000, fetch);
       if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
       const filas = await response.json();
-      lote.forEach((p, idx) => idPorClave.set(p.cuit || normalizarTexto(p.nombre), filas[idx].id));
+      lote.forEach((p, idx) => idPorClave.set(claveUnicaPrestadorImportacion(p.nombre, p.provincia, p.localidad, p.domicilio), filas[idx].id));
     }
 
     const vinculos = [];
     prestadores.forEach(p => {
-      const prestadorId = idPorClave.get(p.cuit || normalizarTexto(p.nombre));
+      const prestadorId = idPorClave.get(claveUnicaPrestadorImportacion(p.nombre, p.provincia, p.localidad, p.domicilio));
       (p.especialidadIds || []).forEach(eid => vinculos.push({ prestador_id: prestadorId, especialidad_id: eid }));
     });
     for (let i = 0; i < vinculos.length; i += 500) {
@@ -7432,6 +7453,15 @@ async function confirmarImportarCartilla() {
         body: JSON.stringify(filasAfiliados)
       }, 20000, fetch);
       if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    }
+
+    if (caratula.totalBeneficiarios != null) {
+      const paramsTotal = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, on_conflict: "obra_social_id" });
+      const responseTotal = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_total?${paramsTotal.toString()}`, {
+        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify([{ obra_social_id: os.id, total_declarado: caratula.totalBeneficiarios, actualizado_en: new Date().toISOString() }])
+      }, 20000, fetch);
+      if (!responseTotal.ok) throw new Error(await leerErrorApi(responseTotal) || `Supabase respondió ${responseTotal.status}`);
     }
 
     cerrarModal("importar-cartilla-modal");
