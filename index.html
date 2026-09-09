@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=49">
+  <link rel="stylesheet" href="styles.css?v=50">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 49</span>
+        <span>Versión 50</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1032,9 +1032,9 @@
 
       <section id="reportes" class="view">
         <div class="report-workspace">
-          <div class="report-current-heading">
-            <span class="eyebrow" id="report-current-eyebrow">CARTILLAS</span>
-            <div class="report-title-row">
+          <div class="report-toolbar">
+            <div class="report-toolbar-title">
+              <span class="eyebrow" id="report-current-eyebrow">CARTILLAS</span>
               <h2 id="report-current-title">Agentes de Seguro con o sin presentación</h2>
               <details class="section-help report-inline-help" id="report-history-help">
                 <summary aria-label="Ayuda sobre historial">?</summary>
@@ -1045,10 +1045,7 @@
                 </div>
               </details>
             </div>
-            <p id="report-current-description">Seleccioná uno o más ejercicios para identificar qué Agentes de Seguro presentaron y cuáles no.</p>
-          </div>
 
-          <div class="report-switcher-card report-top-controls report-search-row">
             <div class="search-box report-search report-main-search" id="report-cartillas-search-wrap">
               <span class="search-icon" aria-hidden="true">⌕</span>
               <input id="report-cartillas-search" type="search" placeholder="Buscar por RNAS o denominación..." autocomplete="off">
@@ -1058,10 +1055,6 @@
               <input id="report-pma-search" type="search" placeholder="Buscar por RNAS o denominación..." autocomplete="off">
             </div>
 
-            <button class="primary report-export-button" id="btn-export-report" type="button">Exportar Excel</button>
-          </div>
-
-          <div class="report-switcher-card report-top-controls report-controls-row">
             <label class="report-type-field">
               <span>Reporte</span>
               <select id="report-type-select" aria-label="Elegir reporte">
@@ -1073,45 +1066,42 @@
             </label>
 
             <div class="report-filters report-filters-compact" id="report-cartillas-filters">
-              <div class="period-filter">
-                <div class="period-filter-label"><strong>Ejercicios</strong></div>
-                <details class="period-select" id="report-period-select">
-                  <summary><span id="report-period-summary">Seleccionar ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
-                  <div class="period-select-menu">
-                    <div class="period-select-actions"><button type="button" id="report-period-all">Todos</button><button type="button" id="report-period-clear">Limpiar</button></div>
-                    <div class="period-options" id="report-periodos"></div>
-                  </div>
-                </details>
-              </div>
+              <details class="period-select" id="report-period-select">
+                <summary><span id="report-period-summary">Ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+                <div class="period-select-menu">
+                  <div class="period-select-actions"><button type="button" id="report-period-all">Todos</button><button type="button" id="report-period-clear">Limpiar</button></div>
+                  <div class="period-options" id="report-periodos"></div>
+                </div>
+              </details>
 
               <label class="check-option">
                 <input id="report-solo-faltantes" type="checkbox" checked>
-                <span>Mostrar sólo Agentes con faltantes</span>
+                <span>Sólo con faltantes</span>
               </label>
 
               <button class="secondary report-chart-toggle" id="btn-report-cartillas-chart" type="button">Ver gráfico</button>
             </div>
 
             <div class="report-filters report-filters-compact" id="report-pma-filters" hidden>
-              <div class="period-filter">
-                <div class="period-filter-label"><strong>Ejercicios</strong></div>
-                <details class="period-select" id="report-pma-period-select">
-                  <summary><span id="report-pma-period-summary">Seleccionar ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
-                  <div class="period-select-menu">
-                    <div class="period-select-actions"><button type="button" id="report-pma-period-all">Todos</button><button type="button" id="report-pma-period-clear">Limpiar</button></div>
-                    <div class="period-options" id="report-pma-periodos"></div>
-                  </div>
-                </details>
-              </div>
+              <details class="period-select" id="report-pma-period-select">
+                <summary><span id="report-pma-period-summary">Ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+                <div class="period-select-menu">
+                  <div class="period-select-actions"><button type="button" id="report-pma-period-all">Todos</button><button type="button" id="report-pma-period-clear">Limpiar</button></div>
+                  <div class="period-options" id="report-pma-periodos"></div>
+                </div>
+              </details>
 
               <label class="check-option">
                 <input id="report-pma-solo-faltantes" type="checkbox" checked>
-                <span>Mostrar sólo Agentes con faltantes</span>
+                <span>Sólo con faltantes</span>
               </label>
 
               <button class="secondary report-chart-toggle" id="btn-report-pma-chart" type="button">Ver gráfico</button>
             </div>
+
+            <button class="primary report-export-button" id="btn-export-report" type="button">Exportar Excel</button>
           </div>
+          <p class="report-toolbar-description" id="report-current-description">Seleccioná uno o más ejercicios para identificar qué Agentes de Seguro presentaron y cuáles no.</p>
 
           <div class="report-panel" id="report-cartillas-panel" data-report-panel="cartillas">
             <div class="report-chart-sector" id="report-cartillas-chart-sector" hidden>
@@ -2139,6 +2129,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=49"></script>
+  <script src="app.js?v=50"></script>
 </body>
 </html>
