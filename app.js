@@ -7709,9 +7709,9 @@ async function inicializarVistaAfiliados() {
   document.getElementById("afiliados-total-input").readOnly = true;
   document.getElementById("afiliados-solo-lectura-aviso").hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  inicializarBuscadorObraSocial("afiliados-os-search", "afiliados-os-results", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
   const ejercicios = await cargarEjerciciosCartilla();
-  poblarSelectorMultipleEjercicios("afiliados", ejercicios, () => requiereAutenticacion(handleCambioEjercicioAfiliados), { defaultChecked: false });
-  await handleCambioEjercicioAfiliados();
+  poblarSelectorMultipleEjercicios("afiliados", ejercicios, () => {}, { defaultChecked: false });
 }
 
 async function handleCambioEjercicioAfiliados() {
