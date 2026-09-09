@@ -4726,6 +4726,70 @@ function resolverObraSocialCartilla(valor) {
   return obrasSociales.find(os => normalizar(getObraSocialDisplay(os)) === texto || normalizar(os.rnos) === texto || normalizar(os.sigla) === texto) || null;
 }
 
+function filtrarObrasSocialesBusqueda(query, { soloActivas = true } = {}) {
+  const q = normalizar(query || "").trim();
+  if (q.length < 2) return [];
+  const base = soloActivas ? obrasSociales.filter(os => os.estado !== "INACTIVA") : obrasSociales;
+  return base
+    .filter(os => normalizar(os.rnos || "").includes(q) || normalizar(os.sigla || "").includes(q) || normalizar(os.denominacion || "").includes(q))
+    .slice(0, 30);
+}
+
+function inicializarBuscadorObraSocial(inputId, resultsId, onSeleccion) {
+  if (typeof document === "undefined") return;
+  const input = document.getElementById(inputId);
+  const results = document.getElementById(resultsId);
+  if (!input || !results || input.dataset.buscadorOsInit) return;
+  input.dataset.buscadorOsInit = "1";
+  let items = [];
+  let activeIndex = -1;
+
+  function cerrar() { results.hidden = true; results.innerHTML = ""; items = []; activeIndex = -1; }
+
+  function marcarActivo() {
+    results.querySelectorAll("[data-index]").forEach((el, i) => el.classList.toggle("active", i === activeIndex));
+    results.querySelector(`[data-index="${activeIndex}"]`)?.scrollIntoView({ block: "nearest" });
+  }
+
+  function elegir(os) {
+    input.value = getObraSocialDisplay(os);
+    cerrar();
+    onSeleccion?.(os);
+  }
+
+  function renderizar(lista) {
+    items = lista;
+    if (!lista.length) { cerrar(); return; }
+    results.innerHTML = lista.map((os, i) => `<button type="button" class="os-search-result-item" data-index="${i}">
+        <strong>${escaparHtml(os.rnos || "—")}</strong> · ${escaparHtml(os.sigla || "S/S")} · ${escaparHtml(os.denominacion || "")}
+      </button>`).join("");
+    results.hidden = false;
+    activeIndex = -1;
+    results.querySelectorAll("[data-index]").forEach(btn => {
+      btn.addEventListener("mousedown", ev => {
+        ev.preventDefault();
+        const os = items[Number(btn.dataset.index)];
+        if (os) elegir(os);
+      });
+    });
+  }
+
+  input.addEventListener("input", () => renderizar(filtrarObrasSocialesBusqueda(input.value)));
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 2) renderizar(filtrarObrasSocialesBusqueda(input.value));
+  });
+  input.addEventListener("keydown", ev => {
+    if (results.hidden) return;
+    if (ev.key === "ArrowDown") { ev.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length - 1); marcarActivo(); }
+    else if (ev.key === "ArrowUp") { ev.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); marcarActivo(); }
+    else if (ev.key === "Enter") { if (activeIndex >= 0 && items[activeIndex]) { ev.preventDefault(); elegir(items[activeIndex]); } }
+    else if (ev.key === "Escape") { cerrar(); }
+  });
+  document.addEventListener("click", ev => {
+    if (!results.hidden && !input.contains(ev.target) && !results.contains(ev.target)) cerrar();
+  });
+}
+
 function actualizarMasterInfo(prefix, os) {
   if (typeof document === "undefined") return;
   const node = document.getElementById(`${prefix}-master-inicio`);
@@ -11298,6 +11362,7 @@ async function initBrowser() {
   document.getElementById("pma-condicion-filter")?.addEventListener("change", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-os-search")?.addEventListener("change", soloConValor(recalcularDatosPma));
+  inicializarBuscadorObraSocial("pma-os-search", "pma-os-results", recalcularDatosPma);
   document.getElementById("pma-ejercicio")?.addEventListener("input", recalcularDatosPma);
   document.getElementById("pma-ejercicio")?.addEventListener("change", recalcularDatosPma);
   document.getElementById("pma-fecha-ingreso")?.addEventListener("change", actualizarAlertaPma);
@@ -11411,6 +11476,7 @@ async function initBrowser() {
   });
   document.getElementById("cartilla-os-search")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-os-search")?.addEventListener("change", soloConValor(recalcularDatosCartilla));
+  inicializarBuscadorObraSocial("cartilla-os-search", "cartilla-os-results", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("input", recalcularDatosCartilla);
   document.getElementById("cartilla-ejercicio")?.addEventListener("change", recalcularDatosCartilla);
   document.getElementById("cartilla-fecha-ingreso")?.addEventListener("change", actualizarAlertaCartilla);
