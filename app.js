@@ -161,6 +161,14 @@ function ordenarEjercicios(valores, desc = true) {
     .sort((a,b) => desc ? claveOrdenEjercicio(b) - claveOrdenEjercicio(a) : claveOrdenEjercicio(a) - claveOrdenEjercicio(b));
 }
 
+// Las Obras Sociales con RNAS que arranca en "9" quedan fuera de Criticidad, Presentaciones,
+// Nunca presentaron, etc. — EXCEPTO 900102, que se incluye siempre en todos los reportes.
+function esRnasExcluidoDelUniverso(rnos) {
+  const valor = String(rnos || "").trim();
+  if (valor === "900102") return false;
+  return valor.startsWith("9");
+}
+
 function generarReporteFaltantesPorEjercicio(obras, registrosPresentaciones, ejercicios) {
   const ejerciciosValidos = ordenarEjercicios(ejercicios, false);
   const index = new Set(
@@ -170,7 +178,7 @@ function generarReporteFaltantesPorEjercicio(obras, registrosPresentaciones, eje
   );
   return (obras || [])
     .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
-    .filter(os => !String(os?.rnos || "").trim().startsWith("9"))
+    .filter(os => !esRnasExcluidoDelUniverso(os?.rnos))
     .map(os => {
       const periodos = {};
       for (const ejercicio of ejerciciosValidos) {
@@ -3991,7 +3999,7 @@ async function handleGenerarCriticidad() {
 
     criticidadDatos = obrasSociales
       .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
-      .filter(os => !String(os.rnos || "").trim().startsWith("9"))
+      .filter(os => !esRnasExcluidoDelUniverso(os.rnos))
       .map(os => {
       const fechaPma = primeraPmaPorOs.get(os.id);
       const fechaCartilla = primeraCartillaPorOs.get(os.id);
@@ -5042,7 +5050,7 @@ function identificarNuncaPresentaron(obras, registros) {
   const conPresentacion = new Set((registros || []).map(row => String(row?.obra_social_id ?? "")).filter(Boolean));
   return (obras || [])
     .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
-    .filter(os => !String(os?.rnos || "").trim().startsWith("9"))
+    .filter(os => !esRnasExcluidoDelUniverso(os?.rnos))
     .filter(os => !conPresentacion.has(String(os?.id ?? "")))
     .map(os => ({ ...os }))
     .sort((a, b) => {
@@ -7010,7 +7018,7 @@ function poblarObrasSocialesPrestadores() {
   const list = document.getElementById("prestadores-os-list");
   if (!list) return;
   list.innerHTML = obrasSociales
-    .filter(os => os.estado !== "INACTIVA" && !String(os.rnos || "").trim().startsWith("9"))
+    .filter(os => os.estado !== "INACTIVA" && !esRnasExcluidoDelUniverso(os.rnos))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
 }
@@ -7441,7 +7449,7 @@ async function handleCambioEjercicioCobertura() {
   if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
   const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
   if (list) list.innerHTML = obrasSociales
-    .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
+    .filter(os => idsPresentaron.has(Number(os.id)) && !esRnasExcluidoDelUniverso(os.rnos))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
   const etiqueta = seleccionados.join(" / ");
@@ -7605,7 +7613,7 @@ async function handleCambioEjercicioAfiliados() {
   if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
   const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
   if (list) list.innerHTML = obrasSociales
-    .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
+    .filter(os => idsPresentaron.has(Number(os.id)) && !esRnasExcluidoDelUniverso(os.rnos))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
   if (osInput) osInput.placeholder = idsPresentaron.size
@@ -10580,7 +10588,7 @@ async function handleCambioEjercicioPrestadores() {
   if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
   const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
   if (list) list.innerHTML = obrasSociales
-    .filter(os => idsPresentaron.has(Number(os.id)) && !String(os.rnos || "").trim().startsWith("9"))
+    .filter(os => idsPresentaron.has(Number(os.id)) && !esRnasExcluidoDelUniverso(os.rnos))
     .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
     .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
   if (osInput) osInput.placeholder = idsPresentaron.size
