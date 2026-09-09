@@ -7821,6 +7821,8 @@ function filtrarAfiliadosLocalidad() {
   );
 }
 
+
+
 function renderAfiliadosTabla() {
   const totalDeclarado = Number(document.getElementById("afiliados-total-input")?.value || 0);
   const cargados = afiliadosLocalidadActuales.reduce((a, r) => a + (r.cantidad_beneficiarios || 0), 0);
@@ -7828,20 +7830,17 @@ function renderAfiliadosTabla() {
   if (resumen) {
     const diferencia = totalDeclarado - cargados;
     resumen.classList.remove("afiliados-resumen-alerta");
-    resumen.title = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")}`;
+    resumen.title = "";
     if (!afiliadosLocalidadActuales.length) {
       resumen.textContent = "";
-      resumen.title = "";
     } else if (diferencia === 0) {
-      resumen.textContent = "✓ coincide";
+      resumen.textContent = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")} · Coincide con el Total`;
     } else if (diferencia > 0) {
-      resumen.textContent = `⚠ faltan ${diferencia.toLocaleString("es-AR")}`;
+      resumen.textContent = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")} · Faltan ${diferencia.toLocaleString("es-AR")} para llegar al Total`;
       resumen.classList.add("afiliados-resumen-alerta");
-      resumen.title += ` · Faltan ${diferencia.toLocaleString("es-AR")} para llegar al Total declarado.`;
     } else {
-      resumen.textContent = `⚠ +${Math.abs(diferencia).toLocaleString("es-AR")}`;
+      resumen.textContent = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")} · ⚠ Supera el Total declarado por ${Math.abs(diferencia).toLocaleString("es-AR")} (localidades duplicadas o superpuestas entre prestadores — a corregir en la próxima presentación)`;
       resumen.classList.add("afiliados-resumen-alerta");
-      resumen.title += ` · Supera el Total declarado por ${Math.abs(diferencia).toLocaleString("es-AR")} (localidades duplicadas o superpuestas entre prestadores — a corregir en la próxima presentación).`;
     }
   }
 
