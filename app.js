@@ -7256,15 +7256,28 @@ function normalizarTexto(s) {
 // Busca, en cualquier hoja del libro, la carátula (RNAS + beneficiarios por provincia)
 // recorriendo celda por celda — no depende del nombre exacto de la hoja ni de filas fijas.
 function parsearCaratulaCartilla(workbook) {
+  // Busca, dentro de la misma fila, el primer valor no vacío después de la celda "i" (hasta
+  // 6 columnas de distancia). El Excel suele tener columnas vacías/mergeadas entre la etiqueta
+  // y el valor (ej. "Nº TOTAL DE BENEFICIARIOS:" en A y el número recién en D).
+  function valorSiguienteEnFila(fila, i, maxDistancia = 6) {
+    for (let j = i + 1; j <= i + maxDistancia && j < fila.length; j++) {
+      if (fila[j] != null && String(fila[j]).trim() !== "") return fila[j];
+    }
+    return null;
+  }
   for (const nombreHoja of workbook.SheetNames) {
     const filas = window.XLSX.utils.sheet_to_json(workbook.Sheets[nombreHoja], { header: 1, defval: null });
     let rnas = null, anio = null, denominacion = null, totalBeneficiarios = null;
     for (const fila of filas) {
       for (let i = 0; i < fila.length; i++) {
-        if (normalizarTexto(fila[i]).includes("rnas") && fila[i + 1] != null) rnas = String(fila[i + 1]).trim();
-        if (normalizarTexto(fila[i]).includes("periodo de vigencia") && fila[i + 1] != null) anio = fila[i + 1];
-        if (normalizarTexto(fila[i]).includes("denominacion") && fila[i + 1]) denominacion = String(fila[i + 1]).trim();
-        if (normalizarTexto(fila[i]).includes("total de beneficiarios") && fila[i + 1] != null) totalBeneficiarios = Number(fila[i + 1]);
+        const etiqueta = normalizarTexto(fila[i]);
+        if (etiqueta.includes("rnas") && !rnas) { const v = valorSiguienteEnFila(fila, i); if (v != null) rnas = String(v).trim(); }
+        if (etiqueta.includes("periodo de vigencia") && !anio) { const v = valorSiguienteEnFila(fila, i); if (v != null) anio = v; }
+        if (etiqueta.includes("denominacion") && !denominacion) { const v = valorSiguienteEnFila(fila, i); if (v) denominacion = String(v).trim(); }
+        if (etiqueta.includes("total de beneficiarios") && totalBeneficiarios == null) {
+          const v = valorSiguienteEnFila(fila, i);
+          if (v != null && !isNaN(Number(v))) totalBeneficiarios = Number(v);
+        }
       }
     }
     if (!rnas) continue;
