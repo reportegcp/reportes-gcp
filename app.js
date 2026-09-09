@@ -5615,7 +5615,6 @@ function renderGraficosPorPeriodo(containerId, resumenes) {
     container.innerHTML = '<div class="chart-empty">Seleccioná uno o más ejercicios para ver el gráfico.</div>';
     return;
   }
-  const alturaMax = 130;
   container.innerHTML = resumenes.map(item => {
     const valores = [
       { etiqueta: "Presentaron", valor: Number(item.presentaron) || 0, clase: "presented" },
@@ -5623,16 +5622,13 @@ function renderGraficosPorPeriodo(containerId, resumenes) {
     ];
     const maximo = Math.max(1, ...valores.map(x => x.valor));
     return `<div class="period-chart-card">
-      <div class="period-chart-title">Ejercicio ${escaparHtml(item.periodo)}</div>
-      <div class="period-chart-bars">
-        ${valores.map(x => {
-          const alto = Math.max(4, Math.round((x.valor / maximo) * alturaMax));
-          return `<div class="period-chart-bar-col">
-            <span class="period-chart-bar-value">${x.valor}</span>
-            <div class="period-chart-bar ${x.clase}" style="height:${alto}px"></div>
-            <span class="period-chart-bar-label">${escaparHtml(x.etiqueta)}</span>
-          </div>`;
-        }).join("")}
+      <div class="single-chart-title">Ejercicio ${escaparHtml(item.periodo)}</div>
+      <div class="single-chart-bars">
+        ${valores.map(x => `<div class="single-chart-row">
+          <span class="single-chart-label">${escaparHtml(x.etiqueta)}</span>
+          <div class="single-chart-track"><div class="single-chart-fill ${x.clase}" style="width:${Math.max(1, Math.round((x.valor / maximo) * 100))}%"></div></div>
+          <strong>${x.valor}</strong>
+        </div>`).join("")}
       </div>
     </div>`;
   }).join("");

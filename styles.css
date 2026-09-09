@@ -1128,16 +1128,9 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .report-chart-actions label span{font-size:11px;font-weight:800;color:#4d5d70}
 .report-chart-actions select{min-height:38px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:0 32px 0 10px;color:var(--navy);font-weight:750}
 .single-period-chart{display:grid;gap:12px;padding-top:4px}
-.period-charts-grid{display:flex;flex-wrap:wrap;gap:20px;padding-top:12px}
-.period-chart-card{border:0.5px solid var(--border);border-radius:12px;padding:16px 20px;display:grid;gap:14px;justify-items:center;min-width:180px}
-.period-chart-title{font-size:13px;font-weight:900;color:var(--navy)}
-.period-chart-bars{display:flex;align-items:flex-end;gap:28px;height:130px}
-.period-chart-bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;width:64px}
-.period-chart-bar-value{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:6px}
-.period-chart-bar{width:100%;border-radius:8px 8px 0 0;min-height:2px}
-.period-chart-bar.presented{background:#4d8f76}
-.period-chart-bar.missing{background:#b95d67}
-.period-chart-bar-label{font-size:11px;font-weight:750;color:#4d5d70;margin-top:8px;text-align:center}
+.period-charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:24px;padding-top:12px}
+.period-chart-card{border:0.5px solid var(--border);border-radius:12px;padding:16px 20px;display:grid;gap:12px}
+.period-chart-card .single-chart-row{grid-template-columns:120px minmax(140px,1fr) 44px}
 .single-chart-title{font-size:13px;font-weight:900;color:var(--navy)}
 .single-chart-bars{display:grid;gap:12px}
 .single-chart-row{display:grid;grid-template-columns:145px minmax(180px,1fr) 54px;align-items:center;gap:12px}
