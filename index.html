@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=38">
+  <link rel="stylesheet" href="styles.css?v=39">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -66,11 +66,11 @@
             <span id="analisis-cartilla-label">Análisis de Cartilla</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
           </button>
           <div class="nav-submenu">
+            <button class="nav-subitem" data-view="cartilla-hub" data-nav-access="cartilla-hub" type="button">Presentar Cartilla</button>
+            <button class="nav-subitem" data-view="cartilla-revision" data-nav-access="cartilla-revision" type="button">Cartilla</button>
             <button class="nav-subitem" data-view="afiliados" data-nav-access="afiliados" type="button">Afiliados</button>
             <button class="nav-subitem" data-view="cobertura" data-nav-access="cobertura" type="button">Cobertura</button>
-            <button class="nav-subitem" data-view="anexo-ii-admin" data-nav-access="anexo-ii-admin" type="button">Anexo II</button>
             <button class="nav-subitem" data-view="prestadores" data-nav-access="prestadores" type="button">Anexo III</button>
-            <button class="nav-subitem" data-view="anexo-iv-admin" data-nav-access="anexo-iv-admin" type="button">Anexo IV</button>
             <button class="nav-subitem" data-view="anexo-i" data-nav-access="anexo-i" type="button">Anexo I</button>
             <button class="nav-subitem" data-view="anexo-ii" data-nav-access="anexo-ii" type="button">Anexo II</button>
             <button class="nav-subitem" data-view="anexo-iv" data-nav-access="anexo-iv" type="button">Anexo IV</button>
@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 38</span>
+        <span>Versión 39</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -283,6 +283,72 @@
             </table>
           </div>
           <div class="table-empty" id="os-empty" hidden>No se encontraron Agentes de Seguro con ese criterio.</div>
+        </div>
+      </section>
+
+      <section id="cartilla-hub" class="view">
+        <div class="prestadores-fila-superior">
+          <div class="prestadores-fila-superior-izq prestadores-fila-superior-col">
+            <select id="cartilla-hub-periodo" aria-label="Elegí qué período presentar"></select>
+            <span id="cartilla-hub-resumen"></span>
+          </div>
+        </div>
+        <p class="notificaciones-hint" style="padding:8px 12px;background:#eef3f8;border-radius:8px;margin-bottom:12px">Una sola presentación para los 5 componentes de la Cartilla. Completá lo que falte en cada uno y después presentalos todos juntos con un solo botón.</p>
+        <div class="table-card">
+          <div class="table-meta"><strong>Estado de la presentación</strong></div>
+          <div id="cartilla-hub-checklist" style="padding:14px 20px;display:grid;gap:10px"></div>
+        </div>
+        <div class="module-actions" style="justify-content:flex-start;margin-top:16px">
+          <button class="primary" id="btn-presentar-cartilla-completa" type="button" disabled>Presentar Cartilla completa</button>
+        </div>
+      </section>
+
+      <section id="cartilla-revision" class="view">
+        <div class="toolbar prestadores-toolbar">
+          <div class="search-box transaction-agent-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="cartilla-revision-os-search" type="text" list="cartilla-revision-os-list" placeholder="Elegí la Obra Social..." autocomplete="off">
+            <datalist id="cartilla-revision-os-list"></datalist>
+          </div>
+          <select id="cartilla-revision-periodo" hidden></select>
+        </div>
+        <div id="cartilla-revision-vacio"><p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Cartilla.</p></div>
+        <div id="cartilla-revision-panel" hidden>
+          <div id="cartilla-revision-resumen" style="margin-bottom:14px"></div>
+
+          <details class="table-card" open>
+            <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Afiliados</summary>
+            <div id="cartilla-revision-afiliados-body" style="padding:0 20px 16px"></div>
+          </details>
+
+          <details class="table-card" open style="margin-top:10px">
+            <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Anexo I</summary>
+            <div id="cartilla-revision-anexo-i-body" style="padding:0 20px 16px"></div>
+          </details>
+
+          <details class="table-card" open style="margin-top:10px">
+            <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Anexo II</summary>
+            <div id="anexo-ii-admin-contenido" style="padding:0 20px 16px"></div>
+          </details>
+
+          <details class="table-card" open style="margin-top:10px">
+            <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Anexo III (Prestadores)</summary>
+            <div style="padding:0 20px 16px">
+              <div class="table-meta"><strong id="cartilla-revision-prestadores-count">—</strong></div>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead><tr><th>Prestador</th><th>CUIT</th><th>Tipos</th><th>Especialidades</th><th>Adulto/Ped.</th><th>Localidad</th><th>Contratación</th><th>Contrato</th><th>Estado</th></tr></thead>
+                  <tbody id="cartilla-revision-prestadores-table-body"></tbody>
+                </table>
+              </div>
+              <div class="table-empty" id="cartilla-revision-prestadores-empty" hidden></div>
+            </div>
+          </details>
+
+          <details class="table-card" open style="margin-top:10px">
+            <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Anexo IV</summary>
+            <div id="anexo-iv-admin-contenido" style="padding:0 20px 16px"></div>
+          </details>
         </div>
       </section>
 
@@ -500,20 +566,6 @@
         </div>
       </section>
 
-      <section id="anexo-ii-admin" class="view">
-        <div class="toolbar prestadores-toolbar">
-          <div class="search-box transaction-agent-search">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="anexo-ii-admin-os-search" type="text" list="anexo-ii-admin-os-list" placeholder="Elegí la Obra Social..." autocomplete="off">
-            <datalist id="anexo-ii-admin-os-list"></datalist>
-          </div>
-          <select id="anexo-ii-admin-periodo" hidden></select>
-        </div>
-        <div id="anexo-ii-admin-contenido">
-          <p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Anexo II.</p>
-        </div>
-      </section>
-
       <section id="anexo-iv" class="view">
         <div class="prestadores-fila-superior" id="anexo-iv-header-os" hidden>
           <div class="prestadores-fila-superior-izq prestadores-fila-superior-col">
@@ -547,20 +599,6 @@
             </table>
           </div>
           <div class="table-empty" id="anexo-iv-prestadores-empty" hidden>Todavía no cargaste ningún prestador.</div>
-        </div>
-      </section>
-
-      <section id="anexo-iv-admin" class="view">
-        <div class="toolbar prestadores-toolbar">
-          <div class="search-box transaction-agent-search">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="anexo-iv-admin-os-search" type="text" list="anexo-iv-admin-os-list" placeholder="Elegí la Obra Social..." autocomplete="off">
-            <datalist id="anexo-iv-admin-os-list"></datalist>
-          </div>
-          <select id="anexo-iv-admin-periodo" hidden></select>
-        </div>
-        <div id="anexo-iv-admin-contenido">
-          <p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Anexo IV.</p>
         </div>
       </section>
 
@@ -2110,6 +2148,6 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=38"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>

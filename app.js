@@ -5,6 +5,8 @@ const SESSION_KEY = "gcp-auth-session-v1";
 const views = {
   inicio: { title: "", subtitle: "" },
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
+  "cartilla-hub": { title: "Presentar Cartilla", subtitle: "Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV, en una sola presentación" },
+  "cartilla-revision": { title: "Cartilla", subtitle: "Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV de una presentación, todo junto" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   "anexo-i": { title: "Anexo I", subtitle: "Declaración jurada de cobertura del PMO" },
   "anexo-i-admin": { title: "Anexo I · Edición", subtitle: "Edición del texto normativo del Anexo I, por ejercicio" },
@@ -35,6 +37,8 @@ const views = {
 
 const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
+  "cartilla-hub": `<strong>Qué hacer en Presentar Cartilla</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>El listado muestra los 5 componentes de la Cartilla: Afiliados, Anexo I, Anexo II, Anexo III (Prestadores) y Anexo IV. "Completar" te lleva a cargar el que falte.</li><li>"Presentar Cartilla completa" se habilita recién cuando los 5 están listos, y los congela a todos juntos en un solo paso. Ya no hay un botón de Presentar separado en cada anexo.</li><li>Si por algún problema de conexión no se llegan a guardar los 5, volvé a tocar el botón: retoma solo lo que faltó, no duplica lo que ya se guardó.</li></ul>`,
+  "cartilla-revision": `<strong>Qué hacer en Cartilla</strong><ul><li>Buscá la Obra Social y elegí el período una sola vez.</li><li>Vas a ver los 5 componentes de esa presentación (Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV) juntos, uno debajo del otro.</li><li>Es de solo lectura. Para cambiar condición, número de EE, analista o disposición, usá la pantalla "Cartillas" dentro de Presentaciones.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
   "anexo-i-admin": `<strong>Qué hacer en Anexo I · Edición</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>”Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
@@ -275,10 +279,10 @@ function perfilPuedeVerVista(perfil, vista) {
   // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
   // de la coordinación (usuario Administrador/Admin Prestacional): el perfil "admin presentaciones"
   // (auditor) consulta y presenta, pero no configura.
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "anexo-ii-admin", "anexo-iv-admin", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
-  if (p === "cartilla os") return ["prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
+  if (p === "cartilla os") return ["cartilla-hub", "prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
   return false;
 }
 
@@ -287,7 +291,7 @@ function primeraVistaPermitida(perfil) {
   if (p === "admin presentaciones") return "obras-sociales";
   if (p === "carga presentaciones") return "pma";
   if (p === "administrativo") return "obras-sociales";
-  if (p === "cartilla os") return "prestadores";
+  if (p === "cartilla os") return "cartilla-hub";
   return "inicio";
 }
 
@@ -330,12 +334,14 @@ function aplicarPermisosNavegacion() {
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
-  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCartillaOs));
+  document.querySelector('[data-nav-access="cartilla-hub"]')?.toggleAttribute("hidden", !esCartillaOs);
+  // "Prestadores" (Red actual, editable) queda exclusivo de la propia Obra Social: el auditor la
+  // consulta ya congelada dentro de la Cartilla unificada ("cartilla-revision"), no acá.
+  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !esCartillaOs);
+  document.querySelector('[data-nav-access="cartilla-revision"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="anexo-ii"]')?.toggleAttribute("hidden", !esCartillaOs);
-  document.querySelector('[data-nav-access="anexo-ii-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="anexo-iv"]')?.toggleAttribute("hidden", !esCartillaOs);
-  document.querySelector('[data-nav-access="anexo-iv-admin"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   // Configuración Cartilla es exclusiva de la coordinación (Administrador/Admin Prestacional):
   // el auditor ("admin presentaciones") consulta pero no configura.
@@ -4131,7 +4137,7 @@ function showView(id, updateHistory = true) {
     if (copy) copy.hidden = false;
     if (title) title.textContent = meta.title;
     if (subtitle) subtitle.textContent = meta.subtitle;
-    if (!["prestadores", "afiliados", "cobertura", "anexo-i"].includes(resolved)) mostrarOsActualEnCabecera(null);
+    if (!["prestadores", "afiliados", "cobertura", "anexo-i", "cartilla-hub", "cartilla-revision"].includes(resolved)) mostrarOsActualEnCabecera(null);
     const helpContent = document.getElementById("section-help-content");
     const help = document.getElementById("section-help");
     if (helpContent) helpContent.innerHTML = manualesSeccion[resolved] || "";
@@ -4149,6 +4155,8 @@ function showView(id, updateHistory = true) {
     document.getElementById("metas-anio").value = new Date().getFullYear();
   }
   if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
+  if (resolved === "cartilla-hub") inicializarVistaCartillaHub();
+  if (resolved === "cartilla-revision") inicializarVistaCartillaRevision();
   if (resolved === "prestadores") inicializarVistaPrestadores();
   if (resolved === "anexo-i") inicializarVistaAnexoI();
   if (resolved === "anexo-i-admin") inicializarVistaAnexoIAdmin();
@@ -7749,14 +7757,14 @@ function resumenSnapshotTexto(texto) {
   return { tipos, cantidad };
 }
 
-async function renderPrestadoresDesdeSnapshot(cartillaId) {
+async function renderPrestadoresDesdeSnapshot(cartillaId, prefix = "prestadores") {
   const session = await asegurarSesionVigente();
   const params = new URLSearchParams({ select: "*", cartilla_id: `eq.${cartillaId}`, order: "nombre_completo.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
   const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
   const filas = response.ok ? await response.json() : [];
-  const body = document.getElementById("prestadores-table-body");
-  const count = document.getElementById("prestadores-count");
-  const empty = document.getElementById("prestadores-empty");
+  const body = document.getElementById(`${prefix}-table-body`);
+  const count = document.getElementById(`${prefix}-count`);
+  const empty = document.getElementById(`${prefix}-empty`);
   if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "prestador presentado" : "prestadores presentados"} en esta Cartilla`;
   if (empty) {
     empty.hidden = filas.length !== 0;
@@ -7776,7 +7784,7 @@ async function renderPrestadoresDesdeSnapshot(cartillaId) {
       <td>${p.activo ? '<span style="color:#278664;font-weight:700">Activo</span>' : '<span style="color:#a33846;font-weight:700">De baja</span>'}</td>
     </tr>`;
   }).join("");
-  const pag = document.getElementById("prestadores-pagination");
+  const pag = document.getElementById(`${prefix}-pagination`);
   if (pag) pag.innerHTML = "";
 }
 
@@ -7844,25 +7852,20 @@ async function verificarYRenderizarPresentacionCartillaOs(os) {
       return;
     }
 
-    pill.innerHTML = pendientes.map((ej, i) => `
+    // Ya no hay un botón de "Presentar" acá: el Anexo III se presenta junto con el resto de la
+    // Cartilla desde el hub único ("Presentar Cartilla").
+    pill.innerHTML = pendientes.map(ej => `
       <span class="stat-pill-inline pendiente">
-        <span>${ej === anterior ? "Atrasada" : "Sin presentar"}</span>
-        <input type="text" class="presentar-cartilla-periodo-input" data-idx="${i}" value="${escaparHtml(ej)}">
-        <button type="button" class="primary btn-presentar-cartilla" data-idx="${i}">Presentar</button>
+        <span>${ej === anterior ? "Atrasada" : "Sin presentar"} (${escaparHtml(ej)})</span>
+        <button type="button" class="link-button" data-ir-a-cartilla-hub="1">Completar en Cartilla →</button>
       </span>`).join("");
-
-    pill.querySelectorAll(".btn-presentar-cartilla").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const input = pill.querySelector(`.presentar-cartilla-periodo-input[data-idx="${btn.dataset.idx}"]`);
-        presentarCartillaOs(os, input?.value.trim(), btn);
-      });
-    });
+    pill.querySelectorAll("[data-ir-a-cartilla-hub]").forEach(btn => btn.addEventListener("click", () => showView("cartilla-hub")));
   } catch (error) {
     pill.innerHTML = `<span class="stat-pill-inline">No se pudo consultar el estado</span>`;
   }
 }
 
-async function presentarCartillaOs(os, ejercicio, boton) {
+async function presentarCartillaOsDesuso(os, ejercicio, boton) {
   if (!ejercicio || !os) return;
   if (!(await mostrarConfirmacion(`¿Presentar la Cartilla del período ${ejercicio}? Se va a guardar una foto de tu red de prestadores tal como está ahora mismo, y ya no vas a poder modificar esta presentación (sí podés seguir editando tu red para la próxima).`, { titulo: "Presentar Cartilla", textoAceptar: "Presentar" }))) return;
   if (boton) { boton.disabled = true; boton.textContent = "Presentando..."; }
@@ -7888,6 +7891,302 @@ async function presentarCartillaOs(os, ejercicio, boton) {
   } catch (error) {
     mostrarToast(error.message || "No se pudo presentar la Cartilla.");
     if (boton) boton.disabled = false;
+  }
+}
+
+// ---------- Presentación única de Cartilla (Afiliados + Anexo I a IV, todo junto) ----------
+//
+// La Cartilla anual se compone de 5 partes: Afiliados, Anexo I, Anexo II, Anexo III (Prestadores)
+// y Anexo IV. Cada una se sigue editando en su propia pantalla de siempre (sin cambios ahí), pero
+// ya no tiene su propio botón de "Presentar": ese botón único vive acá, en el hub "cartilla-hub",
+// y congela las 5 partes juntas contra UN solo registro maestro en "cartillas" (el mismo que ya
+// usaba en solitario el Anexo III).
+//
+// Como la API de Supabase no da transacciones multi-tabla desde el cliente, el congelado es
+// REANUDABLE en vez de con rollback: si falla a mitad de camino, lo que ya se guardó queda como
+// está (no se borra nada) y un segundo click retoma solo lo pendiente. Por eso cada paso de
+// congelado chequea primero "¿esto ya está congelado para esta cartilla?" antes de escribir nada.
+
+async function evaluarComponentesCartilla(os, ejercicio) {
+  const resultado = {
+    afiliados: { completo: false, motivo: "" },
+    anexoI: { completo: false, motivo: "", declaracion: null },
+    anexoII: { completo: false, motivo: "", declaracion: null },
+    anexoIII: { completo: false, motivo: "" },
+    anexoIV: { completo: false, motivo: "", declaracion: null }
+  };
+  const session = await asegurarSesionVigente();
+
+  try {
+    const [total, localidades] = await Promise.all([cargarAfiliadosTotal(os.id), cargarAfiliadosLocalidadDeOS(os.id)]);
+    const suma = localidades.reduce((acc, l) => acc + Number(l.cantidad_beneficiarios || 0), 0);
+    if (!total) resultado.afiliados.motivo = "Falta cargar el total de afiliados.";
+    else if (!localidades.length) resultado.afiliados.motivo = "Falta cargar afiliados por localidad.";
+    else if (suma !== Number(total)) resultado.afiliados.motivo = `La suma por localidad (${suma}) no coincide con el total declarado (${total}).`;
+    else resultado.afiliados.completo = true;
+  } catch (error) { console.error(error); resultado.afiliados.motivo = "No se pudo verificar Afiliados."; }
+
+  try {
+    const decl = await cargarPmaDeclaracionOs(os.id, ejercicio, session.access_token);
+    resultado.anexoI.declaracion = decl;
+    resultado.anexoI.completo = Boolean(decl);
+    if (!decl) resultado.anexoI.motivo = "Falta guardar un borrador del Anexo I.";
+  } catch (error) { console.error(error); resultado.anexoI.motivo = "No se pudo verificar el Anexo I."; }
+
+  try {
+    const decl = await cargarPmaAnexoIIDeclaracionOs(os.id, ejercicio, session.access_token);
+    resultado.anexoII.declaracion = decl;
+    resultado.anexoII.completo = Boolean(decl);
+    if (!decl) resultado.anexoII.motivo = "Falta guardar un borrador del Anexo II.";
+  } catch (error) { console.error(error); resultado.anexoII.motivo = "No se pudo verificar el Anexo II."; }
+
+  try {
+    const prestadores = await cargarPrestadoresPorOS(os.id);
+    resultado.anexoIII.completo = prestadores.length > 0;
+    if (!prestadores.length) resultado.anexoIII.motivo = "Falta cargar al menos un prestador en tu Red actual.";
+  } catch (error) { console.error(error); resultado.anexoIII.motivo = "No se pudo verificar el Anexo III."; }
+
+  try {
+    const decl = await cargarPmaAnexoIVDeclaracionOs(os.id, ejercicio, session.access_token);
+    resultado.anexoIV.declaracion = decl;
+    resultado.anexoIV.completo = Boolean(decl);
+    if (!decl) resultado.anexoIV.motivo = "Falta guardar un borrador del Anexo IV.";
+  } catch (error) { console.error(error); resultado.anexoIV.motivo = "No se pudo verificar el Anexo IV."; }
+
+  return resultado;
+}
+
+async function buscarOCrearCartillaMaestra(os, ejercicio, accessToken) {
+  const params = new URLSearchParams({ select: "id", obra_social_id: `eq.${os.id}`, ejercicio: `eq.${ejercicio}`, order: "created_at.asc", limit: "1", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(accessToken), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  if (filas.length) return filas[0].id;
+
+  const anioInicio = anioInicioDesdeEjercicio(ejercicio);
+  const registro = {
+    obra_social_id: os.id,
+    ejercicio,
+    anio_inicio: anioInicio,
+    fecha_inicio_ejercicio: fechaInicioEjercicioDesdeDiaMes(os.inicio_ejercicio, anioInicio),
+    fecha_ingreso: hoyLocalISO(),
+    condicion: "EN ESTUDIO"
+  };
+  const filaGuardada = await guardarCartillaEnSupabase(registro, null, accessToken);
+  const cartillaId = Array.isArray(filaGuardada) ? filaGuardada[0]?.id : filaGuardada?.id;
+  if (!cartillaId) throw new Error("No se pudo crear la presentación.");
+  return cartillaId;
+}
+
+async function afiliadosYaCongelados(cartillaId, accessToken) {
+  const params = new URLSearchParams({ select: "id", cartilla_id: `eq.${cartillaId}`, limit: "1", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_total_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(accessToken), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return false;
+  const filas = await response.json();
+  return filas.length > 0;
+}
+
+async function congelarAfiliados(cartillaId, os, accessToken) {
+  if (await afiliadosYaCongelados(cartillaId, accessToken)) return;
+  const [total, localidades] = await Promise.all([cargarAfiliadosTotal(os.id), cargarAfiliadosLocalidadDeOS(os.id)]);
+  if (localidades.length) {
+    const filasLocalidad = localidades.map(l => ({
+      cartilla_id: cartillaId,
+      provincia: l.provincia,
+      partido: l.partido,
+      localidad: l.localidad,
+      cantidad_beneficiarios: l.cantidad_beneficiarios
+    }));
+    const respLoc = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_localidad_snapshot?apikey=${SUPABASE_PUBLISHABLE_KEY}`, {
+      method: "POST", headers: { ...authHeaders(accessToken), Prefer: "return=minimal" }, body: JSON.stringify(filasLocalidad)
+    }, 15000, fetch);
+    if (!respLoc.ok) throw new Error((await leerErrorApi(respLoc)) || `Supabase respondió ${respLoc.status}`);
+  }
+  // El total se guarda al final: es el que usamos como marca de "ya congelado" en un reintento.
+  const respTotal = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_total_snapshot?apikey=${SUPABASE_PUBLISHABLE_KEY}`, {
+    method: "POST", headers: { ...authHeaders(accessToken), Prefer: "return=minimal" }, body: JSON.stringify({ cartilla_id: cartillaId, total_declarado: total })
+  }, 10000, fetch);
+  if (!respTotal.ok) throw new Error((await leerErrorApi(respTotal)) || `Supabase respondió ${respTotal.status}`);
+}
+
+async function congelarAnexoI(cartillaId, declaracion, session, accessToken) {
+  if (!declaracion || declaracion.cartilla_id) return;
+  const registro = { estado: "presentada", presentada_en: new Date().toISOString(), presentada_por: session.user?.email || null, cartilla_id: cartillaId };
+  await guardarPmaDeclaracionEnSupabase(registro, declaracion.id, accessToken);
+}
+
+async function congelarAnexoII(cartillaId, declaracion, session, accessToken) {
+  if (!declaracion || declaracion.cartilla_id) return;
+  const registro = { estado: "presentada", presentada_en: new Date().toISOString(), presentada_por: session.user?.email || null, cartilla_id: cartillaId };
+  await guardarPmaAnexoIIDeclaracionEnSupabase(registro, declaracion.id, accessToken);
+}
+
+async function anexoIIIYaCongelado(cartillaId, accessToken) {
+  const params = new URLSearchParams({ select: "id", cartilla_id: `eq.${cartillaId}`, limit: "1", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(accessToken), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) return false;
+  const filas = await response.json();
+  // El Anexo III solo se deja presentar con al menos un prestador cargado (evaluarComponentesCartilla),
+  // así que "0 filas en el snapshot" siempre significa "todavía no se congeló", nunca "se congeló
+  // una red vacía" — no hay ambigüedad para usar esto como marca de reintento.
+  return filas.length > 0;
+}
+
+async function congelarAnexoIII(cartillaId, os, accessToken) {
+  if (await anexoIIIYaCongelado(cartillaId, accessToken)) return;
+  await tomarSnapshotPrestadores(cartillaId, os.id, accessToken);
+}
+
+async function congelarAnexoIV(cartillaId, os, declaracion, session, accessToken) {
+  if (!declaracion || declaracion.cartilla_id) return;
+  // A diferencia de I/II, acá primero se toma la foto de prestadores y recién al final se marca
+  // "presentada" con el cartilla_id: si la foto falla, un reintento la vuelve a intentar en vez de
+  // darla por hecha.
+  await tomarSnapshotAnexoIVPrestadores(declaracion.id, os.id, accessToken);
+  const registro = { estado: "presentada", presentada_en: new Date().toISOString(), presentada_por: session.user?.email || null, cartilla_id: cartillaId };
+  await guardarPmaAnexoIVDeclaracionEnSupabase(registro, declaracion.id, accessToken);
+}
+
+async function congelarComponentesFaltantes(cartillaId, os, estado, session, accessToken) {
+  const pasos = [
+    { nombre: "Afiliados", ejecutar: () => congelarAfiliados(cartillaId, os, accessToken) },
+    { nombre: "Anexo I", ejecutar: () => congelarAnexoI(cartillaId, estado.anexoI.declaracion, session, accessToken) },
+    { nombre: "Anexo II", ejecutar: () => congelarAnexoII(cartillaId, estado.anexoII.declaracion, session, accessToken) },
+    { nombre: "Anexo III", ejecutar: () => congelarAnexoIII(cartillaId, os, accessToken) },
+    { nombre: "Anexo IV", ejecutar: () => congelarAnexoIV(cartillaId, os, estado.anexoIV.declaracion, session, accessToken) }
+  ];
+  const pendientes = [];
+  for (const paso of pasos) {
+    try { await paso.ejecutar(); } catch (error) { console.error(`No se pudo congelar ${paso.nombre}:`, error); pendientes.push(paso.nombre); }
+  }
+  return pendientes;
+}
+
+async function presentarCartillaCompletaOs(os, ejercicio, boton) {
+  if (!os || !ejercicio) return;
+  if (!(await mostrarConfirmacion(`¿Presentar la Cartilla completa del período ${ejercicio}? Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV van a quedar congelados tal como están cargados ahora mismo, y ya no vas a poder modificarlos (sí podés seguir editando todo para la próxima presentación).`, { titulo: "Presentar Cartilla completa", textoAceptar: "Presentar" }))) return;
+  const textoOriginal = boton?.textContent;
+  if (boton) { boton.disabled = true; boton.textContent = "Presentando..."; }
+  try {
+    const session = await asegurarSesionVigente();
+    const estado = await evaluarComponentesCartilla(os, ejercicio);
+    const faltantes = Object.values(estado).filter(v => !v.completo).map(v => v.motivo).filter(Boolean);
+    if (faltantes.length) throw new Error(faltantes.join(" "));
+    const cartillaId = await buscarOCrearCartillaMaestra(os, ejercicio, session.access_token);
+    const pendientes = await congelarComponentesFaltantes(cartillaId, os, estado, session, session.access_token);
+    if (pendientes.length) {
+      mostrarToast(`Se guardaron ${5 - pendientes.length} de 5. Volvé a tocar "Presentar Cartilla completa" para reintentar: ${pendientes.join(", ")}.`);
+    } else {
+      mostrarToast("¡Cartilla completa presentada! La Superintendencia la va a revisar.");
+    }
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo presentar la Cartilla.");
+  } finally {
+    if (boton) { boton.disabled = false; boton.textContent = textoOriginal || "Presentar Cartilla completa"; }
+    try { await renderChecklistCartillaHub(os, ejercicio); } catch (error) { console.error(error); }
+  }
+}
+
+let cartillaHubObraSocialActual = null;
+let cartillaHubEjercicioActual = null;
+
+async function inicializarVistaCartillaHub() {
+  if (typeof document === "undefined") return;
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  const osId = obraSocialIdSesionActual();
+  const os = obrasSociales.find(o => Number(o.id) === Number(osId));
+  const cont = document.getElementById("cartilla-hub-checklist");
+  if (!os) {
+    if (cont) cont.innerHTML = `<p style="color:var(--muted)">Tu usuario no tiene una Obra Social asignada. Avisá a la Superintendencia.</p>`;
+    return;
+  }
+  cartillaHubObraSocialActual = os;
+  mostrarOsActualEnCabecera(os);
+  const vigente = ejercicioVigenteParaOs(os);
+  const anterior = ejercicioAnteriorParaOs(os);
+  const select = document.getElementById("cartilla-hub-periodo");
+  if (select) {
+    const opciones = [...new Set([anterior, vigente].filter(Boolean))];
+    select.innerHTML = opciones.map(e => `<option value="${escaparHtml(e)}">Período ${escaparHtml(e)}${e === anterior ? " (atrasado)" : ""}</option>`).join("");
+    select.value = vigente || opciones[0] || "";
+  }
+  cartillaHubEjercicioActual = select?.value || vigente;
+  if (cartillaHubEjercicioActual) await renderChecklistCartillaHub(os, cartillaHubEjercicioActual);
+}
+
+async function handleCambioEjercicioCartillaHub() {
+  const select = document.getElementById("cartilla-hub-periodo");
+  const ejercicio = select?.value || cartillaHubEjercicioActual;
+  cartillaHubEjercicioActual = ejercicio;
+  if (!cartillaHubObraSocialActual || !ejercicio) return;
+  await renderChecklistCartillaHub(cartillaHubObraSocialActual, ejercicio);
+}
+
+async function renderChecklistCartillaHub(os, ejercicio) {
+  const cont = document.getElementById("cartilla-hub-checklist");
+  const btn = document.getElementById("btn-presentar-cartilla-completa");
+  const resumen = document.getElementById("cartilla-hub-resumen");
+  if (!cont) return;
+  cont.innerHTML = `<p style="color:var(--muted)">Revisando el estado de tu presentación...</p>`;
+  if (btn) btn.disabled = true;
+
+  let cartilla = null;
+  let session = null;
+  try {
+    session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ select: "id,condicion,fecha_ingreso", obra_social_id: `eq.${os.id}`, ejercicio: `eq.${ejercicio}`, order: "created_at.asc", limit: "1", apikey: SUPABASE_PUBLISHABLE_KEY });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    if (response.ok) { const filas = await response.json(); cartilla = filas[0] || null; }
+  } catch (error) { console.error(error); }
+
+  const estado = await evaluarComponentesCartilla(os, ejercicio);
+
+  let congeladoAfiliados = false, congeladoAnexoIII = false;
+  if (cartilla && session) {
+    [congeladoAfiliados, congeladoAnexoIII] = await Promise.all([
+      afiliadosYaCongelados(cartilla.id, session.access_token),
+      anexoIIIYaCongelado(cartilla.id, session.access_token)
+    ]);
+  }
+  const congeladoAnexoI = Boolean(cartilla && estado.anexoI.declaracion?.cartilla_id);
+  const congeladoAnexoII = Boolean(cartilla && estado.anexoII.declaracion?.cartilla_id);
+  const congeladoAnexoIV = Boolean(cartilla && estado.anexoIV.declaracion?.cartilla_id);
+
+  const filas = [
+    { nombre: "Afiliados", listo: estado.afiliados.completo, motivo: estado.afiliados.motivo, congelado: congeladoAfiliados, vista: "afiliados" },
+    { nombre: "Anexo I", listo: estado.anexoI.completo, motivo: estado.anexoI.motivo, congelado: congeladoAnexoI, vista: "anexo-i" },
+    { nombre: "Anexo II", listo: estado.anexoII.completo, motivo: estado.anexoII.motivo, congelado: congeladoAnexoII, vista: "anexo-ii" },
+    { nombre: "Anexo III (Prestadores)", listo: estado.anexoIII.completo, motivo: estado.anexoIII.motivo, congelado: congeladoAnexoIII, vista: "prestadores" },
+    { nombre: "Anexo IV", listo: estado.anexoIV.completo, motivo: estado.anexoIV.motivo, congelado: congeladoAnexoIV, vista: "anexo-iv" }
+  ];
+
+  const todoCongelado = Boolean(cartilla) && filas.every(f => f.congelado);
+
+  if (todoCongelado) {
+    if (resumen) resumen.innerHTML = `<span class="stat-pill-inline ok">✓ Cartilla ${escaparHtml(ejercicio)} presentada el ${formatFechaPantalla(cartilla.fecha_ingreso)} · ${escaparHtml(cartilla.condicion || "—")}</span>`;
+    cont.innerHTML = filas.map(f => `<div class="cartilla-hub-fila"><span class="stat-pill-inline ok">✓</span> <span>${escaparHtml(f.nombre)}</span></div>`).join("");
+    if (btn) btn.hidden = true;
+    return;
+  }
+
+  if (resumen) resumen.innerHTML = cartilla
+    ? `<span class="stat-pill-inline pendiente">La presentación quedó a mitad de camino — volvé a tocar "Presentar Cartilla completa" para terminarla</span>`
+    : "";
+
+  cont.innerHTML = filas.map(f => {
+    const ok = cartilla ? f.congelado : f.listo;
+    return `<div class="cartilla-hub-fila">
+      <span class="stat-pill-inline ${ok ? "ok" : "pendiente"}">${ok ? "✓ Completo" : "⚠ Falta"}</span>
+      <span>${escaparHtml(f.nombre)}</span>
+      ${ok ? "" : `<span style="color:var(--muted);font-size:12.5px">${escaparHtml(f.motivo || "")}</span> <button type="button" class="link-button" data-ir-a-vista="${f.vista}">Completar</button>`}
+    </div>`;
+  }).join("");
+  cont.querySelectorAll("[data-ir-a-vista]").forEach(btnIr => btnIr.addEventListener("click", () => showView(btnIr.dataset.irAVista)));
+
+  if (btn) {
+    btn.hidden = false;
+    btn.textContent = cartilla ? "Reintentar presentación" : "Presentar Cartilla completa";
+    btn.disabled = !filas.every(f => f.listo);
   }
 }
 
@@ -8150,13 +8449,17 @@ function opcionesSesionesAnexoI(seleccionado) {
   return html;
 }
 
-function renderAnexoISecciones() {
-  const cont = document.getElementById("anexo-i-secciones");
+// containerId/declaracion/secciones son opcionales: sin argumentos se comporta como siempre
+// (pantalla de edición de la propia Obra Social). Con argumentos, permite reusar el mismo
+// renderizado de solo lectura en otro contenedor (por ejemplo la Cartilla unificada del auditor,
+// que muestra el Anexo I ya presentado de una Obra Social distinta a la de la sesión actual).
+function renderAnexoISecciones(containerId = "anexo-i-secciones", declaracion = anexoIDeclaracionActual, secciones = anexoISeccionesVistaActual) {
+  const cont = document.getElementById(containerId);
   if (!cont) return;
-  const soloLectura = anexoIDeclaracionActual?.estado === "presentada";
-  const valores = anexoIDeclaracionActual?.valores || {};
-  const aclaraciones = anexoIDeclaracionActual?.aclaraciones || {};
-  cont.innerHTML = anexoISeccionesVistaActual.map(sec => {
+  const soloLectura = containerId !== "anexo-i-secciones" || declaracion?.estado === "presentada";
+  const valores = declaracion?.valores || {};
+  const aclaraciones = declaracion?.aclaraciones || {};
+  cont.innerHTML = secciones.map(sec => {
     const camposHtml = (sec.campos_valor || []).length ? `<div class="form-grid anexo-i-campos-valor">${sec.campos_valor.map(cv => {
       const clave = `${sec.codigo}.${cv.campo}`;
       const valorGuardado = valores[clave] || "";
@@ -8307,8 +8610,8 @@ async function verificarYRenderizarPresentacionAnexoIOs(os) {
     return;
   }
   const esAtrasado = ejercicio === ejercicioAnteriorParaOs(os);
-  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="primary" id="btn-presentar-anexo-i">Presentar</button></span>`;
-  document.getElementById("btn-presentar-anexo-i")?.addEventListener("click", event => presentarAnexoI(os, ejercicio, event.currentTarget));
+  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="link-button" id="btn-ir-cartilla-hub-anexo-i">Completar en Cartilla →</button></span>`;
+  document.getElementById("btn-ir-cartilla-hub-anexo-i")?.addEventListener("click", () => showView("cartilla-hub"));
 }
 
 async function guardarBorradorAnexoI() {
@@ -8691,8 +8994,8 @@ async function verificarYRenderizarPresentacionAnexoIIOs(os) {
     return;
   }
   const esAtrasado = ejercicio === ejercicioAnteriorParaOs(os);
-  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="primary" id="btn-presentar-anexo-ii">Presentar</button></span>`;
-  document.getElementById("btn-presentar-anexo-ii")?.addEventListener("click", event => presentarAnexoII(os, ejercicio, event.currentTarget));
+  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="link-button" id="btn-ir-cartilla-hub-anexo-ii">Completar en Cartilla →</button></span>`;
+  document.getElementById("btn-ir-cartilla-hub-anexo-ii")?.addEventListener("click", () => showView("cartilla-hub"));
 }
 
 async function guardarBorradorAnexoII() {
@@ -9540,8 +9843,8 @@ async function verificarYRenderizarPresentacionAnexoIV(os) {
     return;
   }
   const esAtrasado = ejercicio === ejercicioAnteriorParaOs(os);
-  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="primary" id="btn-presentar-anexo-iv">Presentar</button></span>`;
-  document.getElementById("btn-presentar-anexo-iv")?.addEventListener("click", event => presentarAnexoIV(os, ejercicio, event.currentTarget));
+  pill.innerHTML = `<span class="stat-pill-inline pendiente"><span>${esAtrasado ? "Atrasado" : "Sin presentar"}</span><button type="button" class="link-button" id="btn-ir-cartilla-hub-anexo-iv">Completar en Cartilla →</button></span>`;
+  document.getElementById("btn-ir-cartilla-hub-anexo-iv")?.addEventListener("click", () => showView("cartilla-hub"));
 }
 
 async function guardarBorradorAnexoIV() {
@@ -9708,6 +10011,142 @@ async function renderAnexoIVAdminSeleccionado() {
       ${prestadoresHtml}
     </div>
   </div>`;
+}
+
+// ---------- Cartilla (auditor): revisión única de una presentación, con sus 5 componentes ----------
+//
+// Reemplaza a las pantallas separadas de consulta (Anexo II, Anexo IV, Prestadores en modo admin):
+// el auditor busca la Obra Social y elige el período UNA sola vez acá, y ve los 5 componentes de
+// esa presentación juntos. Reutiliza sin cambios los renderizadores que ya existían para Anexo II
+// y Anexo IV (renderAnexoIIAdminSeleccionado/renderAnexoIVAdminSeleccionado) apuntándolos a este
+// contenedor en vez del suyo propio de antes; Afiliados y Anexo I no tenían vista de solo lectura
+// para el auditor, así que son nuevas.
+
+let cartillaRevisionObraSocialActual = null;
+let cartillaRevisionPeriodos = [];
+
+async function renderAfiliadosSnapshotCartillaRevision(cartillaId) {
+  const cont = document.getElementById("cartilla-revision-afiliados-body");
+  if (!cont) return;
+  cont.innerHTML = `<p style="color:var(--muted)">Cargando...</p>`;
+  try {
+    const session = await asegurarSesionVigente();
+    const paramsTotal = new URLSearchParams({ select: "total_declarado", cartilla_id: `eq.${cartillaId}`, apikey: SUPABASE_PUBLISHABLE_KEY });
+    const paramsLoc = new URLSearchParams({ select: "*", cartilla_id: `eq.${cartillaId}`, order: "provincia.asc,partido.asc,localidad.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+    const [respTotal, respLoc] = await Promise.all([
+      fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_total_snapshot?${paramsTotal.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch),
+      fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_localidad_snapshot?${paramsLoc.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch)
+    ]);
+    const filasTotal = respTotal.ok ? await respTotal.json() : [];
+    const total = filasTotal.length ? filasTotal[0].total_declarado : null;
+    const localidades = respLoc.ok ? await respLoc.json() : [];
+    if (total === null && !localidades.length) {
+      cont.innerHTML = `<p style="color:var(--muted)">Esta presentación no tenía Afiliados congelados.</p>`;
+      return;
+    }
+    const filasHtml = localidades.map(l => `<tr><td>${escaparHtml(l.provincia || "")}</td><td>${escaparHtml(l.partido || "")}</td><td>${escaparHtml(l.localidad || "")}</td><td>${escaparHtml(String(l.cantidad_beneficiarios ?? ""))}</td></tr>`).join("");
+    cont.innerHTML = `
+      <div class="table-meta"><strong>Total declarado: ${escaparHtml(String(total ?? "—"))}</strong></div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Provincia</th><th>Partido</th><th>Localidad</th><th>Afiliados</th></tr></thead>
+          <tbody>${filasHtml || `<tr><td colspan="4" style="color:var(--muted)">No cargó afiliados por localidad.</td></tr>`}</tbody>
+        </table>
+      </div>`;
+  } catch (error) {
+    console.error(error);
+    cont.innerHTML = `<p style="color:var(--muted)">No se pudo cargar Afiliados.</p>`;
+  }
+}
+
+async function inicializarVistaCartillaRevision() {
+  if (typeof document === "undefined") return;
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  const list = document.getElementById("cartilla-revision-os-list");
+  if (list) list.innerHTML = obrasSociales
+    .slice()
+    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
+    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+}
+
+async function handleSeleccionObraSocialCartillaRevision() {
+  const valor = document.getElementById("cartilla-revision-os-search")?.value || "";
+  const os = resolverObraSocialCartilla(valor);
+  cartillaRevisionObraSocialActual = os;
+  mostrarOsActualEnCabecera(os);
+  const periodoSelect = document.getElementById("cartilla-revision-periodo");
+  const vacio = document.getElementById("cartilla-revision-vacio");
+  const panel = document.getElementById("cartilla-revision-panel");
+  if (!os) {
+    if (periodoSelect) periodoSelect.hidden = true;
+    if (vacio) { vacio.hidden = false; vacio.innerHTML = `<p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Cartilla.</p>`; }
+    if (panel) panel.hidden = true;
+    return;
+  }
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    cartillaRevisionPeriodos = response.ok ? await response.json() : [];
+  } catch (error) { console.error(error); cartillaRevisionPeriodos = []; }
+  if (!cartillaRevisionPeriodos.length) {
+    if (periodoSelect) periodoSelect.hidden = true;
+    if (vacio) { vacio.hidden = false; vacio.innerHTML = `<p style="color:var(--muted)">Esta Obra Social todavía no presentó ninguna Cartilla.</p>`; }
+    if (panel) panel.hidden = true;
+    return;
+  }
+  if (periodoSelect) {
+    periodoSelect.hidden = false;
+    periodoSelect.innerHTML = cartillaRevisionPeriodos.map(p => `<option value="${escaparHtml(p.id)}">${escaparHtml(p.ejercicio || "")} — ${escaparHtml(formatFechaPantalla(p.fecha_ingreso))} · ${escaparHtml(p.condicion || "—")}</option>`).join("");
+  }
+  if (vacio) vacio.hidden = true;
+  if (panel) panel.hidden = false;
+  await handleCambioPeriodoCartillaRevision();
+}
+
+async function handleCambioPeriodoCartillaRevision() {
+  const periodoSelect = document.getElementById("cartilla-revision-periodo");
+  const id = periodoSelect?.value;
+  const cartilla = cartillaRevisionPeriodos.find(p => String(p.id) === String(id)) || cartillaRevisionPeriodos[0];
+  const resumen = document.getElementById("cartilla-revision-resumen");
+  if (!cartilla || !cartillaRevisionObraSocialActual) return;
+  if (resumen) {
+    resumen.innerHTML = `<span class="stat-pill-inline ok">Cartilla ${escaparHtml(cartilla.ejercicio || "")} · ${escaparHtml(cartilla.condicion || "—")} · presentada el ${escaparHtml(formatFechaPantalla(cartilla.fecha_ingreso))}</span> <button type="button" class="link-button" id="btn-cartilla-revision-editar-condicion">Editar condición / expediente →</button>`;
+    document.getElementById("btn-cartilla-revision-editar-condicion")?.addEventListener("click", () => showView("cartillas"));
+  }
+
+  const session = await asegurarSesionVigente();
+  const os = cartillaRevisionObraSocialActual;
+
+  await renderAfiliadosSnapshotCartillaRevision(cartilla.id);
+  await renderPrestadoresDesdeSnapshot(cartilla.id, "cartilla-revision-prestadores");
+
+  try {
+    const respI = await fetchConTimeout(buildPmaDeclaracionesUrl({ select: "*", cartilla_id: `eq.${cartilla.id}`, limit: "1" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    const filasI = respI.ok ? await respI.json() : [];
+    const declI = filasI[0] || null;
+    if (declI) {
+      if (!anexoISeccionesCache.length) { try { await cargarPmaSeccionesActivas(); } catch (error) { console.error(error); } }
+      const secciones = resolverSeccionesPorVersion(anexoISeccionesCache, declI.pma_secciones_version);
+      renderAnexoISecciones("cartilla-revision-anexo-i-body", declI, secciones);
+    } else {
+      const cont = document.getElementById("cartilla-revision-anexo-i-body");
+      if (cont) cont.innerHTML = `<p style="color:var(--muted)">Esta presentación no tenía Anexo I.</p>`;
+    }
+  } catch (error) { console.error(error); }
+
+  try {
+    const respII = await fetchConTimeout(buildPmaAnexoIIUrl({ select: "*", cartilla_id: `eq.${cartilla.id}`, limit: "1" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    anexoIIAdminDeclaraciones = respII.ok ? await respII.json() : [];
+    renderAnexoIIAdminSeleccionado();
+  } catch (error) { console.error(error); }
+
+  try {
+    const respIV = await fetchConTimeout(buildPmaAnexoIVUrl({ select: "*", cartilla_id: `eq.${cartilla.id}`, limit: "1" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    anexoIVAdminDeclaraciones = respIV.ok ? await respIV.json() : [];
+    anexoIVAdminObraSocialActual = os;
+    await renderAnexoIVAdminSeleccionado();
+  } catch (error) { console.error(error); }
 }
 
 // ---------- Anexo I · Edición: edición administrativa del texto normativo (staff interno) ----------
@@ -10790,12 +11229,12 @@ async function initBrowser() {
   document.getElementById("btn-guardar-borrador-anexo-i")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoI));
   document.getElementById("anexo-ii-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoII));
   document.getElementById("btn-guardar-borrador-anexo-ii")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoII));
-  document.getElementById("anexo-ii-admin-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAnexoIIAdmin)));
-  document.getElementById("anexo-ii-admin-periodo")?.addEventListener("change", () => renderAnexoIIAdminSeleccionado());
   document.getElementById("anexo-iv-periodo-os")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAnexoIV));
   document.getElementById("btn-guardar-borrador-anexo-iv")?.addEventListener("click", () => requiereAutenticacion(guardarBorradorAnexoIV));
-  document.getElementById("anexo-iv-admin-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAnexoIVAdmin)));
-  document.getElementById("anexo-iv-admin-periodo")?.addEventListener("change", () => renderAnexoIVAdminSeleccionado());
+  document.getElementById("cartilla-hub-periodo")?.addEventListener("change", () => requiereAutenticacion(handleCambioEjercicioCartillaHub));
+  document.getElementById("btn-presentar-cartilla-completa")?.addEventListener("click", event => requiereAutenticacion(() => presentarCartillaCompletaOs(cartillaHubObraSocialActual, cartillaHubEjercicioActual, event.currentTarget)));
+  document.getElementById("cartilla-revision-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialCartillaRevision)));
+  document.getElementById("cartilla-revision-periodo")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoCartillaRevision));
   document.getElementById("btn-anexo-iv-agregar-prestador")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPrestadorNuevo));
   document.getElementById("anexo-iv-prestador-form")?.addEventListener("submit", handleAnexoIVPrestadorSubmit);
   document.getElementById("anexo-iv-prestador-eliminar")?.addEventListener("click", eliminarAnexoIVPrestadorActual);
