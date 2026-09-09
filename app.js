@@ -170,6 +170,7 @@ function generarReporteFaltantesPorEjercicio(obras, registrosPresentaciones, eje
   );
   return (obras || [])
     .filter(os => String(os?.estado || "ACTIVA").toUpperCase() !== "INACTIVA")
+    .filter(os => !String(os?.rnos || "").trim().startsWith("9"))
     .map(os => {
       const periodos = {};
       for (const ejercicio of ejerciciosValidos) {
