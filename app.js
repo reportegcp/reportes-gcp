@@ -7676,6 +7676,22 @@ function abrirModalCoberturaProvincia(provincia) {
   abrirModal("cobertura-provincia-modal");
 }
 
+function especialidadesPorTipoHtml(p) {
+  const filas = p.prestador_especialidades || [];
+  if (!filas.length) return `<p class="cobertura-sin-especialidades">Sin especialidades cargadas.</p>`;
+  const porTipo = new Map();
+  filas.forEach(f => {
+    const tipo = f.especialidades_prestador?.tipos_prestador?.nombre;
+    const especialidad = f.especialidades_prestador?.nombre;
+    if (!tipo || !especialidad) return;
+    if (!porTipo.has(tipo)) porTipo.set(tipo, []);
+    porTipo.get(tipo).push(especialidad);
+  });
+  return [...porTipo.entries()].map(([tipo, especialidades]) =>
+    `<div class="cobertura-esp-tipo"><b>${escaparHtml(tipo)}:</b> ${escaparHtml(especialidades.join(", "))}</div>`
+  ).join("");
+}
+
 function renderModalCoberturaProvincia(provincia, busqueda) {
   const cont = document.getElementById("cobertura-provincia-localidades");
   if (!cont) return;
@@ -7707,17 +7723,17 @@ function renderModalCoberturaProvincia(provincia, busqueda) {
     const filasPrestadores = prestadoresLocalidad.length
       ? prestadoresLocalidad.map(p => `<div class="cobertura-prestador-fila">
           <strong>${escaparHtml(p.nombre_completo || "—")}</strong>
-          <span>${escaparHtml(textoTiposYEspecialidades(p).replace(/;/g, " ·") || "sin especialidades cargadas")}</span>
+          ${especialidadesPorTipoHtml(p)}
         </div>`).join("")
       : `<p style="color:var(--muted);font-size:12px;margin:4px 0 0">Sin prestadores cargados en esta localidad.</p>`;
 
-    return `<details class="table-card cobertura-localidad-card">
-      <summary style="padding:10px 14px;cursor:pointer">
+    return `<details class="cobertura-localidad-card">
+      <summary class="cobertura-localidad-summary">
         <span class="cobertura-dot ${faltanBasicas ? "falta" : "ok"}" title="${faltanBasicas ? `Faltan ${faltanBasicas} especialidad(es) básica(s)` : "Básicas cubiertas"}"></span>
-        <strong>${escaparHtml(l.localidad)}</strong>${l.partido ? ` <span style="color:var(--muted);font-weight:400">· ${escaparHtml(l.partido)}</span>` : ""}
-        <span style="float:right;color:var(--muted);font-weight:700">${l.cantidad_beneficiarios ?? 0} beneficiarios · ${prestadoresLocalidad.length} prestador${prestadoresLocalidad.length === 1 ? "" : "es"}</span>
+        <strong>${escaparHtml(l.localidad)}</strong>${l.partido ? ` <span class="cobertura-localidad-partido">· ${escaparHtml(l.partido)}</span>` : ""}
+        <span class="cobertura-localidad-meta">${l.cantidad_beneficiarios ?? 0} beneficiarios · ${prestadoresLocalidad.length} prestador${prestadoresLocalidad.length === 1 ? "" : "es"}</span>
       </summary>
-      <div style="padding:0 14px 12px;display:grid;gap:6px">${filasPrestadores}</div>
+      <div class="cobertura-localidad-body">${filasPrestadores}</div>
     </details>`;
   }).filter(Boolean).join("");
 

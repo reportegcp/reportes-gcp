@@ -1238,13 +1238,24 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .cobertura-fila-hueco{background:#fdf3f2}
 .cobertura-fila-clic{cursor:pointer}
 .cobertura-fila-clic:hover td{background:#eef3fa}
-.cobertura-localidad-card{margin:0}
-.cobertura-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px}
+.cobertura-localidad-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.cobertura-localidad-summary{
+  list-style:none;cursor:pointer;padding:11px 14px;background:#f5f8fc;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap
+}
+.cobertura-localidad-summary::-webkit-details-marker{display:none}
+.cobertura-localidad-summary strong{color:var(--navy);font-size:13.5px}
+.cobertura-localidad-partido{color:var(--muted);font-weight:500;font-size:12.5px}
+.cobertura-localidad-meta{margin-left:auto;color:var(--muted);font-weight:700;font-size:12px;white-space:nowrap}
+.cobertura-localidad-body{padding:12px 14px;display:grid;gap:10px}
+.cobertura-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
 .cobertura-dot.ok{background:#278664}
 .cobertura-dot.falta{background:#c0392b}
-.cobertura-prestador-fila{display:grid;gap:2px;padding:7px 9px;border-radius:8px;background:#f7f9fb;font-size:12.5px}
-.cobertura-prestador-fila strong{color:var(--navy)}
-.cobertura-prestador-fila span{color:var(--muted);font-size:12px}
+.cobertura-prestador-fila{display:grid;gap:4px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid #a9bcd4;border-radius:8px;background:#fbfcfe}
+.cobertura-prestador-fila strong{color:var(--navy);font-size:13px}
+.cobertura-esp-tipo{color:var(--muted);font-size:12px;line-height:1.5}
+.cobertura-esp-tipo b{color:#4d5d70;font-weight:800}
+.cobertura-sin-especialidades{color:var(--muted);font-size:12px;margin:0;font-style:italic}
 .notificaciones-block{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fafbfc}
 .notificaciones-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .notificaciones-header span{font-size:12px;font-weight:800;color:#35485e;letter-spacing:.2px}
