@@ -604,12 +604,31 @@ function simboloEstadoReporte(estado) {
   return "?";
 }
 
+// "calendario" = ejercicio 1/1 al 31/12 (ej. "2026"); "partido" = arranca en un año y
+// termina en el siguiente (ej. "2025/26"). Cada Obra Social solo puede presentar bajo
+// UNO de los dos tipos, según su Inicio ejercicio, así que el gráfico de cada período
+// debe calcularse solo sobre las OS de ese tipo, no sobre el universo completo.
+function tipoEjercicioPeriodo(periodo) {
+  const texto = String(periodo || "").trim();
+  if (/^\d{4}$/.test(texto)) return "calendario";
+  if (/^\d{4}\/\d{2,4}$/.test(texto)) return "partido";
+  return null;
+}
+
+function tipoEjercicioOs(inicioEjercicio) {
+  const normalizado = normalizarDiaMes(inicioEjercicio || "");
+  if (!normalizado) return null;
+  return normalizado === "01-01" ? "calendario" : "partido";
+}
+
 function resumirPresentacionesPorPeriodo(reporte, periodos) {
   const periodosValidos = ordenarEjercicios(periodos, false);
   return periodosValidos.map(periodo => {
+    const tipoPeriodo = tipoEjercicioPeriodo(periodo);
     let presentaron = 0;
     let noPresentaron = 0;
     for (const row of reporte || []) {
+      if (tipoPeriodo && tipoEjercicioOs(row?.inicioEjercicio) !== tipoPeriodo) continue;
       const estado = row?.periodos?.[periodo]?.estado;
       if (estado === "PRESENTO") presentaron += 1;
       else noPresentaron += 1;
@@ -5596,20 +5615,24 @@ function renderGraficosPorPeriodo(containerId, resumenes) {
     container.innerHTML = '<div class="chart-empty">Seleccioná uno o más ejercicios para ver el gráfico.</div>';
     return;
   }
+  const alturaMax = 130;
   container.innerHTML = resumenes.map(item => {
     const valores = [
       { etiqueta: "Presentaron", valor: Number(item.presentaron) || 0, clase: "presented" },
       { etiqueta: "No presentaron", valor: Number(item.noPresentaron) || 0, clase: "missing" }
     ];
     const maximo = Math.max(1, ...valores.map(x => x.valor));
-    return `<div class="single-period-chart">
-      <div class="single-chart-title">Ejercicio ${escaparHtml(item.periodo)}</div>
-      <div class="single-chart-bars">
-        ${valores.map(x => `<div class="single-chart-row">
-          <span class="single-chart-label">${escaparHtml(x.etiqueta)}</span>
-          <div class="single-chart-track"><div class="single-chart-fill ${x.clase}" style="width:${Math.max(1, Math.round((x.valor / maximo) * 100))}%"></div></div>
-          <strong>${x.valor}</strong>
-        </div>`).join("")}
+    return `<div class="period-chart-card">
+      <div class="period-chart-title">Ejercicio ${escaparHtml(item.periodo)}</div>
+      <div class="period-chart-bars">
+        ${valores.map(x => {
+          const alto = Math.max(4, Math.round((x.valor / maximo) * alturaMax));
+          return `<div class="period-chart-bar-col">
+            <span class="period-chart-bar-value">${x.valor}</span>
+            <div class="period-chart-bar ${x.clase}" style="height:${alto}px"></div>
+            <span class="period-chart-bar-label">${escaparHtml(x.etiqueta)}</span>
+          </div>`;
+        }).join("")}
       </div>
     </div>`;
   }).join("");
@@ -5630,8 +5653,14 @@ function sincronizarPeriodoGrafico(selectId, periodos) {
 function renderGraficoCartillas(reporte) {
   const periodos = getPeriodosReporteSeleccionados();
   const resumenes = resumirPresentacionesPorPeriodo(reporte, periodos);
-  const combinado = periodos.length > 1 ? resumirCombinadoPeriodos(reporte, periodos) : null;
-  renderGraficosPorPeriodo("report-cartillas-chart", combinado ? [combinado, ...resumenes] : resumenes);
+  const combinadoContainer = document.getElementById("report-cartillas-chart-combinado");
+  if (periodos.length > 1) {
+    renderGraficoUnPeriodo("report-cartillas-chart-combinado", resumirCombinadoPeriodos(reporte, periodos));
+    if (combinadoContainer) combinadoContainer.hidden = false;
+  } else if (combinadoContainer) {
+    combinadoContainer.hidden = true;
+  }
+  renderGraficosPorPeriodo("report-cartillas-chart", resumenes);
 }
 
 
@@ -6011,8 +6040,14 @@ function obtenerFilasReportePma(reporte, periodos) {
 function renderGraficoPma(reporte) {
   const periodos = getPeriodosPmaSeleccionados();
   const resumenes = resumirPresentacionesPorPeriodo(reporte, periodos);
-  const combinado = periodos.length > 1 ? resumirCombinadoPeriodos(reporte, periodos) : null;
-  renderGraficosPorPeriodo("report-pma-chart", combinado ? [combinado, ...resumenes] : resumenes);
+  const combinadoContainer = document.getElementById("report-pma-chart-combinado");
+  if (periodos.length > 1) {
+    renderGraficoUnPeriodo("report-pma-chart-combinado", resumirCombinadoPeriodos(reporte, periodos));
+    if (combinadoContainer) combinadoContainer.hidden = false;
+  } else if (combinadoContainer) {
+    combinadoContainer.hidden = true;
+  }
+  renderGraficosPorPeriodo("report-pma-chart", resumenes);
 }
 
 function renderReporteFaltantesPma() {
