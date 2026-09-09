@@ -5837,7 +5837,7 @@ function actualizarCabeceraReporte(tipo) {
   const title = document.getElementById("report-current-title");
   const description = document.getElementById("report-current-description");
   if (eyebrow) eyebrow.textContent = base === "pma" ? "PMA" : "CARTILLAS";
-  if (title) title.textContent = nunca ? "Agentes de Seguro que nunca presentaron" : "Agentes de Seguro sin presentación";
+  if (title) title.textContent = nunca ? "Agentes de Seguro que nunca presentaron" : "Agentes de Seguro con o sin presentación";
   if (description) description.textContent = nunca
     ? `Identifica los Agentes de Seguro que no tienen ninguna presentación histórica de ${base === "pma" ? "PMA" : "Cartillas"} cargada en el sistema.`
     : "Seleccioná uno o más ejercicios para ver qué Agentes presentaron y cuáles no.";
@@ -5845,6 +5845,10 @@ function actualizarCabeceraReporte(tipo) {
   const pmaSearch = document.getElementById("report-pma-search-wrap");
   if (cartSearch) cartSearch.hidden = base !== "cartillas";
   if (pmaSearch) pmaSearch.hidden = base !== "pma";
+  const cartFiltersRow = document.getElementById("report-cartillas-filters");
+  const pmaFiltersRow = document.getElementById("report-pma-filters");
+  if (cartFiltersRow) cartFiltersRow.hidden = base !== "cartillas" || nunca;
+  if (pmaFiltersRow) pmaFiltersRow.hidden = base !== "pma" || nunca;
 }
 
 function configurarModoPanelReporte(tipo, nunca) {
