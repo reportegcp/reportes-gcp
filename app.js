@@ -8824,9 +8824,15 @@ async function handleEliminarAnexoIAdjunto(adjuntoId) {
 // y el parser ya no se usa — el texto se inserta directamente.
 
 function opcionesPorcentajeAnexoI(seleccionado) {
-  const sel = Number.isFinite(seleccionado) && seleccionado >= 40 && seleccionado <= 100 ? seleccionado : 40;
+  const validos = [];
+  for (let n = 40; n <= 100; n += 10) validos.push(n);
+  let sel = 40;
+  if (Number.isFinite(seleccionado)) {
+    if (validos.includes(seleccionado)) sel = seleccionado;
+    else sel = validos.reduce((mejor, n) => Math.abs(n - seleccionado) < Math.abs(mejor - seleccionado) ? n : mejor, validos[0]);
+  }
   let html = "";
-  for (let n = 40; n <= 100; n++) html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}%</option>`;
+  validos.forEach(n => { html += `<option value="${n}"${n === sel ? " selected" : ""}>${n}%</option>`; });
   return html;
 }
 
