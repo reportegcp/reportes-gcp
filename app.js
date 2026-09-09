@@ -344,9 +344,10 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="cartilla-hub"]')?.toggleAttribute("hidden", !esCartillaOs);
-  // "Prestadores" (Red actual, editable) queda exclusivo de la propia Obra Social: el auditor la
-  // consulta ya congelada dentro de la Cartilla unificada ("cartilla-revision"), no acá.
-  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !esCartillaOs);
+  // "Prestadores" (Red actual): la propia Obra Social la edita en vivo; Admin Prestacional/
+  // Admin Presentaciones entran para auditar cualquier OS y para "Importar Cartilla histórica"
+  // (la carga inicial única de una OS nueva).
+  document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esCartillaOs || esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="cartilla-revision"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="anexo-ii"]')?.toggleAttribute("hidden", !esCartillaOs);
