@@ -5538,9 +5538,8 @@ function poblarPeriodosReporte() {
   if (!container) return;
   const seleccionadosAntes = new Set(getPeriodosReporteSeleccionados());
   const ejercicios = ordenarEjercicios(cartillas.map(c => c.ejercicio).filter(Boolean), true);
-  const preferido = ejercicios.find(e => e === String(new Date().getFullYear())) || ejercicios[0] || "";
   container.innerHTML = ejercicios.map(ejercicio => {
-    const checked = seleccionadosAntes.size ? seleccionadosAntes.has(ejercicio) : ejercicio === preferido;
+    const checked = seleccionadosAntes.has(ejercicio);
     return `<label class="period-check"><input type="checkbox" name="report-periodo" value="${escaparHtml(ejercicio)}" ${checked ? "checked" : ""}><span>${escaparHtml(ejercicio)}</span></label>`;
   }).join("");
   container.querySelectorAll('input[name="report-periodo"]').forEach(input => input.addEventListener("change", () => {
@@ -6008,9 +6007,8 @@ function poblarPeriodosPma() {
   if (!container) return;
   const seleccionadosAntes = new Set(getPeriodosPmaSeleccionados());
   const ejercicios = ordenarEjercicios(pma.map(c => c.ejercicio).filter(Boolean), true);
-  const preferido = ejercicios.find(e => e === String(new Date().getFullYear())) || ejercicios[0] || "";
   container.innerHTML = ejercicios.map(ejercicio => {
-    const checked = seleccionadosAntes.size ? seleccionadosAntes.has(ejercicio) : ejercicio === preferido;
+    const checked = seleccionadosAntes.has(ejercicio);
     return `<label class="period-check"><input type="checkbox" name="report-pma-periodo" value="${escaparHtml(ejercicio)}" ${checked ? "checked" : ""}><span>${escaparHtml(ejercicio)}</span></label>`;
   }).join("");
   container.querySelectorAll('input[name="report-pma-periodo"]').forEach(input => input.addEventListener("change", () => {
