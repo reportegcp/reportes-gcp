@@ -7679,13 +7679,14 @@ async function inicializarVistaAfiliados() {
   if (typeof document === "undefined") return;
   const esCartillaOs = normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os";
   const picker = document.getElementById("afiliados-os-search")?.closest(".search-box");
-  const selectEjercicio = document.getElementById("afiliados-ejercicio-select");
+  const periodoSelect = document.getElementById("afiliados-periodo-select");
   try { await cargarLocalidadesAr(); poblarSelectProvinciaAfiliados(); } catch (error) { console.error(error); }
 
   if (esCartillaOs) {
     if (picker) picker.hidden = true;
-    if (selectEjercicio) selectEjercicio.hidden = true;
+    if (periodoSelect) periodoSelect.hidden = true;
     afiliadosSoloLectura = false;
+    document.getElementById("afiliados-periodo-resumen").innerHTML = "";
     document.getElementById("afiliados-total-editar").hidden = false;
     document.getElementById("afiliados-total-guardar").hidden = false;
     document.getElementById("afiliados-agregar-block").hidden = false;
@@ -7701,7 +7702,6 @@ async function inicializarVistaAfiliados() {
   }
 
   if (picker) picker.hidden = false;
-  if (selectEjercicio) selectEjercicio.hidden = false;
   afiliadosSoloLectura = true;
   document.getElementById("afiliados-total-editar").hidden = false;
   document.getElementById("afiliados-total-guardar").hidden = true;
@@ -7710,25 +7710,42 @@ async function inicializarVistaAfiliados() {
   document.getElementById("afiliados-solo-lectura-aviso").hidden = false;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   inicializarBuscadorObraSocial("afiliados-os-search", "afiliados-os-results", () => requiereAutenticacion(handleSeleccionObraSocialAfiliados));
-  const ejercicios = await cargarEjerciciosCartilla();
-  poblarSelectorMultipleEjercicios("afiliados", ejercicios, () => {}, { defaultChecked: false });
 }
 
-async function handleCambioEjercicioAfiliados() {
-  const seleccionados = ejerciciosFiltroSeleccionados("afiliados");
-  const osInput = document.getElementById("afiliados-os-search");
-  const list = document.getElementById("afiliados-os-list");
-  if (osInput) { osInput.value = ""; osInput.disabled = !seleccionados.length; }
-  await handleSeleccionObraSocialAfiliados();
-  if (!seleccionados.length) { if (list) list.innerHTML = ""; return; }
-  const idsPresentaron = await obtenerObraSocialIdsConCartillaPresentada(seleccionados);
-  if (list) list.innerHTML = obrasSociales
-    .filter(os => idsPresentaron.has(Number(os.id)) && !esRnasExcluidoDelUniverso(os.rnos))
-    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
-    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
-  if (osInput) osInput.placeholder = idsPresentaron.size
-    ? `Elegí entre las ${idsPresentaron.size} Obras Sociales que presentaron Cartilla ${seleccionados.join(" / ")}...`
-    : `Ninguna Obra Social presentó Cartilla para ${seleccionados.join(" / ")} todavía`;
+let afiliadosPeriodosDisponibles = [];
+
+async function cargarAfiliadosTotalSnapshot(cartillaId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "total_declarado", cartilla_id: `eq.${cartillaId}`, apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_total_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  return filas[0]?.total_declarado ?? null;
+}
+
+async function cargarAfiliadosLocalidadSnapshot(cartillaId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ select: "*", cartilla_id: `eq.${cartillaId}`, order: "provincia.asc,partido.asc,localidad.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_localidad_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+async function handleCambioPeriodoAfiliados() {
+  const periodoSelect = document.getElementById("afiliados-periodo-select");
+  const id = periodoSelect?.value;
+  const cartilla = afiliadosPeriodosDisponibles.find(p => String(p.id) === String(id)) || afiliadosPeriodosDisponibles[0];
+  const resumen = document.getElementById("afiliados-periodo-resumen");
+  if (!cartilla) return;
+  if (resumen) resumen.innerHTML = `<span class="stat-pill-inline ok">Cartilla ${escaparHtml(cartilla.ejercicio || "")} · ${escaparHtml(cartilla.condicion || "—")} · presentada el ${escaparHtml(formatFechaPantalla(cartilla.fecha_ingreso))}</span>`;
+  try {
+    const [total, localidades] = await Promise.all([cargarAfiliadosTotalSnapshot(cartilla.id), cargarAfiliadosLocalidadSnapshot(cartilla.id)]);
+    document.getElementById("afiliados-total-input").value = total ?? "";
+    afiliadosLocalidadActuales = localidades;
+    renderAfiliadosTabla();
+  } catch (error) {
+    mostrarToast(error.message || "No se pudieron cargar los afiliados de esa presentación.");
+  }
 }
 
 // ---------- Configurar especialidades básicas obligatorias ----------
@@ -7798,17 +7815,57 @@ async function handleSeleccionObraSocialAfiliados() {
   const os = resolverObraSocialCartilla(valor);
   mostrarOsActualEnCabecera(os);
   const panel = document.getElementById("afiliados-panel");
-  if (!os) { if (panel) panel.hidden = true; return; }
-  afiliadosObraSocialActual = os;
-  if (panel) panel.hidden = false;
-  try {
-    const [total, localidades] = await Promise.all([cargarAfiliadosTotal(os.id), cargarAfiliadosLocalidadDeOS(os.id)]);
-    document.getElementById("afiliados-total-input").value = total || "";
-    afiliadosLocalidadActuales = localidades;
-    renderAfiliadosTabla();
-  } catch (error) {
-    mostrarToast(error.message || "No se pudieron cargar los afiliados.");
+  const periodoSelect = document.getElementById("afiliados-periodo-select");
+  const resumen = document.getElementById("afiliados-periodo-resumen");
+  if (!os) {
+    if (panel) panel.hidden = true;
+    if (periodoSelect) periodoSelect.hidden = true;
+    return;
   }
+  afiliadosObraSocialActual = os;
+
+  if (!afiliadosSoloLectura) {
+    // Cartilla OS: dato en vivo (el borrador que está preparando).
+    if (panel) panel.hidden = false;
+    try {
+      const [total, localidades] = await Promise.all([cargarAfiliadosTotal(os.id), cargarAfiliadosLocalidadDeOS(os.id)]);
+      document.getElementById("afiliados-total-input").value = total || "";
+      afiliadosLocalidadActuales = localidades;
+      renderAfiliadosTabla();
+    } catch (error) {
+      mostrarToast(error.message || "No se pudieron cargar los afiliados.");
+    }
+    return;
+  }
+
+  // Admin/auditor: Afiliados es una de las 5 partes que se presentan juntas — hay que elegir
+  // QUÉ presentación (ejercicio) se está mirando, igual que en "Cartilla" (revisión), y mostrar
+  // la foto congelada de ese momento, no el dato en vivo (que puede haber cambiado después).
+  try {
+    const session = await asegurarSesionVigente();
+    const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+    const todasLasPresentaciones = response.ok ? await response.json() : [];
+    const ejercicioVigente = ejercicioCanonico(ejercicioVigenteParaOs(os));
+    const ejercicioAnterior = ejercicioCanonico(ejercicioAnteriorParaOs(os));
+    afiliadosPeriodosDisponibles = todasLasPresentaciones.filter(p => {
+      const ej = ejercicioCanonico(p.ejercicio);
+      return (ejercicioVigente && ej === ejercicioVigente) || (ejercicioAnterior && ej === ejercicioAnterior);
+    });
+  } catch (error) { console.error(error); afiliadosPeriodosDisponibles = []; }
+
+  if (!afiliadosPeriodosDisponibles.length) {
+    if (periodoSelect) periodoSelect.hidden = true;
+    if (panel) panel.hidden = true;
+    if (resumen) resumen.innerHTML = `<p style="color:var(--muted)">Esta Obra Social todavía no presentó ninguna Cartilla.</p>`;
+    return;
+  }
+  if (periodoSelect) {
+    periodoSelect.hidden = false;
+    periodoSelect.innerHTML = afiliadosPeriodosDisponibles.map(p => `<option value="${escaparHtml(p.id)}">${escaparHtml(p.ejercicio || "")} — ${escaparHtml(formatFechaPantalla(p.fecha_ingreso))} · ${escaparHtml(p.condicion || "—")}</option>`).join("");
+  }
+  if (panel) panel.hidden = false;
+  await handleCambioPeriodoAfiliados();
 }
 
 function filtrarAfiliadosLocalidad() {
@@ -11459,6 +11516,7 @@ async function initBrowser() {
   document.getElementById("btn-anexo-iv-nomenclador-tipo-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("tipo_prestacion", "anexo-iv-nomenclador-tipo-nuevo")));
   document.getElementById("btn-anexo-iv-nomenclador-especialidad-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("especialidad", "anexo-iv-nomenclador-especialidad-nuevo")));
   document.getElementById("afiliados-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAfiliados)));
+  document.getElementById("afiliados-periodo-select")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAfiliados));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
   document.getElementById("afiliados-buscar")?.addEventListener("input", renderAfiliadosTabla);
