@@ -7825,7 +7825,21 @@ function renderAfiliadosTabla() {
   const totalDeclarado = Number(document.getElementById("afiliados-total-input")?.value || 0);
   const cargados = afiliadosLocalidadActuales.reduce((a, r) => a + (r.cantidad_beneficiarios || 0), 0);
   const resumen = document.getElementById("afiliados-total-resumen");
-  if (resumen) resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Faltan: ${Math.max(0, totalDeclarado - cargados).toLocaleString("es-AR")}`;
+  if (resumen) {
+    const diferencia = totalDeclarado - cargados;
+    resumen.classList.remove("afiliados-resumen-alerta");
+    if (!afiliadosLocalidadActuales.length) {
+      resumen.textContent = "";
+    } else if (diferencia === 0) {
+      resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Coincide con el Total`;
+    } else if (diferencia > 0) {
+      resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Faltan ${diferencia.toLocaleString("es-AR")} para llegar al Total`;
+      resumen.classList.add("afiliados-resumen-alerta");
+    } else {
+      resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · ⚠ Supera el Total declarado por ${Math.abs(diferencia).toLocaleString("es-AR")} (localidades duplicadas o superpuestas entre prestadores — a corregir en la próxima presentación)`;
+      resumen.classList.add("afiliados-resumen-alerta");
+    }
+  }
 
   const filtradas = filtrarAfiliadosLocalidad();
   const body = document.getElementById("afiliados-table-body");
