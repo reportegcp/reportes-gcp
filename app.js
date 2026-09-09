@@ -7548,6 +7548,10 @@ async function inicializarVistaCobertura() {
   await handleCambioEjercicioCobertura();
 }
 
+let coberturaObraSocialActual = null;
+let coberturaAfiliadosLocalidadActuales = [];
+let coberturaPrestadoresActuales = [];
+
 async function handleCambioEjercicioCobertura() {
   const seleccionados = ejerciciosFiltroSeleccionados("cobertura");
   const osInput = document.getElementById("cobertura-os-search");
@@ -7581,11 +7585,15 @@ async function handleSeleccionObraSocialCobertura() {
   }
   if (count) count.textContent = "Cargando...";
   try {
-    const [afiliados, prestadores] = await Promise.all([
+    const [afiliados, afiliadosLocalidad, prestadores] = await Promise.all([
       cargarAfiliadosProvincia(os.id),
+      cargarAfiliadosLocalidadDeOS(os.id),
       cargarPrestadoresPorOS(os.id)
     ]);
-    renderCoberturaTabla(os, afiliados, prestadores.filter(p => p.activo !== false));
+    coberturaObraSocialActual = os;
+    coberturaAfiliadosLocalidadActuales = afiliadosLocalidad;
+    coberturaPrestadoresActuales = prestadores.filter(p => p.activo !== false);
+    renderCoberturaTabla(os, afiliados, coberturaPrestadoresActuales);
   } catch (error) {
     if (count) count.textContent = "No se pudo cargar la cobertura.";
     mostrarToast(error.message || "No se pudo cargar la cobertura.");
@@ -7629,11 +7637,14 @@ function renderCoberturaTabla(os, afiliados, prestadores) {
     return { provincia: a.provincia, beneficiarios: a.cantidad_beneficiarios, cubiertas, faltantes };
   });
 
-  body.innerHTML = filas.map(f => `<tr class="${f.faltantes.length ? "cobertura-fila-hueco" : ""}">
+  body.innerHTML = filas.map(f => `<tr class="cobertura-fila-clic ${f.faltantes.length ? "cobertura-fila-hueco" : ""}" data-provincia="${escaparHtml(f.provincia)}">
     <td><strong>${escaparHtml(f.provincia)}</strong></td>
     ${basicas.map(e => `<td><span class="cobertura-check ${f.cubiertas.has(e.id) ? "ok" : "falta"}">${f.cubiertas.has(e.id) ? "✓" : "✕"}</span></td>`).join("")}
     <td>${f.beneficiarios}</td>
   </tr>`).join("");
+  body.querySelectorAll("[data-provincia]").forEach(tr => {
+    tr.addEventListener("click", () => abrirModalCoberturaProvincia(tr.dataset.provincia));
+  });
 
   if (count) count.textContent = `${getObraSocialDisplay(os)} — ${afiliados.length} provincias con afiliados`;
   if (resumen) {
@@ -7642,6 +7653,75 @@ function renderCoberturaTabla(os, afiliados, prestadores) {
     document.getElementById("cobertura-resumen-hueco").textContent = String(conHueco);
     document.getElementById("cobertura-resumen-completa").textContent = String(completas);
   }
+}
+
+// ---------- Modal de detalle de provincia (localidades + prestadores) ----------
+
+let coberturaProvinciaModalActual = null;
+
+function especialidadesBasicasIds() {
+  return new Set(especialidadesPrestadorCache.filter(e => e.basica_obligatoria).map(e => e.id));
+}
+
+function abrirModalCoberturaProvincia(provincia) {
+  const modal = document.getElementById("cobertura-provincia-modal");
+  if (!modal) return;
+  coberturaProvinciaModalActual = provincia;
+  document.getElementById("cobertura-provincia-modal-title").textContent = provincia;
+  const os = coberturaObraSocialActual;
+  document.getElementById("cobertura-provincia-modal-subtitulo").textContent = os ? getObraSocialDisplay(os) : "";
+  const buscar = document.getElementById("cobertura-provincia-buscar");
+  if (buscar) buscar.value = "";
+  renderModalCoberturaProvincia(provincia, "");
+  abrirModal("cobertura-provincia-modal");
+}
+
+function renderModalCoberturaProvincia(provincia, busqueda) {
+  const cont = document.getElementById("cobertura-provincia-localidades");
+  if (!cont) return;
+  const provNorm = normalizarTexto(provincia);
+  const basicasIds = especialidadesBasicasIds();
+  const busquedaNorm = normalizarTexto(busqueda || "");
+
+  const localidades = coberturaAfiliadosLocalidadActuales
+    .filter(l => normalizarTexto(l.provincia) === provNorm)
+    .sort((a, b) => (b.cantidad_beneficiarios || 0) - (a.cantidad_beneficiarios || 0));
+
+  if (!localidades.length) {
+    cont.innerHTML = `<p style="color:var(--muted)">No hay localidades con afiliados cargadas para ${escaparHtml(provincia)}.</p>`;
+    return;
+  }
+
+  const bloques = localidades.map(l => {
+    const prestadoresLocalidad = coberturaPrestadoresActuales.filter(p =>
+      normalizarTexto(p.provincia) === provNorm && normalizarTexto(p.localidad) === normalizarTexto(l.localidad)
+    );
+    const cubiertas = new Set();
+    prestadoresLocalidad.forEach(p => (p.prestador_especialidades || []).forEach(f => { if (f.especialidad_id) cubiertas.add(f.especialidad_id); }));
+    const faltanBasicas = [...basicasIds].filter(id => !cubiertas.has(id)).length;
+    const coincideBusqueda = !busquedaNorm
+      || normalizarTexto(l.localidad).includes(busquedaNorm)
+      || prestadoresLocalidad.some(p => normalizarTexto(p.nombre_completo).includes(busquedaNorm));
+    if (!coincideBusqueda) return "";
+
+    const filasPrestadores = prestadoresLocalidad.length
+      ? prestadoresLocalidad.map(p => `<div class="cobertura-prestador-fila">
+          <strong>${escaparHtml(p.nombre_completo || "—")}</strong>
+          <span>${escaparHtml(textoTiposYEspecialidades(p).replace(/;/g, " ·") || "sin especialidades cargadas")}</span>
+        </div>`).join("")
+      : `<p style="color:var(--muted);font-size:12px;margin:4px 0 0">Sin prestadores cargados en esta localidad.</p>`;
+
+    return `<details class="table-card cobertura-localidad-card">
+      <summary style="padding:10px 14px;cursor:pointer">
+        <span class="cobertura-dot ${faltanBasicas ? "falta" : "ok"}" title="${faltanBasicas ? `Faltan ${faltanBasicas} especialidad(es) básica(s)` : "Básicas cubiertas"}"></span>
+        <strong>${escaparHtml(l.localidad)}</strong>${l.partido ? ` <span style="color:var(--muted);font-weight:400">· ${escaparHtml(l.partido)}</span>` : ""}
+        <span style="float:right;color:var(--muted);font-weight:700">${l.cantidad_beneficiarios ?? 0} beneficiarios · ${prestadoresLocalidad.length} prestador${prestadoresLocalidad.length === 1 ? "" : "es"}</span>
+      </summary>
+      <div style="padding:0 14px 12px;display:grid;gap:6px">${filasPrestadores}</div>
+    </details>`;
+  }).filter(Boolean).join("");
+
+  cont.innerHTML = bloques || `<p style="color:var(--muted)">Ninguna localidad coincide con "${escaparHtml(busqueda)}".</p>`;
 }
 
 // ---------- Afiliados por localidad ----------
@@ -11516,6 +11596,7 @@ async function initBrowser() {
   document.getElementById("btn-anexo-iv-nomenclador-tipo-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("tipo_prestacion", "anexo-iv-nomenclador-tipo-nuevo")));
   document.getElementById("btn-anexo-iv-nomenclador-especialidad-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("especialidad", "anexo-iv-nomenclador-especialidad-nuevo")));
   document.getElementById("afiliados-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialAfiliados)));
+  document.getElementById("cobertura-provincia-buscar")?.addEventListener("input", () => renderModalCoberturaProvincia(coberturaProvinciaModalActual, document.getElementById("cobertura-provincia-buscar").value));
   document.getElementById("afiliados-periodo-select")?.addEventListener("change", () => requiereAutenticacion(handleCambioPeriodoAfiliados));
   document.getElementById("afiliados-total-guardar")?.addEventListener("click", guardarTotalAfiliados);
   document.getElementById("afiliados-agregar")?.addEventListener("click", agregarAfiliadoLocalidad);
