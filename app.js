@@ -6588,25 +6588,37 @@ function textoEstadoNotificacion(notif) {
 }
 
 let cartillaModalSoloLectura = false;
+let cartillaNotifEditandoId = null;
 
 function renderNotificacionesCartilla() {
   const cont = document.getElementById("cartilla-notificaciones-lista");
   if (!cont) return;
   const hoyISO = hoyLocalISO();
   cont.innerHTML = cartillaNotificacionesActuales.map(n => {
+    if (String(n.id) === String(cartillaNotifEditandoId)) {
+      return `<div class="notificacion-row notificacion-editar-row">
+        <span class="notificacion-numero">${n.numero}ª notificación</span>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">Fecha
+          <input type="date" id="cartilla-notif-fecha-editar" value="${n.fecha_notificacion || hoyISO}">
+        </label>
+        <button type="button" class="secondary small" id="cartilla-notif-guardar-editar" data-notif-id="${n.id}">Guardar</button>
+        <button type="button" class="link-button" id="cartilla-notif-cancelar-editar">Cancelar</button>
+      </div>`;
+    }
     const color = colorNotificacion(n, hoyISO);
     const clase = n.estado === "RESPONDIO" ? "respondio" : n.estado === "NO_RESPONDIO" ? "no-respondio" : "pendiente";
     const marcar = !cartillaModalSoloLectura && n.estado === "PENDIENTE"
       ? `<button type="button" class="link-button" data-notif-marcar="RESPONDIO" data-notif-id="${n.id}">Marcar respondida</button>
          <button type="button" class="link-button" data-notif-marcar="NO_RESPONDIO" data-notif-id="${n.id}">No respondió</button>`
       : "";
+    const editar = cartillaModalSoloLectura ? "" : `<button type="button" class="link-button" data-notif-editar="${n.id}">Editar fecha</button>`;
     const borrar = cartillaModalSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-notif-borrar="${n.id}" title="Borrar esta notificación" aria-label="Borrar esta notificación">×</button>`;
     return `<div class="notificacion-row">
       <span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>
       <span class="notificacion-numero">${n.numero}ª notificación</span>
       <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
       <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
-      <div class="notificacion-actions">${marcar}${borrar}</div>
+      <div class="notificacion-actions">${marcar}${editar}${borrar}</div>
     </div>`;
   }).join("") || `<p class="notificaciones-hint">Todavía no se cargaron notificaciones.</p>`;
   cont.querySelectorAll("[data-notif-marcar]").forEach(btn => {
@@ -6615,6 +6627,35 @@ function renderNotificacionesCartilla() {
   cont.querySelectorAll("[data-notif-borrar]").forEach(btn => {
     btn.addEventListener("click", () => borrarNotificacionCartilla(btn.dataset.notifBorrar));
   });
+  cont.querySelectorAll("[data-notif-editar]").forEach(btn => {
+    btn.addEventListener("click", () => { cartillaNotifEditandoId = btn.dataset.notifEditar; renderNotificacionesCartilla(); });
+  });
+  document.getElementById("cartilla-notif-cancelar-editar")?.addEventListener("click", () => { cartillaNotifEditandoId = null; renderNotificacionesCartilla(); });
+  document.getElementById("cartilla-notif-guardar-editar")?.addEventListener("click", async (ev) => {
+    const id = ev.currentTarget.dataset.notifId;
+    const fecha = document.getElementById("cartilla-notif-fecha-editar")?.value;
+    if (!fecha) { mostrarToast("Elegí la fecha de la notificación."); return; }
+    await guardarFechaNotificacionCartilla(id, fecha);
+  });
+}
+
+async function guardarFechaNotificacionCartilla(id, fecha) {
+  const boton = document.getElementById("cartilla-notif-guardar-editar");
+  if (boton) { boton.disabled = true; boton.textContent = "Guardando..."; }
+  try {
+    const session = await asegurarSesionVigente();
+    const payload = { fecha_notificacion: fecha, fecha_limite_respuesta: sumarDiasHabiles(fecha, 10) };
+    const response = await fetchConTimeout(buildCartillaNotificacionesUrl(null, id), {
+      method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" }, body: JSON.stringify(payload)
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    cartillaNotifEditandoId = null;
+    await cargarYRenderizarNotificacionesModal(cartillaNotificacionesCartillaId);
+    cartillaNotificacionesTodasCargadas = false;
+    mostrarToast("Fecha de notificación actualizada.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo actualizar la fecha.");
+  }
 }
 
 async function borrarNotificacionCartilla(id) {
