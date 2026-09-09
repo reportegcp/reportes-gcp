@@ -7687,6 +7687,7 @@ async function inicializarVistaAfiliados() {
     if (selectEjercicio) selectEjercicio.hidden = true;
     afiliadosSoloLectura = false;
     document.getElementById("afiliados-total-editar").hidden = false;
+    document.getElementById("afiliados-total-guardar").hidden = false;
     document.getElementById("afiliados-agregar-block").hidden = false;
     document.getElementById("afiliados-total-input").readOnly = false;
     document.getElementById("afiliados-solo-lectura-aviso").hidden = true;
@@ -7702,7 +7703,8 @@ async function inicializarVistaAfiliados() {
   if (picker) picker.hidden = false;
   if (selectEjercicio) selectEjercicio.hidden = false;
   afiliadosSoloLectura = true;
-  document.getElementById("afiliados-total-editar").hidden = true;
+  document.getElementById("afiliados-total-editar").hidden = false;
+  document.getElementById("afiliados-total-guardar").hidden = true;
   document.getElementById("afiliados-agregar-block").hidden = true;
   document.getElementById("afiliados-total-input").readOnly = true;
   document.getElementById("afiliados-solo-lectura-aviso").hidden = false;
