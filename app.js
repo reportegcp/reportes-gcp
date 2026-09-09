@@ -7696,7 +7696,6 @@ function renderModalCoberturaProvincia(provincia, busqueda) {
   const cont = document.getElementById("cobertura-provincia-localidades");
   if (!cont) return;
   const provNorm = normalizarTexto(provincia);
-  const basicasIds = especialidadesBasicasIds();
   const busquedaNorm = normalizarTexto(busqueda || "");
 
   const localidades = coberturaAfiliadosLocalidadActuales
@@ -7712,9 +7711,6 @@ function renderModalCoberturaProvincia(provincia, busqueda) {
     const prestadoresLocalidad = coberturaPrestadoresActuales.filter(p =>
       normalizarTexto(p.provincia) === provNorm && normalizarTexto(p.localidad) === normalizarTexto(l.localidad)
     );
-    const cubiertas = new Set();
-    prestadoresLocalidad.forEach(p => (p.prestador_especialidades || []).forEach(f => { if (f.especialidad_id) cubiertas.add(f.especialidad_id); }));
-    const faltanBasicas = [...basicasIds].filter(id => !cubiertas.has(id)).length;
     const coincideBusqueda = !busquedaNorm
       || normalizarTexto(l.localidad).includes(busquedaNorm)
       || prestadoresLocalidad.some(p => normalizarTexto(p.nombre_completo).includes(busquedaNorm));
@@ -7729,7 +7725,6 @@ function renderModalCoberturaProvincia(provincia, busqueda) {
 
     return `<details class="cobertura-localidad-card">
       <summary class="cobertura-localidad-summary">
-        <span class="cobertura-dot ${faltanBasicas ? "falta" : "ok"}" title="${faltanBasicas ? `Faltan ${faltanBasicas} especialidad(es) básica(s)` : "Básicas cubiertas"}"></span>
         <strong>${escaparHtml(l.localidad)}</strong>${l.partido ? ` <span class="cobertura-localidad-partido">· ${escaparHtml(l.partido)}</span>` : ""}
         <span class="cobertura-localidad-meta">${l.cantidad_beneficiarios ?? 0} beneficiarios · ${prestadoresLocalidad.length} prestador${prestadoresLocalidad.length === 1 ? "" : "es"}</span>
       </summary>
