@@ -5629,7 +5629,9 @@ function sincronizarPeriodoGrafico(selectId, periodos) {
 
 function renderGraficoCartillas(reporte) {
   const periodos = getPeriodosReporteSeleccionados();
-  renderGraficosPorPeriodo("report-cartillas-chart", resumirPresentacionesPorPeriodo(reporte, periodos));
+  const resumenes = resumirPresentacionesPorPeriodo(reporte, periodos);
+  const combinado = periodos.length > 1 ? resumirCombinadoPeriodos(reporte, periodos) : null;
+  renderGraficosPorPeriodo("report-cartillas-chart", combinado ? [combinado, ...resumenes] : resumenes);
 }
 
 
@@ -6008,7 +6010,9 @@ function obtenerFilasReportePma(reporte, periodos) {
 
 function renderGraficoPma(reporte) {
   const periodos = getPeriodosPmaSeleccionados();
-  renderGraficosPorPeriodo("report-pma-chart", resumirPresentacionesPorPeriodo(reporte, periodos));
+  const resumenes = resumirPresentacionesPorPeriodo(reporte, periodos);
+  const combinado = periodos.length > 1 ? resumirCombinadoPeriodos(reporte, periodos) : null;
+  renderGraficosPorPeriodo("report-pma-chart", combinado ? [combinado, ...resumenes] : resumenes);
 }
 
 function renderReporteFaltantesPma() {
