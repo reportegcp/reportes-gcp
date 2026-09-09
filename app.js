@@ -5588,6 +5588,33 @@ function renderGraficoUnPeriodo(containerId, item) {
     </div>`;
 }
 
+function renderGraficosPorPeriodo(containerId, resumenes) {
+  if (typeof document === "undefined") return;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!resumenes || !resumenes.length) {
+    container.innerHTML = '<div class="chart-empty">Seleccioná uno o más ejercicios para ver el gráfico.</div>';
+    return;
+  }
+  container.innerHTML = resumenes.map(item => {
+    const valores = [
+      { etiqueta: "Presentaron", valor: Number(item.presentaron) || 0, clase: "presented" },
+      { etiqueta: "No presentaron", valor: Number(item.noPresentaron) || 0, clase: "missing" }
+    ];
+    const maximo = Math.max(1, ...valores.map(x => x.valor));
+    return `<div class="single-period-chart">
+      <div class="single-chart-title">Ejercicio ${escaparHtml(item.periodo)}</div>
+      <div class="single-chart-bars">
+        ${valores.map(x => `<div class="single-chart-row">
+          <span class="single-chart-label">${escaparHtml(x.etiqueta)}</span>
+          <div class="single-chart-track"><div class="single-chart-fill ${x.clase}" style="width:${Math.max(1, Math.round((x.valor / maximo) * 100))}%"></div></div>
+          <strong>${x.valor}</strong>
+        </div>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
 function sincronizarPeriodoGrafico(selectId, periodos) {
   if (typeof document === "undefined") return null;
   const select = document.getElementById(selectId);
@@ -5602,7 +5629,7 @@ function sincronizarPeriodoGrafico(selectId, periodos) {
 
 function renderGraficoCartillas(reporte) {
   const periodos = getPeriodosReporteSeleccionados();
-  renderGraficoUnPeriodo("report-cartillas-chart", resumirCombinadoPeriodos(reporte, periodos));
+  renderGraficosPorPeriodo("report-cartillas-chart", resumirPresentacionesPorPeriodo(reporte, periodos));
 }
 
 
@@ -5981,7 +6008,7 @@ function obtenerFilasReportePma(reporte, periodos) {
 
 function renderGraficoPma(reporte) {
   const periodos = getPeriodosPmaSeleccionados();
-  renderGraficoUnPeriodo("report-pma-chart", resumirCombinadoPeriodos(reporte, periodos));
+  renderGraficosPorPeriodo("report-pma-chart", resumirPresentacionesPorPeriodo(reporte, periodos));
 }
 
 function renderReporteFaltantesPma() {
