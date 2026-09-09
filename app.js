@@ -7831,12 +7831,12 @@ function renderAfiliadosTabla() {
     if (!afiliadosLocalidadActuales.length) {
       resumen.textContent = "";
     } else if (diferencia === 0) {
-      resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Coincide con el Total`;
+      resumen.textContent = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")} · Coincide con el Total`;
     } else if (diferencia > 0) {
-      resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · Faltan ${diferencia.toLocaleString("es-AR")} para llegar al Total`;
+      resumen.textContent = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")} · Faltan ${diferencia.toLocaleString("es-AR")} para llegar al Total`;
       resumen.classList.add("afiliados-resumen-alerta");
     } else {
-      resumen.textContent = `Cargados por localidad: ${cargados.toLocaleString("es-AR")} · ⚠ Supera el Total declarado por ${Math.abs(diferencia).toLocaleString("es-AR")} (localidades duplicadas o superpuestas entre prestadores — a corregir en la próxima presentación)`;
+      resumen.textContent = `Total sumando la tabla de localidades: ${cargados.toLocaleString("es-AR")} · ⚠ Supera el Total declarado por ${Math.abs(diferencia).toLocaleString("es-AR")} (localidades duplicadas o superpuestas entre prestadores — a corregir en la próxima presentación)`;
       resumen.classList.add("afiliados-resumen-alerta");
     }
   }
