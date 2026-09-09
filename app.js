@@ -8579,7 +8579,6 @@ async function cargarYRenderizarPeriodoAnexoI(os, ejercicio) {
   if (!secciones.length) secciones = resolverSeccionesPorAnioInicio(anexoISeccionesCache, anioInicioDesdeEjercicio(ejercicio));
   anexoISeccionesVistaActual = secciones;
   renderAnexoISecciones();
-  await actualizarAnexoIAdjuntos();
   await verificarYRenderizarPresentacionAnexoIOs(os);
 }
 
@@ -8625,7 +8624,6 @@ async function guardarBorradorAnexoI() {
     const registro = construirRegistroAnexoI(anexoIObraSocialActual, anexoIEjercicioActual, "borrador");
     anexoIDeclaracionActual = await guardarPmaDeclaracionEnSupabase(registro, anexoIDeclaracionActual?.id || null, session.access_token);
     if (msg) { msg.textContent = "Borrador guardado."; setTimeout(() => { if (msg.textContent === "Borrador guardado.") msg.textContent = ""; }, 4000); }
-    await actualizarAnexoIAdjuntos();
   } catch (error) {
     mostrarToast(error.message || "No se pudo guardar el borrador.");
   } finally {
@@ -8670,7 +8668,6 @@ async function presentarAnexoI(os, ejercicio, boton) {
     };
     anexoIDeclaracionActual = await guardarPmaDeclaracionEnSupabase(registro, anexoIDeclaracionActual?.id || null, session.access_token);
     renderAnexoISecciones();
-    await actualizarAnexoIAdjuntos();
     mostrarToast("¡Anexo I presentado! La Superintendencia lo va a revisar.");
     await verificarYRenderizarPresentacionAnexoIOs(os);
   } catch (error) {
@@ -10087,7 +10084,17 @@ async function handleSeleccionObraSocialCartillaRevision() {
     const session = await asegurarSesionVigente();
     const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
     const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
-    cartillaRevisionPeriodos = response.ok ? await response.json() : [];
+    const todasLasPresentaciones = response.ok ? await response.json() : [];
+    // El auditor revisa el período vigente y el inmediatamente anterior: las presentaciones más
+    // viejas ya fueron aprobadas hace tiempo y solo generaban ruido en este desplegable. El
+    // ejercicio se compara en su forma canónica porque, según cuándo arranca el ejercicio de cada
+    // Obra Social, puede escribirse como año simple ("2027") o como rango ("2026/27").
+    const ejercicioVigente = ejercicioCanonico(ejercicioVigenteParaOs(os));
+    const ejercicioAnterior = ejercicioCanonico(ejercicioAnteriorParaOs(os));
+    cartillaRevisionPeriodos = todasLasPresentaciones.filter(p => {
+      const ej = ejercicioCanonico(p.ejercicio);
+      return (ejercicioVigente && ej === ejercicioVigente) || (ejercicioAnterior && ej === ejercicioAnterior);
+    });
   } catch (error) { console.error(error); cartillaRevisionPeriodos = []; }
   if (!cartillaRevisionPeriodos.length) {
     if (periodoSelect) periodoSelect.hidden = true;
