@@ -291,16 +291,16 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 }
 .search-icon-text{font-size:10.5px;font-weight:800;letter-spacing:.2px;left:10px;text-transform:uppercase}
 .date-filter-inline{
-  display:flex;align-items:center;gap:6px;
-  height:42px;padding:0 10px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;
+  height:42px;padding:3px 10px;
   border:1px solid var(--line);border-radius:9px;background:#fff
 }
 .date-filter-inline .date-filter-label{
-  font-size:10.5px;font-weight:800;letter-spacing:.2px;text-transform:uppercase;
-  color:var(--muted);white-space:nowrap;flex:none
+  font-size:9.5px;font-weight:800;letter-spacing:.2px;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap
 }
 .date-filter-inline input[type="date"]{
-  border:0;padding:0;height:100%;width:100%;min-width:0;background:transparent;font-size:12.5px
+  border:0;padding:0;height:auto;line-height:1.15;width:100%;min-width:0;background:transparent;font-size:12px
 }
 .date-filter-inline input[type="date"]:focus{outline:none;box-shadow:none}
 .table-card{
@@ -1331,9 +1331,10 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .afiliados-compacto input,.afiliados-compacto select{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}
 #afiliados-buscar{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}
 .exercise-multi-select{min-width:0}
-.exercise-multi-select > summary{height:42px;background:#fff}
-.pma-toolbar{grid-template-columns:minmax(280px,1.45fr) minmax(185px,.75fr) minmax(170px,.7fr) minmax(180px,.75fr)}
-.cartillas-toolbar{grid-template-columns:minmax(300px,1fr) minmax(190px,.65fr) minmax(190px,.65fr)}
+.exercise-multi-select > summary{height:42px;background:#fff;font-weight:600;white-space:nowrap}
+.exercise-multi-select > summary span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pma-toolbar{grid-template-columns:minmax(280px,1.45fr) minmax(210px,.85fr) minmax(170px,.7fr) minmax(180px,.75fr)}
+.cartillas-toolbar{grid-template-columns:minmax(300px,1fr) minmax(210px,.75fr) minmax(190px,.65fr)}
 .report-agent-row{cursor:pointer}
 .report-agent-row:hover td{background:#f5f8fc}
 .history-modal{max-width:1120px}
