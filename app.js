@@ -808,7 +808,8 @@ function ordenarObrasSocialesPorRnos(lista, direction = "asc") {
 function buildObrasSocialesUrl() {
   const fields = [
     "id", "rnos", "denominacion", "sigla", "domicilio", "localidad", "provincia",
-    "telefono", "email", "web", "inicio_ejercicio", "estado", "observaciones"
+    "telefono", "email", "web", "inicio_ejercicio", "estado", "observaciones",
+    "anexo_ii_referencia_url", "anexo_ii_referencia_nombre"
   ].join(",");
 
   const params = new URLSearchParams();
@@ -9303,10 +9304,68 @@ function filialAnexoIISoloLecturaHtml(f) {
   </div>`;
 }
 
+function anexoIIReferenciaHtml(os, permitirSubir) {
+  const url = os?.anexo_ii_referencia_url;
+  const nombre = os?.anexo_ii_referencia_nombre || "Anexo II vigente";
+  const verLink = url
+    ? `<a href="${escaparHtml(url)}" target="_blank" rel="noopener" class="anexo-ii-ref-link">📎 ${escaparHtml(nombre)} · Ver/Descargar</a>`
+    : `<span class="anexo-ii-ref-vacio">Todavía no se cargó el archivo aprobado de referencia para copiar y pegar.</span>`;
+  const subirHtml = permitirSubir
+    ? `<label class="secondary small anexo-ii-ref-subir-btn">
+        ${url ? "Reemplazar archivo" : "Subir archivo aprobado"}
+        <input type="file" id="anexo-ii-ref-file" accept=".pdf,.doc,.docx" hidden>
+      </label>`
+    : "";
+  return `<div class="anexo-ii-ref-card">
+    <div>${verLink}</div>
+    <div style="display:flex;align-items:center;gap:8px">${subirHtml}<span id="anexo-ii-ref-msg" style="font-size:12px;color:var(--muted)"></span></div>
+  </div>`;
+}
+
+function bindAnexoIIReferenciaUpload(os) {
+  const input = document.getElementById("anexo-ii-ref-file");
+  if (!input) return;
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file || !os) return;
+    await subirReferenciaAnexoII(file, os);
+  });
+}
+
+async function subirReferenciaAnexoII(file, os) {
+  const msg = document.getElementById("anexo-ii-ref-msg");
+  if (msg) msg.textContent = "Subiendo...";
+  try {
+    const session = await asegurarSesionVigente();
+    const extension = (file.name.split(".").pop() || "pdf").toLowerCase();
+    const path = `anexo-ii/${os.id}-${Date.now()}.${extension}`;
+    const uploadResp = await fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+      method: "POST",
+      headers: { ...authHeaders(session.access_token), "Content-Type": file.type || "application/octet-stream" },
+      body: file
+    });
+    if (!uploadResp.ok) throw new Error((await leerErrorApi(uploadResp)) || "No se pudo subir el archivo.");
+    const archivoUrl = `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`;
+    const patchResp = await fetch(buildTableUrl("obras_sociales", { id: `eq.${os.id}` }), {
+      method: "PATCH",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" },
+      body: JSON.stringify({ anexo_ii_referencia_url: archivoUrl, anexo_ii_referencia_nombre: file.name })
+    });
+    if (!patchResp.ok) throw new Error((await leerErrorApi(patchResp)) || "No se pudo guardar la referencia.");
+    os.anexo_ii_referencia_url = archivoUrl;
+    os.anexo_ii_referencia_nombre = file.name;
+    mostrarToast("Archivo de referencia del Anexo II subido correctamente.");
+    if (typeof renderAnexoIISeccion === "function" && anexoIIObraSocialActual === os) renderAnexoIISeccion();
+    if (typeof renderAnexoIIAdminSeleccionado === "function" && anexoIIAdminObraSocialActual === os) renderAnexoIIAdminSeleccionado();
+  } catch (error) {
+    if (msg) msg.textContent = "";
+    mostrarToast(error.message || "No se pudo subir el archivo de referencia.");
+  }
+}
+
+
 function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
   const cont = document.getElementById("anexo-ii-contenido");
-  if (!cont) return;
-  const soloLectura = anexoIIDeclaracionActual?.estado === "presentada";
   const secciones = seccionesOverride || anexoIIDeclaracionActual?.secciones || [];
   const filiales = filialesOverride || anexoIIDeclaracionActual?.filiales || [];
 
@@ -9336,7 +9395,8 @@ function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
         </div>
       </div>`;
 
-  cont.innerHTML = filialesHtml + seccionesHtml;
+  cont.innerHTML = anexoIIReferenciaHtml(anexoIIObraSocialActual, !soloLectura) + filialesHtml + seccionesHtml;
+  bindAnexoIIReferenciaUpload(anexoIIObraSocialActual);
   const acciones = document.getElementById("anexo-ii-acciones-borrador");
   if (acciones) acciones.hidden = soloLectura;
   if (!soloLectura) {
@@ -9524,6 +9584,7 @@ function renderAnexoIIAdminSeleccionado() {
       </div>`).join("")
     : `<p style="color:var(--muted)">No cargó texto.</p>`;
   cont.innerHTML = `<div class="anexo-ii-documento">
+    ${anexoIIReferenciaHtml(anexoIIAdminObraSocialActual, false)}
     <div class="anexo-ii-documento-encabezado">
       <div>
         <h2>Anexo II</h2>

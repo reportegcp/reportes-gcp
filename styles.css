@@ -1753,6 +1753,14 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .anexo-i-adjunto-add-row button{white-space:nowrap}
 @media(max-width:700px){.anexo-i-adjunto-add-row{grid-template-columns:1fr}}
 .anexo-i-seccion{margin-bottom:12px}
+.anexo-ii-ref-card{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+  background:#eef6f0;border:1px solid #bfe0c7;border-radius:10px;padding:10px 14px;margin-bottom:14px
+}
+.anexo-ii-ref-link{color:#1f6b3a;font-weight:700;font-size:13px;text-decoration:none}
+.anexo-ii-ref-link:hover{text-decoration:underline}
+.anexo-ii-ref-vacio{color:var(--muted);font-size:12.5px;font-style:italic}
+.anexo-ii-ref-subir-btn{cursor:pointer;display:inline-flex;align-items:center}
 .anexo-i-seccion .table-meta{border-bottom:1px solid var(--line)}
 .anexo-i-texto{padding:14px 20px 0;margin:0;font-size:13.5px;line-height:1.5;color:#33404d;text-align:justify}
 .anexo-i-texto p{margin:0 0 10px}
