@@ -9366,6 +9366,8 @@ async function subirReferenciaAnexoII(file, os) {
 
 function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
   const cont = document.getElementById("anexo-ii-contenido");
+  if (!cont) return;
+  const soloLectura = anexoIIDeclaracionActual?.estado === "presentada";
   const secciones = seccionesOverride || anexoIIDeclaracionActual?.secciones || [];
   const filiales = filialesOverride || anexoIIDeclaracionActual?.filiales || [];
 
