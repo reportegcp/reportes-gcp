@@ -9158,6 +9158,7 @@ function leerFilialesAnexoIIDesdeDom() {
     nombre: el.querySelector("[data-filial-nombre]")?.value || "",
     domicilio: el.querySelector("[data-filial-domicilio]")?.value || "",
     localidad: el.querySelector("[data-filial-localidad]")?.value || "",
+    partido: el.querySelector("[data-filial-partido]")?.value || "",
     provincia: el.querySelector("[data-filial-provincia]")?.value || "",
     contactos: [...el.querySelectorAll("[data-anexo-ii-contacto]")].map(c => ({
       id: c.dataset.anexoIiContacto,
@@ -9219,11 +9220,12 @@ function filialAnexoIIHtml(filial) {
     <div style="padding:4px 16px 16px">
       <div class="form-grid">
         <label class="full"><span>Nombre de la sede</span><input type="text" data-filial-nombre value="${escaparHtml(filial.nombre)}" placeholder="Ej: Casa Central, Sucursal Rosario"></label>
+        <label class="full"><span>Domicilio</span><input type="text" data-filial-domicilio value="${escaparHtml(filial.domicilio)}" placeholder="Calle y número"></label>
       </div>
       <div class="form-grid form-grid-3">
-        <label><span>Domicilio</span><input type="text" data-filial-domicilio value="${escaparHtml(filial.domicilio)}" placeholder="Calle y número"></label>
-        <label><span>Localidad</span><input type="text" data-filial-localidad value="${escaparHtml(filial.localidad)}"></label>
-        <label><span>Provincia</span><input type="text" data-filial-provincia value="${escaparHtml(filial.provincia)}"></label>
+        <label><span>Provincia</span><select data-filial-provincia><option value="">—</option></select></label>
+        <label><span>Partido</span><select data-filial-partido disabled><option value="">—</option></select></label>
+        <label><span>Localidad</span><select data-filial-localidad disabled><option value="">—</option></select></label>
       </div>
       <div style="margin-top:10px">
         ${(filial.contactos || []).map(c => contactoAnexoIIHtml(filial.id, c)).join("")}
@@ -9232,6 +9234,49 @@ function filialAnexoIIHtml(filial) {
     </div>
   </div>`;
 }
+
+function poblarCombosFilialAnexoII(card, filial) {
+  const selProvincia = card.querySelector("[data-filial-provincia]");
+  const selPartido = card.querySelector("[data-filial-partido]");
+  const selLocalidad = card.querySelector("[data-filial-localidad]");
+  if (!selProvincia || !selPartido || !selLocalidad) return;
+
+  const provincias = [...new Set(localidadesArCache.map(l => l.provincia))].sort();
+  selProvincia.innerHTML = `<option value="">—</option>` + provincias.map(p => `<option value="${escaparHtml(p)}" ${p === filial.provincia ? "selected" : ""}>${escaparHtml(p)}</option>`).join("");
+
+  const poblarPartidos = (provincia, partidoSel) => {
+    if (!provincia) { selPartido.innerHTML = `<option value="">—</option>`; selPartido.disabled = true; return; }
+    const partidos = [...new Set(localidadesArCache.filter(l => l.provincia === provincia).map(l => l.partido))].sort();
+    selPartido.innerHTML = `<option value="">—</option>` + partidos.map(p => `<option value="${escaparHtml(p)}" ${p === partidoSel ? "selected" : ""}>${escaparHtml(p)}</option>`).join("");
+    selPartido.disabled = false;
+  };
+  const poblarLocalidades = (provincia, partido, localidadSel) => {
+    if (!provincia || !partido) { selLocalidad.innerHTML = `<option value="">—</option>`; selLocalidad.disabled = true; return; }
+    const localidades = [...new Set(localidadesArCache.filter(l => l.provincia === provincia && l.partido === partido).map(l => l.localidad))].sort();
+    selLocalidad.innerHTML = `<option value="">—</option>` + localidades.map(l => `<option value="${escaparHtml(l)}" ${l === localidadSel ? "selected" : ""}>${escaparHtml(l)}</option>`).join("");
+    selLocalidad.disabled = false;
+  };
+
+  poblarPartidos(filial.provincia, filial.partido);
+  poblarLocalidades(filial.provincia, filial.partido, filial.localidad);
+
+  selProvincia.addEventListener("change", () => {
+    poblarPartidos(selProvincia.value, "");
+    poblarLocalidades("", "", "");
+  });
+  selPartido.addEventListener("change", () => {
+    poblarLocalidades(selProvincia.value, selPartido.value, "");
+  });
+}
+
+function poblarTodosLosCombosFilialAnexoII(filiales = []) {
+  document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-filial]").forEach(card => {
+    const filial = filiales.find(f => f.id === card.dataset.anexoIiFilial) || {};
+    poblarCombosFilialAnexoII(card, filial);
+  });
+}
+
+
 
 function seccionAnexoIIHtml(seccion) {
   return `<div class="anexo-ii-seccion-card" data-anexo-ii-seccion="${escaparHtml(seccion.id)}">
@@ -9255,7 +9300,7 @@ function seccionAnexoIIHtml(seccion) {
 function bindAccionesAnexoIIEditable() {
   document.getElementById("anexo-ii-contenido")?.querySelector("[data-anexo-ii-add-filial]")?.addEventListener("click", () => {
     const filiales = leerFilialesAnexoIIDesdeDom();
-    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
+    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", partido: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
     renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
   });
   document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-filial]").forEach(btn => {
@@ -9295,7 +9340,7 @@ function bindAccionesAnexoIIEditable() {
 }
 
 function filialAnexoIISoloLecturaHtml(f) {
-  const direccion = [f.domicilio, f.localidad, f.provincia].filter(Boolean).join(", ");
+  const direccion = [f.domicilio, f.localidad, f.partido, f.provincia].filter(Boolean).join(", ");
   const contactos = (f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail);
   return `<div class="anexo-ii-documento-sede">
     <strong>${escaparHtml(f.nombre) || escaparHtml(direccion) || "Sede"}</strong>
@@ -9399,6 +9444,7 @@ function renderAnexoIISeccion(seccionesOverride, filialesOverride) {
 
   cont.innerHTML = anexoIIReferenciaHtml(anexoIIObraSocialActual, !soloLectura) + filialesHtml + seccionesHtml;
   bindAnexoIIReferenciaUpload(anexoIIObraSocialActual);
+  if (!soloLectura) poblarTodosLosCombosFilialAnexoII(filiales);
   const acciones = document.getElementById("anexo-ii-acciones-borrador");
   if (acciones) acciones.hidden = soloLectura;
   if (!soloLectura) {
@@ -9494,6 +9540,7 @@ async function presentarAnexoII(os, ejercicio, boton) {
 
 async function inicializarVistaAnexoII() {
   if (typeof document === "undefined") return;
+  try { await cargarLocalidadesAr(); } catch (error) { console.error(error); }
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   const osId = obraSocialIdSesionActual();
   const os = obrasSociales.find(o => Number(o.id) === Number(osId));
