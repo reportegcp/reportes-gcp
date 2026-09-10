@@ -9164,7 +9164,8 @@ function leerFilialesAnexoIIDesdeDom() {
       id: c.dataset.anexoIiContacto,
       etiqueta: c.querySelector("[data-contacto-etiqueta]")?.value || "",
       telefono: c.querySelector("[data-contacto-telefono]")?.value || "",
-      mail: c.querySelector("[data-contacto-mail]")?.value || ""
+      mail: c.querySelector("[data-contacto-mail]")?.value || "",
+      horario: c.querySelector("[data-contacto-horario]")?.value || ""
     }))
   }));
 }
@@ -9207,6 +9208,7 @@ function contactoAnexoIIHtml(filialId, contacto) {
     <input type="text" data-contacto-etiqueta value="${escaparHtml(contacto.etiqueta)}" placeholder="Para qué (opcional), ej: Derivaciones">
     <input type="text" data-contacto-telefono value="${escaparHtml(contacto.telefono)}" placeholder="Teléfono">
     <input type="email" data-contacto-mail value="${escaparHtml(contacto.mail)}" placeholder="Mail">
+    <input type="text" data-contacto-horario value="${escaparHtml(contacto.horario)}" placeholder="Horario de atención">
     <button type="button" class="icon-button" data-anexo-ii-quitar-contacto="${escaparHtml(filialId)}::${escaparHtml(contacto.id)}" aria-label="Quitar este teléfono/mail">×</button>
   </div>`;
 }
@@ -9300,7 +9302,7 @@ function seccionAnexoIIHtml(seccion) {
 function bindAccionesAnexoIIEditable() {
   document.getElementById("anexo-ii-contenido")?.querySelector("[data-anexo-ii-add-filial]")?.addEventListener("click", () => {
     const filiales = leerFilialesAnexoIIDesdeDom();
-    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", partido: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" }] });
+    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", partido: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "", horario: "" }] });
     renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
   });
   document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-filial]").forEach(btn => {
@@ -9313,7 +9315,7 @@ function bindAccionesAnexoIIEditable() {
     btn.addEventListener("click", () => {
       const filiales = leerFilialesAnexoIIDesdeDom();
       const filial = filiales.find(f => f.id === btn.dataset.anexoIiAddContacto);
-      if (filial) filial.contactos.push({ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "" });
+      if (filial) filial.contactos.push({ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "", horario: "" });
       renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
     });
   });
@@ -9341,11 +9343,11 @@ function bindAccionesAnexoIIEditable() {
 
 function filialAnexoIISoloLecturaHtml(f) {
   const direccion = [f.domicilio, f.localidad, f.partido, f.provincia].filter(Boolean).join(", ");
-  const contactos = (f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail);
+  const contactos = (f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail || c.horario);
   return `<div class="anexo-ii-documento-sede">
     <strong>${escaparHtml(f.nombre) || escaparHtml(direccion) || "Sede"}</strong>
     ${f.nombre && direccion ? `<div class="anexo-ii-documento-direccion">${escaparHtml(direccion)}</div>` : ""}
-    ${contactos.length ? `<ul>${contactos.map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
+    ${contactos.length ? `<ul>${contactos.map(c => `<li>${escaparHtml([c.etiqueta, c.telefono, c.mail, c.horario ? `Horario: ${c.horario}` : ""].filter(Boolean).join(" — "))}</li>`).join("")}</ul>` : ""}
   </div>`;
 }
 
