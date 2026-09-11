@@ -5398,7 +5398,67 @@ function renderPma() {
     const edit=()=>requiereAutenticacion(()=>abrirModalPmaEdicion(Number(tr.dataset.pmaId)));
     tr.addEventListener("click",edit); tr.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();edit();}});
   });
+  renderGraficoNotifPorEjercicioPma();
+  renderGraficoNotifPorNumeroPma();
 }
+
+function categoriaNotifParaGraficoPma(pmaId, hoyISO) {
+  const est = estadoNotificacionesPma(pmaId, hoyISO);
+  if (est.estado === "SIN_NOTIFICAR") return "sin_notificar";
+  if (est.estado === "RESPONDIO") return "respondio";
+  if (est.estado === "NO_RESPONDIO") return "no_respondio";
+  return est.vencida ? "vencida" : "esperando";
+}
+
+function renderGraficoNotifPorEjercicioPma() {
+  const cont = document.getElementById("pma-notif-chart-ejercicio");
+  if (!cont) return;
+  const hoyISO = hoyLocalISO();
+  const categorias = [
+    { key: "sin_notificar", color: "#9aa7b5", label: "Sin notificar" },
+    { key: "esperando", color: "#e0b400", label: "Esperando respuesta" },
+    { key: "vencida", color: "#c0392b", label: "Vencida sin girar" },
+    { key: "respondio", color: "#278664", label: "Respondió" },
+    { key: "no_respondio", color: "#7b4fa3", label: "No respondió (girado)" }
+  ];
+  const porEjercicio = new Map();
+  pma.forEach(p => {
+    const ej = p.ejercicio || "—";
+    if (!porEjercicio.has(ej)) porEjercicio.set(ej, { sin_notificar: 0, esperando: 0, vencida: 0, respondio: 0, no_respondio: 0 });
+    porEjercicio.get(ej)[categoriaNotifParaGraficoPma(p.id, hoyISO)]++;
+  });
+  const ejercicios = [...porEjercicio.keys()].sort((a, b) => b.localeCompare(a));
+  cont.innerHTML = ejercicios.map(ej => {
+    const c = porEjercicio.get(ej);
+    const total = categorias.reduce((acc, cat) => acc + c[cat.key], 0);
+    const segs = categorias.map(cat => {
+      if (!c[cat.key]) return "";
+      const pct = total ? (c[cat.key] / total * 100) : 0;
+      return `<div class="notif-stack-seg" style="width:${pct}%;background:${cat.color}" title="${cat.label}: ${c[cat.key]}"></div>`;
+    }).join("");
+    return `<div class="notif-stack-row">
+      <div class="report-chart-label" title="${escaparHtml(ej)}">${escaparHtml(ej)}</div>
+      <div class="notif-stack-track">${segs}</div>
+      <div class="report-chart-value">${total}</div>
+    </div>`;
+  }).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin datos para graficar.</p>`;
+}
+
+function renderGraficoNotifPorNumeroPma() {
+  const cont = document.getElementById("pma-notif-chart-numero");
+  if (!cont) return;
+  const conteoPorNumero = new Map();
+  pma.forEach(p => {
+    const notifs = pmaNotificacionesPorPma.get(Number(p.id)) || [];
+    const respondida = notifs.find(n => n.estado === "RESPONDIO");
+    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
+  });
+  const items = [...conteoPorNumero.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([numero, cantidad]) => ({ etiqueta: `Respondió a la ${numero}ª notificación`, valor: cantidad }));
+  renderBarChart("pma-notif-chart-numero", items);
+}
+
 async function cargarYRenderizarPma() {
   if(typeof document==="undefined")return;
   const status=document.getElementById("pma-source-status"), count=document.getElementById("pma-count");
