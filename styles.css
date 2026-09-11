@@ -1383,6 +1383,11 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .icon-alerta{color:#a85d13;font-size:13px}
 #anexo-iv-prestadores-table td, #anexo-iv-prestadores-table th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #anexo-iv-admin-prestadores-table td, #anexo-iv-admin-prestadores-table th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.anexo-iv-tabs{display:flex;gap:4px;margin:16px 0 0;border-bottom:2px solid var(--border, #e2e8f0)}
+.anexo-iv-tab-btn{background:none;border:none;padding:10px 18px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+.anexo-iv-tab-btn:hover{color:var(--text)}
+.anexo-iv-tab-btn.is-active{color:var(--primary, #1d4ed8);border-bottom-color:var(--primary, #1d4ed8)}
+.anexo-iv-tab-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#a85d13;color:#fff;font-size:11px;font-weight:700;margin-left:6px}
 .stat-pill-inline.pendiente input{width:66px;padding:2px 6px;font-size:11px;height:auto}
 .stat-pill-inline.pendiente button{padding:3px 10px;font-size:11px;height:auto;border-radius:999px}
 .afiliados-compacto input,.afiliados-compacto select{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}

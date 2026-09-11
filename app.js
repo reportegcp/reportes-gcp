@@ -9878,6 +9878,22 @@ async function tomarSnapshotAnexoIVPrestadores(declaracionId, obraSocialId, acce
   if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
 }
 
+function bindAnexoIVTabs() {
+  const botones = document.querySelectorAll(".anexo-iv-tab-btn");
+  if (!botones.length || botones[0].dataset.bound) return;
+  botones.forEach(btn => {
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => {
+      botones.forEach(b => b.classList.toggle("is-active", b === btn));
+      const panelGuia = document.getElementById("anexo-iv-tab-panel-guia");
+      const panelPrestadores = document.getElementById("anexo-iv-tab-panel-prestadores");
+      const esPrestadores = btn.dataset.anexoIvTab === "prestadores";
+      if (panelGuia) panelGuia.hidden = esPrestadores;
+      if (panelPrestadores) panelPrestadores.hidden = !esPrestadores;
+    });
+  });
+}
+
 let anexoIVPrestadoresFiltroTexto = "";
 let anexoIVPrestadoresFiltroSoloPendientes = false;
 let anexoIVPrestadoresPaginaActual = 1;
@@ -9932,6 +9948,12 @@ function renderAnexoIVPrestadoresTabla() {
   const desde = (anexoIVPrestadoresPaginaActual - 1) * ANEXO_IV_PRESTADORES_POR_PAGINA;
   const filas = filtradas.slice(desde, desde + ANEXO_IV_PRESTADORES_POR_PAGINA);
   if (count) count.textContent = todasLasFilas.length ? `${filtradas.length} de ${todasLasFilas.length} prestador${todasLasFilas.length === 1 ? "" : "es"}` : "";
+  const badge = document.getElementById("anexo-iv-tab-prestadores-badge");
+  if (badge) {
+    const totalPendientes = todasLasFilas.filter(p => p.pendiente_revision).length;
+    badge.hidden = !totalPendientes;
+    badge.textContent = String(totalPendientes);
+  }
   if (vacio) vacio.hidden = todasLasFilas.length > 0;
   if (bloqueEditable) bloqueEditable.hidden = soloLectura;
   if (paginacion) paginacion.hidden = filtradas.length <= ANEXO_IV_PRESTADORES_POR_PAGINA;
@@ -10509,6 +10531,7 @@ async function presentarAnexoIV(os, ejercicio, boton) {
 
 async function inicializarVistaAnexoIV() {
   if (typeof document === "undefined") return;
+  bindAnexoIVTabs();
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
   try { await cargarLocalidadesAr(); poblarSelectProvinciaAnexoIVPrestador(); } catch (error) { console.error(error); }
   try { await cargarAnexoIVNomenclador(); } catch (error) { console.error(error); }

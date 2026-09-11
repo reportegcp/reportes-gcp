@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 80</span>
+        <span>Versión 81</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -556,13 +556,21 @@
           </div>
         </div>
 
-        <div id="anexo-iv-contenido"></div>
-
-        <div class="module-actions" id="anexo-iv-acciones-borrador" style="justify-content:flex-start;align-items:center;gap:10px;margin-top:4px">
-          <button class="primary" id="btn-guardar-borrador-anexo-iv" type="button">Guardar borrador</button>
-          <span id="anexo-iv-guardado-msg" style="color:var(--muted);font-size:13px"></span>
+        <div class="anexo-iv-tabs">
+          <button type="button" class="anexo-iv-tab-btn is-active" id="anexo-iv-tab-guia" data-anexo-iv-tab="guia">Secciones de la guía</button>
+          <button type="button" class="anexo-iv-tab-btn" id="anexo-iv-tab-prestadores" data-anexo-iv-tab="prestadores">Listado de prestadores <span id="anexo-iv-tab-prestadores-badge" class="anexo-iv-tab-badge" hidden></span></button>
         </div>
 
+        <div id="anexo-iv-tab-panel-guia">
+          <div id="anexo-iv-contenido"></div>
+
+          <div class="module-actions" id="anexo-iv-acciones-borrador" style="justify-content:flex-start;align-items:center;gap:10px;margin-top:4px">
+            <button class="primary" id="btn-guardar-borrador-anexo-iv" type="button">Guardar borrador</button>
+            <span id="anexo-iv-guardado-msg" style="color:var(--muted);font-size:13px"></span>
+          </div>
+        </div>
+
+        <div id="anexo-iv-tab-panel-prestadores" hidden>
         <div class="table-card" style="margin-top:16px">
           <div class="table-meta">
             <strong>Listado de prestadores</strong>
@@ -583,7 +591,7 @@
           <div class="table-scroll" id="anexo-iv-prestadores-table-scroll" style="overflow-x:hidden">
             <table class="data-table" id="anexo-iv-prestadores-table" style="table-layout:fixed;width:100%">
               <colgroup>
-                <col style="width:26%"><col style="width:18%"><col style="width:16%"><col style="width:14%"><col style="width:13%"><col style="width:13%">
+                <col style="width:18%"><col style="width:20%"><col style="width:17%"><col style="width:16%"><col style="width:14%"><col style="width:15%">
               </colgroup>
               <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Partido</th><th>Provincia</th></tr></thead>
               <tbody id="anexo-iv-prestadores-table-body"></tbody>
@@ -595,6 +603,7 @@
             <span id="anexo-iv-prestadores-pag-info" style="font-size:13px;color:var(--muted)"></span>
             <button type="button" class="secondary small" id="anexo-iv-prestadores-pag-siguiente">Siguiente →</button>
           </div>
+        </div>
         </div>
       </section>
 
