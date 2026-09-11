@@ -5422,7 +5422,7 @@ function renderGraficoNotifPorEjercicioPma() {
     { key: "no_respondio", color: "#7b4fa3", label: "No respondió (girado)" }
   ];
   const porEjercicio = new Map();
-  pma.forEach(p => {
+  obtenerPmaFiltradas().forEach(p => {
     const ej = p.ejercicio || "—";
     if (!porEjercicio.has(ej)) porEjercicio.set(ej, { sin_notificar: 0, esperando: 0, vencida: 0, respondio: 0, no_respondio: 0 });
     porEjercicio.get(ej)[categoriaNotifParaGraficoPma(p.id, hoyISO)]++;
@@ -5448,7 +5448,7 @@ function renderGraficoNotifPorNumeroPma() {
   const cont = document.getElementById("pma-notif-chart-numero");
   if (!cont) return;
   const conteoPorNumero = new Map();
-  pma.forEach(p => {
+  obtenerPmaFiltradas().forEach(p => {
     const notifs = pmaNotificacionesPorPma.get(Number(p.id)) || [];
     const respondida = notifs.find(n => n.estado === "RESPONDIO");
     if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
@@ -5607,7 +5607,7 @@ function renderGraficoNotifPorEjercicio() {
     { key: "no_respondio", color: "#7b4fa3", label: "No respondió (girado)" }
   ];
   const porEjercicio = new Map();
-  cartillas.forEach(c => {
+  filtrarCartillas().forEach(c => {
     const ej = c.ejercicio || "—";
     if (!porEjercicio.has(ej)) porEjercicio.set(ej, { sin_notificar: 0, esperando: 0, vencida: 0, respondio: 0, no_respondio: 0 });
     porEjercicio.get(ej)[categoriaNotifParaGrafico(c.id, hoyISO)]++;
@@ -5633,7 +5633,7 @@ function renderGraficoNotifPorNumero() {
   const cont = document.getElementById("cartilla-notif-chart-numero");
   if (!cont) return;
   const conteoPorNumero = new Map();
-  cartillas.forEach(c => {
+  filtrarCartillas().forEach(c => {
     const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
     const respondida = notifs.find(n => n.estado === "RESPONDIO");
     if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
