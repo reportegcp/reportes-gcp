@@ -11984,7 +11984,6 @@ async function initBrowser() {
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
   document.getElementById("pma-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-ingreso-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
-  document.getElementById("pma-limite-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-condicion-filter")?.addEventListener("change", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
@@ -11998,7 +11997,6 @@ async function initBrowser() {
   document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
   document.getElementById("cartilla-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-ingreso-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
-  document.getElementById("cartilla-limite-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-condicion-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-notificadas-filter")?.addEventListener("change", async () => {
