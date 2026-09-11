@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 82</span>
+        <span>Versión 83</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -892,9 +892,10 @@
           <select id="pma-notificadas-filter" aria-label="Filtrar por notificaciones">
             <option value="TODOS">Notificadas: Todas</option>
             <option value="SIN_NOTIFICAR">Sin notificar</option>
-            <option value="PENDIENTE">Notificación pendiente</option>
+            <option value="PENDIENTE">Esperando respuesta (dentro de plazo)</option>
+            <option value="VENCIDA">Vencida sin respuesta</option>
             <option value="RESPONDIO">Respondió</option>
-            <option value="NO_RESPONDIO">No respondió</option>
+            <option value="NO_RESPONDIO">No respondió (tildado)</option>
           </select>
           <div class="date-filter-inline">
             <span class="date-filter-label">Ingreso</span>
@@ -955,9 +956,10 @@
           <select id="cartilla-notificadas-filter" aria-label="Filtrar por notificaciones">
             <option value="TODOS">Notificadas: Todas</option>
             <option value="SIN_NOTIFICAR">Sin notificar</option>
-            <option value="PENDIENTE">Notificación pendiente</option>
+            <option value="PENDIENTE">Esperando respuesta (dentro de plazo)</option>
+            <option value="VENCIDA">Vencida sin respuesta</option>
             <option value="RESPONDIO">Respondió</option>
-            <option value="NO_RESPONDIO">No respondió</option>
+            <option value="NO_RESPONDIO">No respondió (tildado)</option>
           </select>
           <div class="date-filter-inline">
             <span class="date-filter-label">Ingreso</span>
@@ -1032,6 +1034,7 @@
       </section>
 
       <section id="notificaciones-reporte" class="view">
+        <h3 style="margin:0 0 4px">Cartillas</h3>
         <div class="table-card">
           <div class="table-meta">
             <strong id="notif-reporte-count">Obras Sociales sin respuesta a sus notificaciones</strong>
@@ -1048,6 +1051,25 @@
         <div class="table-card" style="margin-top:16px;padding:18px">
           <strong style="display:block;margin-bottom:10px">Respuestas por cantidad de notificaciones</strong>
           <div id="notif-reporte-chart"></div>
+        </div>
+
+        <h3 style="margin:28px 0 4px">PMA</h3>
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="notif-reporte-pma-count">Obras Sociales sin respuesta a sus notificaciones</strong>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>RNAS</th><th>Obra Social</th><th>Última notificación</th><th>Nº</th><th>Vence</th><th>Estado</th></tr></thead>
+              <tbody id="notif-reporte-pma-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="notif-reporte-pma-empty" hidden>No hay obras sociales sin responder a sus notificaciones de PMA.</div>
+        </div>
+
+        <div class="table-card" style="margin-top:16px;padding:18px">
+          <strong style="display:block;margin-bottom:10px">Respuestas por cantidad de notificaciones</strong>
+          <div id="notif-reporte-pma-chart"></div>
         </div>
       </section>
 

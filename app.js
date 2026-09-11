@@ -5331,7 +5331,12 @@ function obtenerPmaFiltradas() {
   });
   const notifFiltro = document.getElementById("pma-notificadas-filter")?.value || "TODOS";
   if (notifFiltro !== "TODOS") {
-    base = base.filter(r => estadoNotificacionesPma(r.id).estado === notifFiltro);
+    base = base.filter(r => {
+      const est = estadoNotificacionesPma(r.id);
+      if (notifFiltro === "PENDIENTE") return est.estado === "PENDIENTE" && !est.vencida;
+      if (notifFiltro === "VENCIDA") return est.estado === "NO_RESPONDIO" || (est.estado === "PENDIENTE" && est.vencida);
+      return est.estado === notifFiltro;
+    });
   }
   return base;
 }
@@ -5466,7 +5471,12 @@ function filtrarCartillas() {
   });
   const notifFiltro = document.getElementById("cartilla-notificadas-filter")?.value || "TODOS";
   if (notifFiltro !== "TODOS") {
-    base = base.filter(c => estadoNotificacionesCartilla(c.id).estado === notifFiltro);
+    base = base.filter(c => {
+      const est = estadoNotificacionesCartilla(c.id);
+      if (notifFiltro === "PENDIENTE") return est.estado === "PENDIENTE" && !est.vencida;
+      if (notifFiltro === "VENCIDA") return est.estado === "NO_RESPONDIO" || (est.estado === "PENDIENTE" && est.vencida);
+      return est.estado === notifFiltro;
+    });
   }
   return base;
 }
@@ -6337,11 +6347,12 @@ let pmaNotificacionesTodasCargadas = false;
 
 function estadoNotificacionesPma(pmaId, hoyISO = hoyLocalISO()) {
   const notifs = (pmaNotificacionesPorPma.get(Number(pmaId)) || []);
-  if (!notifs.length) return { estado: "SIN_NOTIFICAR", color: null, ultima: null };
+  if (!notifs.length) return { estado: "SIN_NOTIFICAR", color: null, ultima: null, vencida: false };
   const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
   const color = colorNotificacion(ultima, hoyISO);
+  const vencida = ultima.estado !== "RESPONDIO" && ultima.estado !== "NO_RESPONDIO" && diasHabilesTranscurridos(ultima.fecha_notificacion, hoyISO) >= 10;
   const estado = ultima.estado === "RESPONDIO" ? "RESPONDIO" : ultima.estado === "NO_RESPONDIO" ? "NO_RESPONDIO" : "PENDIENTE";
-  return { estado, color, ultima };
+  return { estado, color, ultima, vencida };
 }
 
 function buildPmaNotificacionesUrl(pmaId, id = null) {
@@ -6598,11 +6609,12 @@ function colorNotificacion(notif, hoyISO = hoyLocalISO()) {
 // filtro "Notificadas" de la tabla y para la columna del punto de color.
 function estadoNotificacionesCartilla(cartillaId, hoyISO = hoyLocalISO()) {
   const notifs = (cartillaNotificacionesPorCartilla.get(Number(cartillaId)) || []);
-  if (!notifs.length) return { estado: "SIN_NOTIFICAR", color: null, ultima: null };
+  if (!notifs.length) return { estado: "SIN_NOTIFICAR", color: null, ultima: null, vencida: false };
   const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
   const color = colorNotificacion(ultima, hoyISO);
+  const vencida = ultima.estado !== "RESPONDIO" && ultima.estado !== "NO_RESPONDIO" && diasHabilesTranscurridos(ultima.fecha_notificacion, hoyISO) >= 10;
   const estado = ultima.estado === "RESPONDIO" ? "RESPONDIO" : ultima.estado === "NO_RESPONDIO" ? "NO_RESPONDIO" : "PENDIENTE";
-  return { estado, color, ultima };
+  return { estado, color, ultima, vencida };
 }
 
 function buildCartillaNotificacionesUrl(cartillaId, id = null) {
@@ -6840,13 +6852,33 @@ async function cargarYRenderizarReporteNotificaciones() {
   if (!tbody) return;
   try {
     if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; }
+    if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; pmaCompleta = true; }
     if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
-    await cargarTodasLasNotificacionesCartillas();
+    await Promise.all([cargarTodasLasNotificacionesCartillas(), cargarTodasLasNotificacionesPma()]);
     renderReporteNotificaciones();
+    renderReporteNotificacionesPma();
   } catch (error) {
     mostrarToast("No se pudo cargar el reporte de notificaciones.");
     console.error(error);
   }
+}
+
+// Criterio único (compartido con el filtro "Vencida sin respuesta" de Cartillas/PMA): la última
+// notificación quedó tildada como NO_RESPONDIO, o sigue PENDIENTE pero ya pasaron 10 días hábiles
+// sin que se cargara una notificación siguiente. Esto es lo que de verdad necesita seguimiento;
+// una notificación recién enviada y todavía dentro de plazo NO entra acá (por eso este listado
+// puede dar un número más chico que "cuántas presentaciones tienen notificación sin responder").
+function presentacionesConNotificacionVencida(presentaciones, mapaNotifs, hoyISO) {
+  const filas = [];
+  presentaciones.forEach(p => {
+    const notifs = mapaNotifs.get(Number(p.id)) || [];
+    if (!notifs.length) return;
+    const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
+    const vencida = ultima.estado === "PENDIENTE" && diasHabilesTranscurridos(ultima.fecha_notificacion, hoyISO) >= 10;
+    if (ultima.estado === "NO_RESPONDIO" || vencida) filas.push({ presentacion: p, notif: ultima, vencida });
+  });
+  filas.sort((a, b) => (a.presentacion.obras_sociales?.rnos || "").localeCompare(b.presentacion.obras_sociales?.rnos || ""));
+  return filas;
 }
 
 function renderReporteNotificaciones() {
@@ -6855,23 +6887,10 @@ function renderReporteNotificaciones() {
   const count = document.getElementById("notif-reporte-count");
   if (!tbody) return;
   const hoyISO = hoyLocalISO();
-
-  // Filas: cartillas cuya ÚLTIMA notificación quedó en NO_RESPONDIO, o PENDIENTE y ya venció
-  // el plazo de 10 días hábiles sin que se haya cargado una notificación siguiente.
-  const filas = [];
-  cartillas.forEach(c => {
-    const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
-    if (!notifs.length) return;
-    const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
-    const vencida = ultima.estado === "PENDIENTE" && diasHabilesTranscurridos(ultima.fecha_notificacion, hoyISO) >= 10;
-    if (ultima.estado === "NO_RESPONDIO" || vencida) {
-      filas.push({ cartilla: c, notif: ultima, vencida });
-    }
-  });
-  filas.sort((a, b) => (a.cartilla.obras_sociales?.rnos || "").localeCompare(b.cartilla.obras_sociales?.rnos || ""));
+  const filas = presentacionesConNotificacionVencida(cartillas, cartillaNotificacionesPorCartilla, hoyISO);
 
   tbody.innerHTML = filas.map(f => {
-    const os = f.cartilla.obras_sociales || {};
+    const os = f.presentacion.obras_sociales || {};
     const estadoTexto = f.notif.estado === "NO_RESPONDIO" ? "No respondió (tildado)" : "Sin responder — venció el plazo";
     return `<tr>
       <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
@@ -6896,6 +6915,42 @@ function renderReporteNotificaciones() {
     .sort((a, b) => a[0] - b[0])
     .map(([numero, cantidad]) => ({ etiqueta: `Respondieron a la ${numero}ª notificación`, valor: cantidad }));
   renderBarChart("notif-reporte-chart", items);
+}
+
+// Mismo control que renderReporteNotificaciones, pero para PMA (antes solo existía para Cartilla).
+function renderReporteNotificacionesPma() {
+  const tbody = document.getElementById("notif-reporte-pma-table-body");
+  const empty = document.getElementById("notif-reporte-pma-empty");
+  const count = document.getElementById("notif-reporte-pma-count");
+  if (!tbody) return;
+  const hoyISO = hoyLocalISO();
+  const filas = presentacionesConNotificacionVencida(pma, pmaNotificacionesPorPma, hoyISO);
+
+  tbody.innerHTML = filas.map(f => {
+    const os = f.presentacion.obras_sociales || {};
+    const estadoTexto = f.notif.estado === "NO_RESPONDIO" ? "No respondió (tildado)" : "Sin responder — venció el plazo";
+    return `<tr>
+      <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
+      <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
+      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_notificacion)}</td>
+      <td>${f.notif.numero}ª</td>
+      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_limite_respuesta)}</td>
+      <td style="color:#c0392b;font-weight:700">${estadoTexto}</td>
+    </tr>`;
+  }).join("");
+  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "Obra Social" : "Obras Sociales"} sin respuesta a su notificación`;
+  if (empty) empty.hidden = filas.length !== 0;
+
+  const conteoPorNumero = new Map();
+  pma.forEach(p => {
+    const notifs = pmaNotificacionesPorPma.get(Number(p.id)) || [];
+    const respondida = notifs.find(n => n.estado === "RESPONDIO");
+    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
+  });
+  const items = [...conteoPorNumero.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([numero, cantidad]) => ({ etiqueta: `Respondieron a la ${numero}ª notificación`, valor: cantidad }));
+  renderBarChart("notif-reporte-pma-chart", items);
 }
 
 function limpiarFormularioCartilla() {
