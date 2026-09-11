@@ -5520,6 +5520,68 @@ function renderCartillas() {
     row.addEventListener("click", editar);
     row.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editar(); } });
   });
+  renderGraficoNotifPorEjercicio();
+  renderGraficoNotifPorNumero();
+}
+
+// Resume el estado de notificación de una cartilla en una de 5 categorías para el gráfico
+// apilado por ejercicio (distinto del "estado" técnico de estadoNotificacionesCartilla, que no
+// separa "esperando dentro de plazo" de "vencida sin girar" en una sola etiqueta).
+function categoriaNotifParaGrafico(cartillaId, hoyISO) {
+  const est = estadoNotificacionesCartilla(cartillaId, hoyISO);
+  if (est.estado === "SIN_NOTIFICAR") return "sin_notificar";
+  if (est.estado === "RESPONDIO") return "respondio";
+  if (est.estado === "NO_RESPONDIO") return "no_respondio";
+  return est.vencida ? "vencida" : "esperando";
+}
+
+function renderGraficoNotifPorEjercicio() {
+  const cont = document.getElementById("cartilla-notif-chart-ejercicio");
+  if (!cont) return;
+  const hoyISO = hoyLocalISO();
+  const categorias = [
+    { key: "sin_notificar", color: "#9aa7b5", label: "Sin notificar" },
+    { key: "esperando", color: "#e0b400", label: "Esperando respuesta" },
+    { key: "vencida", color: "#c0392b", label: "Vencida sin girar" },
+    { key: "respondio", color: "#278664", label: "Respondió" },
+    { key: "no_respondio", color: "#7b4fa3", label: "No respondió (girado)" }
+  ];
+  const porEjercicio = new Map();
+  cartillas.forEach(c => {
+    const ej = c.ejercicio || "—";
+    if (!porEjercicio.has(ej)) porEjercicio.set(ej, { sin_notificar: 0, esperando: 0, vencida: 0, respondio: 0, no_respondio: 0 });
+    porEjercicio.get(ej)[categoriaNotifParaGrafico(c.id, hoyISO)]++;
+  });
+  const ejercicios = [...porEjercicio.keys()].sort((a, b) => b.localeCompare(a));
+  cont.innerHTML = ejercicios.map(ej => {
+    const c = porEjercicio.get(ej);
+    const total = categorias.reduce((acc, cat) => acc + c[cat.key], 0);
+    const segs = categorias.map(cat => {
+      if (!c[cat.key]) return "";
+      const pct = total ? (c[cat.key] / total * 100) : 0;
+      return `<div class="notif-stack-seg" style="width:${pct}%;background:${cat.color}" title="${cat.label}: ${c[cat.key]}"></div>`;
+    }).join("");
+    return `<div class="notif-stack-row">
+      <div class="report-chart-label" title="${escaparHtml(ej)}">${escaparHtml(ej)}</div>
+      <div class="notif-stack-track">${segs}</div>
+      <div class="report-chart-value">${total}</div>
+    </div>`;
+  }).join("") || `<p style="color:var(--muted);font-size:13px;margin:0">Sin datos para graficar.</p>`;
+}
+
+function renderGraficoNotifPorNumero() {
+  const cont = document.getElementById("cartilla-notif-chart-numero");
+  if (!cont) return;
+  const conteoPorNumero = new Map();
+  cartillas.forEach(c => {
+    const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
+    const respondida = notifs.find(n => n.estado === "RESPONDIO");
+    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
+  });
+  const items = [...conteoPorNumero.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([numero, cantidad]) => ({ etiqueta: `Respondió a la ${numero}ª notificación`, valor: cantidad }));
+  renderBarChart("cartilla-notif-chart-numero", items);
 }
 
 async function cargarYRenderizarCartillas() {

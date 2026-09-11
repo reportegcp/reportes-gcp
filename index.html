@@ -125,7 +125,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 85</span>
+        <span>Versión 86</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -969,6 +969,29 @@
             <input id="cartilla-limite-search" type="date" autocomplete="off" aria-label="Filtrar por fecha límite">
           </div>
         </div>
+
+        <details class="table-card" id="cartilla-notif-charts-panel" style="padding:16px 20px">
+          <summary style="cursor:pointer;font-weight:800;color:var(--navy);list-style:none">📊 Estadísticas de notificaciones</summary>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px">
+            <div>
+              <strong style="display:block;margin-bottom:4px">Estado de las notificaciones por ejercicio</strong>
+              <p style="color:var(--muted);font-size:12px;margin:0 0 10px">Incluye las presentaciones sin notificar; el resto se agrupa según en qué punto está su notificación.</p>
+              <div id="cartilla-notif-chart-ejercicio"></div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:11.5px;color:var(--muted)">
+                <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#9aa7b5;margin-right:4px"></span>Sin notificar</span>
+                <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#e0b400;margin-right:4px"></span>Esperando respuesta</span>
+                <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#c0392b;margin-right:4px"></span>Vencida sin girar</span>
+                <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#278664;margin-right:4px"></span>Respondió</span>
+                <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#7b4fa3;margin-right:4px"></span>No respondió (girado)</span>
+              </div>
+            </div>
+            <div>
+              <strong style="display:block;margin-bottom:4px">A qué notificación respondieron</strong>
+              <p style="color:var(--muted);font-size:12px;margin:0 0 10px">Solo cuenta las que ya respondieron; permite ver quiénes contestan a la primera y quiénes necesitan varias.</p>
+              <div id="cartilla-notif-chart-numero"></div>
+            </div>
+          </div>
+        </details>
 
         <div class="table-card">
           <div class="table-meta">
