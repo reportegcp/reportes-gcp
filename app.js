@@ -9880,17 +9880,29 @@ async function tomarSnapshotAnexoIVPrestadores(declaracionId, obraSocialId, acce
 
 let anexoIVPrestadoresFiltroTexto = "";
 let anexoIVPrestadoresFiltroSoloPendientes = false;
+let anexoIVPrestadoresPaginaActual = 1;
+const ANEXO_IV_PRESTADORES_POR_PAGINA = 50;
 
 function bindAnexoIVPrestadoresBuscador() {
   const input = document.getElementById("anexo-iv-prestadores-buscar");
   const checkbox = document.getElementById("anexo-iv-prestadores-solo-pendientes");
   if (input && !input.dataset.bound) {
     input.dataset.bound = "1";
-    input.addEventListener("input", () => { anexoIVPrestadoresFiltroTexto = input.value.trim().toLowerCase(); renderAnexoIVPrestadoresTabla(); });
+    input.addEventListener("input", () => { anexoIVPrestadoresFiltroTexto = input.value.trim().toLowerCase(); anexoIVPrestadoresPaginaActual = 1; renderAnexoIVPrestadoresTabla(); });
   }
   if (checkbox && !checkbox.dataset.bound) {
     checkbox.dataset.bound = "1";
-    checkbox.addEventListener("change", () => { anexoIVPrestadoresFiltroSoloPendientes = checkbox.checked; renderAnexoIVPrestadoresTabla(); });
+    checkbox.addEventListener("change", () => { anexoIVPrestadoresFiltroSoloPendientes = checkbox.checked; anexoIVPrestadoresPaginaActual = 1; renderAnexoIVPrestadoresTabla(); });
+  }
+  const btnAnterior = document.getElementById("anexo-iv-prestadores-pag-anterior");
+  const btnSiguiente = document.getElementById("anexo-iv-prestadores-pag-siguiente");
+  if (btnAnterior && !btnAnterior.dataset.bound) {
+    btnAnterior.dataset.bound = "1";
+    btnAnterior.addEventListener("click", () => { anexoIVPrestadoresPaginaActual = Math.max(1, anexoIVPrestadoresPaginaActual - 1); renderAnexoIVPrestadoresTabla(); });
+  }
+  if (btnSiguiente && !btnSiguiente.dataset.bound) {
+    btnSiguiente.dataset.bound = "1";
+    btnSiguiente.addEventListener("click", () => { anexoIVPrestadoresPaginaActual += 1; renderAnexoIVPrestadoresTabla(); });
   }
 }
 
@@ -9899,20 +9911,33 @@ function renderAnexoIVPrestadoresTabla() {
   const vacio = document.getElementById("anexo-iv-prestadores-empty");
   const count = document.getElementById("anexo-iv-prestadores-count");
   const bloqueEditable = document.getElementById("anexo-iv-prestadores-acciones");
+  const paginacion = document.getElementById("anexo-iv-prestadores-paginacion");
+  const pagInfo = document.getElementById("anexo-iv-prestadores-pag-info");
+  const btnAnterior = document.getElementById("anexo-iv-prestadores-pag-anterior");
+  const btnSiguiente = document.getElementById("anexo-iv-prestadores-pag-siguiente");
   if (!cont) return;
   bindAnexoIVPrestadoresBuscador();
   const soloLectura = anexoIVDeclaracionActual?.estado === "presentada";
   const todasLasFilas = soloLectura ? anexoIVSnapshotPrestadores : anexoIVPrestadores;
   const texto = anexoIVPrestadoresFiltroTexto;
-  const filas = todasLasFilas.filter(p => {
+  const filtradas = todasLasFilas.filter(p => {
     if (anexoIVPrestadoresFiltroSoloPendientes && !p.pendiente_revision) return false;
     if (!texto) return true;
     return [p.nombre, p.tipo_prestacion, p.especialidad, p.localidad, p.partido, p.provincia]
       .some(v => (v || "").toLowerCase().includes(texto));
   });
-  if (count) count.textContent = todasLasFilas.length ? `${filas.length} de ${todasLasFilas.length} prestador${todasLasFilas.length === 1 ? "" : "es"}` : "";
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / ANEXO_IV_PRESTADORES_POR_PAGINA));
+  if (anexoIVPrestadoresPaginaActual > totalPaginas) anexoIVPrestadoresPaginaActual = totalPaginas;
+  if (anexoIVPrestadoresPaginaActual < 1) anexoIVPrestadoresPaginaActual = 1;
+  const desde = (anexoIVPrestadoresPaginaActual - 1) * ANEXO_IV_PRESTADORES_POR_PAGINA;
+  const filas = filtradas.slice(desde, desde + ANEXO_IV_PRESTADORES_POR_PAGINA);
+  if (count) count.textContent = todasLasFilas.length ? `${filtradas.length} de ${todasLasFilas.length} prestador${todasLasFilas.length === 1 ? "" : "es"}` : "";
   if (vacio) vacio.hidden = todasLasFilas.length > 0;
   if (bloqueEditable) bloqueEditable.hidden = soloLectura;
+  if (paginacion) paginacion.hidden = filtradas.length <= ANEXO_IV_PRESTADORES_POR_PAGINA;
+  if (pagInfo) pagInfo.textContent = `Página ${anexoIVPrestadoresPaginaActual} de ${totalPaginas} (${filtradas.length} en total)`;
+  if (btnAnterior) btnAnterior.disabled = anexoIVPrestadoresPaginaActual <= 1;
+  if (btnSiguiente) btnSiguiente.disabled = anexoIVPrestadoresPaginaActual >= totalPaginas;
   cont.innerHTML = filas.map(p => {
     const claseFila = soloLectura ? "" : "cartilla-row";
     const clasePendiente = p.pendiente_revision ? " fila-pendiente-revision" : "";
@@ -10585,11 +10610,15 @@ async function renderAnexoIVAdminSeleccionado() {
     console.error(error);
   }
   const pendientesCount = prestadores.filter(p => p.pendiente_revision).length;
+  const LIMITE_ADMIN = 50;
+  const prestadoresAMostrar = prestadores.slice(0, LIMITE_ADMIN);
   const prestadoresHtml = prestadores.length
     ? `${pendientesCount ? `<p class="stat-pill-inline pendiente" style="margin-bottom:8px">⚠ ${pendientesCount} prestador${pendientesCount === 1 ? "" : "es"} con datos incompletos de Cartilla</p>` : ""}
-      <div class="table-scroll"><table class="data-table">
+      ${prestadores.length > LIMITE_ADMIN ? `<p style="color:var(--muted);font-size:12.5px;margin:0 0 6px">Mostrando los primeros ${LIMITE_ADMIN} de ${prestadores.length} prestadores.</p>` : ""}
+      <div class="table-scroll" style="overflow-x:hidden"><table class="data-table" id="anexo-iv-admin-prestadores-table" style="table-layout:fixed;width:100%">
+        <colgroup><col style="width:26%"><col style="width:18%"><col style="width:16%"><col style="width:14%"><col style="width:13%"><col style="width:13%"></colgroup>
         <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Partido</th><th>Provincia</th></tr></thead>
-        <tbody>${prestadores.map(p => `<tr${p.pendiente_revision ? ` class="fila-pendiente-revision" title="${escaparHtml(p.pendiente_revision_motivo || "Le faltan datos de Cartilla.")}"` : ""}><td>${p.pendiente_revision ? `<span class="icon-alerta" aria-label="Datos incompletos">⚠</span> ` : ""}${escaparHtml(p.nombre || "")}</td><td>${escaparHtml(p.tipo_prestacion || "")}</td><td>${escaparHtml(p.especialidad || "")}</td><td>${escaparHtml(p.localidad || "")}</td><td>${escaparHtml(p.partido || "")}</td><td>${escaparHtml(p.provincia || "")}</td></tr>`).join("")}</tbody>
+        <tbody>${prestadoresAMostrar.map(p => `<tr${p.pendiente_revision ? ` class="fila-pendiente-revision" title="${escaparHtml(p.pendiente_revision_motivo || "Le faltan datos de Cartilla.")}"` : ""}><td>${p.pendiente_revision ? `<span class="icon-alerta" aria-label="Datos incompletos">⚠</span> ` : ""}${escaparHtml(p.nombre || "")}</td><td>${escaparHtml(p.tipo_prestacion || "")}</td><td>${escaparHtml(p.especialidad || "")}</td><td>${escaparHtml(p.localidad || "")}</td><td>${escaparHtml(p.partido || "")}</td><td>${escaparHtml(p.provincia || "")}</td></tr>`).join("")}</tbody>
       </table></div>`
     : `<p style="color:var(--muted)">No cargó prestadores.</p>`;
 

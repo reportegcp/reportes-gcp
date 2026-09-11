@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 79</span>
+        <span>Versión 80</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -580,13 +580,21 @@
               <input type="checkbox" id="anexo-iv-prestadores-solo-pendientes"> Ver solo con datos incompletos
             </label>
           </div>
-          <div class="table-scroll">
-            <table class="data-table">
+          <div class="table-scroll" id="anexo-iv-prestadores-table-scroll" style="overflow-x:hidden">
+            <table class="data-table" id="anexo-iv-prestadores-table" style="table-layout:fixed;width:100%">
+              <colgroup>
+                <col style="width:26%"><col style="width:18%"><col style="width:16%"><col style="width:14%"><col style="width:13%"><col style="width:13%">
+              </colgroup>
               <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Partido</th><th>Provincia</th></tr></thead>
               <tbody id="anexo-iv-prestadores-table-body"></tbody>
             </table>
           </div>
           <div class="table-empty" id="anexo-iv-prestadores-empty" hidden>Todavía no cargaste ningún prestador.</div>
+          <div id="anexo-iv-prestadores-paginacion" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 20px" hidden>
+            <button type="button" class="secondary small" id="anexo-iv-prestadores-pag-anterior">← Anterior</button>
+            <span id="anexo-iv-prestadores-pag-info" style="font-size:13px;color:var(--muted)"></span>
+            <button type="button" class="secondary small" id="anexo-iv-prestadores-pag-siguiente">Siguiente →</button>
+          </div>
         </div>
       </section>
 

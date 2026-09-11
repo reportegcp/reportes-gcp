@@ -1381,6 +1381,8 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 tr.fila-pendiente-revision{background:#fdf0e4}
 tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .icon-alerta{color:#a85d13;font-size:13px}
+#anexo-iv-prestadores-table td, #anexo-iv-prestadores-table th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#anexo-iv-admin-prestadores-table td, #anexo-iv-admin-prestadores-table th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stat-pill-inline.pendiente input{width:66px;padding:2px 6px;font-size:11px;height:auto}
 .stat-pill-inline.pendiente button{padding:3px 10px;font-size:11px;height:auto;border-radius:999px}
 .afiliados-compacto input,.afiliados-compacto select{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}
