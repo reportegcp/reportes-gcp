@@ -435,6 +435,26 @@ function finEjercicioIso(fechaInicioIso) {
   return formatIsoDateUtc(fin);
 }
 
+// Patrón de ejercicio de la Obra Social (día-mes en que arranca, ej. "01-08"), sin año: se usa
+// tanto para el combo de filtro como para la columna "Período" de la tabla.
+function finPatronDdMm(inicioDdMm) {
+  const m = String(inicioDdMm || "").match(/^(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  const inicio = new Date(Date.UTC(2001, Number(m[2]) - 1, Number(m[1])));
+  const fin = new Date(inicio.getTime());
+  fin.setUTCFullYear(fin.getUTCFullYear() + 1);
+  fin.setUTCDate(fin.getUTCDate() - 1);
+  return `${String(fin.getUTCDate()).padStart(2, "0")}-${String(fin.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function labelPatronEjercicio(inicioDdMm) {
+  const m = String(inicioDdMm || "").match(/^(\d{2})-(\d{2})$/);
+  if (!m) return inicioDdMm || "—";
+  const finDdMm = finPatronDdMm(inicioDdMm);
+  const finPartes = finDdMm.split("-");
+  return `${m[1]}/${m[2]} - ${finPartes[0]}/${finPartes[1]}`;
+}
+
 function fechaInicioEjercicioDesdeDiaMes(inicioEjercicio, anioInicio) {
   const normalizado = normalizarDiaMes(inicioEjercicio);
   const year = Number(anioInicio);
@@ -4939,7 +4959,7 @@ function actualizarResumenEjercicios(prefix) {
   if (!resumen) return;
   if (!inputs.length || seleccionados.length === inputs.length) resumen.textContent = "Ejercicio: Todos";
   else if (!seleccionados.length) resumen.textContent = "Ejercicio: ninguno seleccionado";
-  else if (seleccionados.length === 1) resumen.textContent = `Ejercicio: ${seleccionados[0]}`;
+  else if (seleccionados.length === 1) resumen.textContent = `Ejercicio: ${(ejercicioLabelFns[prefix] || (v => v))(seleccionados[0])}`;
   else resumen.textContent = `${seleccionados.length} ejercicios`;
 }
 
@@ -4950,6 +4970,7 @@ function seleccionarEjerciciosFiltro(prefix, seleccionar, renderFn) {
   if (typeof renderFn === "function") renderFn();
 }
 
+const ejercicioLabelFns = {};
 function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = {}) {
   if (typeof document === "undefined") return;
   const container = document.getElementById(`${prefix}-ejercicio-options`);
@@ -4957,11 +4978,13 @@ function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = 
   const anteriores = new Set(ejerciciosFiltroSeleccionados(prefix));
   const teniaOpciones = container.querySelectorAll('input').length > 0;
   const defaultChecked = opciones.defaultChecked !== false;
+  const labelFn = typeof opciones.labelFn === "function" ? opciones.labelFn : (v => v);
+  ejercicioLabelFns[prefix] = labelFn;
   const ejercicios = [...new Set((valores || []).filter(Boolean).map(String))]
     .sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
   container.innerHTML = ejercicios.map(e => {
     const checked = teniaOpciones ? anteriores.has(e) : defaultChecked;
-    return `<label class="period-check"><input type="checkbox" name="${prefix}-ejercicio-opcion" value="${escaparHtml(e)}" ${checked ? "checked" : ""}><span>${escaparHtml(e)}</span></label>`;
+    return `<label class="period-check"><input type="checkbox" name="${prefix}-ejercicio-opcion" value="${escaparHtml(e)}" ${checked ? "checked" : ""}><span>${escaparHtml(labelFn(e))}</span></label>`;
   }).join("");
   container.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).forEach(input => {
     input.addEventListener("change", () => { actualizarResumenEjercicios(prefix); if (typeof renderFn === "function") renderFn(); });
@@ -5021,7 +5044,7 @@ function filtrarCartillasRegistros(lista, filtros = {}) {
   const periodoHasta = filtros.periodoHasta || "";
   return (lista || []).filter(c => {
     const os = c.obras_sociales || {};
-    if (ejercicios.size && !ejercicios.has(String(c.ejercicio || ""))) return false;
+    if (ejercicios.size && !ejercicios.has(patronEjercicioRegistro(c))) return false;
     if (periodoDesde && String(c.fecha_inicio_ejercicio || "") < periodoDesde) return false;
     if (periodoHasta && String(c.fecha_inicio_ejercicio || "") > periodoHasta) return false;
     const cumplimiento = calcularCumplimiento90(c?.fecha_inicio_ejercicio || "", c?.fecha_ingreso || "");
@@ -5315,7 +5338,7 @@ function filtrarPmaRegistros(lista, filtros = {}) {
   const periodoHasta = filtros.periodoHasta || "";
   return (lista || []).filter(x => {
     const os = x.obras_sociales || {};
-    if (ejercicios.size && !ejercicios.has(String(x.ejercicio || ""))) return false;
+    if (ejercicios.size && !ejercicios.has(patronEjercicioRegistro(x))) return false;
     if (condicion !== "TODOS" && String(x.condicion || "") !== condicion) return false;
     if (periodoDesde && String(x.fecha_inicio_ejercicio || "") < periodoDesde) return false;
     if (periodoHasta && String(x.fecha_inicio_ejercicio || "") > periodoHasta) return false;
@@ -5328,7 +5351,7 @@ function filtrarPmaRegistros(lista, filtros = {}) {
 }
 function llenarFiltrosPma() {
   if (typeof document === "undefined") return;
-  poblarSelectorMultipleEjercicios("pma", pma.map(x => x.ejercicio).filter(Boolean), () => { pmaPage = 1; renderPma(); });
+  poblarSelectorMultipleEjercicios("pma", pma.map(x => patronEjercicioRegistro(x)).filter(Boolean), () => { pmaPage = 1; renderPma(); }, { labelFn: labelPatronEjercicio });
   const fill = (id, label, vals) => {
     const select = document.getElementById(id); if (!select) return;
     const prev = select.value || "TODOS";
@@ -5362,6 +5385,16 @@ function cumplimientoPmaRegistro(row) {
   return calcularCumplimiento90(row?.fecha_inicio_ejercicio || "", row?.fecha_ingreso || "");
 }
 
+// Patrón de ejercicio de una presentación: usa el inicio_ejercicio de la Obra Social si está
+// cargado (fuente de verdad, sin año), y si no, lo deriva de la fecha_inicio_ejercicio puntual.
+function patronEjercicioRegistro(registro) {
+  const os = registro?.obras_sociales || {};
+  if (os.inicio_ejercicio) return os.inicio_ejercicio;
+  const d = parseIsoDateUtc(registro?.fecha_inicio_ejercicio || "");
+  if (!d) return "";
+  return `${String(d.getUTCDate()).padStart(2, "0")}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function colorCondicion(condicion) {
   const mapa = {
     "S/ASIGNAR": "#c0392b",
@@ -5382,7 +5415,7 @@ function renderPma() {
   const head = document.getElementById("pma-table-head");
   const rows = ordenarPresentacionesPorCampo(obtenerPmaFiltradas(), pmaSortField, pmaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="pma-sort-ejercicio" type="button" title="Ordenar por inicio de ejercicio">Inicio <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ejercicio", pmaSortDirection)}</span></button></th><th>Fin</th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="pma-sort-ejercicio" type="button" title="Ordenar por inicio de ejercicio">Período <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ejercicio", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#pma-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "rnas"));
     head.querySelector("#pma-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ejercicio"));
     head.querySelector("#pma-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ingreso"));
@@ -5400,8 +5433,7 @@ function renderPma() {
     return `<tr class="pma-row" data-pma-id="${r.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(r.obras_sociales?.rnos||"—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(r.obras_sociales?.denominacion||"—")}</td>
-      <td class="date-cell" title="Ejercicio ${escaparHtml(r.ejercicio || "")}">${formatFechaPantalla(r.fecha_inicio_ejercicio)}</td>
-      <td class="date-cell">${formatFechaPantalla(finEjercicioIso(r.fecha_inicio_ejercicio))}</td>
+      <td class="date-cell" title="Ejercicio ${escaparHtml(r.ejercicio || "")}">${labelPatronEjercicio(patronEjercicioRegistro(r))}</td>
       <td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
@@ -5523,7 +5555,7 @@ function cumplimientoCartillaRegistro(row) {
 
 function llenarFiltroEjercicios() {
   if (typeof document === "undefined") return;
-  poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => c.ejercicio).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); });
+  poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => patronEjercicioRegistro(c)).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); }, { labelFn: labelPatronEjercicio });
   const select = document.getElementById("cartilla-condicion-filter");
   if (select) {
     const prev = select.value || "TODOS";
@@ -5564,7 +5596,7 @@ function renderCartillas() {
   const head = document.getElementById("cartilla-table-head");
   const filtradas = ordenarPresentacionesPorCampo(filtrarCartillas(), cartillaSortField, cartillaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por inicio de ejercicio">Inicio <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th>Fin</th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por inicio de ejercicio">Período <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#cartilla-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "rnas"));
     head.querySelector("#cartilla-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ejercicio"));
     head.querySelector("#cartilla-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ingreso"));
@@ -5583,8 +5615,7 @@ function renderCartillas() {
     return `<tr class="cartilla-row" data-cartilla-id="${c.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
-      <td class="date-cell" title="Ejercicio ${escaparHtml(c.ejercicio || "")}">${formatFechaPantalla(c.fecha_inicio_ejercicio)}</td>
-      <td class="date-cell">${formatFechaPantalla(finEjercicioIso(c.fecha_inicio_ejercicio))}</td>
+      <td class="date-cell" title="Ejercicio ${escaparHtml(c.ejercicio || "")}">${labelPatronEjercicio(patronEjercicioRegistro(c))}</td>
       <td class="date-cell">${formatFechaPantalla(c.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
