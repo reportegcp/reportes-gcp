@@ -4953,14 +4953,15 @@ function ejerciciosFiltroSeleccionados(prefix) {
 
 function actualizarResumenEjercicios(prefix) {
   if (typeof document === "undefined") return;
+  const nombre = ejercicioResumenNombre[prefix] || "Ejercicio";
   const inputs = [...document.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`)];
   const seleccionados = inputs.filter(input => input.checked).map(input => input.value);
   const resumen = document.getElementById(`${prefix}-ejercicio-summary`);
   if (!resumen) return;
-  if (!inputs.length || seleccionados.length === inputs.length) resumen.textContent = "Ejercicio: Todos";
-  else if (!seleccionados.length) resumen.textContent = "Ejercicio: ninguno seleccionado";
-  else if (seleccionados.length === 1) resumen.textContent = `Ejercicio: ${(ejercicioLabelFns[prefix] || (v => v))(seleccionados[0])}`;
-  else resumen.textContent = `${seleccionados.length} ejercicios`;
+  if (!inputs.length || seleccionados.length === inputs.length) resumen.textContent = `${nombre}: Todos`;
+  else if (!seleccionados.length) resumen.textContent = `${nombre}: ninguno seleccionado`;
+  else if (seleccionados.length === 1) resumen.textContent = `${nombre}: ${(ejercicioLabelFns[prefix] || (v => v))(seleccionados[0])}`;
+  else resumen.textContent = `${seleccionados.length} ${nombre === "Período" ? "períodos" : "ejercicios"}`;
 }
 
 function seleccionarEjerciciosFiltro(prefix, seleccionar, renderFn) {
@@ -4971,6 +4972,7 @@ function seleccionarEjerciciosFiltro(prefix, seleccionar, renderFn) {
 }
 
 const ejercicioLabelFns = {};
+const ejercicioResumenNombre = {};
 function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = {}) {
   if (typeof document === "undefined") return;
   const container = document.getElementById(`${prefix}-ejercicio-options`);
@@ -4980,6 +4982,7 @@ function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = 
   const defaultChecked = opciones.defaultChecked !== false;
   const labelFn = typeof opciones.labelFn === "function" ? opciones.labelFn : (v => v);
   ejercicioLabelFns[prefix] = labelFn;
+  ejercicioResumenNombre[prefix] = opciones.nombreFiltro || "Ejercicio";
   const ejercicios = [...new Set((valores || []).filter(Boolean).map(String))]
     .sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
   container.innerHTML = ejercicios.map(e => {
@@ -5348,7 +5351,7 @@ function filtrarPmaRegistros(lista, filtros = {}) {
 function llenarFiltrosPma() {
   if (typeof document === "undefined") return;
   poblarSelectorMultipleEjercicios("pma", pma.map(x => x.ejercicio).filter(Boolean), () => { pmaPage = 1; renderPma(); });
-  poblarSelectorMultipleEjercicios("pma-periodo", pma.map(x => patronEjercicioRegistro(x)).filter(Boolean), () => { pmaPage = 1; renderPma(); }, { labelFn: labelPatronEjercicio });
+  poblarSelectorMultipleEjercicios("pma-periodo", pma.map(x => patronEjercicioRegistro(x)).filter(Boolean), () => { pmaPage = 1; renderPma(); }, { labelFn: labelPatronEjercicio, nombreFiltro: "Período" });
   const fill = (id, label, vals) => {
     const select = document.getElementById(id); if (!select) return;
     const prev = select.value || "TODOS";
@@ -5553,7 +5556,7 @@ function cumplimientoCartillaRegistro(row) {
 function llenarFiltroEjercicios() {
   if (typeof document === "undefined") return;
   poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => c.ejercicio).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); });
-  poblarSelectorMultipleEjercicios("cartilla-periodo", cartillas.map(c => patronEjercicioRegistro(c)).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); }, { labelFn: labelPatronEjercicio });
+  poblarSelectorMultipleEjercicios("cartilla-periodo", cartillas.map(c => patronEjercicioRegistro(c)).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); }, { labelFn: labelPatronEjercicio, nombreFiltro: "Período" });
   const select = document.getElementById("cartilla-condicion-filter");
   if (select) {
     const prev = select.value || "TODOS";
