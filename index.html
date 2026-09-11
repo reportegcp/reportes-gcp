@@ -125,7 +125,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 89</span>
+        <span>Versión 90</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -904,6 +904,14 @@
             <span class="date-filter-label">Límite</span>
             <input id="pma-limite-search" type="date" autocomplete="off" aria-label="Filtrar por fecha límite">
           </div>
+          <div class="date-filter-inline">
+            <span class="date-filter-label">Período desde</span>
+            <input id="pma-periodo-desde" type="date" autocomplete="off" aria-label="Filtrar por inicio de período desde">
+          </div>
+          <div class="date-filter-inline">
+            <span class="date-filter-label">Período hasta</span>
+            <input id="pma-periodo-hasta" type="date" autocomplete="off" aria-label="Filtrar por inicio de período hasta">
+          </div>
         </div>
 
         <details class="table-card" id="pma-notif-charts-panel" style="padding:16px 20px">
@@ -940,7 +948,7 @@
           <div class="table-scroll">
             <table class="data-table pma-table">
               <thead><tr id="pma-table-head">
-                <th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th>
+                <th>RNAS</th><th>Denominación</th><th>Inicio</th><th>Fin</th><th>Ingreso</th>
                 <th>Fecha límite</th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>
               </tr></thead>
               <tbody id="pma-table-body"></tbody>
@@ -991,6 +999,14 @@
             <span class="date-filter-label">Límite</span>
             <input id="cartilla-limite-search" type="date" autocomplete="off" aria-label="Filtrar por fecha límite">
           </div>
+          <div class="date-filter-inline">
+            <span class="date-filter-label">Período desde</span>
+            <input id="cartilla-periodo-desde" type="date" autocomplete="off" aria-label="Filtrar por inicio de período desde">
+          </div>
+          <div class="date-filter-inline">
+            <span class="date-filter-label">Período hasta</span>
+            <input id="cartilla-periodo-hasta" type="date" autocomplete="off" aria-label="Filtrar por inicio de período hasta">
+          </div>
         </div>
 
         <details class="table-card" id="cartilla-notif-charts-panel" style="padding:16px 20px">
@@ -1030,7 +1046,8 @@
                 <tr id="cartilla-table-head">
                   <th>RNAS</th>
                   <th>Denominación</th>
-                  <th>Ejercicio</th>
+                  <th>Inicio</th>
+                  <th>Fin</th>
                   <th>Ingreso</th>
                   <th>Fecha límite</th>
                   <th>Plazo</th>
