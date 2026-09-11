@@ -5036,17 +5036,15 @@ function valorOrdenEjercicio(ejercicio = "") {
 function filtrarCartillasRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
   const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : []).map(String));
+  const patrones = new Set((Array.isArray(filtros.patrones) ? filtros.patrones : []).map(String));
   const plazo = filtros.plazo || "TODOS";
   const condicion = filtros.condicion || "TODOS";
   const fechaIngreso = filtros.fechaIngreso || "";
   const fechaLimite = filtros.fechaLimite || "";
-  const periodoDesde = filtros.periodoDesde || "";
-  const periodoHasta = filtros.periodoHasta || "";
   return (lista || []).filter(c => {
     const os = c.obras_sociales || {};
-    if (ejercicios.size && !ejercicios.has(patronEjercicioRegistro(c))) return false;
-    if (periodoDesde && String(c.fecha_inicio_ejercicio || "") < periodoDesde) return false;
-    if (periodoHasta && String(c.fecha_inicio_ejercicio || "") > periodoHasta) return false;
+    if (ejercicios.size && !ejercicios.has(String(c.ejercicio || ""))) return false;
+    if (patrones.size && !patrones.has(patronEjercicioRegistro(c))) return false;
     const cumplimiento = calcularCumplimiento90(c?.fecha_inicio_ejercicio || "", c?.fecha_ingreso || "");
     if (plazo !== "TODOS" && cumplimiento !== plazo) return false;
     if (condicion !== "TODOS" && (c.condicion || "") !== condicion) return false;
@@ -5331,17 +5329,15 @@ function crearHojaExcelConDiseno(matriz, titulo = "Reporte", filaEncabezado = 3)
 function filtrarPmaRegistros(lista, filtros = {}) {
   const busqueda = normalizar(filtros.busqueda || "");
   const ejercicios = new Set((Array.isArray(filtros.ejercicios) ? filtros.ejercicios : (filtros.ejercicio && filtros.ejercicio !== "TODOS" ? [filtros.ejercicio] : [])).map(String));
+  const patrones = new Set((Array.isArray(filtros.patrones) ? filtros.patrones : []).map(String));
   const condicion = filtros.condicion || "TODOS";
   const fechaIngreso = filtros.fechaIngreso || "";
   const fechaLimite = filtros.fechaLimite || "";
-  const periodoDesde = filtros.periodoDesde || "";
-  const periodoHasta = filtros.periodoHasta || "";
   return (lista || []).filter(x => {
     const os = x.obras_sociales || {};
-    if (ejercicios.size && !ejercicios.has(patronEjercicioRegistro(x))) return false;
+    if (ejercicios.size && !ejercicios.has(String(x.ejercicio || ""))) return false;
+    if (patrones.size && !patrones.has(patronEjercicioRegistro(x))) return false;
     if (condicion !== "TODOS" && String(x.condicion || "") !== condicion) return false;
-    if (periodoDesde && String(x.fecha_inicio_ejercicio || "") < periodoDesde) return false;
-    if (periodoHasta && String(x.fecha_inicio_ejercicio || "") > periodoHasta) return false;
     const cumplimiento = calcularCumplimiento90(x?.fecha_inicio_ejercicio || "", x?.fecha_ingreso || "");
     if (!fechaCoincideFiltro(x?.fecha_ingreso || "", fechaIngreso)) return false;
     if (!fechaCoincideFiltro(cumplimiento?.fechaLimite || "", fechaLimite)) return false;
@@ -5351,7 +5347,8 @@ function filtrarPmaRegistros(lista, filtros = {}) {
 }
 function llenarFiltrosPma() {
   if (typeof document === "undefined") return;
-  poblarSelectorMultipleEjercicios("pma", pma.map(x => patronEjercicioRegistro(x)).filter(Boolean), () => { pmaPage = 1; renderPma(); }, { labelFn: labelPatronEjercicio });
+  poblarSelectorMultipleEjercicios("pma", pma.map(x => x.ejercicio).filter(Boolean), () => { pmaPage = 1; renderPma(); });
+  poblarSelectorMultipleEjercicios("pma-periodo", pma.map(x => patronEjercicioRegistro(x)).filter(Boolean), () => { pmaPage = 1; renderPma(); }, { labelFn: labelPatronEjercicio });
   const fill = (id, label, vals) => {
     const select = document.getElementById(id); if (!select) return;
     const prev = select.value || "TODOS";
@@ -5364,11 +5361,10 @@ function obtenerPmaFiltradas() {
   let base = filtrarPmaRegistros(pma,{
     busqueda:document.getElementById("pma-search")?.value||"",
     ejercicios:ejerciciosFiltroSeleccionados("pma"),
+    patrones:ejerciciosFiltroSeleccionados("pma-periodo"),
     condicion:document.getElementById("pma-condicion-filter")?.value||"TODOS",
     fechaIngreso:document.getElementById("pma-ingreso-search")?.value||"",
-    fechaLimite:document.getElementById("pma-limite-search")?.value||"",
-    periodoDesde:document.getElementById("pma-periodo-desde")?.value||"",
-    periodoHasta:document.getElementById("pma-periodo-hasta")?.value||""
+    fechaLimite:document.getElementById("pma-limite-search")?.value||""
   });
   const notifFiltro = document.getElementById("pma-notificadas-filter")?.value || "TODOS";
   if (notifFiltro !== "TODOS") {
@@ -5415,7 +5411,7 @@ function renderPma() {
   const head = document.getElementById("pma-table-head");
   const rows = ordenarPresentacionesPorCampo(obtenerPmaFiltradas(), pmaSortField, pmaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="pma-sort-ejercicio" type="button" title="Ordenar por inicio de ejercicio">Período <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ejercicio", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="pma-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "rnas", pmaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="pma-sort-ejercicio" type="button" title="Ordenar por ejercicio">Ejercicio <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ejercicio", pmaSortDirection)}</span></button></th><th>Período</th><th><button class="sort-button" id="pma-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "ingreso", pmaSortDirection)}</span></button></th><th><button class="sort-button" id="pma-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(pmaSortField, "fecha_limite", pmaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#pma-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "rnas"));
     head.querySelector("#pma-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ejercicio"));
     head.querySelector("#pma-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("pma", "ingreso"));
@@ -5433,7 +5429,8 @@ function renderPma() {
     return `<tr class="pma-row" data-pma-id="${r.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(r.obras_sociales?.rnos||"—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(r.obras_sociales?.denominacion||"—")}</td>
-      <td class="date-cell" title="Ejercicio ${escaparHtml(r.ejercicio || "")}">${labelPatronEjercicio(patronEjercicioRegistro(r))}</td>
+      <td>${escaparHtml(r.ejercicio||"—")}</td>
+      <td class="date-cell">${labelPatronEjercicio(patronEjercicioRegistro(r))}</td>
       <td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
@@ -5555,7 +5552,8 @@ function cumplimientoCartillaRegistro(row) {
 
 function llenarFiltroEjercicios() {
   if (typeof document === "undefined") return;
-  poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => patronEjercicioRegistro(c)).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); }, { labelFn: labelPatronEjercicio });
+  poblarSelectorMultipleEjercicios("cartilla", cartillas.map(c => c.ejercicio).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); });
+  poblarSelectorMultipleEjercicios("cartilla-periodo", cartillas.map(c => patronEjercicioRegistro(c)).filter(Boolean), () => { cartillaPage = 1; renderCartillas(); }, { labelFn: labelPatronEjercicio });
   const select = document.getElementById("cartilla-condicion-filter");
   if (select) {
     const prev = select.value || "TODOS";
@@ -5570,12 +5568,11 @@ function filtrarCartillas() {
   let base = filtrarCartillasRegistros(cartillas, {
     busqueda: document.getElementById("cartilla-search")?.value || "",
     ejercicios: ejerciciosFiltroSeleccionados("cartilla"),
+    patrones: ejerciciosFiltroSeleccionados("cartilla-periodo"),
     plazo: document.getElementById("cartilla-plazo-filter")?.value || "TODOS",
     condicion: document.getElementById("cartilla-condicion-filter")?.value || "TODOS",
     fechaIngreso: document.getElementById("cartilla-ingreso-search")?.value || "",
-    fechaLimite: document.getElementById("cartilla-limite-search")?.value || "",
-    periodoDesde: document.getElementById("cartilla-periodo-desde")?.value || "",
-    periodoHasta: document.getElementById("cartilla-periodo-hasta")?.value || ""
+    fechaLimite: document.getElementById("cartilla-limite-search")?.value || ""
   });
   const notifFiltro = document.getElementById("cartilla-notificadas-filter")?.value || "TODOS";
   if (notifFiltro !== "TODOS") {
@@ -5596,7 +5593,7 @@ function renderCartillas() {
   const head = document.getElementById("cartilla-table-head");
   const filtradas = ordenarPresentacionesPorCampo(filtrarCartillas(), cartillaSortField, cartillaSortDirection);
   if (head) {
-    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por inicio de ejercicio">Período <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
+    head.innerHTML = `<th><button class="sort-button" id="cartilla-sort-rnas" type="button" title="Ordenar por RNAS">RNAS <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "rnas", cartillaSortDirection)}</span></button></th><th>Denominación</th><th><button class="sort-button" id="cartilla-sort-ejercicio" type="button" title="Ordenar por ejercicio">Ejercicio <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ejercicio", cartillaSortDirection)}</span></button></th><th>Período</th><th><button class="sort-button" id="cartilla-sort-ingreso" type="button" title="Ordenar por fecha de ingreso">Ingreso <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "ingreso", cartillaSortDirection)}</span></button></th><th><button class="sort-button" id="cartilla-sort-fecha-limite" type="button" title="Ordenar por fecha límite">Fecha límite <span aria-hidden="true">${iconoOrdenTabla(cartillaSortField, "fecha_limite", cartillaSortDirection)}</span></button></th><th>Plazo</th><th>Notif.</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>`;
     head.querySelector("#cartilla-sort-rnas")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "rnas"));
     head.querySelector("#cartilla-sort-ejercicio")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ejercicio"));
     head.querySelector("#cartilla-sort-ingreso")?.addEventListener("click", () => cambiarOrdenPresentaciones("cartilla", "ingreso"));
@@ -5615,7 +5612,8 @@ function renderCartillas() {
     return `<tr class="cartilla-row" data-cartilla-id="${c.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
-      <td class="date-cell" title="Ejercicio ${escaparHtml(c.ejercicio || "")}">${labelPatronEjercicio(patronEjercicioRegistro(c))}</td>
+      <td>${escaparHtml(c.ejercicio || "—")}</td>
+      <td class="date-cell">${labelPatronEjercicio(patronEjercicioRegistro(c))}</td>
       <td class="date-cell">${formatFechaPantalla(c.fecha_ingreso)}</td>
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
@@ -11986,8 +11984,6 @@ async function initBrowser() {
   document.getElementById("pma-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-ingreso-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-limite-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
-  document.getElementById("pma-periodo-desde")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
-  document.getElementById("pma-periodo-hasta")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-condicion-filter")?.addEventListener("change", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-os-search")?.addEventListener("input", recalcularDatosPma);
@@ -12002,8 +11998,6 @@ async function initBrowser() {
   document.getElementById("cartilla-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-ingreso-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-limite-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
-  document.getElementById("cartilla-periodo-desde")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
-  document.getElementById("cartilla-periodo-hasta")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-condicion-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-notificadas-filter")?.addEventListener("change", async () => {

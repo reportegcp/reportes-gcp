@@ -125,7 +125,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 91</span>
+        <span>Versión 92</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -887,6 +887,13 @@
               <div class="period-options" id="pma-ejercicio-options"></div>
             </div>
           </details>
+          <details class="period-select exercise-multi-select" id="pma-periodo-select">
+            <summary><span id="pma-periodo-summary">Período: Todos</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="pma-periodo-all">Todos</button><button type="button" id="pma-periodo-clear">Limpiar</button></div>
+              <div class="period-options" id="pma-periodo-options"></div>
+            </div>
+          </details>
           <select id="pma-condicion-filter"><option value="TODOS">Condición: Todas</option></select>
           <select id="pma-notificadas-filter" aria-label="Filtrar por notificaciones">
             <option value="TODOS">Notificadas: Todas</option>
@@ -903,14 +910,6 @@
           <div class="date-filter-inline">
             <span class="date-filter-label">Límite</span>
             <input id="pma-limite-search" type="date" autocomplete="off" aria-label="Filtrar por fecha límite">
-          </div>
-          <div class="date-filter-inline">
-            <span class="date-filter-label">Período desde</span>
-            <input id="pma-periodo-desde" type="date" autocomplete="off" aria-label="Filtrar por inicio de período desde">
-          </div>
-          <div class="date-filter-inline">
-            <span class="date-filter-label">Período hasta</span>
-            <input id="pma-periodo-hasta" type="date" autocomplete="off" aria-label="Filtrar por inicio de período hasta">
           </div>
         </div>
 
@@ -948,7 +947,7 @@
           <div class="table-scroll">
             <table class="data-table pma-table">
               <thead><tr id="pma-table-head">
-                <th>RNAS</th><th>Denominación</th><th>Período</th><th>Ingreso</th>
+                <th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Período</th><th>Ingreso</th>
                 <th>Fecha límite</th><th>Plazo</th><th>Condición</th><th>Nº EE</th><th>Nº DISPO</th>
               </tr></thead>
               <tbody id="pma-table-body"></tbody>
@@ -977,6 +976,13 @@
               <div class="period-options" id="cartilla-ejercicio-options"></div>
             </div>
           </details>
+          <details class="period-select exercise-multi-select" id="cartilla-periodo-select">
+            <summary><span id="cartilla-periodo-summary">Período: Todos</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+            <div class="period-select-menu">
+              <div class="period-select-actions"><button type="button" id="cartilla-periodo-all">Todos</button><button type="button" id="cartilla-periodo-clear">Limpiar</button></div>
+              <div class="period-options" id="cartilla-periodo-options"></div>
+            </div>
+          </details>
           <select id="cartilla-plazo-filter" aria-label="Filtrar por cumplimiento">
             <option value="TODOS">Plazo: Todos</option>
             <option value="EN_TERMINO">En término</option>
@@ -998,14 +1004,6 @@
           <div class="date-filter-inline">
             <span class="date-filter-label">Límite</span>
             <input id="cartilla-limite-search" type="date" autocomplete="off" aria-label="Filtrar por fecha límite">
-          </div>
-          <div class="date-filter-inline">
-            <span class="date-filter-label">Período desde</span>
-            <input id="cartilla-periodo-desde" type="date" autocomplete="off" aria-label="Filtrar por inicio de período desde">
-          </div>
-          <div class="date-filter-inline">
-            <span class="date-filter-label">Período hasta</span>
-            <input id="cartilla-periodo-hasta" type="date" autocomplete="off" aria-label="Filtrar por inicio de período hasta">
           </div>
         </div>
 
@@ -1046,6 +1044,7 @@
                 <tr id="cartilla-table-head">
                   <th>RNAS</th>
                   <th>Denominación</th>
+                  <th>Ejercicio</th>
                   <th>Período</th>
                   <th>Ingreso</th>
                   <th>Fecha límite</th>
