@@ -8344,6 +8344,13 @@ async function evaluarComponentesCartilla(os, ejercicio) {
     if (!decl) resultado.anexoIV.motivo = "Falta guardar un borrador del Anexo IV.";
   } catch (error) { console.error(error); resultado.anexoIV.motivo = "No se pudo verificar el Anexo IV."; }
 
+  // No bloquea la presentación (un prestador con datos incompletos no es motivo para frenar
+  // toda la Cartilla), pero se informa como advertencia para que la Obra Social los revise.
+  try {
+    const prestadoresIV = await cargarAnexoIVPrestadoresPorOS(os.id);
+    resultado.anexoIV.pendientes = prestadoresIV.filter(p => p.pendiente_revision).length;
+  } catch (error) { console.error(error); resultado.anexoIV.pendientes = 0; }
+
   return resultado;
 }
 
@@ -8548,7 +8555,7 @@ async function renderChecklistCartillaHub(os, ejercicio) {
     { nombre: "Anexo I", listo: estado.anexoI.completo, motivo: estado.anexoI.motivo, congelado: congeladoAnexoI, vista: "anexo-i" },
     { nombre: "Anexo II", listo: estado.anexoII.completo, motivo: estado.anexoII.motivo, congelado: congeladoAnexoII, vista: "anexo-ii" },
     { nombre: "Anexo III (Prestadores)", listo: estado.anexoIII.completo, motivo: estado.anexoIII.motivo, congelado: congeladoAnexoIII, vista: "prestadores" },
-    { nombre: "Anexo IV", listo: estado.anexoIV.completo, motivo: estado.anexoIV.motivo, congelado: congeladoAnexoIV, vista: "anexo-iv" }
+    { nombre: "Anexo IV", listo: estado.anexoIV.completo, motivo: estado.anexoIV.motivo, congelado: congeladoAnexoIV, vista: "anexo-iv", pendientes: estado.anexoIV.pendientes || 0 }
   ];
 
   const todoCongelado = Boolean(cartilla) && filas.every(f => f.congelado);
@@ -8566,10 +8573,14 @@ async function renderChecklistCartillaHub(os, ejercicio) {
 
   cont.innerHTML = filas.map(f => {
     const ok = cartilla ? f.congelado : f.listo;
+    const avisoPendientes = ok && f.pendientes
+      ? ` <span class="stat-pill-inline pendiente" title="Prestadores del Anexo IV a los que les falta algún dato de Cartilla (especialidad, localidad, domicilio, etc.)">⚠ ${f.pendientes} prestador${f.pendientes === 1 ? "" : "es"} con datos incompletos</span> <button type="button" class="link-button" data-ir-a-vista="${f.vista}">Revisar</button>`
+      : "";
     return `<div class="cartilla-hub-fila">
       <span class="stat-pill-inline ${ok ? "ok" : "pendiente"}">${ok ? "✓ Completo" : "⚠ Falta"}</span>
       <span>${escaparHtml(f.nombre)}</span>
       ${ok ? "" : `<span style="color:var(--muted);font-size:12.5px">${escaparHtml(f.motivo || "")}</span> <button type="button" class="link-button" data-ir-a-vista="${f.vista}">Completar</button>`}
+      ${avisoPendientes}
     </div>`;
   }).join("");
   cont.querySelectorAll("[data-ir-a-vista]").forEach(btnIr => btnIr.addEventListener("click", () => showView(btnIr.dataset.irAVista)));
@@ -9157,6 +9168,7 @@ function leerFilialesAnexoIIDesdeDom() {
     id: el.dataset.anexoIiFilial,
     nombre: el.querySelector("[data-filial-nombre]")?.value || "",
     domicilio: el.querySelector("[data-filial-domicilio]")?.value || "",
+    cp: el.querySelector("[data-filial-cp]")?.value || "",
     localidad: el.querySelector("[data-filial-localidad]")?.value || "",
     partido: el.querySelector("[data-filial-partido]")?.value || "",
     provincia: el.querySelector("[data-filial-provincia]")?.value || "",
@@ -9228,6 +9240,9 @@ function filialAnexoIIHtml(filial) {
         <label><span>Provincia</span><select data-filial-provincia><option value="">—</option></select></label>
         <label><span>Partido</span><select data-filial-partido disabled><option value="">—</option></select></label>
         <label><span>Localidad</span><select data-filial-localidad disabled><option value="">—</option></select></label>
+      </div>
+      <div class="form-grid form-grid-3">
+        <label><span>CP</span><input type="text" data-filial-cp value="${escaparHtml(filial.cp || "")}" placeholder="Código postal"></label>
       </div>
       <div style="margin-top:10px">
         ${(filial.contactos || []).map(c => contactoAnexoIIHtml(filial.id, c)).join("")}
@@ -9302,7 +9317,7 @@ function seccionAnexoIIHtml(seccion) {
 function bindAccionesAnexoIIEditable() {
   document.getElementById("anexo-ii-contenido")?.querySelector("[data-anexo-ii-add-filial]")?.addEventListener("click", () => {
     const filiales = leerFilialesAnexoIIDesdeDom();
-    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", localidad: "", partido: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "", horario: "" }] });
+    filiales.push({ id: nuevoIdLocalAnexoII("fil"), nombre: "", domicilio: "", cp: "", localidad: "", partido: "", provincia: "", contactos: [{ id: nuevoIdLocalAnexoII("cto"), etiqueta: "", telefono: "", mail: "", horario: "" }] });
     renderAnexoIISeccion(leerSeccionesAnexoIIDesdeDom(), filiales);
   });
   document.querySelectorAll("#anexo-ii-contenido [data-anexo-ii-quitar-filial]").forEach(btn => {
@@ -9342,7 +9357,7 @@ function bindAccionesAnexoIIEditable() {
 }
 
 function filialAnexoIISoloLecturaHtml(f) {
-  const direccion = [f.domicilio, f.localidad, f.partido, f.provincia].filter(Boolean).join(", ");
+  const direccion = [f.domicilio, f.cp ? `CP ${f.cp}` : "", f.localidad, f.partido, f.provincia].filter(Boolean).join(", ");
   const contactos = (f.contactos || []).filter(c => c.etiqueta || c.telefono || c.mail || c.horario);
   return `<div class="anexo-ii-documento-sede">
     <strong>${escaparHtml(f.nombre) || escaparHtml(direccion) || "Sede"}</strong>
@@ -9800,9 +9815,25 @@ function buildAnexoIVPrestadoresUrl(params = {}) {
 
 async function cargarAnexoIVPrestadoresPorOS(obraSocialId) {
   const session = await asegurarSesionVigente();
-  const response = await fetchConTimeout(buildAnexoIVPrestadoresUrl({ select: "*", obra_social_id: `eq.${obraSocialId}`, order: "nombre.asc" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
-  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
-  return await response.json();
+  // PostgREST devuelve como máximo 1000 filas por respuesta aunque no se pida límite;
+  // con más de 1000 prestadores (como UTA) hay que paginar con el header Range hasta
+  // agotar el resultado, si no la mitad de la cartilla queda invisible en la pantalla.
+  const PAGE = 1000;
+  let desde = 0;
+  let todas = [];
+  while (true) {
+    const response = await fetchConTimeout(buildAnexoIVPrestadoresUrl({ select: "*", obra_social_id: `eq.${obraSocialId}`, order: "nombre.asc" }), {
+      method: "GET",
+      headers: { ...authHeaders(session.access_token), Range: `${desde}-${desde + PAGE - 1}` },
+      cache: "no-store"
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+    const pagina = await response.json();
+    todas = todas.concat(pagina);
+    if (pagina.length < PAGE) break;
+    desde += PAGE;
+  }
+  return todas;
 }
 
 function buildAnexoIVPrestadorWriteUrl(id = null) {
@@ -9847,25 +9878,54 @@ async function tomarSnapshotAnexoIVPrestadores(declaracionId, obraSocialId, acce
   if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
 }
 
+let anexoIVPrestadoresFiltroTexto = "";
+let anexoIVPrestadoresFiltroSoloPendientes = false;
+
+function bindAnexoIVPrestadoresBuscador() {
+  const input = document.getElementById("anexo-iv-prestadores-buscar");
+  const checkbox = document.getElementById("anexo-iv-prestadores-solo-pendientes");
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = "1";
+    input.addEventListener("input", () => { anexoIVPrestadoresFiltroTexto = input.value.trim().toLowerCase(); renderAnexoIVPrestadoresTabla(); });
+  }
+  if (checkbox && !checkbox.dataset.bound) {
+    checkbox.dataset.bound = "1";
+    checkbox.addEventListener("change", () => { anexoIVPrestadoresFiltroSoloPendientes = checkbox.checked; renderAnexoIVPrestadoresTabla(); });
+  }
+}
+
 function renderAnexoIVPrestadoresTabla() {
   const cont = document.getElementById("anexo-iv-prestadores-table-body");
   const vacio = document.getElementById("anexo-iv-prestadores-empty");
   const count = document.getElementById("anexo-iv-prestadores-count");
   const bloqueEditable = document.getElementById("anexo-iv-prestadores-acciones");
   if (!cont) return;
+  bindAnexoIVPrestadoresBuscador();
   const soloLectura = anexoIVDeclaracionActual?.estado === "presentada";
-  const filas = soloLectura ? anexoIVSnapshotPrestadores : anexoIVPrestadores;
-  if (count) count.textContent = filas.length ? `${filas.length} prestador${filas.length === 1 ? "" : "es"}` : "";
-  if (vacio) vacio.hidden = filas.length > 0;
+  const todasLasFilas = soloLectura ? anexoIVSnapshotPrestadores : anexoIVPrestadores;
+  const texto = anexoIVPrestadoresFiltroTexto;
+  const filas = todasLasFilas.filter(p => {
+    if (anexoIVPrestadoresFiltroSoloPendientes && !p.pendiente_revision) return false;
+    if (!texto) return true;
+    return [p.nombre, p.tipo_prestacion, p.especialidad, p.localidad, p.partido, p.provincia]
+      .some(v => (v || "").toLowerCase().includes(texto));
+  });
+  if (count) count.textContent = todasLasFilas.length ? `${filas.length} de ${todasLasFilas.length} prestador${todasLasFilas.length === 1 ? "" : "es"}` : "";
+  if (vacio) vacio.hidden = todasLasFilas.length > 0;
   if (bloqueEditable) bloqueEditable.hidden = soloLectura;
-  cont.innerHTML = filas.map(p => `<tr${soloLectura ? "" : ` class="cartilla-row" data-anexo-iv-prestador-id="${escaparHtml(p.id)}" tabindex="0" role="button" title="Clic para editar"`}>
-    <td><strong>${escaparHtml(p.nombre || "—")}</strong></td>
+  cont.innerHTML = filas.map(p => {
+    const claseFila = soloLectura ? "" : "cartilla-row";
+    const clasePendiente = p.pendiente_revision ? " fila-pendiente-revision" : "";
+    const tituloPendiente = p.pendiente_revision ? escaparHtml(p.pendiente_revision_motivo || "Le faltan datos de Cartilla.") : "Clic para editar";
+    return `<tr${soloLectura ? (p.pendiente_revision ? ` class="fila-pendiente-revision" title="${tituloPendiente}"` : "") : ` class="${claseFila}${clasePendiente}" data-anexo-iv-prestador-id="${escaparHtml(p.id)}" tabindex="0" role="button" title="${tituloPendiente}"`}>
+    <td>${p.pendiente_revision ? `<span class="icon-alerta" aria-label="Datos incompletos" title="${tituloPendiente}">⚠</span> ` : ""}<strong>${escaparHtml(p.nombre || "—")}</strong></td>
     <td>${escaparHtml(p.tipo_prestacion || "—")}</td>
     <td>${escaparHtml(p.especialidad || "—")}</td>
     <td>${escaparHtml(p.localidad || "—")}</td>
     <td>${escaparHtml(p.partido || "—")}</td>
     <td>${escaparHtml(p.provincia || "—")}</td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
   if (!soloLectura) {
     cont.querySelectorAll("[data-anexo-iv-prestador-id]").forEach(row => {
       const editar = () => requiereAutenticacion(() => abrirModalAnexoIVPrestadorEdicion(row.dataset.anexoIvPrestadorId));
@@ -10495,10 +10555,12 @@ async function renderAnexoIVAdminSeleccionado() {
   } catch (error) {
     console.error(error);
   }
+  const pendientesCount = prestadores.filter(p => p.pendiente_revision).length;
   const prestadoresHtml = prestadores.length
-    ? `<div class="table-scroll"><table class="data-table">
+    ? `${pendientesCount ? `<p class="stat-pill-inline pendiente" style="margin-bottom:8px">⚠ ${pendientesCount} prestador${pendientesCount === 1 ? "" : "es"} con datos incompletos de Cartilla</p>` : ""}
+      <div class="table-scroll"><table class="data-table">
         <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Partido</th><th>Provincia</th></tr></thead>
-        <tbody>${prestadores.map(p => `<tr><td>${escaparHtml(p.nombre || "")}</td><td>${escaparHtml(p.tipo_prestacion || "")}</td><td>${escaparHtml(p.especialidad || "")}</td><td>${escaparHtml(p.localidad || "")}</td><td>${escaparHtml(p.partido || "")}</td><td>${escaparHtml(p.provincia || "")}</td></tr>`).join("")}</tbody>
+        <tbody>${prestadores.map(p => `<tr${p.pendiente_revision ? ` class="fila-pendiente-revision" title="${escaparHtml(p.pendiente_revision_motivo || "Le faltan datos de Cartilla.")}"` : ""}><td>${p.pendiente_revision ? `<span class="icon-alerta" aria-label="Datos incompletos">⚠</span> ` : ""}${escaparHtml(p.nombre || "")}</td><td>${escaparHtml(p.tipo_prestacion || "")}</td><td>${escaparHtml(p.especialidad || "")}</td><td>${escaparHtml(p.localidad || "")}</td><td>${escaparHtml(p.partido || "")}</td><td>${escaparHtml(p.provincia || "")}</td></tr>`).join("")}</tbody>
       </table></div>`
     : `<p style="color:var(--muted)">No cargó prestadores.</p>`;
 
@@ -10584,7 +10646,7 @@ async function handleSeleccionObraSocialCartillaRevision() {
   const panel = document.getElementById("cartilla-revision-panel");
   if (!os) {
     if (periodoSelect) periodoSelect.hidden = true;
-    if (vacio) { vacio.hidden = false; vacio.innerHTML = `<p style="color:var(--muted)">Elegí una Obra Social arriba para ver su Cartilla.</p>`; }
+    if (vacio) { vacio.hidden = false; vacio.innerHTML = `<p class="callout-elegir">Elegí una Obra Social arriba para ver su Cartilla.</p>`; }
     if (panel) panel.hidden = true;
     return;
   }

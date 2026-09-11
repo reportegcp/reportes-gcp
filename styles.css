@@ -388,6 +388,16 @@ input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:foc
 }
 .empty-state strong{font-size:20px}
 .empty-state p{color:var(--muted);margin-bottom:0;line-height:1.6}
+.callout-elegir{
+  background:#fde3ec;
+  border:1px solid #f4b6d0;
+  border-radius:14px;
+  padding:22px 26px;
+  text-align:center;
+  font-size:18px;
+  font-weight:700;
+  color:#a3245f
+}
 .placeholder-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -1368,6 +1378,9 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .stat-pill-inline.ok{background:#e3f3ec;color:#1f6f52}
 .cartilla-hub-fila{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .stat-pill-inline.pendiente{background:#fdf0e4;color:#a85d13}
+tr.fila-pendiente-revision{background:#fdf0e4}
+tr.fila-pendiente-revision:hover{background:#fbe6d1}
+.icon-alerta{color:#a85d13;font-size:13px}
 .stat-pill-inline.pendiente input{width:66px;padding:2px 6px;font-size:11px;height:auto}
 .stat-pill-inline.pendiente button{padding:3px 10px;font-size:11px;height:auto;border-radius:999px}
 .afiliados-compacto input,.afiliados-compacto select{height:32px;padding-top:4px;padding-bottom:4px;font-size:12px}

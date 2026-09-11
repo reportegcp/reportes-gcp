@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 77</span>
+        <span>Versión 78</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -574,6 +574,12 @@
             </div>
           </div>
           <p class="notificaciones-hint" style="padding:8px 20px 0">Es un catálogo vivo: podés dar de alta y de baja prestadores en cualquier momento, no depende del período elegido arriba. Al presentar el Anexo IV se toma una foto de este listado tal como está en ese momento.</p>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 20px 0;flex-wrap:wrap">
+            <input type="search" id="anexo-iv-prestadores-buscar" placeholder="Buscar por nombre, tipo, especialidad o localidad..." style="flex:1;min-width:220px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap">
+              <input type="checkbox" id="anexo-iv-prestadores-solo-pendientes"> Ver solo con datos incompletos
+            </label>
+          </div>
           <div class="table-scroll">
             <table class="data-table">
               <thead><tr><th>Prestador</th><th>Tipo de prestación</th><th>Especialidad</th><th>Localidad</th><th>Partido</th><th>Provincia</th></tr></thead>
