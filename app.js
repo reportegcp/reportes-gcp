@@ -4756,7 +4756,7 @@ function resolverObraSocialCartilla(valor) {
   return obrasSociales.find(os => normalizar(getObraSocialDisplay(os)) === texto || normalizar(os.rnos) === texto || normalizar(os.sigla) === texto) || null;
 }
 
-function filtrarObrasSocialesBusqueda(query, { soloActivas = true } = {}) {
+function filtrarObrasSocialesBusqueda(query, { soloActivas = false } = {}) {
   const q = normalizar(query || "").trim();
   if (q.length < 2) return [];
   const base = soloActivas ? obrasSociales.filter(os => os.estado !== "INACTIVA") : obrasSociales;
@@ -4791,7 +4791,7 @@ function inicializarBuscadorObraSocial(inputId, resultsId, onSeleccion) {
     items = lista;
     if (!lista.length) { cerrar(); return; }
     results.innerHTML = lista.map((os, i) => `<button type="button" class="os-search-result-item" data-index="${i}">
-        <strong>${escaparHtml(os.rnos || "—")}</strong> · ${escaparHtml(os.sigla || "S/S")} · ${escaparHtml(os.denominacion || "")}
+        <strong>${escaparHtml(os.rnos || "—")}</strong> · ${escaparHtml(os.sigla || "S/S")} · ${escaparHtml(os.denominacion || "")}${os.estado === "INACTIVA" ? ' <span style="color:#c0392b;font-weight:700">(INACTIVA)</span>' : ""}
       </button>`).join("");
     results.hidden = false;
     activeIndex = -1;
