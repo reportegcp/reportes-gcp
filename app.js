@@ -4978,7 +4978,8 @@ function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = 
   const container = document.getElementById(`${prefix}-ejercicio-options`);
   if (!container) return;
   const anteriores = new Set(ejerciciosFiltroSeleccionados(prefix));
-  const teniaOpciones = container.querySelectorAll('input').length > 0;
+  const opcionesPrevias = new Set([...container.querySelectorAll('input')].map(i => i.value));
+  const teniaOpciones = opcionesPrevias.size > 0;
   const defaultChecked = opciones.defaultChecked !== false;
   const labelFn = typeof opciones.labelFn === "function" ? opciones.labelFn : (v => v);
   ejercicioLabelFns[prefix] = labelFn;
@@ -4986,7 +4987,10 @@ function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = 
   const ejercicios = [...new Set((valores || []).filter(Boolean).map(String))]
     .sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
   container.innerHTML = ejercicios.map(e => {
-    const checked = teniaOpciones ? anteriores.has(e) : defaultChecked;
+    // Si la opción ya existía en el combo, respetamos si el usuario la había tildado o no.
+    // Si es una opción NUEVA (por ejemplo, apareció recién al cargar "Ver historial completo"),
+    // arranca tildada — si no, quedaría oculta del filtro sin que nadie la haya destildado a propósito.
+    const checked = teniaOpciones ? (opcionesPrevias.has(e) ? anteriores.has(e) : true) : defaultChecked;
     return `<label class="period-check"><input type="checkbox" name="${prefix}-ejercicio-opcion" value="${escaparHtml(e)}" ${checked ? "checked" : ""}><span>${escaparHtml(labelFn(e))}</span></label>`;
   }).join("");
   container.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).forEach(input => {
