@@ -1274,7 +1274,7 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .notificacion-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
 .notificacion-dot.verde{background:#278664}
 .notificacion-dot.amarillo{background:#e0b400}
-.notificacion-dot.naranja{background:#e07b1a}
+.notificacion-dot.naranja{background:#ff6a00}
 .notificacion-dot.rojo{background:#c0392b}
 .notificacion-dot.gris{background:#9aa7b5}
 .notificacion-numero{font-weight:800;color:#35485e}
