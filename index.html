@@ -84,7 +84,6 @@
           <div class="nav-submenu">
             <button class="nav-subitem" data-view="pma" type="button">PMA</button>
             <button class="nav-subitem" data-view="cartillas" type="button">Cartillas</button>
-            <button class="nav-subitem" data-view="notificaciones-reporte" type="button">Notificaciones</button>
             <button class="nav-subitem" data-view="reportes" type="button">Reportes</button>
           </div>
         </div>
@@ -126,7 +125,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 83</span>
+        <span>Versión 84</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1033,45 +1032,7 @@
         <p id="criticidad-hint" style="color:var(--muted);font-size:13px">0 = presentó PMA o Cartilla en ese trimestre o antes · 1 = todavía no había presentado ninguna de las dos.</p>
       </section>
 
-      <section id="notificaciones-reporte" class="view">
-        <h3 style="margin:0 0 4px">Cartillas</h3>
-        <div class="table-card">
-          <div class="table-meta">
-            <strong id="notif-reporte-count">Obras Sociales sin respuesta a sus notificaciones</strong>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>RNAS</th><th>Obra Social</th><th>Última notificación</th><th>Nº</th><th>Vence</th><th>Estado</th></tr></thead>
-              <tbody id="notif-reporte-table-body"></tbody>
-            </table>
-          </div>
-          <div class="table-empty" id="notif-reporte-empty" hidden>No hay obras sociales sin responder a sus notificaciones.</div>
-        </div>
-
-        <div class="table-card" style="margin-top:16px;padding:18px">
-          <strong style="display:block;margin-bottom:10px">Respuestas por cantidad de notificaciones</strong>
-          <div id="notif-reporte-chart"></div>
-        </div>
-
-        <h3 style="margin:28px 0 4px">PMA</h3>
-        <div class="table-card">
-          <div class="table-meta">
-            <strong id="notif-reporte-pma-count">Obras Sociales sin respuesta a sus notificaciones</strong>
-          </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>RNAS</th><th>Obra Social</th><th>Última notificación</th><th>Nº</th><th>Vence</th><th>Estado</th></tr></thead>
-              <tbody id="notif-reporte-pma-table-body"></tbody>
-            </table>
-          </div>
-          <div class="table-empty" id="notif-reporte-pma-empty" hidden>No hay obras sociales sin responder a sus notificaciones de PMA.</div>
-        </div>
-
-        <div class="table-card" style="margin-top:16px;padding:18px">
-          <strong style="display:block;margin-bottom:10px">Respuestas por cantidad de notificaciones</strong>
-          <div id="notif-reporte-pma-chart"></div>
-        </div>
-      </section>
+      
 
       <section id="metas-fisicas" class="view">
         <p style="font-size:12px;font-weight:800;color:#4d5d70;margin:0 0 6px">Año (trimestres calendario: Ene-Mar, Abr-Jun, Jul-Sep, Oct-Dic)</p>

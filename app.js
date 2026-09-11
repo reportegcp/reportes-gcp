@@ -22,7 +22,6 @@ const views = {
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
-  "notificaciones-reporte": { title: "Notificaciones", subtitle: "Obras Sociales que no respondieron a la notificación de Cartilla" },
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
@@ -288,9 +287,9 @@ function perfilPuedeVerVista(perfil, vista) {
   // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
   // de la coordinación (usuario Administrador/Admin Prestacional): el perfil "admin presentaciones"
   // (auditor) consulta y presenta, pero no configura.
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
-  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
-  if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "notificaciones-reporte", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
+  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
+  if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
   if (p === "cartilla os") return ["cartilla-hub", "prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
   return false;
 }
@@ -4125,7 +4124,7 @@ function showView(id, updateHistory = true) {
   // Colapsar todos los submenús salvo el de la sección donde estamos parados.
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
-      (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
+      (["pma", "cartillas", "reportes"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
       (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
@@ -4134,7 +4133,7 @@ function showView(id, updateHistory = true) {
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
-  if (["pma", "cartillas", "reportes", "notificaciones-reporte"].includes(resolved)) {
+  if (["pma", "cartillas", "reportes"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
   if (["criticidad", "metas-fisicas"].includes(resolved)) {
@@ -4185,7 +4184,6 @@ function showView(id, updateHistory = true) {
   if (resolved === "metas-fisicas" && !document.getElementById("metas-anio").value) {
     document.getElementById("metas-anio").value = new Date().getFullYear();
   }
-  if (resolved === "notificaciones-reporte") cargarYRenderizarReporteNotificaciones();
   if (resolved === "cartilla-hub") inicializarVistaCartillaHub();
   if (resolved === "cartilla-revision") inicializarVistaCartillaRevision();
   if (resolved === "prestadores") inicializarVistaPrestadores();
@@ -5381,9 +5379,7 @@ function renderPma() {
     const clase = claseCumplimientoPresentacion(plazo.estado);
     const titulo = plazo.estado === "EN_TERMINO" ? "En término" : plazo.estado === "FUERA_DE_TERMINO" ? "Fuera de término" : "Sin datos";
     const notif = estadoNotificacionesPma(r.id);
-    const notifCelda = notif.estado === "SIN_NOTIFICAR"
-      ? `<span class="notificacion-dot gris" title="Sin notificar"></span>`
-      : `<span class="notificacion-dot ${notif.color}" title="${textoEstadoNotificacion(notif.ultima)} · ${notif.ultima.numero}ª notificación"></span>`;
+    const notifCelda = renderIconoNotificacion(notif);
     return `<tr class="pma-row" data-pma-id="${r.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(r.obras_sociales?.rnos||"—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(r.obras_sociales?.denominacion||"—")}</td>
@@ -5503,9 +5499,7 @@ function renderCartillas() {
     const clase = claseCumplimientoPresentacion(plazo.estado);
     const titulo = plazo.estado === "EN_TERMINO" ? "En término" : plazo.estado === "FUERA_DE_TERMINO" ? "Fuera de término" : "Sin datos";
     const notif = estadoNotificacionesCartilla(c.id);
-    const notifCelda = notif.estado === "SIN_NOTIFICAR"
-      ? `<span class="notificacion-dot gris" title="Sin notificar"></span>`
-      : `<span class="notificacion-dot ${notif.color}" title="${textoEstadoNotificacion(notif.ultima)} · ${notif.ultima.numero}ª notificación"></span>`;
+    const notifCelda = renderIconoNotificacion(notif);
     return `<tr class="cartilla-row" data-cartilla-id="${c.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
       <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
@@ -6412,8 +6406,13 @@ function renderNotificacionesPma() {
       ? `<button type="button" class="link-button" data-notif-marcar-pma="RESPONDIO" data-notif-id="${n.id}">Marcar respondida</button>
          <button type="button" class="link-button" data-notif-marcar-pma="NO_RESPONDIO" data-notif-id="${n.id}">No respondió</button>`
       : "";
+    const iconoNotif = n.estado === "RESPONDIO"
+      ? `<span class="notificacion-check verde" title="${textoEstadoNotificacion(n)}">✓</span>`
+      : n.estado === "NO_RESPONDIO"
+      ? `<span class="notificacion-check rojo" title="${textoEstadoNotificacion(n)}">✓</span>`
+      : `<span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>`;
     return `<div class="notificacion-row">
-      <span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>
+      ${iconoNotif}
       <span class="notificacion-numero">${n.numero}ª notificación</span>
       <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
       <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
@@ -6605,6 +6604,18 @@ function colorNotificacion(notif, hoyISO = hoyLocalISO()) {
   return "rojo";
 }
 
+// Ícono de la columna "NOTIF." (Cartillas y PMA): un CÍRCULO significa que todavía se está
+// esperando algo (respuesta de la Obra Social, o que el administrativo gire el expediente si
+// ya venció el plazo); un CHECK significa que ya está resuelto de este lado y no se espera nada
+// más — verde si respondió, rojo si no respondió (y por lo tanto ya se giró al auditor).
+function renderIconoNotificacion(notif) {
+  if (notif.estado === "SIN_NOTIFICAR") return `<span class="notificacion-dot gris" title="Sin notificar"></span>`;
+  const titulo = `${textoEstadoNotificacion(notif.ultima)} · ${notif.ultima.numero}ª notificación`;
+  if (notif.estado === "RESPONDIO") return `<span class="notificacion-check verde" title="${titulo}">✓</span>`;
+  if (notif.estado === "NO_RESPONDIO") return `<span class="notificacion-check rojo" title="${titulo}">✓</span>`;
+  return `<span class="notificacion-dot ${notif.color}" title="${titulo}"></span>`;
+}
+
 // Estado "resumen" de la cartilla en base a su ÚLTIMA notificación — usado para el
 // filtro "Notificadas" de la tabla y para la columna del punto de color.
 function estadoNotificacionesCartilla(cartillaId, hoyISO = hoyLocalISO()) {
@@ -6700,8 +6711,13 @@ function renderNotificacionesCartilla() {
       : "";
     const editar = cartillaModalSoloLectura ? "" : `<button type="button" class="link-button" data-notif-editar="${n.id}">Editar fecha</button>`;
     const borrar = cartillaModalSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-notif-borrar="${n.id}" title="Borrar esta notificación" aria-label="Borrar esta notificación">×</button>`;
+    const iconoNotif = n.estado === "RESPONDIO"
+      ? `<span class="notificacion-check verde" title="${textoEstadoNotificacion(n)}">✓</span>`
+      : n.estado === "NO_RESPONDIO"
+      ? `<span class="notificacion-check rojo" title="${textoEstadoNotificacion(n)}">✓</span>`
+      : `<span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>`;
     return `<div class="notificacion-row">
-      <span class="notificacion-dot ${color}" title="${textoEstadoNotificacion(n)}"></span>
+      ${iconoNotif}
       <span class="notificacion-numero">${n.numero}ª notificación</span>
       <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
       <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
@@ -6846,112 +6862,6 @@ async function marcarNotificacionEstado(id, estado) {
   }
 }
 
-async function cargarYRenderizarReporteNotificaciones() {
-  if (typeof document === "undefined") return;
-  const tbody = document.getElementById("notif-reporte-table-body");
-  if (!tbody) return;
-  try {
-    if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; }
-    if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; pmaCompleta = true; }
-    if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
-    await Promise.all([cargarTodasLasNotificacionesCartillas(), cargarTodasLasNotificacionesPma()]);
-    renderReporteNotificaciones();
-    renderReporteNotificacionesPma();
-  } catch (error) {
-    mostrarToast("No se pudo cargar el reporte de notificaciones.");
-    console.error(error);
-  }
-}
-
-// Criterio único (compartido con el filtro "Vencida sin respuesta" de Cartillas/PMA): la última
-// notificación quedó tildada como NO_RESPONDIO, o sigue PENDIENTE pero ya pasaron 10 días hábiles
-// sin que se cargara una notificación siguiente. Esto es lo que de verdad necesita seguimiento;
-// una notificación recién enviada y todavía dentro de plazo NO entra acá (por eso este listado
-// puede dar un número más chico que "cuántas presentaciones tienen notificación sin responder").
-function presentacionesConNotificacionVencida(presentaciones, mapaNotifs, hoyISO) {
-  const filas = [];
-  presentaciones.forEach(p => {
-    const notifs = mapaNotifs.get(Number(p.id)) || [];
-    if (!notifs.length) return;
-    const ultima = [...notifs].sort((a, b) => (a.numero || 0) - (b.numero || 0)).at(-1);
-    const vencida = ultima.estado === "PENDIENTE" && diasHabilesTranscurridos(ultima.fecha_notificacion, hoyISO) >= 10;
-    if (ultima.estado === "NO_RESPONDIO" || vencida) filas.push({ presentacion: p, notif: ultima, vencida });
-  });
-  filas.sort((a, b) => (a.presentacion.obras_sociales?.rnos || "").localeCompare(b.presentacion.obras_sociales?.rnos || ""));
-  return filas;
-}
-
-function renderReporteNotificaciones() {
-  const tbody = document.getElementById("notif-reporte-table-body");
-  const empty = document.getElementById("notif-reporte-empty");
-  const count = document.getElementById("notif-reporte-count");
-  if (!tbody) return;
-  const hoyISO = hoyLocalISO();
-  const filas = presentacionesConNotificacionVencida(cartillas, cartillaNotificacionesPorCartilla, hoyISO);
-
-  tbody.innerHTML = filas.map(f => {
-    const os = f.presentacion.obras_sociales || {};
-    const estadoTexto = f.notif.estado === "NO_RESPONDIO" ? "No respondió (tildado)" : "Sin responder — venció el plazo";
-    return `<tr>
-      <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
-      <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
-      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_notificacion)}</td>
-      <td>${f.notif.numero}ª</td>
-      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_limite_respuesta)}</td>
-      <td style="color:#c0392b;font-weight:700">${estadoTexto}</td>
-    </tr>`;
-  }).join("");
-  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "Obra Social" : "Obras Sociales"} sin respuesta a su notificación`;
-  if (empty) empty.hidden = filas.length !== 0;
-
-  // Gráfico: cuántas cartillas respondieron a la 1ª notificación, a la 2ª, etc.
-  const conteoPorNumero = new Map();
-  cartillas.forEach(c => {
-    const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
-    const respondida = notifs.find(n => n.estado === "RESPONDIO");
-    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
-  });
-  const items = [...conteoPorNumero.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([numero, cantidad]) => ({ etiqueta: `Respondieron a la ${numero}ª notificación`, valor: cantidad }));
-  renderBarChart("notif-reporte-chart", items);
-}
-
-// Mismo control que renderReporteNotificaciones, pero para PMA (antes solo existía para Cartilla).
-function renderReporteNotificacionesPma() {
-  const tbody = document.getElementById("notif-reporte-pma-table-body");
-  const empty = document.getElementById("notif-reporte-pma-empty");
-  const count = document.getElementById("notif-reporte-pma-count");
-  if (!tbody) return;
-  const hoyISO = hoyLocalISO();
-  const filas = presentacionesConNotificacionVencida(pma, pmaNotificacionesPorPma, hoyISO);
-
-  tbody.innerHTML = filas.map(f => {
-    const os = f.presentacion.obras_sociales || {};
-    const estadoTexto = f.notif.estado === "NO_RESPONDIO" ? "No respondió (tildado)" : "Sin responder — venció el plazo";
-    return `<tr>
-      <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
-      <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
-      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_notificacion)}</td>
-      <td>${f.notif.numero}ª</td>
-      <td class="date-cell">${formatFechaPantalla(f.notif.fecha_limite_respuesta)}</td>
-      <td style="color:#c0392b;font-weight:700">${estadoTexto}</td>
-    </tr>`;
-  }).join("");
-  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "Obra Social" : "Obras Sociales"} sin respuesta a su notificación`;
-  if (empty) empty.hidden = filas.length !== 0;
-
-  const conteoPorNumero = new Map();
-  pma.forEach(p => {
-    const notifs = pmaNotificacionesPorPma.get(Number(p.id)) || [];
-    const respondida = notifs.find(n => n.estado === "RESPONDIO");
-    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
-  });
-  const items = [...conteoPorNumero.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([numero, cantidad]) => ({ etiqueta: `Respondieron a la ${numero}ª notificación`, valor: cantidad }));
-  renderBarChart("notif-reporte-pma-chart", items);
-}
 
 function limpiarFormularioCartilla() {
   document.getElementById("cartilla-form")?.reset();
