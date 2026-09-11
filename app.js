@@ -6804,6 +6804,16 @@ function textoEstadoNotificacion(notif) {
   return "Pendiente";
 }
 
+// Texto chiquito debajo de la notificación con cada cambio de fecha que se hizo, para no perder
+// nunca la fecha real en que se notificó originalmente aunque se la haya corregido después.
+function renderHistorialFechaNotificacion(historial) {
+  if (!Array.isArray(historial) || !historial.length) return "";
+  const lineas = historial.map(h =>
+    `${formatFechaPantalla(h.fecha_anterior)} → ${formatFechaPantalla(h.fecha_nueva)} (cambiada el ${formatFechaPantalla((h.editado_en || "").slice(0, 10))}${h.editado_por ? ` por ${escaparHtml(h.editado_por)}` : ""})`
+  ).join(" · ");
+  return `<p style="margin:2px 0 0 20px;font-size:10.5px;color:var(--muted)">Fecha original: ${formatFechaPantalla(historial[0].fecha_anterior)} — ${lineas}</p>`;
+}
+
 let cartillaModalSoloLectura = false;
 let cartillaNotifEditandoId = null;
 
@@ -6841,7 +6851,7 @@ function renderNotificacionesCartilla() {
       <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
       <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
       <div class="notificacion-actions">${marcar}${editar}${borrar}</div>
-    </div>`;
+    </div>${renderHistorialFechaNotificacion(n.historial_fecha)}`;
   }).join("") || `<p class="notificaciones-hint">Todavía no se cargaron notificaciones.</p>`;
   cont.querySelectorAll("[data-notif-marcar]").forEach(btn => {
     btn.addEventListener("click", () => marcarNotificacionEstado(btn.dataset.notifId, btn.dataset.notifMarcar));
@@ -6866,7 +6876,14 @@ async function guardarFechaNotificacionCartilla(id, fecha) {
   if (boton) { boton.disabled = true; boton.textContent = "Guardando..."; }
   try {
     const session = await asegurarSesionVigente();
-    const payload = { fecha_notificacion: fecha, fecha_limite_respuesta: sumarDiasHabiles(fecha, 10) };
+    const actual = cartillaNotificacionesActuales.find(x => String(x.id) === String(id));
+    const historialPrevio = Array.isArray(actual?.historial_fecha) ? actual.historial_fecha : [];
+    // Guardamos un registro cada vez que se cambia la fecha, para no perder la fecha real
+    // (la que efectivamente se notificó) aunque después se la corrija una o varias veces.
+    const historial = actual && actual.fecha_notificacion && actual.fecha_notificacion !== fecha
+      ? [...historialPrevio, { fecha_anterior: actual.fecha_notificacion, fecha_nueva: fecha, editado_en: new Date().toISOString(), editado_por: session.user?.email || null }]
+      : historialPrevio;
+    const payload = { fecha_notificacion: fecha, fecha_limite_respuesta: sumarDiasHabiles(fecha, 10), historial_fecha: historial };
     const response = await fetchConTimeout(buildCartillaNotificacionesUrl(null, id), {
       method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" }, body: JSON.stringify(payload)
     }, 10000, fetch);
