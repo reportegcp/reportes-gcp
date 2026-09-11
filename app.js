@@ -6417,7 +6417,8 @@ function poblarObrasSocialesPma() {
 }
 function resolverObraSocialPma(valor) {
   const buscado=normalizar(valor);
-  return obrasSociales.find(os=>normalizar(getObraSocialDisplay(os))===buscado)||null;
+  if (!buscado) return null;
+  return obrasSociales.find(os=>normalizar(getObraSocialDisplay(os))===buscado || normalizar(os.rnos)===buscado || normalizar(os.sigla)===buscado)||null;
 }
 function actualizarAlertaPma() {
   if (typeof document === "undefined") return calcularCumplimiento90("", "");
