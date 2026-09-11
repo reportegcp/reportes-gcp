@@ -126,7 +126,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 78</span>
+        <span>Versión 79</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -728,6 +728,15 @@
               <div class="form-inline-grid cols-2 full">
                 <label><span>Tipo de prestación</span><select id="anexo-iv-prestador-tipo"><option value="">—</option></select></label>
                 <label><span>Especialidad</span><select id="anexo-iv-prestador-especialidad" disabled><option value="">—</option></select></label>
+              </div>
+              <div class="form-inline-grid cols-2 full" id="anexo-iv-prestador-jornada-wrap" hidden>
+                <label><span>Jornada <small style="color:var(--muted);font-weight:400">(obligatorio para este tipo de prestación, según Res. 428/99)</small></span>
+                  <select id="anexo-iv-prestador-jornada">
+                    <option value="">—</option>
+                    <option value="Simple">Jornada simple</option>
+                    <option value="Completa">Jornada completa</option>
+                  </select>
+                </label>
               </div>
               <label class="full"><span>Domicilio</span><input id="anexo-iv-prestador-domicilio" type="text" maxlength="300"></label>
               <div class="form-inline-grid cols-3 full">

@@ -10083,7 +10083,7 @@ function actualizarEspecialidadAnexoIVPrestador() {
 }
 
 function limpiarFormularioAnexoIVPrestador() {
-  ["anexo-iv-prestador-id", "anexo-iv-prestador-nombre", "anexo-iv-prestador-tipo", "anexo-iv-prestador-especialidad", "anexo-iv-prestador-domicilio", "anexo-iv-prestador-telefono", "anexo-iv-prestador-email"].forEach(id => {
+  ["anexo-iv-prestador-id", "anexo-iv-prestador-nombre", "anexo-iv-prestador-tipo", "anexo-iv-prestador-especialidad", "anexo-iv-prestador-domicilio", "anexo-iv-prestador-telefono", "anexo-iv-prestador-email", "anexo-iv-prestador-jornada"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
@@ -10092,9 +10092,28 @@ function limpiarFormularioAnexoIVPrestador() {
   poblarSelectPartidoAnexoIVPrestador("");
   poblarSelectLocalidadAnexoIVPrestador("", "");
   actualizarEspecialidadAnexoIVPrestador();
+  actualizarJornadaVisibilidadAnexoIVPrestador();
   setFormMessage("anexo-iv-prestador-form-message", "");
   const eliminar = document.getElementById("anexo-iv-prestador-eliminar");
   if (eliminar) eliminar.hidden = true;
+}
+
+// Tipos de prestación en los que la Res. 428/99 diferencia arancel por Jornada Simple/Doble
+// (Formación Laboral y las variantes de Hogar combinado). El campo se muestra solo para estos.
+const ANEXO_IV_TIPOS_CON_JORNADA = [
+  "Formación Laboral y/o Rehabilitación Profesional",
+  "Hogar",
+  "Hogar con Centro de Día",
+  "Hogar con Centro Educativo Terapéutico",
+  "Hogar con Educación Inicial",
+  "Hogar con Educación General Básica",
+  "Hogar con Formación Laboral"
+];
+
+function actualizarJornadaVisibilidadAnexoIVPrestador() {
+  const tipo = document.getElementById("anexo-iv-prestador-tipo")?.value || "";
+  const wrap = document.getElementById("anexo-iv-prestador-jornada-wrap");
+  if (wrap) wrap.hidden = !ANEXO_IV_TIPOS_CON_JORNADA.includes(tipo);
 }
 
 function abrirModalAnexoIVPrestadorNuevo() {
@@ -10114,7 +10133,10 @@ function abrirModalAnexoIVPrestadorEdicion(id) {
   document.getElementById("anexo-iv-prestador-nombre").value = p.nombre || "";
   document.getElementById("anexo-iv-prestador-tipo").value = p.tipo_prestacion || "";
   actualizarEspecialidadAnexoIVPrestador();
+  actualizarJornadaVisibilidadAnexoIVPrestador();
   document.getElementById("anexo-iv-prestador-especialidad").value = p.especialidad || "";
+  const jornadaSelect = document.getElementById("anexo-iv-prestador-jornada");
+  if (jornadaSelect) jornadaSelect.value = p.jornada || "";
   document.getElementById("anexo-iv-prestador-domicilio").value = p.domicilio || "";
   document.getElementById("anexo-iv-prestador-provincia").value = p.provincia || "";
   poblarSelectPartidoAnexoIVPrestador(p.provincia || "", p.partido || "");
@@ -10132,11 +10154,18 @@ async function handleAnexoIVPrestadorSubmit(event) {
   const id = document.getElementById("anexo-iv-prestador-id").value || null;
   const nombre = document.getElementById("anexo-iv-prestador-nombre").value.trim();
   if (!nombre) { setFormMessage("anexo-iv-prestador-form-message", "El nombre es obligatorio."); return; }
+  const tipoSeleccionado = document.getElementById("anexo-iv-prestador-tipo").value.trim();
+  const jornadaSeleccionada = document.getElementById("anexo-iv-prestador-jornada")?.value.trim() || "";
+  if (ANEXO_IV_TIPOS_CON_JORNADA.includes(tipoSeleccionado) && !jornadaSeleccionada) {
+    setFormMessage("anexo-iv-prestador-form-message", "Para este tipo de prestación hay que indicar la Jornada (simple o completa), según la Res. 428/99.");
+    return;
+  }
   const payload = {
     obra_social_id: anexoIVObraSocialActual.id,
     nombre,
-    tipo_prestacion: document.getElementById("anexo-iv-prestador-tipo").value.trim() || null,
+    tipo_prestacion: tipoSeleccionado || null,
     especialidad: document.getElementById("anexo-iv-prestador-especialidad").value.trim() || null,
+    jornada: jornadaSeleccionada || null,
     domicilio: document.getElementById("anexo-iv-prestador-domicilio").value.trim() || null,
     provincia: document.getElementById("anexo-iv-prestador-provincia").value.trim() || null,
     partido: document.getElementById("anexo-iv-prestador-partido").value.trim() || null,
@@ -11830,6 +11859,7 @@ async function initBrowser() {
   // de la Resolución 428/99, para el Tipo de prestación "Prestaciones de Apoyo" — para
   // cualquier otro tipo (Transporte, Centro de Día, Hogar, etc.) no aplica.
   document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("change", actualizarEspecialidadAnexoIVPrestador);
+  document.getElementById("anexo-iv-prestador-tipo")?.addEventListener("change", actualizarJornadaVisibilidadAnexoIVPrestador);
   document.getElementById("btn-anexo-iv-descargar-plantilla")?.addEventListener("click", () => requiereAutenticacion(descargarPlantillaAnexoIVPrestadores));
   document.getElementById("anexo-iv-pegar-descargar-plantilla-link")?.addEventListener("click", event => { event.preventDefault(); requiereAutenticacion(descargarPlantillaAnexoIVPrestadores); });
   document.getElementById("btn-anexo-iv-pegar")?.addEventListener("click", () => requiereAutenticacion(abrirModalAnexoIVPegar));
