@@ -5533,7 +5533,8 @@ function actualizarAvisoHistoricoPma() {
   if (typeof document === "undefined") return;
   const aviso = document.getElementById("pma-historico-aviso");
   if (!aviso) return;
-  aviso.hidden = pmaCompleta;
+  const hayBusqueda = Boolean(document.getElementById("pma-search")?.value?.trim());
+  aviso.hidden = pmaCompleta || hayBusqueda;
 }
 
 async function cargarHistoricoCompletoPma() {
@@ -5738,7 +5739,8 @@ function actualizarAvisoHistoricoCartillas() {
   if (typeof document === "undefined") return;
   const aviso = document.getElementById("cartilla-historico-aviso");
   if (!aviso) return;
-  aviso.hidden = cartillasCompleta;
+  const hayBusqueda = Boolean(document.getElementById("cartilla-search")?.value?.trim());
+  aviso.hidden = cartillasCompleta || hayBusqueda;
 }
 
 async function cargarHistoricoCompletoCartillas() {
@@ -11989,7 +11991,7 @@ async function initBrowser() {
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);
-  document.getElementById("pma-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
+  document.getElementById("pma-search")?.addEventListener("input", (ev) => { pmaPage = 1; renderPma(); actualizarAvisoHistoricoPma(); if (ev.target.value.trim() && !pmaCompleta) cargarHistoricoCompletoPma(); });
   document.getElementById("pma-ingreso-search")?.addEventListener("input", () => { pmaPage = 1; renderPma(); });
   document.getElementById("pma-analista-filter")?.addEventListener("change", renderPma);
   document.getElementById("pma-condicion-filter")?.addEventListener("change", () => { pmaPage = 1; renderPma(); });
@@ -12002,7 +12004,7 @@ async function initBrowser() {
 
   document.getElementById("btn-nueva-cartilla")?.addEventListener("click", () => requiereAutenticacion(abrirModalCartillaNueva));
   document.getElementById("cartilla-form")?.addEventListener("submit", handleCartillaSubmit);
-  document.getElementById("cartilla-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
+  document.getElementById("cartilla-search")?.addEventListener("input", (ev) => { cartillaPage = 1; renderCartillas(); actualizarAvisoHistoricoCartillas(); if (ev.target.value.trim() && !cartillasCompleta) cargarHistoricoCompletoCartillas(); });
   document.getElementById("cartilla-ingreso-search")?.addEventListener("input", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-plazo-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
   document.getElementById("cartilla-condicion-filter")?.addEventListener("change", () => { cartillaPage = 1; renderCartillas(); });
