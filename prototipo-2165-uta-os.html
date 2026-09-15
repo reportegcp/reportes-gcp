@@ -21,6 +21,23 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
 .two{grid-template-columns:1.4fr 1fr}.three{grid-template-columns:1.2fr .9fr .9fr}.section-title{font-size:17px;font-weight:800;margin:0 0 12px}.progress{height:10px;background:#e9eff5;border-radius:999px;overflow:hidden}.progress span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),#39a5e7)}
 .alert{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.alert:last-child{border-bottom:0}.alert-icon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;flex:0 0 auto}.alert strong{display:block;font-size:14px}.alert small{color:var(--muted)}
 .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}.table{width:100%;border-collapse:collapse;font-size:13px}.table th{background:#edf4fa;text-align:left;padding:11px;white-space:nowrap}.table td{padding:11px;border-top:1px solid var(--line);vertical-align:top}.table tr:hover td{background:#fafcff}.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.filters input,.filters select{border:1px solid #cddae6;border-radius:10px;padding:9px 10px;background:#fff;min-width:160px}.btn{border:0;border-radius:10px;padding:10px 13px;cursor:pointer;font-weight:700}.btn.primary{background:var(--blue);color:#fff}.btn.secondary{background:#eaf2f9;color:#194f7c}.btn.danger{background:#fdeaea;color:#a22b2b}.btn.small{padding:6px 9px;font-size:12px}.btn:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap}
+.providers-table{table-layout:fixed}
+.providers-table th:nth-child(1),.providers-table td:nth-child(1){width:14%}
+.providers-table th:nth-child(2),.providers-table td:nth-child(2){width:11%}
+.providers-table th:nth-child(3),.providers-table td:nth-child(3){width:12%}
+.providers-table th:nth-child(4),.providers-table td:nth-child(4){width:21%}
+.providers-table th:nth-child(5),.providers-table td:nth-child(5){width:15%;white-space:normal}
+.providers-table th:nth-child(6),.providers-table td:nth-child(6){width:13%}
+.providers-table th:nth-child(7),.providers-table td:nth-child(7){width:8%}
+.providers-table th:nth-child(8),.providers-table td:nth-child(8){width:6%}
+.plain-list{font-size:12.5px;line-height:1.5}
+.plain-list .more-link{color:#3f668f;cursor:pointer;text-decoration:underline;font-size:11.5px}
+.contract-text{font-weight:800;font-size:12px}
+.contract-text.ok{color:#23754b}.contract-text.warn{color:#8c6200}.contract-text.bad{color:#9c2c2c}.contract-text.info{color:#3f668f}
+.detail-compact{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fafcff;font-size:12.5px}
+.detail-compact .drow{padding:4px 0;border-bottom:1px dashed #e3eaf1}.detail-compact .drow:last-child{border-bottom:0}
+.detail-compact .drow b{display:inline-block;min-width:118px;color:var(--muted);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px}
+
 .kpirow{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#eef5fb;border:1px solid #d7e4ef;border-radius:999px;padding:7px 10px;font-size:12px}.law{display:grid;grid-template-columns:1.1fr 1.2fr .9fr .8fr auto;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}.law:last-child{border-bottom:0}.law small{color:var(--muted)}
 .locality{display:grid;grid-template-columns:1.1fr .55fr 1.1fr 1fr .85fr .8fr;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}.locality.header{font-weight:800;background:#edf4fa;border-radius:10px 10px 0 0}.locality:last-child{border-bottom:0}
 .callout{border-left:4px solid var(--blue);background:#eef6fc;padding:13px 14px;border-radius:8px;margin-bottom:14px}.callout.warnc{border-left-color:var(--warn);background:#fff8e9}.callout.badc{border-left-color:var(--bad);background:#fff1f1}.callout strong{display:block;margin-bottom:3px}
@@ -267,7 +284,8 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
         <div class="pagehead"><div><h2>Red y mecanismos de cobertura</h2><p>La OS declara cada prestador una sola vez y selecciona toda la capacidad que tiene disponible con él.</p></div><button class="btn primary" id="newProvider">+ Declarar prestador</button></div>
         <div class="callout"><strong>Carga simplificada</strong>Una declaración por prestador/sede. La OS marca tipos, especialidades y capacidades en un único formulario; el sistema las desagrega internamente para cruzarlas con PMO, leyes especiales, padrón y suficiencia.</div>
         <div class="filters"><input id="providerSearch" placeholder="Prestador, localidad, tipo o prestación"><select id="providerProvince"><option value="">Todas las provincias</option><option>Buenos Aires</option><option>Córdoba</option><option>La Rioja</option><option>Formosa</option><option>Chubut</option></select><select id="providerTipo"><option value="">Todos los tipos</option></select><select id="providerMode"><option value="">Todas las modalidades</option><option>Contrato directo</option><option>Pago por prestación</option><option>Convenio regional</option><option>Derivación garantizada</option></select><select id="providerContract"><option value="">Contrato: Todos</option><option value="presentado">Presentado</option><option value="no428">No corresponde (428/99)</option><option value="seguimiento">Sin contrato — a seguimiento</option><option value="otros">Sin contrato — otros motivos</option></select></div>
-        <div class="tablewrap"><table class="table"><thead><tr id="providerHeadRow"><th>Prestador</th><th>REFES</th><th>Ubicación</th><th>Tipo(s)</th><th>Cobertura declarada</th><th>Modalidad</th><th>Contrato</th><th>Estado</th><th></th></tr></thead><tbody id="providerRows"></tbody></table></div>
+        <div class="mini-note" style="margin-bottom:8px"><b>Estado:</b> <span class="contract-text ok" style="font-size:11.5px">Acreditado</span> = validado contra REFES/REFEPS, datos completos · <span class="contract-text warn" style="font-size:11.5px">Observación</span> = falta completar o corregir algún dato del prestador (no bloquea la presentación, pero conviene resolverlo). &nbsp;|&nbsp; <b>Contrato:</b> refleja si hay Nº de EX o PDF cargado, no si el prestador está habilitado.</div>
+        <div class="tablewrap"><table class="table providers-table"><thead><tr id="providerHeadRow"><th>Prestador</th><th>Ubicación</th><th>Tipo(s)</th><th>Prestación</th><th>Modalidad</th><th>Contrato</th><th>Estado</th><th></th></tr></thead><tbody id="providerRows"></tbody></table></div>
       </section>
 
       <section class="page" id="page-discapacidad">
@@ -1072,17 +1090,17 @@ const state = JSON.parse(localStorage.getItem('proto2165_v4_os') || 'null') || {
 };
 // --- Contratos de la red (Ley 24.901 exceptúa a discapacidad de la obligación de contrato) ---
 const CONTRACT_REASONS = [
-  { id:'bajo_volumen', label:'Bajo volumen de afiliados en la zona', follow:false },
-  { id:'de_palabra', label:'Vínculo de palabra / histórico', follow:false },
-  { id:'unico_prestador', label:'Único prestador disponible en la zona', follow:true },
-  { id:'puntual', label:'Prestación puntual / derivación ocasional', follow:false },
-  { id:'en_tramite', label:'Contrato en trámite', follow:true },
-  { id:'gerenciadora', label:'Vínculo a través de gerenciadora/tercero', follow:false },
-  { id:'urgencia', label:'Prestador de urgencia/emergencia', follow:false },
-  { id:'otro', label:'Otro (especificar)', follow:true }
+  { id:'bajo_volumen', label:'Bajo volumen', full:'Bajo volumen de afiliados en la zona', follow:false, extra:'afiliados' },
+  { id:'de_palabra', label:'Vínculo de Palabra', full:'Vínculo de palabra / histórico', follow:false },
+  { id:'unico_prestador', label:'Único prestador', full:'Único prestador disponible en la zona', follow:true },
+  { id:'puntual', label:'Prestación ocasional', full:'Prestación puntual / derivación ocasional', follow:false },
+  { id:'en_tramite', label:'En trámite', full:'Contrato en trámite', follow:true },
+  { id:'gerenciadora', label:'Por gerenciadora', full:'Vínculo a través de gerenciadora/tercero', follow:false },
+  { id:'urgencia', label:'Urgencia/emergencia', full:'Prestador de urgencia/emergencia', follow:false },
+  { id:'otro', label:'Otro', full:'Otro (especificar)', follow:true, extra:'texto' }
 ];
 function contractStatus(p){
-  if(!p.contract) p.contract = {ex:null,file:false,motivo:null};
+  if(!p.contract) p.contract = {ex:null,file:false,motivo:null,afiliados:null,otroTexto:null};
   const c = p.contract;
   if(c.ex || c.file) return {estado:'presentado', label:'Presentado', alerta:false};
   if((p.types||[]).includes('Discapacidad')) return {estado:'no428', label:'No corresponde (428/99)', alerta:false};
@@ -1090,7 +1108,7 @@ function contractStatus(p){
     const r = CONTRACT_REASONS.find(r=>r.id===c.motivo);
     return {estado:'sin_contrato', label:r?r.label:c.motivo, alerta:r?r.follow:true};
   }
-  return {estado:'sin_justificar', label:'Sin contrato — sin justificar', alerta:true};
+  return {estado:'sin_justificar', label:'S/Cto. - S/Just.', alerta:true};
 }
 function contractStats(){
   const s = {presentado:0,no428:0,sin_contrato:0,sin_justificar:0,seguimiento:0};
@@ -1112,6 +1130,36 @@ const laws=[ {law:'PMO',coverage:'Atención primaria y especialidades básicas',
  {law:'Ley 24.901',coverage:'Discapacidad',need:'Prestaciones integrales por modalidad',status:'Cumple'},
  {law:'Normativa urgencias',coverage:'Urgencia y emergencia',need:'Acceso inmediato sin barrera administrativa',status:'No acredita'}
 ];
+const LAW_PCT_REQUIRED = new Set(['Ley 23.753','Ley 26.588','Ley 27.305']);
+function showLawDetail(i){
+  const x = laws[i];
+  const requiresPct = LAW_PCT_REQUIRED.has(x.law);
+  const html = `<div class="detail-compact"><div class="drow"><b>Norma</b> ${x.law}</div><div class="drow"><b>Cobertura</b> ${x.coverage}</div><div class="drow"><b>Exige</b> ${x.need}</div></div>
+    <div class="card" style="margin-top:12px;padding:14px">
+      <h3 class="section-title" style="margin-bottom:8px">Mecanismo declarado por la OS</h3>
+      <label style="font-size:11.5px;color:var(--muted);text-transform:uppercase">Mecanismo de provisión</label>
+      <select id="lawMechanismSelect" style="width:100%;margin:3px 0 10px">
+        <option value="">— Sin declarar —</option>
+        <option value="farmacia_cartilla" ${x.mechanism==='farmacia_cartilla'?'selected':''}>Farmacia de cartilla</option>
+        <option value="provision_directa" ${x.mechanism==='provision_directa'?'selected':''}>Provisión directa (la OS entrega)</option>
+        <option value="reintegro" ${x.mechanism==='reintegro'?'selected':''}>Reintegro económico al afiliado</option>
+      </select>
+      ${requiresPct?`<label style="font-size:11.5px;color:var(--muted);text-transform:uppercase">% de cobertura declarado</label>
+      <input type="number" id="lawPctInput" min="0" max="100" value="${x.pct||''}" placeholder="Ej: 100" style="width:100%;margin-top:3px">
+      <div class="mini-note" style="margin-top:6px">Esta norma exige declarar el porcentaje de cobertura además del mecanismo.</div>`:''}
+      <button class="btn small" style="margin-top:10px" onclick="saveLaw(${i})">Guardar</button>
+    </div>`;
+  showCriteria(`${x.law} · ${x.coverage}`, html);
+}
+function saveLaw(i){
+  const x = laws[i];
+  x.mechanism = document.getElementById('lawMechanismSelect').value || null;
+  const pctInput = document.getElementById('lawPctInput');
+  if(pctInput) x.pct = pctInput.value || null;
+  renderLaws();
+  closeModal('criteriaModal');
+  toast('Cobertura actualizada');
+}
 const suff=[
  {city:'San Martín (BA)',aff:4320,service:'Pediatría',mode:'Sin mecanismo local',access:'Básica / Programada',status:'No cumple'},
  {city:'Chilecito (LR)',aff:860,service:'RMN',mode:'Convenio regional',access:'Intermedia / Programada',status:'Observación'},
@@ -1210,7 +1258,7 @@ function renderModalidades(){
 }
 document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>nav(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>nav(b.dataset.go));
 function statusClass(s){return s==='Cumple'||s==='Acreditado'||s==='Confirmado'?'ok':s==='No cumple'||s==='No acredita'?'bad':s==='Observación'||s==='Abierto'?'warn':'info'}
-function renderLaws(){const q=document.getElementById('lawSearch').value.toLowerCase(),st=document.getElementById('lawStatus').value;const rows=laws.filter(x=>(!q||(x.law+' '+x.coverage+' '+x.need).toLowerCase().includes(q))&&(!st||x.status===st));document.getElementById('laws').innerHTML=rows.map(x=>`<div class="law"><div><b>${x.law}</b><br><small>Norma / programa</small></div><div><b>${x.coverage}</b><br><small>${x.need}</small></div><div><span class="status ${statusClass(x.status)}"><span class="dot"></span>${x.status}</span></div><div><small>La OS declara mecanismo, no la norma</small></div><button class="btn small secondary" onclick="toast('Abriría el detalle de obligaciones y mecanismos declarados')">Ver</button></div>`).join('')||'<div class="empty">Sin resultados.</div>'}
+function renderLaws(){const q=document.getElementById('lawSearch').value.toLowerCase(),st=document.getElementById('lawStatus').value;document.getElementById('laws').innerHTML=laws.map((x,i)=>({x,i})).filter(({x})=>(!q||(x.law+' '+x.coverage+' '+x.need).toLowerCase().includes(q))&&(!st||x.status===st)).map(({x,i})=>`<div class="law"><div><b>${x.law}</b><br><small>Norma / programa</small></div><div><b>${x.coverage}</b><br><small>${x.need}</small></div><div><span class="status ${statusClass(x.status)}"><span class="dot"></span>${x.status}</span></div><div><small>${x.mechanism?('Mecanismo: '+({farmacia_cartilla:'Farmacia de cartilla',provision_directa:'Provisión directa',reintegro:'Reintegro'}[x.mechanism]||x.mechanism)+(x.pct?` (${x.pct}%)`:'')):'La OS declara mecanismo, no la norma'}</small></div><button class="btn small secondary" onclick="showLawDetail(${i})">Ver</button></div>`).join('')||'<div class="empty">Sin resultados.</div>'}
 let providerSort = {col:'name', dir:1};
 function sortProviders(col){ if(providerSort.col===col) providerSort.dir*=-1; else {providerSort.col=col; providerSort.dir=1;} renderProviders(); }
 function sortArrow(activeCol, col){ return activeCol.col===col ? (activeCol.dir===1?' ▲':' ▼') : ''; }
@@ -1218,8 +1266,15 @@ function renderProviders(){const q=document.getElementById('providerSearch').val
 const sortKeyFns = {name:x=>x.name||'', city:x=>x.city||'', mode:x=>x.mode||'', contract:x=>contractStatus(x).label||'', status:x=>x.status||'', tipo:x=>(x.types||[])[0]||''};
 const skf = sortKeyFns[providerSort.col]||sortKeyFns.name;
 rows.sort((a,b)=>skf(a).localeCompare(skf(b),'es',{numeric:true})*providerSort.dir);
-document.getElementById('providerHeadRow').innerHTML = `<th><button class="th-sort" onclick="sortProviders('name')">Prestador${sortArrow(providerSort,'name')}</button></th><th>REFES</th><th><button class="th-sort" onclick="sortProviders('city')">Ubicación${sortArrow(providerSort,'city')}</button></th><th><button class="th-sort" onclick="sortProviders('tipo')">Tipo(s)${sortArrow(providerSort,'tipo')}</button></th><th>Cobertura declarada</th><th><button class="th-sort" onclick="sortProviders('mode')">Modalidad${sortArrow(providerSort,'mode')}</button></th><th><button class="th-sort" onclick="sortProviders('contract')">Contrato${sortArrow(providerSort,'contract')}</button></th><th><button class="th-sort" onclick="sortProviders('status')">Estado${sortArrow(providerSort,'status')}</button></th><th></th>`;
-document.getElementById('providerRows').innerHTML=rows.map(x=>{const types=(x.types||[]);const typesHtml = types.length<=1 ? (types.map(v=>`<span class="chip">${v}</span>`).join('')||'<span class="chip">Sin tipo</span>') : `<span class="chip">${types[0]}</span><button class="chip more" style="cursor:pointer;border:0" onclick="showProviderDetail(${x._i})">+${types.length-1} más</button>`;const services=(x.services||[]);const servicesHtml = services.length<=1 ? (services.map(v=>`<span class="chip">${v}</span>`).join('')||'<span class="chip">—</span>') : `<span class="chip">${services[0]}</span><button class="chip more" style="cursor:pointer;border:0" onclick="showProviderDetail(${x._i})">+${services.length-1} más</button>`;const cs=contractStatus(x);const ctClass=cs.estado==='presentado'?'ok':cs.estado==='no428'?'info':cs.alerta?'bad':'warn';return `<tr><td><b>${x.name}</b><div class="mini-note">${x.age||'Ambos'}</div></td><td>${x.refes}</td><td>${x.city}<br><small>${x.province}</small></td><td><div class="provider-summary">${typesHtml}</div></td><td><div class="provider-summary">${servicesHtml}</div><div class="mini-note">${services.length} capacidad${services.length===1?'':'es'} interna${services.length===1?'':'s'}</div></td><td>${x.mode}</td><td><span class="status ${ctClass}">${cs.label}</span></td><td><span class="status ${statusClass(x.status)}">${x.status}</span></td><td><button class="btn small secondary" onclick="showProviderDetail(${x._i})">Ver</button></td></tr>`}).join('')||'<tr><td colspan="9" class="empty">Sin resultados.</td></tr>';const os=getSelectedOS(); const base=os.providers||438; document.getElementById('metricProviders').textContent=fmt(base);document.getElementById('submissionProviderCount').textContent=fmt(base);const dpc=document.getElementById('dashboardProviderCount');if(dpc)dpc.textContent=fmt(base);
+document.getElementById('providerHeadRow').innerHTML = `<th><button class="th-sort" onclick="sortProviders('name')">Prestador${sortArrow(providerSort,'name')}</button></th><th><button class="th-sort" onclick="sortProviders('city')">Ubicación${sortArrow(providerSort,'city')}</button></th><th><button class="th-sort" onclick="sortProviders('tipo')">Tipo(s)${sortArrow(providerSort,'tipo')}</button></th><th>Prestación</th><th><button class="th-sort" onclick="sortProviders('mode')">Modalidad${sortArrow(providerSort,'mode')}</button></th><th><button class="th-sort" onclick="sortProviders('contract')">Contrato${sortArrow(providerSort,'contract')}</button></th><th><button class="th-sort" onclick="sortProviders('status')">Estado${sortArrow(providerSort,'status')}</button></th><th></th>`;
+document.getElementById('providerRows').innerHTML=rows.map(x=>{
+  const types=(x.types||[]);
+  const typesHtml = types.length ? `<span class="plain-list">${types.slice(0,1).join(', ')}${types.length>1?` <span class="more-link" onclick="showProviderDetail(${x._i})">+${types.length-1} más</span>`:''}</span>` : '<span class="plain-list">Sin tipo</span>';
+  const services=(x.services||[]);
+  const servicesHtml = services.length ? `<span class="plain-list">${services.slice(0,1).join(', ')}${services.length>1?` <span class="more-link" onclick="showProviderDetail(${x._i})">+${services.length-1} más</span>`:''}</span>` : '<span class="plain-list">—</span>';
+  const cs=contractStatus(x);const ctClass=cs.estado==='presentado'?'ok':cs.estado==='no428'?'info':cs.alerta?'bad':'warn';
+  return `<tr><td><b>${x.name}</b><div class="mini-note">${x.age||'Ambos'}</div></td><td>${x.city}<br><small>${x.province}</small></td><td>${typesHtml}</td><td>${servicesHtml}<div class="mini-note">${services.length} capacidad${services.length===1?'':'es'} interna${services.length===1?'':'s'}</div></td><td>${x.mode}</td><td><span class="contract-text ${ctClass}">${cs.label}</span></td><td><span class="status ${statusClass(x.status)}">${x.status}</span></td><td><button class="btn small secondary" onclick="showProviderDetail(${x._i})">Ver</button></td></tr>`
+}).join('')||'<tr><td colspan="8" class="empty">Sin resultados.</td></tr>';const os=getSelectedOS(); const base=os.providers||438; document.getElementById('metricProviders').textContent=fmt(base);document.getElementById('submissionProviderCount').textContent=fmt(base);const dpc=document.getElementById('dashboardProviderCount');if(dpc)dpc.textContent=fmt(base);
 const cst=contractStats();
 const elP=document.getElementById('metricContratosPresentados'); if(elP) elP.textContent=fmt(cst.presentado);
 const elS=document.getElementById('metricContratosSeguimiento'); if(elS) elS.innerHTML=`<span class="dot"></span>${cst.seguimiento} a seguimiento`;
@@ -1232,16 +1287,39 @@ function llenarFiltroTipoPrestador(){
   const tipos=[...new Set(state.providers.flatMap(p=>p.types||[]))].sort((a,b)=>a.localeCompare(b,'es'));
   sel.innerHTML='<option value="">Todos los tipos</option>'+tipos.map(t=>`<option>${t}</option>`).join('');
 }
+function toggleContractExtra(){
+  const sel = document.getElementById('contractMotivoSelect');
+  const r = CONTRACT_REASONS.find(r=>r.id===sel.value);
+  const rowAf = document.getElementById('contractAfiliadosRow');
+  const rowOt = document.getElementById('contractOtroRow');
+  if(rowAf) rowAf.style.display = (r && r.extra==='afiliados') ? '' : 'none';
+  if(rowOt) rowOt.style.display = (r && r.extra==='texto') ? '' : 'none';
+}
 function contractBoxHtml(i){
   const x = state.providers[i];
   const cs = contractStatus(x);
-  if(cs.estado==='presentado') return `<div class="detail-box" style="margin-top:10px"><b>Contrato</b><span class="status ok">Presentado</span> ${x.contract.ex?`· Nº EX: ${x.contract.ex}`:'· PDF adjunto'}</div>`;
-  if(cs.estado==='no428') return `<div class="detail-box" style="margin-top:10px"><b>Contrato</b><span class="status info">No corresponde (428/99)</span><div class="mini-note">Ley 24.901: el afiliado elige libremente al prestador, la OS no está obligada a contratarlo.</div></div>`;
+  if(cs.estado==='presentado') return `<div class="detail-compact" style="margin-top:10px"><div class="drow"><b>Contrato</b> <span class="contract-text ok">✓ Presentado</span> ${x.contract.ex?`· Nº EX: ${x.contract.ex}`:'· PDF adjunto'}</div></div>`;
+  if(cs.estado==='no428') return `<div class="detail-compact" style="margin-top:10px"><div class="drow"><b>Contrato</b> <span class="contract-text info">No corresponde (428/99)</span></div><div class="mini-note">Ley 24.901: el afiliado elige libremente al prestador. La OS no está obligada a contratarlo — por eso no se le pide EX ni motivo a este prestador.</div></div>`;
   const opciones = CONTRACT_REASONS.map(r=>`<option value="${r.id}" ${x.contract.motivo===r.id?'selected':''}>${r.label}</option>`).join('');
-  return `<div class="detail-box" style="margin-top:10px"><b>Contrato</b><span class="status ${cs.alerta?'bad':'warn'}">${cs.label}</span>
-    <div style="margin-top:8px"><label style="font-size:12px;color:var(--muted)">Nº de EX</label><input type="text" id="contractExInput" value="${x.contract.ex||''}" placeholder="Ej: EX-2027-000123" style="width:100%;margin:3px 0 8px"></div>
-    <div><label style="font-size:12px;color:var(--muted)">Motivo (si no hay EX ni PDF)</label><select id="contractMotivoSelect" style="width:100%;margin-top:3px"><option value="">— Sin justificar —</option>${opciones}</select></div>
-    <button class="btn small" style="margin-top:8px" onclick="saveContract(${i})">Guardar</button>
+  const rSel = CONTRACT_REASONS.find(r=>r.id===x.contract.motivo);
+  const showAf = rSel && rSel.extra==='afiliados' ? '' : 'display:none';
+  const showOt = rSel && rSel.extra==='texto' ? '' : 'display:none';
+  return `<div class="card" style="margin-top:14px;padding:14px">
+    <h3 class="section-title" style="margin-bottom:8px">Contrato</h3>
+    <div class="drow" style="margin-bottom:8px"><span class="contract-text ${cs.alerta?'bad':'warn'}">${cs.label}</span></div>
+    <label style="font-size:11.5px;color:var(--muted);text-transform:uppercase">Nº de EX</label>
+    <input type="text" id="contractExInput" value="${x.contract.ex||''}" placeholder="Ej: EX-2027-000123" style="width:100%;margin:3px 0 10px">
+    <label style="font-size:11.5px;color:var(--muted);text-transform:uppercase">Motivo (si no hay EX ni PDF)</label>
+    <select id="contractMotivoSelect" style="width:100%;margin-top:3px" onchange="toggleContractExtra()"><option value="">— Sin justificar —</option>${opciones}</select>
+    <div id="contractAfiliadosRow" style="margin-top:8px;${showAf}">
+      <label style="font-size:11.5px;color:var(--muted);text-transform:uppercase">↳ Nº de afiliados en la zona</label>
+      <input type="number" id="contractAfiliadosInput" value="${x.contract.afiliados||''}" placeholder="Ej: 12" style="width:100%;margin-top:3px">
+    </div>
+    <div id="contractOtroRow" style="margin-top:8px;${showOt}">
+      <label style="font-size:11.5px;color:var(--muted);text-transform:uppercase">↳ Especificar motivo</label>
+      <input type="text" id="contractOtroInput" value="${x.contract.otroTexto||''}" placeholder="Detallar el motivo" style="width:100%;margin-top:3px">
+    </div>
+    <button class="btn small" style="margin-top:10px" onclick="saveContract(${i})">Guardar</button>
     <div class="mini-note" style="margin-top:6px">Cargar el Nº de EX (o adjuntar el PDF) marca el contrato como Presentado automáticamente.</div>
   </div>`;
 }
@@ -1249,10 +1327,31 @@ function saveContract(i){
   const x = state.providers[i];
   x.contract.ex = document.getElementById('contractExInput').value.trim() || null;
   x.contract.motivo = document.getElementById('contractMotivoSelect').value || null;
+  const afInput = document.getElementById('contractAfiliadosInput');
+  const otInput = document.getElementById('contractOtroInput');
+  x.contract.afiliados = afInput ? (afInput.value || null) : null;
+  x.contract.otroTexto = otInput ? (otInput.value.trim() || null) : null;
   save(); showProviderDetail(i); renderProviders(); updateOSViews();
   toast('Contrato actualizado');
 }
-function showProviderDetail(i){const x=state.providers[i];document.getElementById('providerDetailTitle').textContent=x.name;const chips=(x.services||[]).map(v=>`<span class="chip">${v}</span>`).join('');document.getElementById('providerDetailBody').innerHTML=`<div class="detail-list"><div class="detail-box"><b>Identificación</b>${x.refes}<br>${x.cuit||''}</div><div class="detail-box"><b>Ubicación</b>${x.city}, ${x.province}<br>${x.district||''}</div><div class="detail-box"><b>Modalidad / Vigencia</b>${x.mode}<br>${x.validity||''}</div><div class="detail-box"><b>Urgencias</b>${x.urgency||'No corresponde'}</div></div><div class="detail-box" style="margin-top:10px"><b>Tipo de prestador</b><div class="provider-summary">${(x.types||[]).map(v=>`<span class="chip">${v}</span>`).join('')}</div></div><div class="detail-box" style="margin-top:10px"><b>Capacidades / prestaciones declaradas</b><div class="provider-summary">${chips}</div><div class="mini-note">El sistema utiliza estas ${x.services.length} capacidades como registros internos para evaluar PMO, leyes especiales y suficiencia territorial.</div></div>${x.notes?`<div class="detail-box" style="margin-top:10px"><b>Restricciones / observaciones</b>${x.notes}</div>`:''}${contractBoxHtml(i)}`;openModal('providerDetailModal')}
+function showProviderDetail(i){
+  const x=state.providers[i];
+  document.getElementById('providerDetailTitle').textContent=x.name;
+  const typeChips=(x.types||[]).map(v=>`<span class="chip">${v}</span>`).join('');
+  const svcList = (x.services||[]).join(', ');
+  document.getElementById('providerDetailBody').innerHTML = `
+    <div class="detail-compact">
+      <div class="drow"><b>Identificación</b> ${x.refes} · ${x.cuit||'S/D'}</div>
+      <div class="drow"><b>Ubicación</b> ${x.city}, ${x.province}${x.district?` (${x.district})`:''}</div>
+      <div class="drow"><b>Modalidad / Vigencia</b> ${x.mode} · ${x.validity||''}</div>
+      <div class="drow"><b>Urgencias</b> ${x.urgency||'No corresponde'}</div>
+      <div class="drow" style="display:flex;align-items:center;gap:8px"><b>Tipo de prestador</b> <span class="provider-summary" style="display:inline-flex">${typeChips}</span></div>
+    </div>
+    <div class="detail-compact" style="margin-top:10px"><div class="drow"><b>Prestaciones</b> ${svcList}</div><div class="mini-note">El sistema utiliza estas ${x.services.length} capacidades como registros internos para evaluar PMO, leyes especiales y suficiencia territorial.</div></div>
+    ${x.notes?`<div class="detail-compact" style="margin-top:10px"><div class="drow"><b>Observaciones</b> ${x.notes}</div></div>`:''}
+    ${contractBoxHtml(i)}`;
+  openModal('providerDetailModal');
+}
 window.showProviderDetail=showProviderDetail;
 function llenarFiltrosSuficiencia(){
   const locSel=document.getElementById('suffLocalidad'), presSel=document.getElementById('suffPrestacion');
