@@ -30,7 +30,10 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
 .providers-table th:nth-child(6),.providers-table td:nth-child(6){width:13%}
 .providers-table th:nth-child(7),.providers-table td:nth-child(7){width:8%}
 .providers-table th:nth-child(8),.providers-table td:nth-child(8){width:6%}
-.plain-list{font-size:12.5px;line-height:1.5}
+.providers-table td{padding:7px 11px;line-height:1.3}
+.providers-table .mini-note{margin-top:1px;font-size:10.5px}
+.plain-list{font-size:12.5px;line-height:1.4}
+
 .plain-list .more-link{color:#3f668f;cursor:pointer;text-decoration:underline;font-size:11.5px}
 .contract-text{font-weight:800;font-size:12px}
 .contract-text.ok{color:#23754b}.contract-text.warn{color:#8c6200}.contract-text.bad{color:#9c2c2c}.contract-text.info{color:#3f668f}
@@ -1273,7 +1276,7 @@ document.getElementById('providerRows').innerHTML=rows.map(x=>{
   const services=(x.services||[]);
   const servicesHtml = services.length ? `<span class="plain-list">${services.slice(0,1).join(', ')}${services.length>1?` <span class="more-link" onclick="showProviderDetail(${x._i})">+${services.length-1} más</span>`:''}</span>` : '<span class="plain-list">—</span>';
   const cs=contractStatus(x);const ctClass=cs.estado==='presentado'?'ok':cs.estado==='no428'?'info':cs.alerta?'bad':'warn';
-  return `<tr><td><b>${x.name}</b><div class="mini-note">${x.age||'Ambos'}</div></td><td>${x.city}<br><small>${x.province}</small></td><td>${typesHtml}</td><td>${servicesHtml}<div class="mini-note">${services.length} capacidad${services.length===1?'':'es'} interna${services.length===1?'':'s'}</div></td><td>${x.mode}</td><td><span class="contract-text ${ctClass}">${cs.label}</span></td><td><span class="status ${statusClass(x.status)}">${x.status}</span></td><td><button class="btn small secondary" onclick="showProviderDetail(${x._i})">Ver</button></td></tr>`
+  return `<tr><td><b>${x.name}</b> <small style="color:var(--muted)">(${x.age||'Ambos'})</small></td><td>${x.city}<br><small>${x.province}</small></td><td>${typesHtml}</td><td>${servicesHtml}</td><td>${x.mode}</td><td><span class="contract-text ${ctClass}">${cs.label}</span></td><td><span class="status ${statusClass(x.status)}">${x.status}</span></td><td><button class="btn small secondary" onclick="showProviderDetail(${x._i})">Ver</button></td></tr>`
 }).join('')||'<tr><td colspan="8" class="empty">Sin resultados.</td></tr>';const os=getSelectedOS(); const base=os.providers||438; document.getElementById('metricProviders').textContent=fmt(base);document.getElementById('submissionProviderCount').textContent=fmt(base);const dpc=document.getElementById('dashboardProviderCount');if(dpc)dpc.textContent=fmt(base);
 const cst=contractStats();
 const elP=document.getElementById('metricContratosPresentados'); if(elP) elP.textContent=fmt(cst.presentado);
