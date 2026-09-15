@@ -41,23 +41,30 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
 </head>
 <body>
 <div style="background:#a3245f;color:#fff;text-align:center;padding:7px 12px;font-size:12.5px;font-weight:700">
-  🧪 PROTOTIPO conceptual y desechable — no forma parte de "Reportes GCP" ni modifica datos reales. Los prestadores (500 de 1.827) y los afiliados (84.076) son datos reales de UTA (121606) tomados del Anexo IV y del padrón. El resto del contenido conceptual (leyes, suficiencia, reclamos) es simulado.
+  🧪 PROTOTIPO — PROPUESTA "Vista Obra Social" — conceptual y desechable, no forma parte de "Reportes GCP" ni modifica datos reales. Los prestadores (500 de 1.827) y los afiliados (84.076) son datos reales de UTA (121606).
   <a href="./index.html" style="color:#fff;text-decoration:underline;margin-left:10px">← Volver a Reportes GCP</a>
+  <a href="./prototipo-2165-uta.html" style="color:#fff;text-decoration:underline;margin-left:10px">Ver prototipo original (vista GCP) →</a>
+</div>
+<div style="background:#0f2038;color:#fff;text-align:center;padding:8px 12px;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:10px">
+  <span>Viendo como:</span>
+  <button id="roleBtnGcp" onclick="setRole('gcp')" style="border:1px solid #ffffff55;background:#ffffff22;color:#fff;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:800;cursor:pointer">Gerencia (GCP)</button>
+  <button id="roleBtnOs" onclick="setRole('os')" style="border:1px solid #ffffff55;background:transparent;color:#fff;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:800;cursor:pointer">Obra Social (UTA)</button>
 </div>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">SSSalud <small>Prototipo de control prestacional</small></div>
     <div class="nav" id="nav">
-      <button class="active" data-page="inicio">🏠 Inicio</button>
-      <button data-page="agentes">🧾 Obras sociales</button><span class="sub">Universo / búsqueda</span>
-      <button data-page="os">📊 Tablero OS</button><span class="sub">Detalle de agente seleccionado</span>
-      <button data-page="coberturas">📋 Coberturas obligatorias</button><span class="sub">Anexo I / Matriz normativa</span>
-      <button data-page="procedimientos">🧭 Procedimientos de acceso</button><span class="sub">Anexo II</span>
-      <button data-page="red">🏥 Red y mecanismos</button><span class="sub">Anexo III</span>
-      <button data-page="discapacidad">♿ Discapacidad</button><span class="sub">Anexo IV</span>
-      <button data-page="suficiencia">📍 Suficiencia prestacional</button>
-      <button data-page="reclamos">⚠️ Reclamos y alertas</button>
-      <button data-page="presentacion">📄 Presentación 2165</button>
+      <button class="active" data-page="inicio" data-role="gcp">🏠 Inicio</button>
+      <button data-page="agentes" data-role="gcp">🧾 Obras sociales</button><span class="sub" data-role="gcp">Universo / búsqueda</span>
+      <button data-page="os" data-role="gcp">📊 Tablero OS</button><span class="sub" data-role="gcp">Detalle de agente seleccionado</span>
+      <button data-page="coberturas" data-role="gcp">📋 Coberturas obligatorias</button><span class="sub" data-role="gcp">Anexo I / Matriz normativa</span>
+      <button data-page="procedimientos" data-role="gcp">🧭 Procedimientos de acceso</button><span class="sub" data-role="gcp">Anexo II</span>
+      <button data-page="red" data-role="gcp">🏥 Red y mecanismos</button><span class="sub" data-role="gcp">Anexo III</span>
+      <button data-page="discapacidad" data-role="gcp">♿ Discapacidad</button><span class="sub" data-role="gcp">Anexo IV</span>
+      <button data-page="suficiencia" data-role="gcp">📍 Suficiencia prestacional</button>
+      <button data-page="reclamos" data-role="gcp">⚠️ Reclamos y alertas</button>
+      <button data-page="presentacion" data-role="gcp">📄 Presentación 2165</button>
+      <button data-page="presentacion-os" data-role="os">📄 Presentación de Cartilla</button>
     </div>
     <div class="sidefoot">Datos completamente simulados<br>Prototipo conceptual 2026 · v4</div>
   </aside>
@@ -286,6 +293,22 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
         <div class="pagehead"><div><h2>Presentación Resolución 2165/2021</h2><p>Mientras la norma vigente mantenga los anexos, el sistema puede generarlos a partir de la información estructurada.</p></div><button class="btn primary" id="generateSubmission">Generar borrador</button></div>
         <div class="grid two"><div class="card"><h3 class="section-title">Estado de anexos</h3><div class="steps" id="submissionSteps"><div class="step done"><div class="n">✓</div><div><b>Anexo I · Coberturas obligatorias</b><br><small>Matriz normativa aplicada. 12 obligaciones requieren observación.</small></div></div><div class="step done"><div class="n">✓</div><div><b>Anexo II · Procedimientos de acceso</b><br><small>Declaración estructurada completa.</small></div></div><div class="step done"><div class="n">✓</div><div><b>Anexo III · Red de prestadores</b><br><small><span id="submissionProviderCount">438</span> prestadores/sedes declarados.</small></div></div><div class="step done"><div class="n">✓</div><div><b>Anexo IV · Discapacidad</b><br><small>Red específica disponible.</small></div></div></div></div><div class="card"><h3 class="section-title">Antes de presentar</h3><div class="callout warnc"><strong>Existen observaciones</strong>La presentación puede generarse, pero el sistema deja identificadas las brechas para fiscalización y seguimiento.</div><div class="actions"><button class="btn secondary" data-go="suficiencia">Ver suficiencia</button><button class="btn secondary" data-go="reclamos">Ver reclamos</button></div><div id="submissionResult" style="margin-top:14px"></div></div></div>
       </section>
+
+      <section class="page" id="page-presentacion-os">
+        <div class="pagehead"><div><h2>Presentar Cartilla</h2><p>Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV, en una sola presentación.</p></div></div>
+        <div class="card" style="margin-bottom:16px">
+          <b>OBRA SOCIAL CONDUCTORES DE TRANSPORTE COLECTIVO DE PASAJEROS</b> · RNOS 121606 · Preparando la Cartilla del período 2026/27
+          <div style="margin-top:10px"><select id="osPeriodoSelect" style="max-width:260px"><option>Período 2026/27</option></select></div>
+        </div>
+        <div id="osPresentacionAviso"></div>
+        <div class="card">
+          <h3 class="section-title">Una sola presentación para los 5 componentes</h3>
+          <p class="mini-note" style="margin-top:-6px">Completá lo que falte en cada uno y después presentalos todos juntos con un solo botón.</p>
+          <h4 style="margin:16px 0 6px">Estado de la presentación</h4>
+          <div id="osChecklist"></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn primary" id="btnPresentarCartillaOS" onclick="presentarCartillaOS()">Presentar Cartilla completa</button></div>
+      </section>
     </div>
   </main>
 </div>
@@ -408,10 +431,10 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
 const osUniverse=[
   {id:'121606',name:'OBRA SOCIAL CONDUCTORES DE TRANSPORTE COLECTIVO DE PASAJEROS (UTA)',rnos:'121606',cuit:'S/D',scope:'Cobertura nacional (datos reales)',province:'Nacional',benef:84076,presentation:'Aprobada',coverage:88,providers:1827,suff:81,alerts:3}
 ];
-function getSelectedOS(){const id=localStorage.getItem('proto2165_selected_os')||'121606';return osUniverse.find(x=>x.id===id)||osUniverse[0]}
-function setSelectedOS(id){localStorage.setItem('proto2165_selected_os',id);updateOSViews();}
+function getSelectedOS(){const id=localStorage.getItem('proto2165_os_selected_os')||'121606';return osUniverse.find(x=>x.id===id)||osUniverse[0]}
+function setSelectedOS(id){localStorage.setItem('proto2165_os_selected_os',id);updateOSViews();}
 function fmt(n){return n.toLocaleString('es-AR')}
-function updateTopbar(page){const os=getSelectedOS(); const detailPages=['os','coberturas','procedimientos','red','discapacidad','suficiencia','reclamos','presentacion'];
+function updateTopbar(page){const os=getSelectedOS(); const detailPages=['os','coberturas','procedimientos','red','discapacidad','suficiencia','reclamos','presentacion','presentacion-os'];
   if(detailPages.includes(page)){
     document.getElementById('topbarMeta').textContent='Resolución SSS 2165/2021 · Vista particular del agente seleccionado';
     document.getElementById('topbarOrg').innerHTML=`<b>${os.name}</b><br>RNOS ${os.rnos} · Período 2027`;
@@ -431,7 +454,7 @@ function updateOSViews(){const os=getSelectedOS();
   renderAgents(); updateTopbar(document.querySelector('.page.active')?.id.replace('page-','')||'inicio');
 }
 
-const state = JSON.parse(localStorage.getItem('proto2165_v4') || 'null') || {
+const state = JSON.parse(localStorage.getItem('proto2165_v4_os') || 'null') || {
  providers:[
   {name:"ALONSO SIDENIUS MARIA GABRIELA",cuit:'S/D',refes:"REFES-UTA-200000",province:"Tucuman",district:"Tafi Viejo",city:"Tafi Viejo",age:'Ambos',types:["Discapacidad"],services:["Maestra de Apoyo"],mode:'Contrato directo',urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:"Prestador cargado en Anexo IV, pendiente de revisión de datos completos.",status:"Observación"},
   {name:"OLACE MARIA DE LOS ANGELES",cuit:'S/D',refes:"REFES-UTA-200001",province:"Entre Rios",district:"Concordia",city:"Concordia",age:'Ambos',types:["Discapacidad","Ambulatorio / Especialista"],services:["Fisioterapia-Kinesiología"],mode:'Contrato directo',urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:'',status:"Acreditado"},
@@ -1004,9 +1027,59 @@ const procedures=[
  ['Traslado sanitario','Central 24/7','Según necesidad clínica','Cumple'],
  ['Orientación al beneficiario','0800 + web','24/7 para urgencias','Cumple']
 ];
-function save(){localStorage.setItem('proto2165_v2',JSON.stringify(state))}
+function save(){localStorage.setItem('proto2165_v2_os',JSON.stringify(state))}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
-function nav(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));updateTopbar(page);window.scrollTo({top:0,behavior:'smooth'})}
+function nav(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));updateTopbar(page);window.scrollTo({top:0,behavior:'smooth'});if(page==='presentacion-os')renderOsChecklist();renderVolverBanner(page)}
+let currentRole = localStorage.getItem('proto2165_os_role')||'os';
+function applyRoleUI(){
+  document.querySelectorAll('[data-role]').forEach(el=>{ el.style.display = el.dataset.role===currentRole ? '' : 'none'; });
+  document.getElementById('roleBtnGcp').style.background = currentRole==='gcp' ? '#ffffff22' : 'transparent';
+  document.getElementById('roleBtnOs').style.background = currentRole==='os' ? '#ffffff22' : 'transparent';
+}
+function setRole(r){
+  currentRole=r; localStorage.setItem('proto2165_os_role',r);
+  applyRoleUI();
+  nav(currentRole==='os' ? 'presentacion-os' : 'inicio');
+}
+function renderVolverBanner(page){
+  let banner = document.getElementById('volverOsBanner');
+  const mostrar = currentRole==='os' && page!=='presentacion-os';
+  if(mostrar && !banner){
+    banner = document.createElement('div');
+    banner.id='volverOsBanner';
+    banner.style.cssText='margin-bottom:14px';
+    banner.innerHTML = `<button class="btn small secondary" onclick="nav('presentacion-os')">← Volver a Presentación de Cartilla</button>`;
+    document.querySelector('.page.active .pagehead')?.insertAdjacentElement('beforebegin', banner);
+  } else if(mostrar && banner){
+    document.querySelector('.page.active .pagehead')?.insertAdjacentElement('beforebegin', banner);
+  } else if(!mostrar && banner){
+    banner.remove();
+  }
+}
+function renderOsChecklist(){
+  const cont = document.getElementById('osChecklist');
+  if(!cont) return;
+  const cs = contractStats();
+  const items = [
+    {label:'Afiliados', ok:true, detail:`${fmt(84076)} afiliados cargados desde el padrón.`, action:null},
+    {label:'Anexo I · Coberturas obligatorias', ok:true, auto:true, detail:'Se calcula automáticamente cruzando tu Red (Anexo III) contra la matriz normativa de la SSS. No hace falta que lo declares.', action:{page:'coberturas', text:'Ver detalle'}},
+    {label:'Anexo II · Procedimientos de acceso', ok: procedures.length>0, detail: procedures.length>0 ? `${procedures.length} procedimientos declarados.` : 'Todavía no declaraste tus procedimientos de acceso.', action:{page:'procedimientos', text:'Completar'}},
+    {label:'Anexo III · Red de prestadores', ok: state.providers.length>0, detail: `${fmt(state.providers.length)} prestadores declarados · ${cs.presentado} con contrato presentado · ${cs.seguimiento} a seguimiento.`, action:{page:'red', text:'Completar'}},
+    {label:'Anexo IV · Discapacidad', ok:true, auto:true, detail:'Incluido en el Anexo III: los prestadores marcados como "Discapacidad" ya cubren este anexo (Ley 24.901). No se carga por separado.', action:{page:'discapacidad', text:'Ver detalle'}}
+  ];
+  cont.innerHTML = items.map(it=>`<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-top:1px solid var(--line)">
+    <span class="status ${it.ok?'ok':'bad'}" style="min-width:84px;text-align:center;flex:none">${it.ok?'✓ Completo':'⚠ Falta'}</span>
+    <div style="flex:1"><b>${it.label}</b><div class="mini-note">${it.detail}</div></div>
+    ${it.action?`<button class="btn small secondary" onclick="nav('${it.action.page}')">${it.action.text}</button>`:''}
+  </div>`).join('');
+  const bloqueantes = items.filter(i=>!i.auto);
+  const faltan = bloqueantes.filter(i=>!i.ok).length;
+  const aviso = document.getElementById('osPresentacionAviso');
+  if(aviso) aviso.innerHTML = faltan>0 ? `<div class="callout warnc" style="margin-bottom:16px"><strong>Te falta completar ${faltan} componente${faltan===1?'':'s'}</strong> para poder presentar la Cartilla.</div>` : `<div class="callout" style="margin-bottom:16px;border-color:#bfe3cc;background:#f2fbf5"><strong>Todo listo</strong> Podés presentar la Cartilla completa.</div>`;
+  const btn = document.getElementById('btnPresentarCartillaOS');
+  if(btn) btn.disabled = faltan>0;
+}
+function presentarCartillaOS(){ toast('Cartilla 2026/27 presentada ante la Gerencia de Control Prestacional.'); }
 function goToRedFiltered(term){nav('red');document.getElementById('providerSearch').value=term;document.getElementById('providerContract').value='';document.getElementById('providerProvince').value='';document.getElementById('providerMode').value='';renderProviders()}
 document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>nav(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>nav(b.dataset.go));
 function statusClass(s){return s==='Cumple'||s==='Acreditado'||s==='Confirmado'?'ok':s==='No cumple'||s==='No acredita'?'bad':s==='Observación'||s==='Abierto'?'warn':'info'}
@@ -1081,7 +1154,9 @@ document.getElementById('clearAgentFilters').onclick=()=>{document.getElementByI
 ['agentSearch','agentStatus','agentProvince'].forEach(id=>document.getElementById(id).addEventListener('input',renderAgents));
 
 renderLaws();renderProviders();llenarFiltrosSuficiencia();renderSuff();renderComplaints();renderProcedures();renderAgents();updateOSViews();updateTopbar('inicio');
+applyRoleUI();
 if(location.hash && location.hash.startsWith('#page-')){const p=location.hash.replace('#page-','');if(document.getElementById('page-'+p))nav(p);}
+else if(currentRole==='os'){nav('presentacion-os');}
 </script>
 </body>
 </html>
