@@ -991,7 +991,6 @@ const state = JSON.parse(localStorage.getItem('proto2165_v4_os') || 'null') || {
   {name:"CASAÑA FLORENCIA MICAELA",cuit:'S/D',refes:"REFES-UTA-200497",province:"Buenos Aires",district:"Florencio Varela",city:"Florencio Varela",age:'Ambos',types:["Discapacidad","Ambulatorio / Especialista"],services:["Terapia Ocupacional"],mode:'Contrato directo',urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:'',status:"Acreditado"},
   {name:"DI DIEGO GLADYS MARIELA",cuit:'S/D',refes:"REFES-UTA-200498",province:"Buenos Aires",district:"Lomas de Zamora",city:"Lomas de Zamora",age:'Ambos',types:["Discapacidad","Ambulatorio / Especialista"],services:["Psicología"],mode:'Contrato directo',urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:'',status:"Acreditado"},
   {name:"TRANSPORTE DOUCET HNOS. SRL",cuit:'S/D',refes:"REFES-UTA-200499",province:"Buenos Aires",district:"San Isidro",city:"San Isidro",age:'Ambos',types:["Discapacidad","Urgencias / Emergencias"],services:["Transporte"],mode:'Contrato directo',urgency:"Sí - sin autorización previa",validity:'01/08/2026 - 31/07/2027',notes:"Prestador cargado en Anexo IV, pendiente de revisión de datos completos.",status:"Observación"},
-,
   {name:"DR. GUBERMAN MIRKO MANUEL",cuit:"30703654092",refes:"REFES-UTA3-300000",province:"Jujuy",district:"Dr. Manuel Belgrano",city:"San Salvador de Jujuy",age:"AMBOS",types:["Ambulatorio / Especialista"],services:["Oftalmología"],mode:"Contrato directo",urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:'',status:'Acreditado',contract:{ex:'',file:false,motivo:null}},
   {name:"SANATORIO ANTARTIDA SRL",cuit:"30585546107",refes:"REFES-UTA3-300001",province:"Chaco",district:"San Fernando Chaco",city:"Resistencia",age:"AMBOS",types:["Ambulatorio / Especialista"],services:["Cirugía plástica reparadora"],mode:"Contrato directo",urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:'',status:'Acreditado',contract:{ex:'',file:false,motivo:null}},
   {name:"DR JURE FRANCISCO ABRAHAM",cuit:"30703654092",refes:"REFES-UTA3-300002",province:"Jujuy",district:"Dr. Manuel Belgrano",city:"San Salvador de Jujuy",age:"AMBOS",types:["Ambulatorio / Especialista"],services:["Oftalmología"],mode:"Contrato directo",urgency:"No corresponde",validity:'01/08/2026 - 31/07/2027',notes:'',status:'Acreditado',contract:{ex:'',file:false,motivo:null}},
@@ -1105,6 +1104,15 @@ const state = JSON.parse(localStorage.getItem('proto2165_v4_os') || 'null') || {
   {id:'INC-24116',city:'Esquel',service:'Urgencias',provider:'Hospital Zonal',reason:'R04 - Exigencia de autorización',date:'10/09/2026',status:'Abierto'}
  ]
 };
+// --- Sincronización con la Vista GCP (Gerencia): la red de prestadores se comparte entre ambas vistas del prototipo, sin necesidad de "presentar" nada ---
+const SHARED_PROVIDERS_KEY = 'proto2165_shared_providers_v1';
+(function(){
+  try{
+    const shared = localStorage.getItem(SHARED_PROVIDERS_KEY);
+    if(shared){ state.providers = JSON.parse(shared); }
+    else { localStorage.setItem(SHARED_PROVIDERS_KEY, JSON.stringify(state.providers)); }
+  }catch(e){}
+})();
 // --- Contratos de la red (Ley 24.901 exceptúa a discapacidad de la obligación de contrato) ---
 const CONTRACT_REASONS = [
   { id:'bajo_volumen', label:'Bajo volumen', full:'Bajo volumen de afiliados en la zona', follow:false, extra:'afiliados' },
@@ -1192,7 +1200,7 @@ const procedures=[
  ['Traslado sanitario','Central 24/7','Según necesidad clínica','Cumple'],
  ['Orientación al beneficiario','0800 + web','24/7 para urgencias','Cumple']
 ];
-function save(){localStorage.setItem('proto2165_v4_os',JSON.stringify(state))}
+function save(){localStorage.setItem('proto2165_v4_os',JSON.stringify(state));try{localStorage.setItem(SHARED_PROVIDERS_KEY,JSON.stringify(state.providers))}catch(e){}}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
 function nav(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));updateTopbar(page);window.scrollTo({top:0,behavior:'smooth'});if(page==='presentacion-os')renderOsChecklist();renderVolverBanner(page)}
 let currentRole = localStorage.getItem('proto2165_os_role')||'os';
@@ -1437,6 +1445,13 @@ document.getElementById('clearAgentFilters').onclick=()=>{document.getElementByI
 ['agentSearch','agentStatus','agentProvince'].forEach(id=>document.getElementById(id).addEventListener('input',renderAgents));
 
 renderLaws();renderProviders();renderModalidades();llenarFiltrosSuficiencia();renderSuff();renderComplaints();renderProcedures();renderAgents();updateOSViews();updateTopbar('inicio');
+window.addEventListener('storage',function(e){
+  if(e.key===SHARED_PROVIDERS_KEY && e.newValue){
+    try{ state.providers = JSON.parse(e.newValue); }catch(err){ return; }
+    renderProviders(); llenarFiltrosSuficiencia(); renderSuff(); renderAgents(); updateOSViews();
+    toast('La red de prestadores se actualizó (cambio reflejado desde la otra vista)');
+  }
+});
 document.addEventListener('click', e => { const ms=document.getElementById('providerTipoSelect'); if(ms && ms.open && !ms.contains(e.target)) ms.open=false; });
 applyRoleUI();
 if(location.hash && location.hash.startsWith('#page-')){const p=location.hash.replace('#page-','');if(document.getElementById('page-'+p))nav(p);}

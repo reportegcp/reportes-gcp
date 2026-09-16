@@ -947,6 +947,14 @@ const state = JSON.parse(localStorage.getItem('proto2165_v4') || 'null') || {
   {id:'INC-24116',city:'Esquel',service:'Urgencias',provider:'Hospital Zonal',reason:'R04 - Exigencia de autorización',date:'10/09/2026',status:'Abierto'}
  ]
 };
+// --- Sincronización con la Vista Obra Social (prototipo aparte): la red de prestadores se comparte entre ambas vistas, sin necesidad de "presentar" nada ---
+const SHARED_PROVIDERS_KEY = 'proto2165_shared_providers_v1';
+(function(){
+  try{
+    const shared = localStorage.getItem(SHARED_PROVIDERS_KEY);
+    if(shared){ state.providers = JSON.parse(shared); }
+  }catch(e){}
+})();
 // --- Contratos de la red (Ley 24.901 exceptúa a discapacidad de la obligación de contrato) ---
 const CONTRACT_REASONS = [
   { id:'bajo_volumen', label:'Bajo volumen de afiliados en la zona', follow:false },
@@ -1004,7 +1012,7 @@ const procedures=[
  ['Traslado sanitario','Central 24/7','Según necesidad clínica','Cumple'],
  ['Orientación al beneficiario','0800 + web','24/7 para urgencias','Cumple']
 ];
-function save(){localStorage.setItem('proto2165_v2',JSON.stringify(state))}
+function save(){localStorage.setItem('proto2165_v4',JSON.stringify(state));try{localStorage.setItem(SHARED_PROVIDERS_KEY,JSON.stringify(state.providers))}catch(e){}}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
 function nav(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));updateTopbar(page);window.scrollTo({top:0,behavior:'smooth'})}
 function goToRedFiltered(term){nav('red');document.getElementById('providerSearch').value=term;document.getElementById('providerContract').value='';document.getElementById('providerProvince').value='';document.getElementById('providerMode').value='';renderProviders()}
@@ -1081,6 +1089,13 @@ document.getElementById('clearAgentFilters').onclick=()=>{document.getElementByI
 ['agentSearch','agentStatus','agentProvince'].forEach(id=>document.getElementById(id).addEventListener('input',renderAgents));
 
 renderLaws();renderProviders();llenarFiltrosSuficiencia();renderSuff();renderComplaints();renderProcedures();renderAgents();updateOSViews();updateTopbar('inicio');
+window.addEventListener('storage',function(e){
+  if(e.key===SHARED_PROVIDERS_KEY && e.newValue){
+    try{ state.providers = JSON.parse(e.newValue); }catch(err){ return; }
+    renderProviders(); llenarFiltrosSuficiencia(); renderSuff(); renderAgents(); updateOSViews();
+    toast('La red de prestadores se actualizó (cambio reflejado desde la otra vista)');
+  }
+});
 if(location.hash && location.hash.startsWith('#page-')){const p=location.hash.replace('#page-','');if(document.getElementById('page-'+p))nav(p);}
 </script>
 </body>
