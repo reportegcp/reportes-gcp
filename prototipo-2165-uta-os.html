@@ -40,7 +40,9 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
 .multi-select .ms-actions{display:flex;gap:12px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line);font-size:12px}
 .multi-select .ms-actions button{background:none;border:0;color:var(--blue);cursor:pointer;font-weight:700;padding:0}
 .multi-select .ms-menu label{display:flex;align-items:center;gap:8px;padding:6px 4px 6px 0;font-size:13px;white-space:nowrap;border-radius:6px;cursor:pointer;box-sizing:border-box}
-.multi-select .ms-menu label input[type=checkbox]{flex:none;margin:0;padding:0;width:15px;height:15px;accent-color:var(--blue)}
+.multi-select .ms-menu label input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:0 0 15px;margin:0;padding:0;width:15px;min-width:15px;max-width:15px;height:15px;box-sizing:border-box;border:1.5px solid #9db3c4;border-radius:3px;background:#fff;cursor:pointer;position:relative}
+.multi-select .ms-menu label input[type=checkbox]:checked{background:var(--blue);border-color:var(--blue)}
+.multi-select .ms-menu label input[type=checkbox]:checked::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .multi-select .ms-menu label span{white-space:nowrap}
 .multi-select .ms-menu label:hover{background:#f3f7fb}
 .plain-list{font-size:13px;line-height:1.4}
