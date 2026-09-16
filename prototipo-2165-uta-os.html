@@ -31,7 +31,18 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
 .providers-table th:nth-child(7),.providers-table td:nth-child(7){width:5%}
 .providers-table td{padding:8px 11px;line-height:1.3;font-size:13px}
 .providers-table .mini-note{margin-top:1px;font-size:11px}
+.multi-select{position:relative;display:inline-block}
+.multi-select summary{list-style:none;cursor:pointer;border:1px solid #cddae6;border-radius:10px;padding:9px 10px;background:#fff;min-width:180px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:#20364a}
+.multi-select summary::-webkit-details-marker{display:none}
+.multi-select summary::after{content:'▾';color:var(--muted);font-size:11px}
+.multi-select[open] summary{border-color:var(--blue)}
+.multi-select .ms-menu{position:absolute;z-index:30;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #cddae6;border-radius:10px;box-shadow:0 10px 26px rgba(15,40,70,.18);padding:8px;min-width:230px;max-height:270px;overflow:auto}
+.multi-select .ms-actions{display:flex;gap:12px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--line);font-size:12px}
+.multi-select .ms-actions button{background:none;border:0;color:var(--blue);cursor:pointer;font-weight:700;padding:0}
+.multi-select .ms-menu label{display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13px;border-radius:6px;cursor:pointer}
+.multi-select .ms-menu label:hover{background:#f3f7fb}
 .plain-list{font-size:13px;line-height:1.4}
+
 
 .plain-list .more-link{color:#3f668f;cursor:pointer;text-decoration:underline;font-size:11.5px}
 .contract-text{font-weight:800;font-size:13px}
@@ -285,7 +296,7 @@ button,input,select,textarea{font:inherit}.app{display:grid;grid-template-column
       <section class="page" id="page-red">
         <div class="pagehead"><div><h2>Red y mecanismos de cobertura</h2><p>La OS declara cada prestador una sola vez y selecciona toda la capacidad que tiene disponible con él.</p></div><button class="btn primary" id="newProvider">+ Declarar prestador</button></div>
         <div class="callout"><strong>Carga simplificada</strong>Una declaración por prestador/sede. La OS marca tipos, especialidades y capacidades en un único formulario; el sistema las desagrega internamente para cruzarlas con PMO, leyes especiales, padrón y suficiencia.</div>
-        <div class="filters"><input id="providerSearch" placeholder="Prestador, localidad, tipo o prestación"><select id="providerProvince"><option value="">Todas las provincias</option></select><select id="providerTipo"><option value="">Todos los tipos</option></select><select id="providerMode"><option value="">Todas las modalidades</option><option>Contrato directo</option><option>Pago por prestación</option><option>Convenio regional</option><option>Derivación garantizada</option></select><select id="providerContract"><option value="">Contrato: Todos</option><option value="presentado">Presentado</option><option value="no428">N/C (428/99)</option><option value="seguimiento">Sin contrato — a seguimiento</option><option value="otros">Sin contrato — otros motivos</option></select></div>
+        <div class="filters"><input id="providerSearch" placeholder="Prestador, localidad, tipo o prestación"><select id="providerProvince"><option value="">Todas las provincias</option></select><details class="multi-select" id="providerTipoSelect"><summary><span id="providerTipoSummary">Todos los tipos</span></summary><div class="ms-menu"><div class="ms-actions"><button type="button" onclick="tipoSelectAll(true)">Todos</button><button type="button" onclick="tipoSelectAll(false)">Ninguno</button></div><div id="providerTipoOptions"></div></div></details><select id="providerMode"><option value="">Todas las modalidades</option><option>Contrato directo</option><option>Pago por prestación</option><option>Convenio regional</option><option>Derivación garantizada</option></select><select id="providerContract"><option value="">Contrato: Todos</option><option value="presentado">Presentado</option><option value="no428">N/C (428/99)</option><option value="seguimiento">Sin contrato — a seguimiento</option><option value="otros">Sin contrato — otros motivos</option></select></div>
         <div class="mini-note" style="margin-bottom:8px"><b>Contrato:</b> refleja si hay Nº de EX o PDF cargado. No indica si el prestador está habilitado — eso ya lo garantiza REFES/REFEPS al momento de declararlo.</div>
         <div class="tablewrap"><table class="table providers-table"><thead><tr id="providerHeadRow"><th>Prestador</th><th>Ubicación</th><th>Tipo(s)</th><th>Prestación</th><th>Modalidad</th><th>Contrato</th><th></th></tr></thead><tbody id="providerRows"></tbody></table></div>
       </section>
@@ -1230,7 +1241,7 @@ function renderOsChecklist(){
   if(btn) btn.disabled = faltan>0;
 }
 function presentarCartillaOS(){ toast('Cartilla 2026/27 presentada ante la Gerencia de Control Prestacional.'); }
-function goToRedFiltered(term){nav('red');document.getElementById('providerSearch').value=term;document.getElementById('providerContract').value='';document.getElementById('providerProvince').value='';document.getElementById('providerMode').value='';const tpSel=document.getElementById('providerTipo');if(tpSel)tpSel.value='';renderProviders()}
+function goToRedFiltered(term){nav('red');document.getElementById('providerSearch').value=term;document.getElementById('providerContract').value='';document.getElementById('providerProvince').value='';document.getElementById('providerMode').value='';document.querySelectorAll('#providerTipoOptions input').forEach(i=>i.checked=true);actualizarResumenTipo();renderProviders()}
 const MODALIDADES_DATA = [
   {modalidad:'Atención Ambulatoria', prestadores:1154, jurisdicciones:14, estado:'Cumple', clase:'ok', filtro:'Discapacidad'},
   {modalidad:'Transporte', prestadores:185, jurisdicciones:13, estado:'Cumple', clase:'ok', filtro:'Transporte'},
@@ -1272,7 +1283,7 @@ function ageLabel(x){
 let providerSort = {col:'name', dir:1};
 function sortProviders(col){ if(providerSort.col===col) providerSort.dir*=-1; else {providerSort.col=col; providerSort.dir=1;} renderProviders(); }
 function sortArrow(activeCol, col){ return activeCol.col===col ? (activeCol.dir===1?' ▲':' ▼') : ''; }
-function renderProviders(){const q=document.getElementById('providerSearch').value.toLowerCase(),pr=document.getElementById('providerProvince').value,mo=document.getElementById('providerMode').value,ct=document.getElementById('providerContract').value,tp=document.getElementById('providerTipo').value;llenarFiltroTipoPrestador();let rows=state.providers.map((x,i)=>({...x,_i:i})).filter(x=>{const blob=[x.name,x.city,x.province,(x.types||[]).join(' '),(x.services||[]).join(' ')].join(' ').toLowerCase();const cs=contractStatus(x);const matchCt=!ct||(ct==='seguimiento'?(cs.estado!=='presentado'&&cs.estado!=='no428'&&cs.alerta):ct==='otros'?(cs.estado!=='presentado'&&cs.estado!=='no428'&&!cs.alerta):cs.estado===ct);const matchTp=!tp||(x.types||[]).includes(tp);return (!q||blob.includes(q))&&(!pr||x.province===pr)&&(!mo||x.mode===mo)&&matchCt&&matchTp});
+function renderProviders(){const q=document.getElementById('providerSearch').value.toLowerCase(),pr=document.getElementById('providerProvince').value,mo=document.getElementById('providerMode').value,ct=document.getElementById('providerContract').value;llenarFiltroTipoPrestador();const tpSel=tipoSeleccionados();const tpTotal=document.querySelectorAll('#providerTipoOptions input').length;let rows=state.providers.map((x,i)=>({...x,_i:i})).filter(x=>{const blob=[x.name,x.city,x.province,(x.types||[]).join(' '),(x.services||[]).join(' ')].join(' ').toLowerCase();const cs=contractStatus(x);const matchCt=!ct||(ct==='seguimiento'?(cs.estado!=='presentado'&&cs.estado!=='no428'&&cs.alerta):ct==='otros'?(cs.estado!=='presentado'&&cs.estado!=='no428'&&!cs.alerta):cs.estado===ct);const matchTp=(tpSel.length===tpTotal)||(x.types||[]).some(t=>tpSel.includes(t));return (!q||blob.includes(q))&&(!pr||x.province===pr)&&(!mo||x.mode===mo)&&matchCt&&matchTp});
 const sortKeyFns = {name:x=>x.name||'', city:x=>x.city||'', mode:x=>x.mode||'', contract:x=>contractStatus(x).label||'', status:x=>x.status||'', tipo:x=>(x.types||[])[0]||''};
 const skf = sortKeyFns[providerSort.col]||sortKeyFns.name;
 rows.sort((a,b)=>skf(a).localeCompare(skf(b),'es',{numeric:true})*providerSort.dir);
@@ -1293,11 +1304,28 @@ const elS=document.getElementById('metricContratosSeguimiento'); if(elS) elS.inn
 const elN=document.getElementById('metricContratosNo428'); if(elN) elN.innerHTML=`${fmt(cst.no428)} no corresponden (428/99) · Ver detalle →`;
 }
 let _tipoPrestadorPoblado=false;
+function tipoSeleccionados(){
+  return [...document.querySelectorAll('#providerTipoOptions input:checked')].map(i=>i.value);
+}
+function actualizarResumenTipo(){
+  const inputs=[...document.querySelectorAll('#providerTipoOptions input')];
+  const sel=tipoSeleccionados();
+  const el=document.getElementById('providerTipoSummary'); if(!el) return;
+  if(!inputs.length||sel.length===inputs.length) el.textContent='Todos los tipos';
+  else if(!sel.length) el.textContent='Ningún tipo';
+  else if(sel.length===1) el.textContent=sel[0];
+  else el.textContent=`${sel.length} tipos`;
+}
+function tipoSelectAll(marcar){
+  document.querySelectorAll('#providerTipoOptions input').forEach(i=>i.checked=marcar);
+  actualizarResumenTipo(); renderProviders();
+}
 function llenarFiltroTipoPrestador(){
   if(_tipoPrestadorPoblado) return; _tipoPrestadorPoblado=true;
-  const sel=document.getElementById('providerTipo'); if(!sel) return;
+  const cont=document.getElementById('providerTipoOptions'); if(!cont) return;
   const tipos=[...new Set(state.providers.flatMap(p=>p.types||[]))].sort((a,b)=>a.localeCompare(b,'es'));
-  sel.innerHTML='<option value="">Todos los tipos</option>'+tipos.map(t=>`<option>${t}</option>`).join('');
+  cont.innerHTML=tipos.map(t=>`<label><input type="checkbox" value="${t}" checked onchange="actualizarResumenTipo();renderProviders()"><span>${t}</span></label>`).join('');
+  actualizarResumenTipo();
   const selP=document.getElementById('providerProvince');
   if(selP){
     const provincias=[...new Set(state.providers.map(p=>p.province).filter(v=>v&&v!=='—'))].sort((a,b)=>a.localeCompare(b,'es'));
@@ -1396,7 +1424,7 @@ document.getElementById('saveProcedures').onclick=()=>{if(document.getElementByI
 document.getElementById('simulateComplaint').onclick=()=>{const n=state.complaints.length+24120;state.complaints.push({id:'INC-'+n,city:'Chilecito',service:'RMN',provider:'Diagnóstico Azul',reason:'R01 - Prestador no atiende',date:'11/09/2026',status:'Abierto'});save();renderComplaints();toast('Nuevo reclamo incorporado: puede generar patrón de riesgo')};
 document.getElementById('recalc').onclick=()=>{document.getElementById('metricSuff').textContent='83%';toast('Suficiencia recalculada con padrón, red, REFES y alertas simuladas')};
 document.getElementById('generateSubmission').onclick=()=>{document.getElementById('submissionResult').innerHTML='<div class="callout"><strong>Borrador generado</strong>Anexos I–IV consolidados desde la información estructurada. En una versión productiva se exportarían PDF/Excel para el circuito vigente.</div>';toast('Borrador de presentación 2165 generado')};
-['lawSearch','lawStatus'].forEach(id=>document.getElementById(id).addEventListener('input',renderLaws));['providerSearch','providerProvince','providerTipo','providerMode','providerContract'].forEach(id=>document.getElementById(id).addEventListener('input',renderProviders));['suffLocalidad','suffPrestacion','suffStatus'].forEach(id=>document.getElementById(id).addEventListener('input',renderSuff));
+['lawSearch','lawStatus'].forEach(id=>document.getElementById(id).addEventListener('input',renderLaws));['providerSearch','providerProvince','providerMode','providerContract'].forEach(id=>document.getElementById(id).addEventListener('input',renderProviders));['suffLocalidad','suffPrestacion','suffStatus'].forEach(id=>document.getElementById(id).addEventListener('input',renderSuff));
 
 document.getElementById('homeSearchBtn').onclick=()=>{const q=document.getElementById('homeOsSearch').value.toLowerCase().trim();const found=osUniverse.find(x=>`${x.rnos} ${x.name} ${x.cuit}`.toLowerCase().includes(q));const box=document.getElementById('homeSearchResult');if(!q){box.textContent='Ingresá un RNOS, nombre o CUIT para buscar una obra social.';return}if(found){setSelectedOS(found.id);box.innerHTML=`<b>Resultado:</b> ${found.name} · RNOS ${found.rnos} · ${found.presentation}. <button class="btn small secondary" onclick="openAgent('${found.id}')" style="margin-left:8px">Abrir tablero</button>`;}else{box.textContent='No se encontraron coincidencias en el universo simulado.';}};
 document.getElementById('openSelectedOs').onclick=()=>nav('os');
@@ -1405,6 +1433,7 @@ document.getElementById('clearAgentFilters').onclick=()=>{document.getElementByI
 ['agentSearch','agentStatus','agentProvince'].forEach(id=>document.getElementById(id).addEventListener('input',renderAgents));
 
 renderLaws();renderProviders();renderModalidades();llenarFiltrosSuficiencia();renderSuff();renderComplaints();renderProcedures();renderAgents();updateOSViews();updateTopbar('inicio');
+document.addEventListener('click', e => { const ms=document.getElementById('providerTipoSelect'); if(ms && ms.open && !ms.contains(e.target)) ms.open=false; });
 applyRoleUI();
 if(location.hash && location.hash.startsWith('#page-')){const p=location.hash.replace('#page-','');if(document.getElementById('page-'+p))nav(p);}
 else if(currentRole==='os'){nav('presentacion-os');}
