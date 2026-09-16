@@ -1192,7 +1192,7 @@ const procedures=[
  ['Traslado sanitario','Central 24/7','Según necesidad clínica','Cumple'],
  ['Orientación al beneficiario','0800 + web','24/7 para urgencias','Cumple']
 ];
-function save(){localStorage.setItem('proto2165_v2_os',JSON.stringify(state))}
+function save(){localStorage.setItem('proto2165_v4_os',JSON.stringify(state))}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
 function nav(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));updateTopbar(page);window.scrollTo({top:0,behavior:'smooth'});if(page==='presentacion-os')renderOsChecklist();renderVolverBanner(page)}
 let currentRole = localStorage.getItem('proto2165_os_role')||'os';
