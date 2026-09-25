@@ -1521,14 +1521,24 @@ function auRenderPendientes() {
   const termino = normalizar(document.getElementById("au-pend-search").value || "");
   const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? p.estado !== "Recibido" : p.estado === filtro;
 
+  const vacio = document.getElementById("au-pend-empty");
+  if (!auPendFiltroAuditoria && termino.length < 2) {
+    cont.innerHTML = `<div class="au-pend-inicio">Escribí arriba el nombre, la sigla o el RNAS de la Obra Social (o el Nº EX) para ver sus puntos pendientes.</div>`;
+    vacio.hidden = true;
+    return;
+  }
+
   const bloques = auPendAuditorias
     .filter(a => !auPendFiltroAuditoria || a.id === auPendFiltroAuditoria)
     .filter(a => !termino || normalizar(a.numero_ex).includes(termino) || normalizar(a.obras_sociales?.denominacion).includes(termino) || normalizar(a.obras_sociales?.sigla).includes(termino) || normalizar(a.obras_sociales?.rnos).includes(termino))
     .map(a => ({ a, puntos: a.auditoria_puntos.filter(incluye) }))
     .filter(b => b.puntos.length);
 
-  document.getElementById("au-pend-empty").hidden = bloques.length !== 0;
-  const aviso = auPendFiltroAuditoria ? `<div class="au-pend-aviso">Mostrando una sola auditoría. <button type="button" class="au-link" id="au-pend-todas">Ver todas</button></div>` : "";
+  vacio.hidden = bloques.length !== 0;
+  vacio.textContent = auPendAuditorias.some(a => normalizar(a.numero_ex).includes(termino) || normalizar(a.obras_sociales?.denominacion).includes(termino) || normalizar(a.obras_sociales?.sigla).includes(termino) || normalizar(a.obras_sociales?.rnos).includes(termino))
+    ? "Esa Obra Social no tiene puntos en el estado elegido."
+    : "No hay auditorías abiertas para esa búsqueda.";
+  const aviso = auPendFiltroAuditoria ? `<div class="au-pend-aviso">Mostrando la auditoría que estabas viendo. <button type="button" class="au-link" id="au-pend-todas">Buscar otra</button></div>` : "";
   cont.innerHTML = aviso + bloques.map(({ a, puntos }) => {
     const anio = a.fecha_visita_1 ? Number(a.fecha_visita_1.slice(0, 4)) : new Date().getFullYear();
     const recibidos = a.auditoria_puntos.filter(p => p.estado === "Recibido").length;
@@ -1553,7 +1563,7 @@ function auRenderPendientes() {
     </div>`;
   }).join("");
 
-  document.getElementById("au-pend-todas")?.addEventListener("click", () => { auPendFiltroAuditoria = null; auRenderPendientes(); });
+  document.getElementById("au-pend-todas")?.addEventListener("click", () => { auPendFiltroAuditoria = null; const q = document.getElementById("au-pend-search"); q.value = ""; auRenderPendientes(); q.focus(); });
   cont.querySelectorAll("[data-au-pend-abrir]").forEach(b => b.addEventListener("click", () => {
     showView("au-auditorias");
     auAbrirDetalle(b.dataset.auPendAbrir);
