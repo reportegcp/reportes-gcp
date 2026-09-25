@@ -212,6 +212,7 @@ function auVincularEventos() {
   on("au-pl-agregar", "click", () => auAbrirEditorPunto(null));
   on("au-pend-search", "input", () => { auPendFiltroAuditoria = null; auRenderPendientes(); });
   on("au-pend-filtro", "change", auRenderPendientes);
+  on("au-pend-expediente", "change", e => { auPendFiltroAuditoria = e.target.value || null; document.getElementById("au-pend-search").value = ""; auRenderPendientes(); });
   on("au-pl-preview", "click", auPreviewPlantilla);
   on("au-pl-enc-editar", "click", auAbrirEditorEncabezado);
   on("au-enc-guardar", "click", auGuardarEncabezado);
@@ -324,7 +325,7 @@ async function auCrearAuditoria(event) {
 
   try {
     boton.disabled = true;
-    const plantilla = await auFetch("auditoria_requerimiento_items", { params: { select: "texto_html,eje,orden", activo: "eq.true", order: "orden.asc" } });
+    const plantilla = await auFetch("auditoria_requerimiento_items", { params: { select: "texto_html,modelo_html,eje,orden", activo: "eq.true", order: "orden.asc" } });
     if (!plantilla?.length) throw new Error("La plantilla del Requerimiento no tiene puntos activos.");
 
     const [aud] = await auFetch("auditorias", {
@@ -341,7 +342,7 @@ async function auCrearAuditoria(event) {
 
     await auFetch("auditoria_puntos", {
       method: "POST",
-      body: plantilla.map((item, i) => ({ auditoria_id: aud.id, numero: i + 1, texto_html: item.texto_html, eje: item.eje }))
+      body: plantilla.map((item, i) => ({ auditoria_id: aud.id, numero: i + 1, texto_html: item.texto_html, modelo_html: item.modelo_html, eje: item.eje }))
     });
 
     if (archivo) {
@@ -603,6 +604,7 @@ async function auGuardarTextosPuntos() {
 let auPuntoActivo = 1;
 let auEditorPunto = null;
 let auP3EstadoTocado = false;
+let auP3ModeloCargado = null;
 
 function auTieneTexto(html) {
   return !!auTextoPlano(html) || /<img/i.test(html || "");
@@ -665,10 +667,12 @@ async function auAbrirPunto3(numero, forzar = false) {
   estadoEl.textContent = "Cargando editor...";
   try {
     if (!auEditorPunto) auEditorPunto = await auCrearEditor("#au-p3-editor", 420, "au-p3-guardado");
-    auEditorPunto.setContent(p.respuesta_html || "");
+    const usaModelo = !p.respuesta_html;
+    auEditorPunto.setContent(p.respuesta_html || await auRenderModelo(p.modelo_html));
+    auP3ModeloCargado = usaModelo ? auEditorPunto.getContent() : null;
     auEditorPunto.undoManager.clear();
     auEditorPunto.setDirty(false);
-    estadoEl.textContent = p.respuesta_html ? "Guardado" : "";
+    estadoEl.textContent = usaModelo ? (p.modelo_html ? "Texto modelo: completá los ____ y guardá" : "") : "Guardado";
   } catch (error) {
     estadoEl.textContent = "";
     mostrarToast(`No se pudo cargar el editor. ${error.message || ""}`, "error");
@@ -678,17 +682,20 @@ async function auAbrirPunto3(numero, forzar = false) {
 async function auPersistirPunto3() {
   const p = auPuntos.find(x => x.numero === auPuntoActivo);
   if (!p || !auEditorPunto) return;
-  const html = auEditorPunto.getContent();
+  let html = auEditorPunto.getContent();
+  // Si el texto modelo no se tocó, no se guarda como respuesta (el punto no pasa a "Recibido").
+  if (auP3ModeloCargado !== null && html === auP3ModeloCargado) html = null;
   let estado = document.getElementById("au-p3-estado").value;
   let manual = p.estado_manual;
   if (auP3EstadoTocado) manual = true;
   else if (!p.estado_manual) estado = (auTieneTexto(html) || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
   await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual } });
   Object.assign(p, { respuesta_html: html, estado, estado_manual: manual });
+  if (html !== null) auP3ModeloCargado = null;
   auEditorPunto.setDirty(false);
   auP3EstadoTocado = false;
   document.getElementById("au-p3-estado").value = estado;
-  document.getElementById("au-p3-guardado").textContent = "Guardado";
+  document.getElementById("au-p3-guardado").textContent = html === null ? "Sin cambios en el texto modelo" : "Guardado";
   auCargadas = false;
   await auAjustarVisitaYEstadoPorDocumentacion();
   auRenderP3Nums();
@@ -934,6 +941,7 @@ function auRenderPlantilla() {
     <div class="au-hoja-punto-meta">
       <span class="au-eje" title="${escaparHtml(AU_EJES[it.eje])}">Eje ${it.eje} · ${escaparHtml(AU_EJES[it.eje])}</span>
       ${it.activo ? "" : `<span class="au-inactivo-tag">No se incluye</span>`}
+      ${it.modelo_html ? `<span class="au-modelo-tag">Con texto modelo</span>` : ""}
       <span class="au-hoja-lapiz">Editar</span>
     </div>
   </li>`).join("");
@@ -985,6 +993,7 @@ function auAbrirEditorPunto(id) {
   document.getElementById("au-punto-title").textContent = esNuevo ? "Nuevo punto" : `Editar punto ${posicionActual}`;
   document.getElementById("au-punto-id").value = id || "";
   document.getElementById("au-punto-texto").innerHTML = it.texto_html || "";
+  document.getElementById("au-punto-modelo").innerHTML = it.modelo_html || "";
   document.getElementById("au-punto-eje").innerHTML = Object.entries(AU_EJES).map(([k, v]) => `<option value="${k}" ${it.eje === k ? "selected" : ""}>${k} · ${escaparHtml(v)}</option>`).join("");
   document.getElementById("au-punto-posicion").innerHTML = Array.from({ length: total }, (_, i) => `<option value="${i + 1}" ${i + 1 === posicionActual ? "selected" : ""}>${i + 1}</option>`).join("");
   document.getElementById("au-punto-activo").checked = it.activo !== false;
@@ -1010,7 +1019,8 @@ async function auGuardarPunto() {
   const boton = document.getElementById("au-punto-guardar");
   try {
     boton.disabled = true;
-    const datos = { texto_html: texto, eje: document.getElementById("au-punto-eje").value, activo: document.getElementById("au-punto-activo").checked, updated_at: new Date().toISOString() };
+    const modelo = document.getElementById("au-punto-modelo").innerHTML.trim();
+    const datos = { texto_html: texto, modelo_html: auTextoPlano(modelo) || /\{(PMA|CARTILLA)\}/.test(modelo) ? modelo : null, eje: document.getElementById("au-punto-eje").value, activo: document.getElementById("au-punto-activo").checked, updated_at: new Date().toISOString() };
     const posicion = Number(document.getElementById("au-punto-posicion").value);
     let item;
     if (id) {
@@ -1439,7 +1449,7 @@ async function auAbrirInforme() {
 
 async function auCargarEjeEnEditor(eje) {
   const guardado = auEjes[eje];
-  const html = guardado?.analisis_html || await auPlantillaEje(eje);
+  const html = guardado?.analisis_html || await auArmarEje(eje);
   auEditor.setContent(html);
   auEditor.undoManager.clear();
   auEditor.setDirty(false);
@@ -1526,9 +1536,9 @@ async function auGuardarEje(seguir) {
 }
 
 async function auRestaurarEje() {
-  const ok = await mostrarConfirmacion(`¿Reemplazar lo escrito en el eje ${auEjeActivo} por el texto precargado? Lo que escribiste se pierde cuando guardes.`, { titulo: "Volver al texto precargado", textoAceptar: "Reemplazar" });
+  const ok = await mostrarConfirmacion(`¿Volver a armar el eje ${auEjeActivo} con lo que escribiste en sus puntos (paso 3)? Lo escrito en este eje se reemplaza cuando guardes.`, { titulo: "Volver a armar desde los puntos", textoAceptar: "Reemplazar" });
   if (!ok || !auEditor) return;
-  auEditor.setContent(await auPlantillaEje(auEjeActivo));
+  auEditor.setContent(await auArmarEje(auEjeActivo));
   auEditor.setDirty(true);
   document.getElementById("au-eje-guardado").textContent = "Cambios sin guardar";
 }
@@ -1561,11 +1571,15 @@ function auRenderPendientes() {
   const cont = document.getElementById("au-pend-lista");
   const filtro = document.getElementById("au-pend-filtro").value;
   const termino = normalizar(document.getElementById("au-pend-search").value || "");
+  const sel = document.getElementById("au-pend-expediente");
+  const opciones = `<option value="">Elegí un expediente...</option>` + auPendAuditorias.map(a => `<option value="${a.id}">${escaparHtml(a.obras_sociales?.sigla || a.obras_sociales?.denominacion || "")} · ${escaparHtml(a.numero_ex)}</option>`).join("");
+  if (sel.dataset.opciones !== opciones) { sel.innerHTML = opciones; sel.dataset.opciones = opciones; }
+  sel.value = auPendFiltroAuditoria || "";
   const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? p.estado !== "Recibido" : p.estado === filtro;
 
   const vacio = document.getElementById("au-pend-empty");
   if (!auPendFiltroAuditoria && termino.length < 2) {
-    cont.innerHTML = `<div class="au-pend-inicio">Escribí arriba el nombre, la sigla o el RNAS de la Obra Social (o el Nº EX) para ver sus puntos pendientes.</div>`;
+    cont.innerHTML = `<div class="au-pend-inicio">Elegí un expediente de la lista, o escribí el nombre, la sigla o el RNAS de la Obra Social, para ver sus puntos pendientes.</div>`;
     vacio.hidden = true;
     return;
   }
@@ -1580,7 +1594,7 @@ function auRenderPendientes() {
   vacio.textContent = auPendAuditorias.some(a => normalizar(a.numero_ex).includes(termino) || normalizar(a.obras_sociales?.denominacion).includes(termino) || normalizar(a.obras_sociales?.sigla).includes(termino) || normalizar(a.obras_sociales?.rnos).includes(termino))
     ? "Esa Obra Social no tiene puntos en el estado elegido."
     : "No hay auditorías abiertas para esa búsqueda.";
-  const aviso = auPendFiltroAuditoria ? `<div class="au-pend-aviso">Mostrando la auditoría que estabas viendo. <button type="button" class="au-link" id="au-pend-todas">Buscar otra</button></div>` : "";
+  const aviso = "";
   cont.innerHTML = aviso + bloques.map(({ a, puntos }) => {
     const anio = a.fecha_visita_1 ? Number(a.fecha_visita_1.slice(0, 4)) : new Date().getFullYear();
     const recibidos = a.auditoria_puntos.filter(p => p.estado === "Recibido").length;
@@ -1623,4 +1637,45 @@ function auRenderPendientes() {
       mostrarToast(error.message || "No se pudo cambiar el estado.", "error");
     }
   }));
+}
+
+
+// ---------------- Textos modelo ----------------
+
+let auCachePresentaciones = {};
+
+async function auRenderModelo(html) {
+  let out = String(html || "");
+  if (!out) return "";
+  const os = auActual.obras_sociales || {};
+  const anio = auAnioAuditoria(auActual);
+  out = auReemplazarAnios(out, anio)
+    .replaceAll("{OS}", escaparHtml(os.denominacion || "Obra Social"))
+    .replaceAll("{SIGLA}", escaparHtml(os.sigla || ""))
+    .replaceAll("{RNAS}", escaparHtml(auFormatearRnas(os.rnos)))
+    .replaceAll("{EX}", escaparHtml(auActual.numero_ex || ""))
+    .replaceAll("{EJERCICIO}", auTextoEjercicioOs());
+  for (const [marca, tabla] of [["{PMA}", "pma"], ["{CARTILLA}", "cartillas"]]) {
+    if (!out.includes(marca)) continue;
+    const clave = `${auActual.id}:${tabla}`;
+    try {
+      if (!auCachePresentaciones[clave]) auCachePresentaciones[clave] = await auParrafoPresentacion(tabla, anio);
+      out = out.replaceAll(marca, auCachePresentaciones[clave]);
+    } catch (error) {
+      out = out.replaceAll(marca, "<p>____</p>");
+    }
+  }
+  return out;
+}
+
+// Arma el texto de un eje con lo escrito en sus puntos (paso 3).
+async function auArmarEje(eje) {
+  const partes = [];
+  for (const p of auPuntos.filter(x => x.eje === eje)) {
+    if (auTieneTexto(p.respuesta_html)) partes.push(p.respuesta_html);
+    else if (p.estado === "No aportado") partes.push(`<p>No se aportó la documentación correspondiente al punto ${p.numero} del Requerimiento.</p>`);
+    else partes.push(await auRenderModelo(p.modelo_html));
+  }
+  if (eje === "F") partes.push("<p><strong>Leyes especiales:</strong> La documentación presentada acredita circuitos específicos para ____.</p>");
+  return partes.join("");
 }
