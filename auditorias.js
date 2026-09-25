@@ -1244,6 +1244,7 @@ function auCrearEditor(selector, altura, idEstado) {
         height: altura,
         menubar: false,
         toolbar_mode: "wrap",
+        elementpath: false,
         branding: false,
         promotion: false,
         plugins: "lists advlist image table quickbars autolink",
