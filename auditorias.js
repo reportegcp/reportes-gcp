@@ -1695,10 +1695,7 @@ function auMostrarOpcionesPend() {
   const ops = auOpcionesPend();
   auPendResaltado = Math.min(auPendResaltado, Math.max(0, ops.length - 1));
   lista.innerHTML = ops.length
-    ? ops.map((a, i) => `<li role="option" data-au-op="${a.id}" class="${i === auPendResaltado ? "resaltado" : ""} ${a.id === auPendFiltroAuditoria ? "elegido" : ""}">
-        <strong>${escaparHtml(a.obras_sociales?.sigla || a.obras_sociales?.denominacion || "")}</strong>
-        <span>${escaparHtml(a.obras_sociales?.denominacion || "")} · RNAS ${escaparHtml(auFormatearRnas(a.obras_sociales?.rnos))}</span>
-        <span>${escaparHtml(a.numero_ex)}</span></li>`).join("")
+    ? ops.map((a, i) => `<li role="option" data-au-op="${a.id}" class="${i === auPendResaltado ? "resaltado" : ""} ${a.id === auPendFiltroAuditoria ? "elegido" : ""}" title="${escaparHtml(a.obras_sociales?.denominacion || "")} · RNAS ${escaparHtml(auFormatearRnas(a.obras_sociales?.rnos))} · ${escaparHtml(a.numero_ex)}"><strong>${escaparHtml(a.obras_sociales?.denominacion || a.obras_sociales?.sigla || "")}</strong><span>RNAS ${escaparHtml(auFormatearRnas(a.obras_sociales?.rnos))}</span><span>${escaparHtml(a.numero_ex)}</span></li>`).join("")
     : `<li class="vacio">${auPendAuditorias.length ? "No hay expedientes abiertos que coincidan." : "No hay expedientes abiertos."}</li>`;
   lista.hidden = false;
   input.setAttribute("aria-expanded", "true");

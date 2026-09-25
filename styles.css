@@ -2056,3 +2056,9 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .au-combo-lista li.elegido strong::after{content:" ✓";color:#226d53}
 .au-combo-lista li.vacio{cursor:default;color:var(--muted)}
 .au-combo .search-icon{position:static;transform:none;left:auto;top:auto}
+.au-combo-lista{padding:4px}
+.au-combo-lista li{flex-direction:row;align-items:baseline;gap:14px;padding:6px 10px;white-space:nowrap}
+.au-combo-lista li strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.au-combo-lista li span{flex:0 0 auto;font-size:12px}
+.au-combo-lista li span:last-child{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.au-combo-lista li.vacio{white-space:normal}
