@@ -150,7 +150,7 @@ function auClaseEstadoPunto(estado) {
 
 function auTextoPlano(html) {
   const div = document.createElement("div");
-  div.innerHTML = html || "";
+  div.innerHTML = String(html || "").replace(/<li[^>]*>/gi, " · ").replace(/<(p|br|div)[^>]*>/gi, " ");
   return (div.textContent || "").replace(/\s+/g, " ").trim();
 }
 
@@ -178,6 +178,7 @@ function inicializarVistaAuditorias(vista) {
     if (!auCargadas) auCargarLista();
   }
   if (vista === "au-plantilla") auCargarPlantilla();
+  if (vista === "au-pendientes") auCargarPendientes();
 }
 
 function auVincularEventos() {
@@ -205,6 +206,8 @@ function auVincularEventos() {
   on("au-doc-guardar", "click", auGuardarDocumento);
   on("au-doc-cancelar", "click", auResetFormDoc);
   on("au-pl-agregar", "click", () => auAbrirEditorPunto(null));
+  on("au-pend-search", "input", () => { auPendFiltroAuditoria = null; auRenderPendientes(); });
+  on("au-pend-filtro", "change", auRenderPendientes);
   on("au-pl-preview", "click", auPreviewPlantilla);
   on("au-pl-enc-editar", "click", auAbrirEditorEncabezado);
   on("au-enc-guardar", "click", auGuardarEncabezado);
@@ -535,29 +538,19 @@ function auRenderPuntos() {
     req.innerHTML = auPuntos.map(p => `<li class="au-hoja-punto au-hoja-punto-fijo"><div class="au-hoja-punto-texto">${auResaltarAnios(p.texto_html, anio)}</div></li>`).join("");
   }
 
-  // Paso 3: estado de cada punto (una línea por punto)
+  // Paso 3: solo un resumen; el detalle está en el menú Pendientes
   const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
-  const parciales = auPuntos.filter(p => p.estado === "Parcial").length;
-  const noAport = auPuntos.filter(p => p.estado === "No aportado").length;
-  document.getElementById("au-puntos-resumen").textContent =
-    `${recibidos} recibidos · ${parciales} parciales · ${noAport} no aportados · ${auPuntos.length - recibidos - parciales - noAport} pendientes`;
-  const cont = document.getElementById("au-puntos-lista");
-  cont.innerHTML = auPuntos.map(p => {
-    const docs = auDocsDePunto(p.numero);
-    const texto = auTextoPlano(auReemplazarAnios(p.texto_html, anio));
-    return `<div class="au-punto-fila">
-      <span class="au-punto-num">${p.numero}</span>
-      <div class="au-punto-fila-texto" title="${escaparHtml(texto)}">${escaparHtml(texto)}
-        ${docs.length ? `<div class="au-punto-fila-docs">${docs.map(d => escaparHtml(d.nombre)).join(" · ")}</div>` : ""}
-      </div>
-      <select data-au-punto-estado="${p.id}" class="${auClaseEstadoPunto(p.estado)}" title="${p.estado_manual ? "Fijado a mano" : "Automático según la documentación"}">
-        ${["Pendiente", "Recibido", "Parcial", "No aportado"].map(e => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}
-      </select>
-      ${p.estado_manual ? `<button type="button" class="au-link au-auto" data-au-punto-auto="${p.id}" title="Volver al estado automático">↺</button>` : `<span class="au-auto-vacio"></span>`}
-    </div>`;
-  }).join("");
-  cont.querySelectorAll("[data-au-punto-estado]").forEach(sel => sel.addEventListener("change", () => auCambiarEstadoPunto(sel.dataset.auPuntoEstado, sel.value, true)));
-  cont.querySelectorAll("[data-au-punto-auto]").forEach(btn => btn.addEventListener("click", () => auVolverAutomatico(btn.dataset.auPuntoAuto)));
+  const parciales = auPuntos.filter(p => p.estado === "Parcial");
+  const noAport = auPuntos.filter(p => p.estado === "No aportado");
+  const pendientes = auPuntos.filter(p => p.estado === "Pendiente");
+  const lista = arr => arr.map(p => p.numero).join(", ");
+  document.getElementById("au-resumen-pendientes").innerHTML = `
+    <div><strong>${recibidos} de ${auPuntos.length}</strong> puntos recibidos.</div>
+    ${pendientes.length ? `<div>Pendientes: ${lista(pendientes)}</div>` : ""}
+    ${parciales.length ? `<div>Parciales: ${lista(parciales)}</div>` : ""}
+    ${noAport.length ? `<div>No aportados: ${lista(noAport)}</div>` : ""}
+    <button type="button" class="au-link" id="au-ir-pendientes">Ver y ajustar en Pendientes →</button>`;
+  document.getElementById("au-ir-pendientes").addEventListener("click", () => { auPendFiltroAuditoria = auActual.id; showView("au-pendientes"); });
 }
 
 async function auCambiarEstadoPunto(id, estado, manual) {
@@ -1496,4 +1489,86 @@ async function auRestaurarEje() {
   auEditor.setContent(await auPlantillaEje(auEjeActivo));
   auEditor.setDirty(true);
   document.getElementById("au-eje-guardado").textContent = "Cambios sin guardar";
+}
+
+
+// ---------------- Menú Pendientes ----------------
+
+let auPendAuditorias = [];
+let auPendFiltroAuditoria = null;
+
+async function auCargarPendientes() {
+  const cont = document.getElementById("au-pend-lista");
+  cont.innerHTML = `<p class="au-hint">Cargando...</p>`;
+  try {
+    auPendAuditorias = await auFetch("auditorias", {
+      params: {
+        select: "id,numero_ex,estado,fecha_visita_1,obras_sociales(denominacion,rnos,sigla),auditoria_puntos(id,numero,texto_html,estado,estado_manual),auditoria_documentos(puntos)",
+        estado: "neq.Cerrada",
+        order: "fecha_visita_1.desc.nullsfirst"
+      }
+    }) || [];
+    auPendAuditorias.forEach(a => a.auditoria_puntos.sort((x, y) => x.numero - y.numero));
+    auRenderPendientes();
+  } catch (error) {
+    cont.innerHTML = `<p class="au-hint">No se pudieron cargar los pendientes. ${escaparHtml(error.message || "")}</p>`;
+  }
+}
+
+function auRenderPendientes() {
+  const cont = document.getElementById("au-pend-lista");
+  const filtro = document.getElementById("au-pend-filtro").value;
+  const termino = normalizar(document.getElementById("au-pend-search").value || "");
+  const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? p.estado !== "Recibido" : p.estado === filtro;
+
+  const bloques = auPendAuditorias
+    .filter(a => !auPendFiltroAuditoria || a.id === auPendFiltroAuditoria)
+    .filter(a => !termino || normalizar(a.numero_ex).includes(termino) || normalizar(a.obras_sociales?.denominacion).includes(termino) || normalizar(a.obras_sociales?.sigla).includes(termino) || normalizar(a.obras_sociales?.rnos).includes(termino))
+    .map(a => ({ a, puntos: a.auditoria_puntos.filter(incluye) }))
+    .filter(b => b.puntos.length);
+
+  document.getElementById("au-pend-empty").hidden = bloques.length !== 0;
+  const aviso = auPendFiltroAuditoria ? `<div class="au-pend-aviso">Mostrando una sola auditoría. <button type="button" class="au-link" id="au-pend-todas">Ver todas</button></div>` : "";
+  cont.innerHTML = aviso + bloques.map(({ a, puntos }) => {
+    const anio = a.fecha_visita_1 ? Number(a.fecha_visita_1.slice(0, 4)) : new Date().getFullYear();
+    const recibidos = a.auditoria_puntos.filter(p => p.estado === "Recibido").length;
+    return `<div class="table-card au-card">
+      <div class="table-meta au-meta-flex">
+        <strong>${escaparHtml(a.obras_sociales?.sigla || a.obras_sociales?.denominacion || "")} · RNAS ${escaparHtml(auFormatearRnas(a.obras_sociales?.rnos))}</strong>
+        <span class="au-resumen">${escaparHtml(a.numero_ex)} · ${recibidos} de ${a.auditoria_puntos.length} recibidos</span>
+        <button type="button" class="secondary small" data-au-pend-abrir="${a.id}">Abrir expediente</button>
+      </div>
+      <div class="au-puntos-lista">
+        ${puntos.map(p => {
+          const texto = auTextoPlano(auReemplazarAnios(p.texto_html, anio));
+          return `<div class="au-punto-fila">
+            <span class="au-punto-num">${p.numero}</span>
+            <div class="au-punto-fila-texto" title="${escaparHtml(texto)}">${escaparHtml(texto)}</div>
+            <select data-au-pend-estado="${p.id}" data-au-pend-aud="${a.id}" class="${auClaseEstadoPunto(p.estado)}">
+              ${["Pendiente", "Recibido", "Parcial", "No aportado"].map(e => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}
+            </select>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("au-pend-todas")?.addEventListener("click", () => { auPendFiltroAuditoria = null; auRenderPendientes(); });
+  cont.querySelectorAll("[data-au-pend-abrir]").forEach(b => b.addEventListener("click", () => {
+    showView("au-auditorias");
+    auAbrirDetalle(b.dataset.auPendAbrir);
+  }));
+  cont.querySelectorAll("[data-au-pend-estado]").forEach(sel => sel.addEventListener("change", async () => {
+    try {
+      await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${sel.dataset.auPendEstado}` }, body: { estado: sel.value, estado_manual: true } });
+      const aud = auPendAuditorias.find(x => x.id === sel.dataset.auPendAud);
+      const punto = aud?.auditoria_puntos.find(x => x.id === sel.dataset.auPendEstado);
+      if (punto) { punto.estado = sel.value; punto.estado_manual = true; }
+      auCargadas = false;
+      mostrarToast("Estado actualizado.");
+      auRenderPendientes();
+    } catch (error) {
+      mostrarToast(error.message || "No se pudo cambiar el estado.", "error");
+    }
+  }));
 }

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=81">
+  <link rel="stylesheet" href="styles.css?v=82">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -128,8 +128,9 @@
             <span>Auditorías</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
           </button>
           <div class="nav-submenu">
-            <button class="nav-subitem" data-view="au-auditorias" type="button">Auditorías</button>
-            <button class="nav-subitem" data-view="au-plantilla" type="button">Plantilla del Requerimiento</button>
+            <button class="nav-subitem" data-view="au-auditorias" type="button">Expedientes</button>
+            <button class="nav-subitem" data-view="au-plantilla" type="button">Planilla de requerimientos</button>
+            <button class="nav-subitem" data-view="au-pendientes" type="button">Pendientes</button>
           </div>
         </div>
 
@@ -153,7 +154,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 126</span>
+        <span>Versión 127</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1593,7 +1594,6 @@
           <div class="table-card au-card au-paso" data-au-paso="3" hidden>
             <div class="table-meta au-meta-flex">
               <strong>Paso 3 · Documentación que entregó la Obra Social</strong>
-              <span id="au-puntos-resumen" class="au-resumen"></span>
             </div>
             <div class="au-doc-form">
               <input type="hidden" id="au-doc-id">
@@ -1617,9 +1617,7 @@
               </table>
             </div>
             <div class="table-empty" id="au-doc-empty">Todavía no se cargó documentación.</div>
-            <div class="au-subtitulo-bloque">¿Qué puntos quedaron cubiertos?</div>
-            <p class="au-hint" style="margin:0 16px 8px">Se marcan solos según los documentos cargados. Podés cambiarlos a mano (por ejemplo a "Parcial").</p>
-            <div id="au-puntos-lista" class="au-puntos-lista"></div>
+            <div class="au-resumen-pendientes" id="au-resumen-pendientes"></div>
             <div class="au-paso-pie">
               <span class="au-hint">Al terminar, los puntos que sigan "Pendiente" pasan a "No aportado".</span>
               <button type="button" class="primary" id="au-doc-terminar">Terminé de cargar la documentación →</button>
@@ -1664,6 +1662,24 @@
             <p class="au-proximamente">En preparación.</p>
           </div>
         </div>
+      </section>
+
+      <section id="au-pendientes" class="view">
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="au-pend-search" type="search" placeholder="Buscar por Nº EX, Obra Social o RNAS..." autocomplete="off">
+          </div>
+          <select id="au-pend-filtro" style="width:320px;max-width:100%">
+            <option value="faltantes">Pendientes, parciales y no aportados</option>
+            <option value="Pendiente">Solo pendientes</option>
+            <option value="Parcial">Solo parciales</option>
+            <option value="No aportado">Solo no aportados</option>
+            <option value="todos">Todos los puntos</option>
+          </select>
+        </div>
+        <div id="au-pend-lista"></div>
+        <div class="table-empty" id="au-pend-empty" hidden>No hay puntos que coincidan.</div>
       </section>
 
       <section id="au-plantilla" class="view">
@@ -2500,6 +2516,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=78"></script>
-  <script src="auditorias.js?v=4"></script>
+  <script src="auditorias.js?v=5"></script>
 </body>
 </html>

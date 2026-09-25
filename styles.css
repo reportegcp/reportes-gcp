@@ -2011,3 +2011,8 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .au-guardado{font-size:12.5px;color:var(--muted);margin-left:auto}
 @media(max-width:1000px){.au-informe-grid{grid-template-columns:1fr}.au-informe-ref{position:static;max-height:none}}
 #au-eje-restaurar{font-size:12.5px;color:var(--muted)}
+.au-resumen-pendientes{margin:0 16px 14px;padding:12px 14px;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;font-size:13px;line-height:1.6}
+.au-resumen-pendientes .au-link{padding:0;margin-top:4px}
+.au-pend-aviso{font-size:13px;color:var(--muted);margin-bottom:10px}
+.au-pend-aviso .au-link{padding:0 4px}
+#au-pend-lista .au-puntos-lista{padding:6px 16px 10px}
