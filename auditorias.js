@@ -38,6 +38,11 @@ let auOsPorEtiqueta = new Map();
 let auEventosVinculados = false;
 let auPlantillaItems = [];
 let auPlantillaTextos = {};
+let auEjes = {};
+let auPasoActivo = 1;
+let auEjeActivo = "A";
+let auEditor = null;
+let auEditorCargando = null;
 
 // ---------------- API ----------------
 
@@ -184,11 +189,16 @@ function auVincularEventos() {
   on("au-tab-cerradas", "click", () => auCambiarTab("cerradas"));
   on("au-search", "input", auRenderLista);
   on("au-nueva-form", "submit", auCrearAuditoria);
-  on("au-volver", "click", () => { auMostrarLista(); auCargarLista(); });
+  on("au-volver", "click", async () => { await auGuardarEjeSiHayCambios(); auMostrarLista(); auCargarLista(); });
   on("au-form", "submit", auGuardarDatos);
   on("au-eliminar", "click", auEliminarAuditoria);
   on("au-orden-subir", "click", auSubirOrden);
   on("au-btn-requerimiento", "click", () => auGenerarPdfRequerimiento(auActual, auPuntos));
+  on("au-req-entregado", "click", auConfirmarEntregaRequerimiento);
+  on("au-doc-terminar", "click", auTerminarDocumentacion);
+  on("au-eje-guardar", "click", () => auGuardarEje(false));
+  on("au-eje-siguiente", "click", () => auGuardarEje(true));
+  on("au-eje-restaurar", "click", auRestaurarEje);
   on("au-puntos-editar", "click", () => { auEditandoPuntos = true; auRenderPuntos(); });
   on("au-puntos-cancelar", "click", () => { auEditandoPuntos = false; auRenderPuntos(); });
   on("au-puntos-guardar", "click", auGuardarTextosPuntos);
@@ -348,16 +358,20 @@ async function auCrearAuditoria(event) {
 async function auAbrirDetalle(id) {
   await auAsegurarOs();
   try {
-    const [filas, puntos, docs] = await Promise.all([
-      auFetch("auditorias", { params: { id: `eq.${id}`, select: "*,obras_sociales(denominacion,rnos,sigla)" } }),
+    const [filas, puntos, docs, ejes] = await Promise.all([
+      auFetch("auditorias", { params: { id: `eq.${id}`, select: "*,obras_sociales(denominacion,rnos,sigla,inicio_ejercicio)" } }),
       auFetch("auditoria_puntos", { params: { auditoria_id: `eq.${id}`, order: "numero.asc" } }),
-      auFetch("auditoria_documentos", { params: { auditoria_id: `eq.${id}`, order: "fecha_recepcion.asc.nullslast,created_at.asc" } })
+      auFetch("auditoria_documentos", { params: { auditoria_id: `eq.${id}`, order: "fecha_recepcion.asc.nullslast,created_at.asc" } }),
+      auFetch("auditoria_ejes", { params: { auditoria_id: `eq.${id}` } })
     ]);
     if (!filas?.length) throw new Error("No se encontró la auditoría.");
     auActual = filas[0];
     auPuntos = puntos || [];
     auDocs = docs || [];
+    auEjes = {};
+    (ejes || []).forEach(e => { auEjes[e.eje] = e; });
     auEditandoPuntos = false;
+    auPasoActivo = auPrimerPasoPendiente();
     document.getElementById("au-lista").hidden = true;
     document.getElementById("au-detalle").hidden = false;
     auRenderDetalle();
@@ -391,6 +405,7 @@ function auRenderDetalle() {
   auRenderPuntos();
   auResetFormDoc();
   auRenderDocs();
+  auRenderPasos();
 }
 
 function auRenderOrden() {
@@ -451,7 +466,7 @@ async function auGuardarDatos(event) {
   try {
     boton.disabled = true;
     const [fila] = await auFetch("auditorias", {
-      method: "PATCH", prefer: "return=representation", params: { id: `eq.${auActual.id}`, select: "*,obras_sociales(denominacion,rnos,sigla)" },
+      method: "PATCH", prefer: "return=representation", params: { id: `eq.${auActual.id}`, select: "*,obras_sociales(denominacion,rnos,sigla,inicio_ejercicio)" },
       body: {
         numero_ex: numeroEx,
         obra_social_id: osId,
@@ -471,7 +486,12 @@ async function auGuardarDatos(event) {
     auActual = fila;
     auCargadas = false;
     auRenderDetalle();
-    mostrarToast("Datos guardados.");
+    if (auPasoCompleto(1)) {
+      mostrarToast("Datos guardados.");
+      auIrAPaso(auPrimerPasoPendiente());
+    } else {
+      setFormMessage("au-form-message", "Datos guardados. Para continuar falta la fecha de la 1º visita.", "neutral");
+    }
   } catch (error) {
     setFormMessage("au-form-message", error.message || "No se pudieron guardar los datos.");
   } finally {
@@ -502,46 +522,40 @@ function auDocsDePunto(numero) {
 }
 
 function auRenderPuntos() {
-  const cont = document.getElementById("au-puntos-lista");
   const anio = auAnioAuditoria(auActual);
+  // Paso 2: texto del requerimiento (como la hoja impresa)
+  const req = document.getElementById("au-req-lista");
   document.getElementById("au-puntos-edicion-acciones").hidden = !auEditandoPuntos;
   document.getElementById("au-puntos-editar").hidden = auEditandoPuntos;
+  if (auEditandoPuntos) {
+    req.innerHTML = auPuntos.map(p => `<li class="au-hoja-punto au-punto-edit-li">
+        <div class="anexo-i-rte au-punto-rte" contenteditable="true" data-au-punto-texto="${p.id}">${p.texto_html}</div>
+      </li>`).join("");
+  } else {
+    req.innerHTML = auPuntos.map(p => `<li class="au-hoja-punto au-hoja-punto-fijo"><div class="au-hoja-punto-texto">${auResaltarAnios(p.texto_html, anio)}</div></li>`).join("");
+  }
 
+  // Paso 3: estado de cada punto (una línea por punto)
   const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
   const parciales = auPuntos.filter(p => p.estado === "Parcial").length;
   const noAport = auPuntos.filter(p => p.estado === "No aportado").length;
   document.getElementById("au-puntos-resumen").textContent =
     `${recibidos} recibidos · ${parciales} parciales · ${noAport} no aportados · ${auPuntos.length - recibidos - parciales - noAport} pendientes`;
-
-  if (auEditandoPuntos) {
-    cont.innerHTML = `<p class="au-hint" style="margin:0 0 8px">Los cambios valen solo para esta auditoría. Ctrl+B negrita, Ctrl+U subrayado. {ANIO}, {ANIO_1} y {ANIO_2} se reemplazan al imprimir.</p>` +
-      auPuntos.map(p => `<div class="au-punto au-punto-edit">
-        <span class="au-punto-num">${p.numero}</span>
-        <div class="anexo-i-rte au-punto-rte" contenteditable="true" data-au-punto-texto="${p.id}">${p.texto_html}</div>
-      </div>`).join("");
-    return;
-  }
-
+  const cont = document.getElementById("au-puntos-lista");
   cont.innerHTML = auPuntos.map(p => {
     const docs = auDocsDePunto(p.numero);
-    return `<div class="au-punto">
+    const texto = auTextoPlano(auReemplazarAnios(p.texto_html, anio));
+    return `<div class="au-punto-fila">
       <span class="au-punto-num">${p.numero}</span>
-      <div class="au-punto-cuerpo">
-        <div class="au-punto-texto">${auReemplazarAnios(p.texto_html, anio)}</div>
-        <div class="au-punto-docs">
-          <span class="au-eje" title="${escaparHtml(AU_EJES[p.eje])}">Eje ${p.eje}</span>
-          ${docs.length ? docs.map(d => `<span class="au-doc-chip">${escaparHtml(d.nombre)}</span>`).join("") : `<span class="au-hint">Sin documentos</span>`}
-        </div>
+      <div class="au-punto-fila-texto" title="${escaparHtml(texto)}">${escaparHtml(texto)}
+        ${docs.length ? `<div class="au-punto-fila-docs">${docs.map(d => escaparHtml(d.nombre)).join(" · ")}</div>` : ""}
       </div>
-      <div class="au-punto-estado">
-        <select data-au-punto-estado="${p.id}" class="${auClaseEstadoPunto(p.estado)}" title="${p.estado_manual ? "Estado fijado a mano" : "Estado automático según la documentación"}">
-          ${["Pendiente", "Recibido", "Parcial", "No aportado"].map(e => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}
-        </select>
-        ${p.estado_manual ? `<button type="button" class="au-link au-auto" data-au-punto-auto="${p.id}" title="Volver al estado automático">↺ automático</button>` : ""}
-      </div>
+      <select data-au-punto-estado="${p.id}" class="${auClaseEstadoPunto(p.estado)}" title="${p.estado_manual ? "Fijado a mano" : "Automático según la documentación"}">
+        ${["Pendiente", "Recibido", "Parcial", "No aportado"].map(e => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}
+      </select>
+      ${p.estado_manual ? `<button type="button" class="au-link au-auto" data-au-punto-auto="${p.id}" title="Volver al estado automático">↺</button>` : `<span class="au-auto-vacio"></span>`}
     </div>`;
   }).join("");
-
   cont.querySelectorAll("[data-au-punto-estado]").forEach(sel => sel.addEventListener("change", () => auCambiarEstadoPunto(sel.dataset.auPuntoEstado, sel.value, true)));
   cont.querySelectorAll("[data-au-punto-auto]").forEach(btn => btn.addEventListener("click", () => auVolverAutomatico(btn.dataset.auPuntoAuto)));
 }
@@ -705,8 +719,17 @@ async function auGuardarDocumento() {
 
 // Si la OS ya entregó documentación, la 2º visita no se realiza.
 async function auAjustarVisitaYEstadoPorDocumentacion() {
-  if (!auDocs.length) return "";
   const cambios = {};
+  if (!auDocs.length) {
+    // Si se quitó toda la documentación, se vuelve atrás lo automático.
+    if (auActual.visita_2_estado === "No requerida") cambios.visita_2_estado = "Pendiente";
+    if (auActual.estado === "Documentación recibida") cambios.estado = "Esperando documentación";
+    if (!Object.keys(cambios).length) return "";
+    await auFetch("auditorias", { method: "PATCH", params: { id: `eq.${auActual.id}` }, body: cambios });
+    Object.assign(auActual, cambios);
+    auRenderDetalleSinDocs();
+    return "";
+  }
   if (auActual.visita_2_estado === "Pendiente") cambios.visita_2_estado = "No requerida";
   if (AU_ESTADOS_PREVIOS_A_DOCUMENTACION.includes(auActual.estado)) cambios.estado = "Documentación recibida";
   if (!Object.keys(cambios).length) return "";
@@ -733,6 +756,7 @@ async function auBorrarDoc(id) {
     if (d.archivo_path) await auBorrarArchivo(d.archivo_path);
     auDocs = auDocs.filter(x => x.id !== id);
     await auRecalcularEstadosAutomaticos();
+    await auAjustarVisitaYEstadoPorDocumentacion();
     auCargadas = false;
     if (document.getElementById("au-doc-id").value === id) auResetFormDoc();
     auRenderDocs();
@@ -843,7 +867,7 @@ async function auGenerarPdfRequerimiento(aud, puntos) {
     mostrarToast(error.message || "No se pudo generar el PDF.", "error");
   } finally {
     boton.disabled = false;
-    boton.textContent = "Imprimir requerimiento (PDF)";
+    boton.textContent = "Descargar requerimiento (PDF)";
   }
 }
 
@@ -1024,4 +1048,452 @@ async function auPreviewPlantilla() {
   } finally {
     boton.disabled = false;
   }
+}
+
+// ---------------- Pasos ----------------
+
+const AU_PASOS = [
+  { n: 1, titulo: "Datos y orden" },
+  { n: 2, titulo: "Requerimiento" },
+  { n: 3, titulo: "Documentación" },
+  { n: 4, titulo: "Informe" },
+  { n: 5, titulo: "Observaciones" },
+  { n: 6, titulo: "Conclusión y Word" }
+];
+
+function auPasoCompleto(n) {
+  const a = auActual;
+  if (!a) return false;
+  if (n === 1) return !!(a.numero_ex && a.obra_social_id && a.fecha_visita_1);
+  if (n === 2) return !!a.requerimiento_entregado;
+  if (n === 3) return !!a.documentacion_completa;
+  if (n === 4) return Object.keys(AU_EJES).every(e => auEjes[e]?.hallazgo);
+  return false;
+}
+
+function auPasoHabilitado(n) {
+  for (let i = 1; i < n; i++) if (!auPasoCompleto(i)) return false;
+  return true;
+}
+
+function auPrimerPasoPendiente() {
+  for (const p of AU_PASOS) if (!auPasoCompleto(p.n)) return p.n;
+  return AU_PASOS.length;
+}
+
+function auRenderPasos() {
+  const nav = document.getElementById("au-pasos");
+  nav.innerHTML = AU_PASOS.map(p => {
+    const completo = auPasoCompleto(p.n);
+    const habilitado = auPasoHabilitado(p.n);
+    const clase = [p.n === auPasoActivo ? "activo" : "", completo ? "completo" : "", habilitado ? "" : "bloqueado"].join(" ");
+    const marca = completo ? "✓" : habilitado ? p.n : "🔒";
+    return `<button type="button" class="au-paso-btn ${clase}" data-au-ir-paso="${p.n}" ${habilitado ? "" : `title="Se habilita al terminar el paso anterior"`}>
+      <span class="au-paso-marca">${marca}</span><span>${p.titulo}</span></button>`;
+  }).join('<span class="au-paso-sep"></span>');
+  nav.querySelectorAll("[data-au-ir-paso]").forEach(b => b.addEventListener("click", () => {
+    const n = Number(b.dataset.auIrPaso);
+    if (!auPasoHabilitado(n)) return mostrarToast("Ese paso se habilita cuando termines el anterior.", "error");
+    auIrAPaso(n);
+  }));
+  document.querySelectorAll("[data-au-paso]").forEach(el => { el.hidden = Number(el.dataset.auPaso) !== auPasoActivo; });
+
+  const reqEstado = document.getElementById("au-req-estado");
+  if (reqEstado) reqEstado.textContent = auActual.requerimiento_entregado
+    ? `Entregado en la 1º visita del ${formatearFecha(auActual.fecha_visita_1)}.`
+    : "Imprimí el PDF, llevalo a la visita y después confirmá la entrega.";
+  const btnEntrega = document.getElementById("au-req-entregado");
+  if (btnEntrega) btnEntrega.textContent = auActual.requerimiento_entregado ? "Continuar al paso 3 →" : "Confirmar entrega y continuar →";
+  const btnTerminar = document.getElementById("au-doc-terminar");
+  if (btnTerminar) btnTerminar.textContent = auActual.documentacion_completa ? "Continuar al informe →" : "Terminé de cargar la documentación →";
+}
+
+async function auIrAPaso(n) {
+  if (auPasoActivo === 4 && n !== 4) await auGuardarEjeSiHayCambios();
+  auPasoActivo = n;
+  auRenderPasos();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (n === 4) auAbrirInforme();
+}
+
+async function auPatchAuditoria(cambios) {
+  const [fila] = await auFetch("auditorias", {
+    method: "PATCH", prefer: "return=representation",
+    params: { id: `eq.${auActual.id}`, select: "*,obras_sociales(denominacion,rnos,sigla,inicio_ejercicio)" },
+    body: { ...cambios, updated_at: new Date().toISOString() }
+  });
+  auActual = fila;
+  auCargadas = false;
+  const os = auActual.obras_sociales || {};
+  document.getElementById("au-detalle-sub").textContent = `RNAS ${auFormatearRnas(os.rnos)} · ${auActual.numero_ex} · ${auActual.estado}`;
+  document.getElementById("au-estado").value = auActual.estado;
+  document.getElementById("au-visita2-estado").value = auActual.visita_2_estado;
+  document.getElementById("au-fecha-visita-2").value = auActual.fecha_visita_2 || "";
+}
+
+async function auConfirmarEntregaRequerimiento() {
+  try {
+    if (!auActual.requerimiento_entregado) {
+      const cambios = { requerimiento_entregado: true };
+      if (["Orden cargada", "1º visita realizada"].includes(auActual.estado)) cambios.estado = "Esperando documentación";
+      await auPatchAuditoria(cambios);
+      mostrarToast("Entrega del requerimiento registrada.");
+    }
+    auIrAPaso(3);
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo registrar la entrega.", "error");
+  }
+}
+
+async function auTerminarDocumentacion() {
+  if (auActual.documentacion_completa) return auIrAPaso(4);
+  if (!auDocs.length) {
+    const ok = await mostrarConfirmacion("No hay documentación cargada. Si la Obra Social no entregó nada, corresponde la 2º visita con el mismo requerimiento. ¿La marco como programada? La fecha la completás en el paso 1.", { titulo: "Sin documentación", textoAceptar: "Programar 2º visita" });
+    if (!ok) return;
+    await auPatchAuditoria({ visita_2_estado: "Programada", estado: "2º visita" });
+    auRenderPasos();
+    return mostrarToast("2º visita marcada como programada. Cuando llegue la documentación, cargala en este paso.");
+  }
+  const pendientes = auPuntos.filter(p => p.estado === "Pendiente");
+  const ok = await mostrarConfirmacion(pendientes.length
+    ? `Quedan ${pendientes.length} puntos en "Pendiente" (${pendientes.map(p => p.numero).join(", ")}). Al terminar pasan a "No aportado". ¿Continuar?`
+    : "Todos los puntos tienen estado. ¿Terminar la carga y pasar al informe?", { titulo: "Terminar documentación", textoAceptar: "Terminar" });
+  if (!ok) return;
+  try {
+    for (const p of pendientes) {
+      await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { estado: "No aportado", estado_manual: true } });
+      p.estado = "No aportado"; p.estado_manual = true;
+    }
+    const cambios = { documentacion_completa: true };
+    if (!["Informe en borrador", "Informe emitido", "Cerrada"].includes(auActual.estado)) cambios.estado = "Informe en borrador";
+    await auPatchAuditoria(cambios);
+    auRenderPuntos();
+    auIrAPaso(4);
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo terminar la carga.", "error");
+  }
+}
+
+// ---------------- Paso 4: informe por eje ----------------
+
+const AU_TINYMCE = "https://cdn.jsdelivr.net/npm/tinymce@7.6.0/tinymce.min.js";
+const AU_TINYMCE_ES = "https://cdn.jsdelivr.net/npm/tinymce-i18n@24.12.9/langs7/es.js";
+
+function auComprimirImagen(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const maxAncho = 1400;
+      const escala = Math.min(1, maxAncho / img.naturalWidth);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.naturalWidth * escala);
+      canvas.height = Math.round(img.naturalHeight * escala);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      const png = canvas.toDataURL("image/png");
+      const jpg = canvas.toDataURL("image/jpeg", 0.85);
+      resolve(png.length <= jpg.length ? png : jpg);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen.")); };
+    img.src = url;
+  });
+}
+
+function auAsegurarEditor() {
+  if (auEditor) return Promise.resolve(auEditor);
+  if (auEditorCargando) return auEditorCargando;
+  auEditorCargando = (window.tinymce ? Promise.resolve() : auCargarScript(AU_TINYMCE))
+    .then(() => new Promise(resolve => {
+      window.tinymce.init({
+        selector: "#au-editor",
+        license_key: "gpl",
+        language: "es",
+        language_url: AU_TINYMCE_ES,
+        height: 640,
+        menubar: false,
+        toolbar_mode: "wrap",
+        branding: false,
+        promotion: false,
+        plugins: "lists advlist image table quickbars autolink",
+        toolbar: "undo redo | blocks | bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | image table | removeformat",
+        block_formats: "Párrafo=p; Subtítulo=h4",
+        quickbars_selection_toolbar: false,
+        quickbars_insert_toolbar: false,
+        quickbars_image_toolbar: "alignleft aligncenter alignright | image",
+        image_dimensions: true,
+        image_description: false,
+        object_resizing: true,
+        resize_img_proportional: true,
+        paste_data_images: true,
+        automatic_uploads: true,
+        images_upload_handler: blobInfo => auComprimirImagen(blobInfo.blob()),
+        table_default_styles: { "border-collapse": "collapse", width: "100%" },
+        content_style: "body{font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt;line-height:1.45;max-width:760px;margin:16px auto;padding:0 12px} img{max-width:100%;height:auto} table td,table th{border:1px solid #999;padding:4px 6px} h4{font-size:11pt;margin:14px 0 6px}",
+        setup: editor => {
+          editor.on("init", () => { auEditor = editor; resolve(editor); });
+          editor.on("input change undo redo", () => { document.getElementById("au-eje-guardado").textContent = "Cambios sin guardar"; });
+        }
+      });
+    }))
+    .catch(error => { auEditorCargando = null; throw error; });
+  return auEditorCargando;
+}
+
+function auFechaDmy(iso) {
+  return iso ? formatearFecha(iso) : "____";
+}
+
+function auSumarDias(iso, dias) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+function auFinEjercicio(inicioIso) {
+  const d = new Date(`${inicioIso}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function auTextoEjercicioOs() {
+  const ini = String(auActual.obras_sociales?.inicio_ejercicio || "").match(/^(\d{1,2})[-/](\d{1,2})$/);
+  if (!ini) return "____";
+  const inicio = `2001-${ini[2].padStart(2, "0")}-${ini[1].padStart(2, "0")}`;
+  const fin = auFinEjercicio(inicio);
+  return `${inicio.slice(8, 10)}/${inicio.slice(5, 7)} – ${fin.slice(8, 10)}/${fin.slice(5, 7)}`;
+}
+
+async function auParrafoPresentacion(tabla, anio) {
+  const filas = await auFetch(tabla, { params: { obra_social_id: `eq.${auActual.obra_social_id}`, select: "anio_inicio,fecha_inicio_ejercicio,numero_ee,fecha_ingreso,numero_disposicion,fecha_disposicion,condicion", order: "anio_inicio.desc" } }) || [];
+  const esPma = tabla === "pma";
+  const nombre = esPma ? "Programa Médico Asistencial" : "Cartilla Prestacional";
+  const art = esPma ? "el" : "la";
+  const aprobadoTxt = esPma ? "aprobado" : "aprobada";
+  const norma = esPma ? "la Resolución SSS N.º 83/07" : "la Resolución SSSalud N.º 2165/2021";
+  const titulo = esPma ? "Programa Médico Asistencial (Res. 83/07 - SSS)" : "Cartilla Médico Asistencial (Res. 2165/21 - SSS)";
+  const r = filas.find(f => Number(f.anio_inicio) === anio) || filas[0];
+  if (!r) {
+    return `<p><strong>${titulo}:</strong> No se registra en los sistemas de la Gerencia la presentación de ${art} ${nombre} correspondiente al ejercicio ${anio}.</p>`;
+  }
+  const inicio = r.fecha_inicio_ejercicio;
+  const periodo = inicio ? `al período comprendido entre el ${auFechaLarga(inicio)} y el ${auFechaLarga(auFinEjercicio(inicio))}` : `al ejercicio ${r.anio_inicio}`;
+  const aprobacion = r.numero_disposicion
+    ? `fue ${aprobadoTxt} mediante ${r.numero_disposicion}${r.fecha_disposicion ? `, de fecha ${auFechaLarga(r.fecha_disposicion)}` : ""}`
+    : `se encuentra en trámite (condición: ${String(r.condicion || "sin dato").toLowerCase()})`;
+  let plazo = "";
+  if (inicio && r.fecha_ingreso) {
+    const limite = auSumarDias(inicio, -90);
+    plazo = r.fecha_ingreso > limite
+      ? ` No obstante, el expediente ${r.numero_ee || "____"} fue iniciado el ${auFechaDmy(r.fecha_ingreso)}, con posterioridad al plazo mínimo de noventa (90) días previos al inicio del ejercicio, previsto en ${norma}, por lo que la presentación resultó extemporánea.`
+      : ` La presentación se efectuó mediante el expediente ${r.numero_ee || "____"}, iniciado el ${auFechaDmy(r.fecha_ingreso)}, dentro del plazo previsto por ${norma}.`;
+  }
+  return `<p><strong>${titulo}:</strong> Se verificó que ${art} ${nombre} correspondiente ${periodo} ${aprobacion}.${plazo}</p>`;
+}
+
+async function auPlantillaEje(eje) {
+  const anio = auAnioAuditoria(auActual);
+  const t = (titulo, texto) => `<p><strong>${titulo}:</strong> ${texto}</p>`;
+  if (eje === "A") return [
+    t("Ámbito de actuación", "____"),
+    t("Ejercicio", auTextoEjercicioOs()),
+    t("Dirección Médica y Auditoría Médica", "La conducción médico-prestacional se encuentra a cargo de ____, en funciones de ____."),
+    "<p>La Auditoría Médica se encuentra integrada por ____. De acuerdo con la documentación presentada, sus funciones comprenden ____.</p>",
+    t("Modalidad de cobertura", "La Obra Social informó que cuenta con ____ para su población beneficiaria y que las prestaciones son brindadas mediante ____. La modalidad contractual es ____."),
+    t("Planes superadores", "____"),
+    t("Autorizaciones", "Las solicitudes de autorización de prácticas, estudios e internaciones pueden gestionarse mediante ____. Según lo informado por el Agente, ____, estimándose un tiempo aproximado de resolución de ____."),
+    t("Canales de comunicación con el beneficiario", "El Agente informó los siguientes canales institucionales de contacto: ____."),
+    t("Coseguros", "Se verificó que el Agente del Seguro de Salud ____ el esquema de copagos aplicable a partir del ____. A continuación se detallan los importes consignados:")
+  ].join("");
+  if (eje === "B") return [
+    t("Acepta", "____"),
+    t("No acepta", "____"),
+    t("Población total", `Para el año ${anio} se informó una población total de ____ beneficiarios. La distribución por tipo de beneficiario informada comprende ____. El padrón discrimina ____ titulares (____ %) y ____ familiares (____ %).`),
+    `<p>Como antecedente comparativo, para el período ${anio - 2}/${anio - 1} se informó una población total de ____ beneficiarios.</p>`,
+    t("Distribución geográfica", "La población se encuentra distribuida en ____. A continuación se incorpora el detalle:"),
+    t("Distribución por rango etario", "La población presenta una edad promedio de ____ años, observándose la mayor concentración en el grupo de ____, que representa aproximadamente el ____ % del padrón. Asimismo, se registran ____ beneficiarios menores de 18 años.")
+  ].join("");
+  if (eje === "C") return [
+    t("Red de prestadores", "Brinda cobertura a través de ____. La documentación presentada permite identificar una red integrada por ____."),
+    t("Cobertura territorial de la red", "____"),
+    t("Red farmacéutica", "Para la provisión de medicamentos, el Agente informó ____."),
+    t("Modalidad de acceso", "____. Las delegaciones declaradas se detallan en la siguiente tabla:")
+  ].join("");
+  if (eje === "D") return [
+    t("Auditoría Médica", "La Auditoría Médica interviene en ____."),
+    t("Documentación de auditorías a prestadores y beneficiarios internados", "____"),
+    t("Trazabilidad de prestaciones", "Dentro de la muestra aportada se verificó documentación respaldatoria correspondiente a ____."),
+    t("Auditorías de terreno", "Se analizaron informes de auditoría médica de terreno correspondientes a ____."),
+    t("Beneficiarios con patologías oncológicas y autoinmunes", "____"),
+    t("Órdenes de pago de prestaciones de alto costo", "____"),
+    t("Información estadística de prestaciones", "____")
+  ].join("");
+  if (eje === "E") return [
+    t("Programas preventivos", "La Obra Social presentó documentación descriptiva de programas de prevención y promoción de la salud, incluyendo ____."),
+    t("Material de difusión", "____"),
+    t("Campañas de vacunación e inmunizaciones", "____"),
+    t("Padrones y seguimiento", "____")
+  ].join("");
+  if (eje === "F") {
+    let pma = "", cartilla = "";
+    try {
+      [pma, cartilla] = await Promise.all([auParrafoPresentacion("pma", anio), auParrafoPresentacion("cartillas", anio)]);
+    } catch (error) {
+      console.error(error);
+      pma = t("Programa Médico Asistencial (Res. 83/07 - SSS)", "____");
+      cartilla = t("Cartilla Médico Asistencial (Res. 2165/21 - SSS)", "____");
+    }
+    return [
+      t("Resolución ANSSAL 650/97", "De la información obrante en el Estado de Situación institucional surge que el Agente del Seguro de Salud ____ las presentaciones correspondientes a la Resolución ANSSAL N.º 650/97 durante los ejercicios ____."),
+      pma,
+      cartilla,
+      t("Leyes especiales", "La documentación presentada acredita circuitos específicos para ____.")
+    ].join("");
+  }
+  return "";
+}
+
+function auRenderEjesTabs() {
+  const tabs = document.getElementById("au-ejes-tabs");
+  tabs.innerHTML = Object.entries(AU_EJES).map(([k, v]) => {
+    const h = auEjes[k]?.hallazgo;
+    return `<button type="button" class="au-eje-tab ${k === auEjeActivo ? "activo" : ""} ${h ? "completo" : ""}" data-au-eje="${k}">
+      <span class="au-eje-tab-letra">${h ? "✓" : k}</span><span>${escaparHtml(v)}</span></button>`;
+  }).join("");
+  tabs.querySelectorAll("[data-au-eje]").forEach(b => b.addEventListener("click", () => auMostrarEje(b.dataset.auEje)));
+  const hechos = Object.keys(AU_EJES).filter(k => auEjes[k]?.hallazgo).length;
+  document.getElementById("au-informe-resumen").textContent = `${hechos} de 6 ejes con hallazgo`;
+}
+
+function auRenderRefEje(eje) {
+  const anio = auAnioAuditoria(auActual);
+  const puntos = auPuntos.filter(p => p.eje === eje);
+  document.getElementById("au-informe-ref").innerHTML = `<div class="au-ref-titulo">Lo que entregó la Obra Social</div>` +
+    (puntos.length ? puntos.map(p => {
+      const docs = auDocsDePunto(p.numero);
+      return `<div class="au-ref-punto">
+        <div class="au-ref-cab"><span class="au-punto-num">${p.numero}</span><span class="au-ref-estado ${auClaseEstadoPunto(p.estado)}">${p.estado}</span></div>
+        <div class="au-ref-texto">${escaparHtml(auTextoPlano(auReemplazarAnios(p.texto_html, anio)))}</div>
+        ${docs.map(d => `<div class="au-ref-doc">
+          <div class="au-ref-doc-nombre">${d.archivo_path ? `<button type="button" class="au-link" data-au-ref-ver="${d.id}">${escaparHtml(d.nombre)}</button>` : escaparHtml(d.nombre)}</div>
+          ${d.nota ? `<div class="au-ref-doc-nota">${escaparHtml(d.nota)}</div>` : ""}
+        </div>`).join("")}
+      </div>`;
+    }).join("") : `<p class="au-hint">Este eje no tiene puntos del requerimiento asociados.</p>`);
+  document.querySelectorAll("[data-au-ref-ver]").forEach(b => b.addEventListener("click", () => auAbrirArchivo(auDocs.find(d => d.id === b.dataset.auRefVer)?.archivo_path)));
+}
+
+async function auAbrirInforme() {
+  const primero = Object.keys(AU_EJES).find(k => !auEjes[k]?.hallazgo) || "A";
+  auEjeActivo = primero;
+  auRenderEjesTabs();
+  auRenderRefEje(primero);
+  document.getElementById("au-eje-guardado").textContent = "Cargando editor...";
+  try {
+    await auAsegurarEditor();
+    await auCargarEjeEnEditor(primero);
+  } catch (error) {
+    document.getElementById("au-eje-guardado").textContent = "";
+    mostrarToast(`No se pudo cargar el editor. ${error.message || ""}`, "error");
+  }
+}
+
+async function auCargarEjeEnEditor(eje) {
+  const guardado = auEjes[eje];
+  const html = guardado?.analisis_html || await auPlantillaEje(eje);
+  auEditor.setContent(html);
+  auEditor.undoManager.clear();
+  auEditor.setDirty(false);
+  document.getElementById("au-hallazgo").value = guardado?.hallazgo || "";
+  document.getElementById("au-eje-guardado").textContent = guardado?.updated_at ? `Guardado ${new Date(guardado.updated_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}` : "Texto precargado, sin guardar";
+  const siguiente = auSiguienteEje(eje);
+  document.getElementById("au-eje-siguiente").textContent = siguiente ? `Guardar y seguir con el eje ${siguiente} →` : "Guardar y terminar el informe →";
+}
+
+function auSiguienteEje(eje) {
+  const claves = Object.keys(AU_EJES);
+  return claves[claves.indexOf(eje) + 1] || null;
+}
+
+async function auMostrarEje(eje) {
+  if (eje === auEjeActivo) return;
+  await auGuardarEjeSiHayCambios();
+  auEjeActivo = eje;
+  auRenderEjesTabs();
+  auRenderRefEje(eje);
+  if (auEditor) await auCargarEjeEnEditor(eje);
+}
+
+async function auPersistirEje(eje, html, hallazgo) {
+  const [fila] = await auFetch("auditoria_ejes", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    params: { on_conflict: "auditoria_id,eje" },
+    body: { auditoria_id: auActual.id, eje, analisis_html: html, hallazgo: hallazgo || null, updated_at: new Date().toISOString() }
+  });
+  auEjes[eje] = fila;
+}
+
+async function auGuardarEjeSiHayCambios() {
+  if (!auEditor || auPasoActivo !== 4) return;
+  const hallazgo = document.getElementById("au-hallazgo").value;
+  const hallazgoCambio = (auEjes[auEjeActivo]?.hallazgo || "") !== hallazgo;
+  if (!auEditor.isDirty() && !hallazgoCambio) return;
+  try {
+    await auPersistirEje(auEjeActivo, auEditor.getContent(), hallazgo);
+    auEditor.setDirty(false);
+    mostrarToast(`Eje ${auEjeActivo} guardado.`);
+  } catch (error) {
+    mostrarToast(`No se pudo guardar el eje ${auEjeActivo}. ${error.message || ""}`, "error");
+  }
+}
+
+async function auGuardarEje(seguir) {
+  if (!auEditor) return;
+  const hallazgo = document.getElementById("au-hallazgo").value;
+  if (seguir && !hallazgo) return mostrarToast("Elegí el hallazgo del eje antes de seguir.", "error");
+  const html = auEditor.getContent();
+  const botones = [document.getElementById("au-eje-guardar"), document.getElementById("au-eje-siguiente")];
+  try {
+    botones.forEach(b => { b.disabled = true; });
+    await auPersistirEje(auEjeActivo, html, hallazgo);
+    auEditor.setDirty(false);
+    const quedanBlancos = (html.match(/_{4,}/g) || []).length;
+    document.getElementById("au-eje-guardado").textContent = quedanBlancos ? `Guardado · quedan ${quedanBlancos} espacios "____" por completar` : "Guardado";
+    auRenderEjesTabs();
+    auRenderPasos();
+    if (seguir) {
+      const siguiente = auSiguienteEje(auEjeActivo);
+      if (siguiente) {
+        auEjeActivo = siguiente;
+        auRenderEjesTabs();
+        auRenderRefEje(siguiente);
+        await auCargarEjeEnEditor(siguiente);
+        window.scrollTo({ top: document.getElementById("au-ejes-tabs").getBoundingClientRect().top + window.scrollY - 90, behavior: "smooth" });
+      } else if (auPasoCompleto(4)) {
+        mostrarToast("Informe por ejes terminado. El paso 5 ya está habilitado.");
+        auRenderPasos();
+      } else {
+        const falta = Object.keys(AU_EJES).find(k => !auEjes[k]?.hallazgo);
+        mostrarToast(`Falta el hallazgo del eje ${falta}.`, "error");
+        await auMostrarEje(falta);
+      }
+    }
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar el eje.", "error");
+  } finally {
+    botones.forEach(b => { b.disabled = false; });
+  }
+}
+
+async function auRestaurarEje() {
+  const ok = await mostrarConfirmacion(`¿Reemplazar lo escrito en el eje ${auEjeActivo} por el texto precargado? Lo que escribiste se pierde cuando guardes.`, { titulo: "Volver al texto precargado", textoAceptar: "Reemplazar" });
+  if (!ok || !auEditor) return;
+  auEditor.setContent(await auPlantillaEje(auEjeActivo));
+  auEditor.setDirty(true);
+  document.getElementById("au-eje-guardado").textContent = "Cambios sin guardar";
 }

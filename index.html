@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=80">
+  <link rel="stylesheet" href="styles.css?v=81">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -153,7 +153,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 125</span>
+        <span>Versión 126</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1536,13 +1536,12 @@
               <strong id="au-detalle-os"></strong>
               <span id="au-detalle-sub"></span>
             </div>
-            <div class="au-detalle-acciones">
-              <button type="button" class="secondary" id="au-btn-requerimiento">Imprimir requerimiento (PDF)</button>
-            </div>
           </div>
 
-          <div class="table-card au-card">
-            <div class="table-meta"><strong>Datos de la auditoría</strong></div>
+          <nav class="au-pasos" id="au-pasos" aria-label="Pasos de la auditoría"></nav>
+
+          <div class="table-card au-card au-paso" data-au-paso="1">
+            <div class="table-meta"><strong>Paso 1 · Datos de la auditoría y orden</strong></div>
             <form id="au-form" class="form-grid au-form-body">
               <input type="hidden" id="au-id">
               <label><span>Nº EX *</span><input id="au-numero-ex" required placeholder="EX-2026-12345678- -APN-GCP#SSS"></label>
@@ -1566,26 +1565,36 @@
               <div class="full form-message" id="au-form-message" hidden></div>
               <div class="full au-form-acciones">
                 <button type="button" class="secondary danger" id="au-eliminar">Eliminar auditoría</button>
-                <button type="submit" class="primary" id="au-guardar">Guardar datos</button>
+                <button type="submit" class="primary" id="au-guardar">Guardar y continuar →</button>
               </div>
             </form>
           </div>
 
-          <div class="table-card au-card">
+          <div class="table-card au-card au-paso" data-au-paso="2" hidden>
             <div class="table-meta au-meta-flex">
-              <strong>Puntos del requerimiento</strong>
-              <span id="au-puntos-resumen" class="au-resumen"></span>
-              <button type="button" class="secondary small" id="au-puntos-editar">Editar texto para esta auditoría</button>
+              <strong>Paso 2 · Requerimiento</strong>
+              <span class="au-resumen">Se imprime y se entrega en mano en la 1º visita</span>
             </div>
-            <div id="au-puntos-lista" class="au-puntos-lista"></div>
+            <div class="au-paso-intro">
+              <button type="button" class="primary" id="au-btn-requerimiento">Descargar requerimiento (PDF)</button>
+              <button type="button" class="secondary" id="au-puntos-editar">Cambiar el texto solo para esta auditoría</button>
+            </div>
+            <ol class="au-hoja-puntos au-req-lista" id="au-req-lista"></ol>
             <div class="au-puntos-edicion-acciones" id="au-puntos-edicion-acciones" hidden>
               <button type="button" class="secondary" id="au-puntos-cancelar">Cancelar</button>
               <button type="button" class="primary" id="au-puntos-guardar">Guardar texto</button>
             </div>
+            <div class="au-paso-pie">
+              <span class="au-hint" id="au-req-estado"></span>
+              <button type="button" class="primary" id="au-req-entregado">Confirmar entrega y continuar →</button>
+            </div>
           </div>
 
-          <div class="table-card au-card">
-            <div class="table-meta"><strong>Documentación recibida</strong></div>
+          <div class="table-card au-card au-paso" data-au-paso="3" hidden>
+            <div class="table-meta au-meta-flex">
+              <strong>Paso 3 · Documentación que entregó la Obra Social</strong>
+              <span id="au-puntos-resumen" class="au-resumen"></span>
+            </div>
             <div class="au-doc-form">
               <input type="hidden" id="au-doc-id">
               <div class="form-grid">
@@ -1608,6 +1617,51 @@
               </table>
             </div>
             <div class="table-empty" id="au-doc-empty">Todavía no se cargó documentación.</div>
+            <div class="au-subtitulo-bloque">¿Qué puntos quedaron cubiertos?</div>
+            <p class="au-hint" style="margin:0 16px 8px">Se marcan solos según los documentos cargados. Podés cambiarlos a mano (por ejemplo a "Parcial").</p>
+            <div id="au-puntos-lista" class="au-puntos-lista"></div>
+            <div class="au-paso-pie">
+              <span class="au-hint">Al terminar, los puntos que sigan "Pendiente" pasan a "No aportado".</span>
+              <button type="button" class="primary" id="au-doc-terminar">Terminé de cargar la documentación →</button>
+            </div>
+          </div>
+
+          <div class="table-card au-card au-paso" data-au-paso="4" hidden>
+            <div class="table-meta au-meta-flex">
+              <strong>Paso 4 · Informe por eje</strong>
+              <span class="au-resumen" id="au-informe-resumen"></span>
+            </div>
+            <div class="au-ejes-tabs" id="au-ejes-tabs"></div>
+            <div class="au-informe-grid">
+              <aside class="au-informe-ref" id="au-informe-ref"></aside>
+              <div class="au-informe-editor">
+                <textarea id="au-editor"></textarea>
+                <div class="au-informe-pie">
+                  <label class="au-hallazgo">Hallazgo del eje
+                    <select id="au-hallazgo">
+                      <option value="">Elegir...</option>
+                      <option>Cumple</option>
+                      <option>Cumple parcialmente</option>
+                      <option>No cumple</option>
+                      <option>No aportado</option>
+                    </select>
+                  </label>
+                  <button type="button" class="au-link" id="au-eje-restaurar">Volver al texto precargado</button>
+                  <span class="au-guardado" id="au-eje-guardado"></span>
+                  <button type="button" class="secondary" id="au-eje-guardar">Guardar</button>
+                  <button type="button" class="primary" id="au-eje-siguiente">Guardar y seguir →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-card au-card au-paso" data-au-paso="5" hidden>
+            <div class="table-meta"><strong>Paso 5 · Observaciones y sugerencias</strong></div>
+            <p class="au-proximamente">En preparación: se van a proponer a partir de los hallazgos de cada eje y de los puntos no aportados.</p>
+          </div>
+          <div class="table-card au-card au-paso" data-au-paso="6" hidden>
+            <div class="table-meta"><strong>Paso 6 · Conclusión e informe en Word</strong></div>
+            <p class="au-proximamente">En preparación.</p>
           </div>
         </div>
       </section>
@@ -2446,6 +2500,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=78"></script>
-  <script src="auditorias.js?v=3"></script>
+  <script src="auditorias.js?v=4"></script>
 </body>
 </html>

@@ -1959,3 +1959,55 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .au-orden-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .au-orden-cambiar{font-size:12.5px;color:var(--muted)}
 .au-orden-subir[hidden]{display:none}
+/* Auditorías: pasos */
+.au-pasos{display:flex;align-items:center;flex-wrap:wrap;gap:6px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px;margin-bottom:16px}
+.au-paso-sep{flex:0 0 14px;height:2px;background:var(--line)}
+.au-paso-btn{display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;border-radius:10px;padding:7px 12px;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer}
+.au-paso-btn:hover{background:var(--surface-soft)}
+.au-paso-marca{width:24px;height:24px;border-radius:50%;background:var(--surface-soft);display:flex;align-items:center;justify-content:center;font-size:12px}
+.au-paso-btn.completo{color:#226d53}
+.au-paso-btn.completo .au-paso-marca{background:#e4f4ed;color:#226d53}
+.au-paso-btn.activo{background:var(--navy);color:#fff;border-color:var(--navy)}
+.au-paso-btn.activo .au-paso-marca{background:#fff;color:var(--navy)}
+.au-paso-btn.bloqueado{opacity:.5;cursor:not-allowed}
+.au-paso-btn.bloqueado .au-paso-marca{font-size:11px}
+.au-paso-intro{display:flex;gap:10px;flex-wrap:wrap;padding:16px 16px 4px}
+.au-paso-pie{display:flex;align-items:center;justify-content:flex-end;gap:14px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--line);background:#fafbfd;border-radius:0 0 16px 16px}
+.au-paso-pie .au-hint{margin-right:auto}
+.au-req-lista{padding:8px 24px 16px 52px}
+.au-hoja-punto-fijo{cursor:default}
+.au-hoja-punto-fijo:hover{background:transparent}
+.au-punto-edit-li{cursor:default}
+.au-punto-edit-li:hover{background:transparent}
+.au-subtitulo-bloque{font-weight:800;color:var(--navy);padding:14px 16px 4px;border-top:1px solid var(--line)}
+.au-punto-fila{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eef1f5}
+.au-punto-fila:last-child{border-bottom:0}
+.au-punto-fila-texto{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.au-punto-fila-docs{font-size:11.5px;color:#22603f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.au-punto-fila select{flex:0 0 140px;font-weight:700;font-size:12.5px;padding:5px 8px}
+.au-auto-vacio{width:22px}
+.au-proximamente{padding:24px 16px;color:var(--muted);margin:0}
+/* Paso 4 */
+.au-ejes-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.au-eje-tab{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.au-eje-tab-letra{width:20px;height:20px;border-radius:6px;background:#eeecf8;color:#5a4a8a;display:flex;align-items:center;justify-content:center;font-size:11.5px}
+.au-eje-tab.completo .au-eje-tab-letra{background:#e4f4ed;color:#226d53}
+.au-eje-tab.activo{border-color:var(--navy);color:var(--navy);box-shadow:0 0 0 2px rgba(24,49,83,.12)}
+.au-informe-grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;padding:16px}
+.au-informe-ref{background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:12px;max-height:760px;overflow:auto;align-self:start;position:sticky;top:12px}
+.au-ref-titulo{font-weight:800;font-size:12.5px;color:#4d5d70;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
+.au-ref-punto{padding:8px 0;border-bottom:1px solid var(--line)}
+.au-ref-punto:last-child{border-bottom:0}
+.au-ref-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.au-ref-estado{font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px}
+.au-ref-texto{font-size:12px;line-height:1.35;color:#4d5d70;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.au-ref-doc{margin-top:6px;padding:6px 8px;background:#fff;border:1px solid var(--line);border-radius:8px}
+.au-ref-doc-nombre{font-size:12.5px;font-weight:700}
+.au-ref-doc-nombre .au-link{padding:0;font-size:12.5px}
+.au-ref-doc-nota{font-size:12px;color:var(--muted);white-space:pre-wrap;margin-top:2px}
+.au-informe-pie{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.au-hallazgo{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;color:#4d5d70}
+.au-hallazgo select{font-weight:700}
+.au-guardado{font-size:12.5px;color:var(--muted);margin-left:auto}
+@media(max-width:1000px){.au-informe-grid{grid-template-columns:1fr}.au-informe-ref{position:static;max-height:none}}
+#au-eje-restaurar{font-size:12.5px;color:var(--muted)}
