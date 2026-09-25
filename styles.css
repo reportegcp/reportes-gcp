@@ -1931,3 +1931,28 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .au-pl-eje select{font-size:12.5px;padding:4px 8px}
 .au-pl-activo{font-size:12.5px;display:flex;align-items:center;gap:4px;color:#4d5d70}
 @media(max-width:700px){.au-punto{flex-wrap:wrap}.au-punto-estado{flex-basis:100%;align-items:stretch}}
+/* Plantilla del Requerimiento como hoja */
+.au-hoja{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:36px 48px;max-width:900px;margin:0 auto}
+.au-hoja-bloque{position:relative;padding:10px 12px;margin:-10px -12px 14px;border-radius:10px}
+.au-hoja-bloque:hover{background:#f7f9fc}
+.au-hoja-editar{position:absolute;top:8px;right:8px;font-size:12.5px}
+.au-hoja-titulo{text-align:center;font-weight:800;font-size:15px;margin-bottom:10px}
+.au-hoja-subtitulo{font-weight:800;font-size:13.5px;margin-bottom:12px}
+.au-hoja-intro{font-size:13.5px;line-height:1.5}
+.au-hoja-intro p{margin:0 0 8px}
+.au-hoja-puntos{margin:0;padding-left:26px;font-size:13.5px;line-height:1.5}
+.au-hoja-punto{padding:8px 10px;margin:0 -10px 2px -10px;border-radius:10px;cursor:pointer}
+.au-hoja-punto::marker{font-weight:800;color:var(--navy)}
+.au-hoja-punto:hover,.au-hoja-punto:focus{background:#f3f6fa;outline:none}
+.au-hoja-punto.inactivo .au-hoja-punto-texto{color:#9aa5b3;text-decoration:line-through}
+.au-hoja-punto-texto ul{margin:4px 0;padding-left:20px}
+.au-hoja-punto-meta{display:flex;align-items:center;gap:8px;margin-top:4px;min-height:20px}
+.au-hoja-lapiz{margin-left:auto;font-size:12px;font-weight:700;color:var(--navy-2);visibility:hidden}
+.au-hoja-punto:hover .au-hoja-lapiz,.au-hoja-punto:focus .au-hoja-lapiz{visibility:visible}
+.au-hoja-punto .au-eje{opacity:.75}
+.au-inactivo-tag{font-size:11px;font-weight:700;color:#a33846;background:#fbf0f1;border-radius:6px;padding:2px 7px}
+.au-anio{background:#fff3d6;color:#7a5410;border-radius:4px;padding:0 3px;font-weight:700}
+.au-form-acciones .secondary.danger{margin-right:auto}
+@media(max-width:700px){.au-hoja{padding:20px}}
+.au-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#4d5d70;font-weight:700}
+.au-check input{width:16px;height:16px;margin:0}

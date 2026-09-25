@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=78">
+  <link rel="stylesheet" href="styles.css?v=79">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -153,7 +153,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 123</span>
+        <span>Versión 124</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1613,33 +1613,22 @@
       </section>
 
       <section id="au-plantilla" class="view">
-        <div class="table-card au-card">
-          <div class="table-meta"><strong>Encabezado</strong></div>
-          <div class="form-grid au-form-body">
-            <label class="full"><span>Título</span><input id="au-pl-titulo"></label>
-            <label class="full"><span>Subtítulo</span><input id="au-pl-subtitulo"></label>
-            <div class="full"><span class="au-label">Introducción</span>
-              <div class="anexo-i-rte-toolbar" data-au-toolbar="au-pl-intro">
-                <button type="button" data-cmd="bold" title="Negrita"><b>B</b></button>
-                <button type="button" data-cmd="underline" title="Subrayado"><u>S</u></button>
-              </div>
-              <div class="anexo-i-rte" id="au-pl-intro" contenteditable="true"></div>
-            </div>
-          </div>
+        <div class="module-actions">
+          <button type="button" class="secondary" id="au-pl-preview">Vista previa PDF</button>
+          <button type="button" class="primary" id="au-pl-agregar">+ Agregar punto</button>
         </div>
-        <div class="table-card au-card">
-          <div class="table-meta au-meta-flex">
-            <strong>Puntos</strong>
-            <span class="au-resumen">Ejes: A Estructura y acceso · B Población · C Red prestacional · D Gestión y auditoría médica · E Programas preventivos · F Cumplimiento normativo</span>
+        <div class="form-message" id="au-pl-message" hidden style="margin-bottom:12px"></div>
+
+        <div class="au-hoja">
+          <div class="au-hoja-bloque" id="au-pl-encabezado">
+            <button type="button" class="au-link au-hoja-editar" id="au-pl-enc-editar">Editar</button>
+            <div class="au-hoja-titulo" id="au-pl-ver-titulo"></div>
+            <div class="au-hoja-subtitulo" id="au-pl-ver-subtitulo"></div>
+            <div class="au-hoja-intro" id="au-pl-ver-intro"></div>
           </div>
-          <div id="au-pl-items" class="au-pl-items"></div>
-          <div class="au-form-acciones" style="padding:0 16px 16px">
-            <button type="button" class="secondary" id="au-pl-agregar">+ Agregar punto</button>
-            <button type="button" class="secondary" id="au-pl-preview">Vista previa PDF</button>
-            <button type="button" class="primary" id="au-pl-guardar">Guardar plantilla</button>
-          </div>
-          <div class="form-message" id="au-pl-message" hidden style="margin:0 16px 16px"></div>
+          <ol class="au-hoja-puntos" id="au-pl-items"></ol>
         </div>
+        <p class="au-hint" style="margin-top:10px">Los años <span class="au-anio">resaltados</span> se completan solos al imprimir, según la fecha de la 1º visita de cada auditoría. Los cambios en la plantilla valen para las auditorías que se creen a partir de ahora.</p>
       </section>
     </main>
   </div>
@@ -2008,6 +1997,62 @@
     </div>
   </div>
   <datalist id="au-os-datalist"></datalist>
+
+  <div class="modal-backdrop" id="au-enc-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="au-enc-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PLANTILLA DEL REQUERIMIENTO</span><h2 id="au-enc-title">Editar encabezado</h2></div>
+        <button class="icon-button" type="button" data-close-modal="au-enc-modal" aria-label="Cerrar">×</button>
+      </div>
+      <div class="form-grid" style="padding:18px 22px">
+        <label class="full"><span>Título</span><input id="au-pl-titulo"></label>
+        <label class="full"><span>Subtítulo</span><input id="au-pl-subtitulo"></label>
+        <div class="full"><span class="au-label">Introducción</span>
+          <div class="anexo-i-rte-toolbar" data-au-toolbar="au-pl-intro">
+            <button type="button" data-cmd="bold" title="Negrita"><b>B</b></button>
+            <button type="button" data-cmd="underline" title="Subrayado"><u>S</u></button>
+          </div>
+          <div class="anexo-i-rte" id="au-pl-intro" contenteditable="true"></div>
+        </div>
+        <p class="full au-hint" style="margin:0">Escribí {ANIO} donde tenga que ir el año de la auditoría.</p>
+        <div class="full form-message" id="au-enc-message" hidden></div>
+        <div class="full modal-actions" style="padding:0">
+          <button type="button" class="secondary" data-close-modal="au-enc-modal">Cancelar</button>
+          <button type="button" class="primary" id="au-enc-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="au-punto-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="au-punto-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">PLANTILLA DEL REQUERIMIENTO</span><h2 id="au-punto-title">Editar punto</h2></div>
+        <button class="icon-button" type="button" data-close-modal="au-punto-modal" aria-label="Cerrar">×</button>
+      </div>
+      <div class="form-grid" style="padding:18px 22px">
+        <input type="hidden" id="au-punto-id">
+        <div class="full"><span class="au-label">Texto del punto</span>
+          <div class="anexo-i-rte-toolbar" data-au-toolbar="au-punto-texto">
+            <button type="button" data-cmd="bold" title="Negrita"><b>B</b></button>
+            <button type="button" data-cmd="underline" title="Subrayado"><u>S</u></button>
+            <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
+          </div>
+          <div class="anexo-i-rte" id="au-punto-texto" contenteditable="true" style="min-height:110px"></div>
+          <span class="au-hint">Para años automáticos: {ANIO} año de la auditoría, {ANIO_1} año anterior, {ANIO_2} dos años antes.</span>
+        </div>
+        <label><span>Eje del informe</span><select id="au-punto-eje"></select></label>
+        <label><span>Posición</span><select id="au-punto-posicion"></select></label>
+        <div class="full au-check"><input type="checkbox" id="au-punto-activo"><label for="au-punto-activo">Incluir este punto en los próximos requerimientos</label></div>
+        <div class="full form-message" id="au-punto-message" hidden></div>
+        <div class="full au-form-acciones">
+          <button type="button" class="secondary danger" id="au-punto-quitar">Quitar punto</button>
+          <button type="button" class="secondary" data-close-modal="au-punto-modal">Cancelar</button>
+          <button type="button" class="primary" id="au-punto-guardar">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="preexistencia-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="preexistencia-modal-title">
@@ -2401,6 +2446,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=78"></script>
-  <script src="auditorias.js?v=1"></script>
+  <script src="auditorias.js?v=2"></script>
 </body>
 </html>

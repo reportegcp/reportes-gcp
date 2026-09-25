@@ -194,9 +194,12 @@ function auVincularEventos() {
   on("au-puntos-guardar", "click", auGuardarTextosPuntos);
   on("au-doc-guardar", "click", auGuardarDocumento);
   on("au-doc-cancelar", "click", auResetFormDoc);
-  on("au-pl-agregar", "click", () => { auLeerPlantillaDelDom(); auPlantillaItems.push({ texto_html: "", eje: "A", activo: true }); auRenderPlantillaItems(); });
-  on("au-pl-guardar", "click", auGuardarPlantilla);
+  on("au-pl-agregar", "click", () => auAbrirEditorPunto(null));
   on("au-pl-preview", "click", auPreviewPlantilla);
+  on("au-pl-enc-editar", "click", auAbrirEditorEncabezado);
+  on("au-enc-guardar", "click", auGuardarEncabezado);
+  on("au-punto-guardar", "click", auGuardarPunto);
+  on("au-punto-quitar", "click", auQuitarPunto);
 
   document.querySelectorAll("[data-au-toolbar]").forEach(tb => auVincularToolbar(tb, document.getElementById(tb.dataset.auToolbar)));
 }
@@ -839,6 +842,14 @@ async function auGenerarPdfRequerimiento(aud, puntos) {
 
 // ---------------- Plantilla del Requerimiento ----------------
 
+function auResaltarAnios(html, anio) {
+  const marca = (valor, ayuda) => `<span class="au-anio" title="${ayuda}">${valor}</span>`;
+  return String(html || "")
+    .replaceAll("{ANIO_2}", marca(anio - 2, "Dos años antes de la auditoría"))
+    .replaceAll("{ANIO_1}", marca(anio - 1, "Año anterior a la auditoría"))
+    .replaceAll("{ANIO}", marca(anio, "Año de la auditoría"));
+}
+
 async function auCargarPlantilla() {
   setFormMessage("au-pl-message");
   try {
@@ -848,71 +859,46 @@ async function auCargarPlantilla() {
     ]);
     auPlantillaTextos = textos;
     auPlantillaItems = items || [];
-    document.getElementById("au-pl-titulo").value = textos.req_titulo || "";
-    document.getElementById("au-pl-subtitulo").value = textos.req_subtitulo || "";
-    document.getElementById("au-pl-intro").innerHTML = textos.req_intro || "";
-    auRenderPlantillaItems();
+    auRenderPlantilla();
   } catch (error) {
     setFormMessage("au-pl-message", `No se pudo cargar la plantilla. ${error.message || ""}`);
   }
 }
 
-function auRenderPlantillaItems() {
-  const cont = document.getElementById("au-pl-items");
-  cont.innerHTML = auPlantillaItems.map((it, i) => `<div class="au-pl-item ${it.activo === false ? "inactivo" : ""}" data-au-pl-idx="${i}">
-    <div class="au-pl-item-lateral">
-      <span class="au-punto-num">${i + 1}</span>
-      <button type="button" class="au-link" data-au-pl-mover="-1" ${i === 0 ? "disabled" : ""} title="Subir">↑</button>
-      <button type="button" class="au-link" data-au-pl-mover="1" ${i === auPlantillaItems.length - 1 ? "disabled" : ""} title="Bajar">↓</button>
-    </div>
-    <div class="au-pl-item-cuerpo">
-      <div class="au-pl-item-barra">
-        <div class="anexo-i-rte-toolbar">
-          <button type="button" data-cmd="bold" title="Negrita"><b>B</b></button>
-          <button type="button" data-cmd="underline" title="Subrayado"><u>S</u></button>
-          <button type="button" data-cmd="insertUnorderedList" title="Viñetas">•</button>
-        </div>
-        <label class="au-pl-eje">Eje <select data-au-pl-eje>${Object.entries(AU_EJES).map(([k, v]) => `<option value="${k}" ${it.eje === k ? "selected" : ""} title="${escaparHtml(v)}">${k} · ${escaparHtml(v)}</option>`).join("")}</select></label>
-        <label class="au-pl-activo"><input type="checkbox" data-au-pl-activo ${it.activo === false ? "" : "checked"}> Activo</label>
-        <button type="button" class="au-link au-link-danger" data-au-pl-quitar title="Quitar punto">Quitar</button>
-      </div>
-      <div class="anexo-i-rte au-punto-rte" contenteditable="true" data-au-pl-texto>${it.texto_html || ""}</div>
-    </div>
-  </div>`).join("");
+function auRenderPlantilla() {
+  const anio = new Date().getFullYear();
+  const t = auPlantillaTextos;
+  document.getElementById("au-pl-ver-titulo").innerHTML = auResaltarAnios(escaparHtml(t.req_titulo || ""), anio);
+  document.getElementById("au-pl-ver-subtitulo").innerHTML = auResaltarAnios(escaparHtml(t.req_subtitulo || ""), anio);
+  document.getElementById("au-pl-ver-intro").innerHTML = auResaltarAnios(t.req_intro || "", anio);
 
-  cont.querySelectorAll(".au-pl-item").forEach(el => {
-    const idx = Number(el.dataset.auPlIdx);
-    auVincularToolbar(el.querySelector(".anexo-i-rte-toolbar"), el.querySelector("[data-au-pl-texto]"));
-    el.querySelectorAll("[data-au-pl-mover]").forEach(b => b.addEventListener("click", () => {
-      auLeerPlantillaDelDom();
-      const destino = idx + Number(b.dataset.auPlMover);
-      [auPlantillaItems[idx], auPlantillaItems[destino]] = [auPlantillaItems[destino], auPlantillaItems[idx]];
-      auRenderPlantillaItems();
-    }));
-    el.querySelector("[data-au-pl-quitar]").addEventListener("click", () => {
-      auLeerPlantillaDelDom();
-      auPlantillaItems.splice(idx, 1);
-      auRenderPlantillaItems();
-    });
+  const lista = document.getElementById("au-pl-items");
+  lista.innerHTML = auPlantillaItems.map(it => `<li class="au-hoja-punto ${it.activo ? "" : "inactivo"}" data-au-pl-id="${it.id}" tabindex="0" title="Clic para editar este punto">
+    <div class="au-hoja-punto-texto">${auResaltarAnios(it.texto_html, anio)}</div>
+    <div class="au-hoja-punto-meta">
+      <span class="au-eje" title="${escaparHtml(AU_EJES[it.eje])}">Eje ${it.eje} · ${escaparHtml(AU_EJES[it.eje])}</span>
+      ${it.activo ? "" : `<span class="au-inactivo-tag">No se incluye</span>`}
+      <span class="au-hoja-lapiz">Editar</span>
+    </div>
+  </li>`).join("");
+  lista.querySelectorAll("[data-au-pl-id]").forEach(li => {
+    const abrir = () => auAbrirEditorPunto(li.dataset.auPlId);
+    li.addEventListener("click", abrir);
+    li.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); abrir(); } });
   });
 }
 
-function auLeerPlantillaDelDom() {
-  document.querySelectorAll("#au-pl-items .au-pl-item").forEach(el => {
-    const it = auPlantillaItems[Number(el.dataset.auPlIdx)];
-    if (!it) return;
-    it.texto_html = el.querySelector("[data-au-pl-texto]").innerHTML.trim();
-    it.eje = el.querySelector("[data-au-pl-eje]").value;
-    it.activo = el.querySelector("[data-au-pl-activo]").checked;
-  });
+function auAbrirEditorEncabezado() {
+  const t = auPlantillaTextos;
+  document.getElementById("au-pl-titulo").value = t.req_titulo || "";
+  document.getElementById("au-pl-subtitulo").value = t.req_subtitulo || "";
+  document.getElementById("au-pl-intro").innerHTML = t.req_intro || "";
+  setFormMessage("au-enc-message");
+  abrirModal("au-enc-modal");
 }
 
-async function auGuardarPlantilla() {
-  auLeerPlantillaDelDom();
-  setFormMessage("au-pl-message");
-  const vacios = auPlantillaItems.filter(it => !auTextoPlano(it.texto_html));
-  if (vacios.length) return setFormMessage("au-pl-message", "Hay puntos sin texto. Completalos o quitalos antes de guardar.");
-  const boton = document.getElementById("au-pl-guardar");
+async function auGuardarEncabezado() {
+  const boton = document.getElementById("au-enc-guardar");
   try {
     boton.disabled = true;
     const textos = {
@@ -923,44 +909,107 @@ async function auGuardarPlantilla() {
     for (const [clave, contenido] of Object.entries(textos)) {
       await auFetch("auditoria_plantilla_textos", { method: "POST", prefer: "resolution=merge-duplicates", params: { on_conflict: "clave" }, body: { clave, contenido, updated_at: new Date().toISOString() } });
     }
-    const existentes = await auFetch("auditoria_requerimiento_items", { params: { select: "id" } }) || [];
-    const idsActuales = new Set(auPlantillaItems.filter(it => it.id).map(it => it.id));
-    for (const e of existentes) {
-      if (!idsActuales.has(e.id)) await auFetch("auditoria_requerimiento_items", { method: "DELETE", params: { id: `eq.${e.id}` } });
-    }
-    for (const [i, it] of auPlantillaItems.entries()) {
-      const body = { orden: i + 1, texto_html: it.texto_html, eje: it.eje, activo: it.activo !== false, updated_at: new Date().toISOString() };
-      if (it.id) await auFetch("auditoria_requerimiento_items", { method: "PATCH", params: { id: `eq.${it.id}` }, body });
-      else await auFetch("auditoria_requerimiento_items", { method: "POST", body });
-    }
-    await auCargarPlantilla();
-    setFormMessage("au-pl-message", "Plantilla guardada. Se aplica a las auditorías que se creen a partir de ahora.", "success");
+    Object.assign(auPlantillaTextos, textos);
+    cerrarModal("au-enc-modal");
+    auRenderPlantilla();
+    mostrarToast("Encabezado guardado.");
   } catch (error) {
-    setFormMessage("au-pl-message", error.message || "No se pudo guardar la plantilla.");
+    setFormMessage("au-enc-message", error.message || "No se pudo guardar.");
   } finally {
     boton.disabled = false;
   }
 }
 
+function auAbrirEditorPunto(id) {
+  const esNuevo = !id;
+  const it = esNuevo ? { texto_html: "", eje: "A", activo: true } : auPlantillaItems.find(x => x.id === id);
+  if (!it) return;
+  const total = auPlantillaItems.length + (esNuevo ? 1 : 0);
+  const posicionActual = esNuevo ? total : auPlantillaItems.indexOf(it) + 1;
+  document.getElementById("au-punto-title").textContent = esNuevo ? "Nuevo punto" : `Editar punto ${posicionActual}`;
+  document.getElementById("au-punto-id").value = id || "";
+  document.getElementById("au-punto-texto").innerHTML = it.texto_html || "";
+  document.getElementById("au-punto-eje").innerHTML = Object.entries(AU_EJES).map(([k, v]) => `<option value="${k}" ${it.eje === k ? "selected" : ""}>${k} · ${escaparHtml(v)}</option>`).join("");
+  document.getElementById("au-punto-posicion").innerHTML = Array.from({ length: total }, (_, i) => `<option value="${i + 1}" ${i + 1 === posicionActual ? "selected" : ""}>${i + 1}</option>`).join("");
+  document.getElementById("au-punto-activo").checked = it.activo !== false;
+  document.getElementById("au-punto-quitar").hidden = esNuevo;
+  setFormMessage("au-punto-message");
+  abrirModal("au-punto-modal");
+  setTimeout(() => document.getElementById("au-punto-texto").focus(), 50);
+}
+
+async function auReordenarYGuardar(lista) {
+  for (const [i, it] of lista.entries()) {
+    if (it.id && it.orden !== i + 1) {
+      await auFetch("auditoria_requerimiento_items", { method: "PATCH", params: { id: `eq.${it.id}` }, body: { orden: i + 1, updated_at: new Date().toISOString() } });
+      it.orden = i + 1;
+    }
+  }
+}
+
+async function auGuardarPunto() {
+  const id = document.getElementById("au-punto-id").value;
+  const texto = document.getElementById("au-punto-texto").innerHTML.trim();
+  if (!auTextoPlano(texto)) return setFormMessage("au-punto-message", "Escribí el texto del punto.");
+  const boton = document.getElementById("au-punto-guardar");
+  try {
+    boton.disabled = true;
+    const datos = { texto_html: texto, eje: document.getElementById("au-punto-eje").value, activo: document.getElementById("au-punto-activo").checked, updated_at: new Date().toISOString() };
+    const posicion = Number(document.getElementById("au-punto-posicion").value);
+    let item;
+    if (id) {
+      await auFetch("auditoria_requerimiento_items", { method: "PATCH", params: { id: `eq.${id}` }, body: datos });
+      item = auPlantillaItems.find(x => x.id === id);
+      Object.assign(item, datos);
+    } else {
+      const [creado] = await auFetch("auditoria_requerimiento_items", { method: "POST", prefer: "return=representation", body: { ...datos, orden: auPlantillaItems.length + 1 } });
+      item = creado;
+      auPlantillaItems.push(item);
+    }
+    const lista = auPlantillaItems.filter(x => x !== item);
+    lista.splice(posicion - 1, 0, item);
+    await auReordenarYGuardar(lista);
+    auPlantillaItems = lista;
+    cerrarModal("au-punto-modal");
+    auRenderPlantilla();
+    mostrarToast(id ? "Punto guardado." : "Punto agregado.");
+  } catch (error) {
+    setFormMessage("au-punto-message", error.message || "No se pudo guardar el punto.");
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+async function auQuitarPunto() {
+  const id = document.getElementById("au-punto-id").value;
+  if (!id) return;
+  const ok = await mostrarConfirmacion("¿Quitar este punto de la plantilla? Las auditorías ya creadas conservan su copia. Si solo querés dejar de pedirlo por un tiempo, destildá \"Incluir este punto\".", { titulo: "Quitar punto", textoAceptar: "Quitar" });
+  if (!ok) return;
+  try {
+    await auFetch("auditoria_requerimiento_items", { method: "DELETE", params: { id: `eq.${id}` } });
+    const lista = auPlantillaItems.filter(x => x.id !== id);
+    await auReordenarYGuardar(lista);
+    auPlantillaItems = lista;
+    cerrarModal("au-punto-modal");
+    auRenderPlantilla();
+    mostrarToast("Punto quitado.");
+  } catch (error) {
+    setFormMessage("au-punto-message", error.message || "No se pudo quitar el punto.");
+  }
+}
+
 async function auPreviewPlantilla() {
-  auLeerPlantillaDelDom();
   const boton = document.getElementById("au-pl-preview");
   try {
     boton.disabled = true;
     await auAsegurarLibsPdf();
-    const textos = {
-      req_titulo: document.getElementById("au-pl-titulo").value,
-      req_subtitulo: document.getElementById("au-pl-subtitulo").value,
-      req_intro: document.getElementById("au-pl-intro").innerHTML
-    };
-    const hoy = new Date().toISOString().slice(0, 10);
     const doc = auDocDefinicionRequerimiento({
-      textos,
+      textos: auPlantillaTextos,
       puntos: auPlantillaItems.filter(it => it.activo !== false),
       anio: new Date().getFullYear(),
       os: { denominacion: "OBRA SOCIAL DE EJEMPLO", sigla: "OSEJ", rnos: "100000" },
       numeroEx: "EX-0000-00000000- -APN-GCP#SSS",
-      fecha: hoy
+      fecha: new Date().toISOString().slice(0, 10)
     });
     window.pdfMake.createPdf(doc).open();
   } catch (error) {
