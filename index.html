@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=77">
+  <link rel="stylesheet" href="styles.css?v=78">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -123,6 +123,16 @@
           </div>
         </div>
 
+        <div class="nav-group collapsed" data-nav-group="auditorias" data-nav-access="auditorias" hidden>
+          <button class="nav-group-toggle" type="button" aria-expanded="false">
+            <span>Auditorías</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-subitem" data-view="au-auditorias" type="button">Auditorías</button>
+            <button class="nav-subitem" data-view="au-plantilla" type="button">Plantilla del Requerimiento</button>
+          </div>
+        </div>
+
         <div class="nav-group collapsed" data-nav-group="prototipo" data-nav-access="prototipo">
           <button class="nav-group-toggle" type="button" aria-expanded="false">
             <span>🧪 PROTOTIPO</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
@@ -143,7 +153,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 122</span>
+        <span>Versión 123</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1491,6 +1501,146 @@
           <div class="table-empty" id="px-plantilla-empty" hidden>No hay plantillas cargadas.</div>
         </div>
       </section>
+
+      <section id="au-auditorias" class="view">
+        <div id="au-lista">
+          <div class="module-actions">
+            <button class="primary" id="au-btn-nueva" type="button">+ Nueva auditoría</button>
+          </div>
+          <div class="report-tabs" style="margin-bottom:10px">
+            <button class="report-tab active" id="au-tab-activas" type="button">Activas</button>
+            <button class="report-tab" id="au-tab-cerradas" type="button">Cerradas</button>
+          </div>
+          <div class="toolbar">
+            <div class="search-box">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="au-search" type="search" placeholder="Buscar por Nº EX, Obra Social o RNAS..." autocomplete="off">
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-meta"><strong id="au-count">Cargando auditorías...</strong></div>
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Nº EX</th><th>Obra Social</th><th>RNAS</th><th>1º visita</th><th>2º visita</th><th>Documentación</th><th>Estado</th></tr></thead>
+                <tbody id="au-table-body"></tbody>
+              </table>
+            </div>
+            <div class="table-empty" id="au-empty" hidden>No hay auditorías con ese criterio.</div>
+          </div>
+        </div>
+
+        <div id="au-detalle" hidden>
+          <div class="au-detalle-header">
+            <button type="button" class="secondary" id="au-volver">← Volver al listado</button>
+            <div class="au-detalle-titulo">
+              <strong id="au-detalle-os"></strong>
+              <span id="au-detalle-sub"></span>
+            </div>
+            <div class="au-detalle-acciones">
+              <button type="button" class="secondary" id="au-btn-requerimiento">Imprimir requerimiento (PDF)</button>
+            </div>
+          </div>
+
+          <div class="table-card au-card">
+            <div class="table-meta"><strong>Datos de la auditoría</strong></div>
+            <form id="au-form" class="form-grid au-form-body">
+              <input type="hidden" id="au-id">
+              <label><span>Nº EX *</span><input id="au-numero-ex" required placeholder="EX-2026-12345678- -APN-GCP#SSS"></label>
+              <label><span>Obra Social *</span><input id="au-os-input" list="au-os-datalist" placeholder="Escribí para buscar..." autocomplete="off"></label>
+              <label><span>Nº IF de la orden de auditoría</span><input id="au-if-orden" placeholder="IF-2026-12345678-APN-GG#SSS"></label>
+              <label><span>Tipo</span><select id="au-tipo"><option>Integral</option></select></label>
+              <label><span>Fecha de la 1º visita (auditoría)</span><input id="au-fecha-visita-1" type="date"></label>
+              <label><span>Auditores intervinientes</span><input id="au-auditores" placeholder="Nombres separados por coma"></label>
+              <label><span>2º visita</span><select id="au-visita2-estado"><option>Pendiente</option><option>No requerida</option><option>Programada</option><option>Realizada</option></select></label>
+              <label><span>Fecha de la 2º visita</span><input id="au-fecha-visita-2" type="date"></label>
+              <label><span>Estado</span><select id="au-estado"></select></label>
+              <label class="full"><span>Observaciones internas</span><textarea id="au-observaciones" rows="2"></textarea></label>
+              <div class="full au-orden-box">
+                <span class="au-label">Orden de auditoría</span>
+                <div id="au-orden-actual" class="au-orden-actual"></div>
+                <div class="au-orden-subir">
+                  <input type="file" id="au-orden-file" accept=".pdf,.doc,.docx,image/*">
+                  <button type="button" class="secondary" id="au-orden-subir">Subir orden</button>
+                </div>
+              </div>
+              <div class="full form-message" id="au-form-message" hidden></div>
+              <div class="full au-form-acciones">
+                <button type="button" class="secondary danger" id="au-eliminar">Eliminar auditoría</button>
+                <button type="submit" class="primary" id="au-guardar">Guardar datos</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="table-card au-card">
+            <div class="table-meta au-meta-flex">
+              <strong>Puntos del requerimiento</strong>
+              <span id="au-puntos-resumen" class="au-resumen"></span>
+              <button type="button" class="secondary small" id="au-puntos-editar">Editar texto para esta auditoría</button>
+            </div>
+            <div id="au-puntos-lista" class="au-puntos-lista"></div>
+            <div class="au-puntos-edicion-acciones" id="au-puntos-edicion-acciones" hidden>
+              <button type="button" class="secondary" id="au-puntos-cancelar">Cancelar</button>
+              <button type="button" class="primary" id="au-puntos-guardar">Guardar texto</button>
+            </div>
+          </div>
+
+          <div class="table-card au-card">
+            <div class="table-meta"><strong>Documentación recibida</strong></div>
+            <div class="au-doc-form">
+              <input type="hidden" id="au-doc-id">
+              <div class="form-grid">
+                <label class="full"><span>Documento *</span><input id="au-doc-nombre" placeholder="Padrón de beneficiarios 2026 por tipo"></label>
+                <div class="full"><span class="au-label">Responde a los puntos *</span><div id="au-doc-puntos" class="au-chips"></div></div>
+                <label><span>Fecha de recepción</span><input id="au-doc-fecha" type="date"></label>
+                <label><span>Archivo (opcional)</span><input id="au-doc-file" type="file"></label>
+                <label class="full"><span>Nota (qué contiene, qué te llamó la atención)</span><textarea id="au-doc-nota" rows="2"></textarea></label>
+              </div>
+              <div class="form-message" id="au-doc-message" hidden></div>
+              <div class="au-form-acciones">
+                <button type="button" class="secondary" id="au-doc-cancelar" hidden>Cancelar edición</button>
+                <button type="button" class="primary" id="au-doc-guardar">+ Agregar documento</button>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table au-doc-tabla">
+                <thead><tr><th>Documento</th><th>Puntos</th><th>Recibido</th><th>Archivo</th><th></th></tr></thead>
+                <tbody id="au-doc-body"></tbody>
+              </table>
+            </div>
+            <div class="table-empty" id="au-doc-empty">Todavía no se cargó documentación.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="au-plantilla" class="view">
+        <div class="table-card au-card">
+          <div class="table-meta"><strong>Encabezado</strong></div>
+          <div class="form-grid au-form-body">
+            <label class="full"><span>Título</span><input id="au-pl-titulo"></label>
+            <label class="full"><span>Subtítulo</span><input id="au-pl-subtitulo"></label>
+            <div class="full"><span class="au-label">Introducción</span>
+              <div class="anexo-i-rte-toolbar" data-au-toolbar="au-pl-intro">
+                <button type="button" data-cmd="bold" title="Negrita"><b>B</b></button>
+                <button type="button" data-cmd="underline" title="Subrayado"><u>S</u></button>
+              </div>
+              <div class="anexo-i-rte" id="au-pl-intro" contenteditable="true"></div>
+            </div>
+          </div>
+        </div>
+        <div class="table-card au-card">
+          <div class="table-meta au-meta-flex">
+            <strong>Puntos</strong>
+            <span class="au-resumen">Ejes: A Estructura y acceso · B Población · C Red prestacional · D Gestión y auditoría médica · E Programas preventivos · F Cumplimiento normativo</span>
+          </div>
+          <div id="au-pl-items" class="au-pl-items"></div>
+          <div class="au-form-acciones" style="padding:0 16px 16px">
+            <button type="button" class="secondary" id="au-pl-agregar">+ Agregar punto</button>
+            <button type="button" class="secondary" id="au-pl-preview">Vista previa PDF</button>
+            <button type="button" class="primary" id="au-pl-guardar">Guardar plantilla</button>
+          </div>
+          <div class="form-message" id="au-pl-message" hidden style="margin:0 16px 16px"></div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1836,6 +1986,28 @@
       </form>
     </div>
   </div>
+
+  <div class="modal-backdrop" id="au-nueva-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="au-nueva-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">AUDITORÍA INTEGRAL</span><h2 id="au-nueva-title">Nueva auditoría</h2></div>
+        <button class="icon-button" type="button" data-close-modal="au-nueva-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="au-nueva-form" class="form-grid" style="padding:18px 22px">
+        <label class="full"><span>Nº EX *</span><input id="au-nueva-ex" required placeholder="EX-2026-12345678- -APN-GCP#SSS"></label>
+        <label class="full"><span>Obra Social *</span><input id="au-nueva-os" list="au-os-datalist" placeholder="Escribí para buscar..." autocomplete="off"></label>
+        <label class="full"><span>Nº IF de la orden de auditoría</span><input id="au-nueva-if" placeholder="IF-2026-12345678-APN-GG#SSS"></label>
+        <label><span>Fecha de la 1º visita</span><input id="au-nueva-fecha" type="date"></label>
+        <label><span>Orden de auditoría (archivo)</span><input id="au-nueva-orden" type="file" accept=".pdf,.doc,.docx,image/*"></label>
+        <div class="full form-message" id="au-nueva-message" hidden></div>
+        <div class="full modal-actions" style="padding:0">
+          <button type="button" class="secondary" data-close-modal="au-nueva-modal">Cancelar</button>
+          <button type="submit" class="primary" id="au-nueva-guardar">Crear auditoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <datalist id="au-os-datalist"></datalist>
 
   <div class="modal-backdrop" id="preexistencia-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="preexistencia-modal-title">
@@ -2228,6 +2400,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=77"></script>
+  <script src="app.js?v=78"></script>
+  <script src="auditorias.js?v=1"></script>
 </body>
 </html>

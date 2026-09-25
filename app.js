@@ -31,7 +31,9 @@ const views = {
   "px-preexistencias": { title: "Expedientes", subtitle: "Casos de preexistencia por EMP" },
   "px-emp": { title: "Reportes", subtitle: "Cantidad de preexistencias por EMP y patología" },
   "px-patologias": { title: "Patologías", subtitle: "Catálogo de patologías de Preexistencias" },
-  "px-plantillas": { title: "Plantillas", subtitle: "Párrafo legal de apertura del informe INFFC" }
+  "px-plantillas": { title: "Plantillas", subtitle: "Párrafo legal de apertura del informe INFFC" },
+  "au-auditorias": { title: "Auditorías", subtitle: "Auditoría Integral: orden, visitas, requerimiento y documentación recibida" },
+  "au-plantilla": { title: "Plantilla del Requerimiento", subtitle: "Texto común a todas las Obras Sociales, con años automáticos" }
 };
 
 const manualesSeccion = {
@@ -57,6 +59,8 @@ const manualesSeccion = {
   "px-patologias": `<strong>Qué hacer en Patologías de Preexistencias</strong><ul><li>El carácter y el texto médico/legal se cargan una sola vez acá y salen automáticos en cada informe INFFC de esa patología.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-plantillas": `<strong>Qué hacer en Plantillas de Preexistencias</strong><ul><li>El párrafo legal (Ley 26.682) que abre cada informe INFFC se elige acá.</li><li>Hacé clic en una fila para editarla o eliminarla.</li></ul>`,
   "px-preexistencias": `<strong>Qué hacer en Preexistencias</strong><ul><li>Siempre se asocia a una EMP (nunca a una Obra Social).</li><li>La declaración jurada, el esquema propuesto y las prestaciones a desestimar los completa el auditor para cada caso.</li><li>El informe INFFC junta esto con el texto fijo de la patología elegida.</li><li>Hacé clic en una fila para editar esa preexistencia.</li></ul>`,
+  "au-auditorias": `<strong>Qué hacer en Auditorías</strong><ul><li>"+ Nueva auditoría" registra el Nº EX, la Obra Social, el IF de la orden y la fecha de la 1º visita, y copia los puntos de la plantilla del Requerimiento.</li><li>Dentro de cada auditoría subí la Orden de Auditoría e imprimí el Requerimiento en PDF para entregarlo en mano en la 1º visita. Si hace falta, retocá el texto de los puntos solo para esa auditoría.</li><li>Cargá cada documento que envíe la Obra Social, indicando a qué puntos responde. Los puntos pasan a "Recibido" solos; podés cambiarlos a mano a "Parcial" o "No aportado".</li><li>Si la Obra Social entrega documentación, la 2º visita queda como "No requerida". Solo se programa si no entregaron nada.</li></ul>`,
+  "au-plantilla": `<strong>Qué hacer en Plantilla del Requerimiento</strong><ul><li>Es el texto común a todas las Obras Sociales. Los cambios valen para las auditorías que se creen a partir de ahora; las ya creadas conservan su copia.</li><li>Escribí {ANIO} para el año de la auditoría, {ANIO_1} para el año anterior y {ANIO_2} para dos años antes. Se reemplazan solos al imprimir, según la fecha de la 1º visita.</li><li>Cada punto tiene un eje (A a F), que se usa después para agrupar el análisis del informe.</li></ul>`,
   "px-emp": `<strong>Qué hacer en Reportes</strong><ul><li>Dos pestañas: por EMP o por Patología. Hacé clic en una fila para ver el detalle discriminado.</li><li>Gráfico de barras arriba, y botones para exportar a Excel o PDF.</li></ul>`
 };
 
@@ -283,6 +287,9 @@ function perfilPuedeVerVista(perfil, vista) {
     return esAdministrador || p === "admin preexistencias";
   }
 
+  // Auditorías: coordinación (Administrador / Admin Prestacional).
+  if (id.startsWith("au-")) return ["admin prestacional", "administrador", "admin"].includes(p);
+
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
   // de la coordinación (usuario Administrador/Admin Prestacional): el perfil "admin presentaciones"
@@ -366,6 +373,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="normativa"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esCargaPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
+  document.querySelector('[data-nav-access="auditorias"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="prototipo"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPrestacional));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-view="px-plantillas"]')?.toggleAttribute("hidden", !esAdministrador);
@@ -4160,7 +4168,8 @@ function showView(id, updateHistory = true) {
       (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
-      (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias");
+      (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias") ||
+      (resolved.startsWith("au-") && group.dataset.navGroup === "auditorias");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
@@ -4181,6 +4190,9 @@ function showView(id, updateHistory = true) {
   }
   if (resolved.startsWith("px-")) {
     document.querySelector('[data-nav-group="preexistencias"]')?.classList.add("active");
+  }
+  if (resolved.startsWith("au-")) {
+    document.querySelector('[data-nav-group="auditorias"]')?.classList.add("active");
   }
 
   const meta = views[resolved];
@@ -4239,6 +4251,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "px-patologias" && !pxPatologiasCargadas) cargarYRenderizarPxPatologias();
   if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
+  if (resolved.startsWith("au-") && typeof inicializarVistaAuditorias === "function") inicializarVistaAuditorias(resolved);
   if (resolved === "px-emp") {
     pxReporteDrill = null;
     if (!pxEmpReporteCargado) cargarYRenderizarPxEmp(); else renderPxEmp();
