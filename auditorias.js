@@ -1261,7 +1261,7 @@ function auCrearEditor(selector, altura, idEstado) {
         automatic_uploads: true,
         images_upload_handler: blobInfo => auComprimirImagen(blobInfo.blob()),
         table_default_styles: { "border-collapse": "collapse", width: "100%" },
-        content_style: "body{font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt;line-height:1.45;max-width:760px;margin:16px auto;padding:0 12px} img{max-width:100%;height:auto} table td,table th{border:1px solid #999;padding:4px 6px} h4{font-size:11pt;margin:14px 0 6px}",
+        content_style: "body{font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt;line-height:1.45;margin:12px 16px;padding:0} img{max-width:100%;height:auto} table td,table th{border:1px solid #999;padding:4px 6px} h4{font-size:11pt;margin:14px 0 6px}",
         setup: editor => {
           editor.on("init", () => resolve(editor));
           editor.on("input change undo redo", () => { const el = document.getElementById(idEstado); if (el) el.textContent = "Cambios sin guardar"; });
