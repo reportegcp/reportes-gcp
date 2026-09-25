@@ -190,7 +190,7 @@ function auVincularEventos() {
   on("au-tab-cerradas", "click", () => auCambiarTab("cerradas"));
   on("au-search", "input", auRenderLista);
   on("au-nueva-form", "submit", auCrearAuditoria);
-  on("au-volver", "click", async () => { await auGuardarEjeSiHayCambios(); auMostrarLista(); auCargarLista(); });
+  on("au-volver", "click", async () => { await auGuardarEjeSiHayCambios(); await auGuardarPunto3SiHayCambios(); auMostrarLista(); auCargarLista(); });
   on("au-form", "submit", auGuardarDatos);
   on("au-eliminar", "click", auEliminarAuditoria);
   on("au-orden-subir", "click", auSubirOrden);
@@ -203,8 +203,12 @@ function auVincularEventos() {
   on("au-puntos-editar", "click", () => { auEditandoPuntos = true; auRenderPuntos(); });
   on("au-puntos-cancelar", "click", () => { auEditandoPuntos = false; auRenderPuntos(); });
   on("au-puntos-guardar", "click", auGuardarTextosPuntos);
-  on("au-doc-guardar", "click", auGuardarDocumento);
-  on("au-doc-cancelar", "click", auResetFormDoc);
+  on("au-p3-guardar", "click", () => auGuardarPunto3(false));
+  on("au-p3-siguiente", "click", () => auGuardarPunto3(true));
+  on("au-p3-anterior", "click", () => auAbrirPunto3(auPuntoActivo - 1));
+  on("au-p3-estado", "change", () => { auP3EstadoTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
+  on("au-p3-subir", "click", auAdjuntarArchivoPunto);
+  on("au-ir-pendientes", "click", async () => { await auGuardarPunto3SiHayCambios(); auPendFiltroAuditoria = auActual.id; showView("au-pendientes"); });
   on("au-pl-agregar", "click", () => auAbrirEditorPunto(null));
   on("au-pend-search", "input", () => { auPendFiltroAuditoria = null; auRenderPendientes(); });
   on("au-pend-filtro", "change", auRenderPendientes);
@@ -379,6 +383,8 @@ async function auAbrirDetalle(id) {
     document.getElementById("au-detalle").hidden = false;
     auRenderDetalle();
     window.scrollTo({ top: 0 });
+    if (auPasoActivo === 3) auAbrirPaso3();
+    if (auPasoActivo === 4) auAbrirInforme();
   } catch (error) {
     mostrarToast(error.message || "No se pudo abrir la auditoría.", "error");
   }
@@ -538,19 +544,7 @@ function auRenderPuntos() {
     req.innerHTML = auPuntos.map(p => `<li class="au-hoja-punto au-hoja-punto-fijo"><div class="au-hoja-punto-texto">${auResaltarAnios(p.texto_html, anio)}</div></li>`).join("");
   }
 
-  // Paso 3: solo un resumen; el detalle está en el menú Pendientes
-  const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
-  const parciales = auPuntos.filter(p => p.estado === "Parcial");
-  const noAport = auPuntos.filter(p => p.estado === "No aportado");
-  const pendientes = auPuntos.filter(p => p.estado === "Pendiente");
-  const lista = arr => arr.map(p => p.numero).join(", ");
-  document.getElementById("au-resumen-pendientes").innerHTML = `
-    <div><strong>${recibidos} de ${auPuntos.length}</strong> puntos recibidos.</div>
-    ${pendientes.length ? `<div>Pendientes: ${lista(pendientes)}</div>` : ""}
-    ${parciales.length ? `<div>Parciales: ${lista(parciales)}</div>` : ""}
-    ${noAport.length ? `<div>No aportados: ${lista(noAport)}</div>` : ""}
-    <button type="button" class="au-link" id="au-ir-pendientes">Ver y ajustar en Pendientes →</button>`;
-  document.getElementById("au-ir-pendientes").addEventListener("click", () => { auPendFiltroAuditoria = auActual.id; showView("au-pendientes"); });
+  auRenderP3Nums();
 }
 
 async function auCambiarEstadoPunto(id, estado, manual) {
@@ -568,13 +562,13 @@ async function auCambiarEstadoPunto(id, estado, manual) {
 async function auVolverAutomatico(id) {
   const p = auPuntos.find(x => x.id === id);
   if (!p) return;
-  await auCambiarEstadoPunto(id, auDocsDePunto(p.numero).length ? "Recibido" : "Pendiente", false);
+  await auCambiarEstadoPunto(id, (auDocsDePunto(p.numero).length || auTieneTexto(p.respuesta_html)) ? "Recibido" : "Pendiente", false);
 }
 
 async function auRecalcularEstadosAutomaticos() {
   for (const p of auPuntos) {
     if (p.estado_manual) continue;
-    const deseado = auDocsDePunto(p.numero).length ? "Recibido" : "Pendiente";
+    const deseado = (auDocsDePunto(p.numero).length || auTieneTexto(p.respuesta_html)) ? "Recibido" : "Pendiente";
     if (p.estado !== deseado) {
       await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { estado: deseado } });
       p.estado = deseado;
@@ -604,116 +598,155 @@ async function auGuardarTextosPuntos() {
   }
 }
 
-// ---------------- Documentación recibida ----------------
+// ---------------- Paso 3: respuesta punto por punto ----------------
 
-let auDocPuntosSeleccionados = new Set();
+let auPuntoActivo = 1;
+let auEditorPunto = null;
+let auP3EstadoTocado = false;
 
-function auRenderChipsPuntos() {
-  const cont = document.getElementById("au-doc-puntos");
-  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-chip ${auDocPuntosSeleccionados.has(p.numero) ? "on" : ""}" data-au-chip="${p.numero}" title="${escaparHtml(auTextoPlano(auReemplazarAnios(p.texto_html, auAnioAuditoria(auActual))).slice(0, 180))}">${p.numero}</button>`).join("");
-  cont.querySelectorAll("[data-au-chip]").forEach(btn => btn.addEventListener("click", () => {
-    const n = Number(btn.dataset.auChip);
-    if (auDocPuntosSeleccionados.has(n)) auDocPuntosSeleccionados.delete(n); else auDocPuntosSeleccionados.add(n);
-    btn.classList.toggle("on");
-  }));
+function auTieneTexto(html) {
+  return !!auTextoPlano(html) || /<img/i.test(html || "");
 }
 
-function auResetFormDoc() {
-  document.getElementById("au-doc-id").value = "";
-  document.getElementById("au-doc-nombre").value = "";
-  document.getElementById("au-doc-fecha").value = new Date().toISOString().slice(0, 10);
-  document.getElementById("au-doc-file").value = "";
-  document.getElementById("au-doc-nota").value = "";
-  document.getElementById("au-doc-guardar").textContent = "+ Agregar documento";
-  document.getElementById("au-doc-cancelar").hidden = true;
-  auDocPuntosSeleccionados = new Set();
-  setFormMessage("au-doc-message");
-  auRenderChipsPuntos();
-}
-
-function auEditarDoc(id) {
-  const d = auDocs.find(x => x.id === id);
-  if (!d) return;
-  document.getElementById("au-doc-id").value = d.id;
-  document.getElementById("au-doc-nombre").value = d.nombre || "";
-  document.getElementById("au-doc-fecha").value = d.fecha_recepcion || "";
-  document.getElementById("au-doc-file").value = "";
-  document.getElementById("au-doc-nota").value = d.nota || "";
-  document.getElementById("au-doc-guardar").textContent = "Guardar cambios";
-  document.getElementById("au-doc-cancelar").hidden = false;
-  auDocPuntosSeleccionados = new Set(d.puntos || []);
-  auRenderChipsPuntos();
-  document.getElementById("au-doc-nombre").scrollIntoView({ behavior: "smooth", block: "center" });
-  document.getElementById("au-doc-nombre").focus();
+function auClaseDot(estado) {
+  return { Recibido: "recibido", Parcial: "parcial", "No aportado": "noaportado" }[estado] || "";
 }
 
 function auRenderDocs() {
-  const tbody = document.getElementById("au-doc-body");
-  tbody.innerHTML = auDocs.map(d => `<tr>
-    <td><strong>${escaparHtml(d.nombre)}</strong>${d.nota ? `<div class="au-doc-nota">${escaparHtml(d.nota)}</div>` : ""}</td>
-    <td>${(d.puntos || []).slice().sort((x, y) => x - y).join(", ")}</td>
-    <td class="date-cell">${formatearFecha(d.fecha_recepcion)}</td>
-    <td>${d.archivo_path ? `<button type="button" class="au-link" data-au-doc-ver="${d.id}" title="${escaparHtml(d.nombre_archivo || "")}">Ver</button>` : "—"}</td>
-    <td class="au-doc-acciones">
-      <button type="button" class="au-link" data-au-doc-editar="${d.id}">Editar</button>
-      <button type="button" class="au-link au-link-danger" data-au-doc-borrar="${d.id}">Quitar</button>
-    </td>
-  </tr>`).join("");
-  document.getElementById("au-doc-empty").hidden = auDocs.length !== 0;
-  tbody.querySelectorAll("[data-au-doc-ver]").forEach(b => b.addEventListener("click", () => auAbrirArchivo(auDocs.find(d => d.id === b.dataset.auDocVer)?.archivo_path)));
-  tbody.querySelectorAll("[data-au-doc-editar]").forEach(b => b.addEventListener("click", () => auEditarDoc(b.dataset.auDocEditar)));
-  tbody.querySelectorAll("[data-au-doc-borrar]").forEach(b => b.addEventListener("click", () => auBorrarDoc(b.dataset.auDocBorrar)));
+  auRenderP3Nums();
+  auRenderAdjuntosPunto();
+}
+function auResetFormDoc() {}
+
+function auRenderP3Nums() {
+  const cont = document.getElementById("au-p3-nums");
+  if (!cont) return;
+  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(p.estado)}">${p.numero}</button>`).join("");
+  cont.querySelectorAll("[data-au-p3-num]").forEach(b => b.addEventListener("click", () => auAbrirPunto3(Number(b.dataset.auP3Num))));
+  const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
+  const faltan = auPuntos.filter(p => p.estado === "Pendiente").length;
+  document.getElementById("au-p3-resumen").textContent = `${recibidos} de ${auPuntos.length} recibidos · ${faltan} pendientes`;
 }
 
-async function auGuardarDocumento() {
-  setFormMessage("au-doc-message");
-  const id = document.getElementById("au-doc-id").value;
-  const nombre = document.getElementById("au-doc-nombre").value.trim();
-  const puntos = [...auDocPuntosSeleccionados].sort((a, b) => a - b);
-  const archivo = document.getElementById("au-doc-file").files?.[0];
-  if (!nombre) return setFormMessage("au-doc-message", "Escribí el nombre o la descripción del documento.");
-  if (!puntos.length) return setFormMessage("au-doc-message", "Marcá al menos un punto del requerimiento al que responde.");
-  if (archivo && archivo.size > 20 * 1024 * 1024) return setFormMessage("au-doc-message", "El archivo no puede superar los 20 MB.");
+function auRenderAdjuntosPunto() {
+  const cont = document.getElementById("au-p3-adj-lista");
+  if (!cont) return;
+  const docs = auDocsDePunto(auPuntoActivo);
+  cont.innerHTML = docs.length ? docs.map(d => `<div class="au-p3-adj">
+      ${d.archivo_path ? `<button type="button" class="au-link" data-au-adj-ver="${d.id}">📄 ${escaparHtml(d.nombre_archivo || d.nombre)}</button>` : `<span>${escaparHtml(d.nombre)}</span>`}
+      <button type="button" class="au-link au-link-danger" data-au-adj-borrar="${d.id}">Quitar</button>
+    </div>`).join("") : `<span class="au-hint">Sin archivos.</span>`;
+  cont.querySelectorAll("[data-au-adj-ver]").forEach(b => b.addEventListener("click", () => auAbrirArchivo(auDocs.find(d => d.id === b.dataset.auAdjVer)?.archivo_path)));
+  cont.querySelectorAll("[data-au-adj-borrar]").forEach(b => b.addEventListener("click", () => auBorrarDoc(b.dataset.auAdjBorrar)));
+}
 
-  const boton = document.getElementById("au-doc-guardar");
+async function auAbrirPaso3() {
+  const primero = auPuntos.find(p => p.estado === "Pendiente")?.numero || 1;
+  await auAbrirPunto3(primero, true);
+}
+
+async function auAbrirPunto3(numero, forzar = false) {
+  if (!forzar && numero === auPuntoActivo && auEditorPunto) return;
+  await auGuardarPunto3SiHayCambios();
+  auPuntoActivo = numero;
+  const p = auPuntos.find(x => x.numero === numero);
+  if (!p) return;
+  const anio = auAnioAuditoria(auActual);
+  document.getElementById("au-p3-titulo").innerHTML = `<span class="au-p3-titulo-num">Punto ${p.numero}</span><div class="au-p3-titulo-texto">${auReemplazarAnios(p.texto_html, anio)}</div>`;
+  document.getElementById("au-p3-estado").value = p.estado;
+  auP3EstadoTocado = false;
+  document.getElementById("au-p3-anterior").disabled = numero <= 1;
+  const btnSig = document.getElementById("au-p3-siguiente");
+  btnSig.hidden = numero >= auPuntos.length;
+  btnSig.textContent = `Guardar y seguir con el punto ${numero + 1} →`;
+  auRenderP3Nums();
+  auRenderAdjuntosPunto();
+  const estadoEl = document.getElementById("au-p3-guardado");
+  estadoEl.textContent = "Cargando editor...";
+  try {
+    if (!auEditorPunto) auEditorPunto = await auCrearEditor("#au-p3-editor", 420, "au-p3-guardado");
+    auEditorPunto.setContent(p.respuesta_html || "");
+    auEditorPunto.undoManager.clear();
+    auEditorPunto.setDirty(false);
+    estadoEl.textContent = p.respuesta_html ? "Guardado" : "";
+  } catch (error) {
+    estadoEl.textContent = "";
+    mostrarToast(`No se pudo cargar el editor. ${error.message || ""}`, "error");
+  }
+}
+
+async function auPersistirPunto3() {
+  const p = auPuntos.find(x => x.numero === auPuntoActivo);
+  if (!p || !auEditorPunto) return;
+  const html = auEditorPunto.getContent();
+  let estado = document.getElementById("au-p3-estado").value;
+  let manual = p.estado_manual;
+  if (auP3EstadoTocado) manual = true;
+  else if (!p.estado_manual) estado = (auTieneTexto(html) || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
+  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual } });
+  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual });
+  auEditorPunto.setDirty(false);
+  auP3EstadoTocado = false;
+  document.getElementById("au-p3-estado").value = estado;
+  document.getElementById("au-p3-guardado").textContent = "Guardado";
+  auCargadas = false;
+  await auAjustarVisitaYEstadoPorDocumentacion();
+  auRenderP3Nums();
+}
+
+async function auGuardarPunto3SiHayCambios() {
+  if (!auEditorPunto || auPasoActivo !== 3) return;
+  if (!auEditorPunto.isDirty() && !auP3EstadoTocado) return;
+  try { await auPersistirPunto3(); } catch (error) { mostrarToast(`No se pudo guardar el punto ${auPuntoActivo}. ${error.message || ""}`, "error"); }
+}
+
+async function auGuardarPunto3(seguir) {
+  const botones = ["au-p3-guardar", "au-p3-siguiente"].map(id => document.getElementById(id));
+  try {
+    botones.forEach(b => { b.disabled = true; });
+    await auPersistirPunto3();
+    if (seguir && auPuntoActivo < auPuntos.length) {
+      await auAbrirPunto3(auPuntoActivo + 1, true);
+      document.getElementById("au-p3-nums").scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      mostrarToast(`Punto ${auPuntoActivo} guardado.`);
+    }
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar el punto.", "error");
+  } finally {
+    botones.forEach(b => { b.disabled = false; });
+  }
+}
+
+async function auAdjuntarArchivoPunto() {
+  const input = document.getElementById("au-p3-file");
+  const archivo = input.files?.[0];
+  if (!archivo) return mostrarToast("Elegí un archivo.", "error");
+  if (archivo.size > 20 * 1024 * 1024) return mostrarToast("El archivo no puede superar los 20 MB.", "error");
+  const boton = document.getElementById("au-p3-subir");
   try {
     boton.disabled = true;
-    const registro = {
-      nombre,
-      puntos,
-      fecha_recepcion: document.getElementById("au-doc-fecha").value || null,
-      nota: document.getElementById("au-doc-nota").value.trim() || null
-    };
-    const anterior = id ? auDocs.find(d => d.id === id) : null;
-    if (archivo) {
-      registro.archivo_path = await auSubirArchivo(`${auActual.id}/docs/${Date.now()}_${auNombreSeguro(archivo.name)}`, archivo);
-      registro.nombre_archivo = archivo.name;
-    }
-    if (id) {
-      await auFetch("auditoria_documentos", { method: "PATCH", params: { id: `eq.${id}` }, body: registro });
-      if (archivo && anterior?.archivo_path) await auBorrarArchivo(anterior.archivo_path);
-    } else {
-      await auFetch("auditoria_documentos", { method: "POST", body: { ...registro, auditoria_id: auActual.id } });
-    }
-    auDocs = await auFetch("auditoria_documentos", { params: { auditoria_id: `eq.${auActual.id}`, order: "fecha_recepcion.asc.nullslast,created_at.asc" } }) || [];
+    const path = await auSubirArchivo(`${auActual.id}/docs/${Date.now()}_${auNombreSeguro(archivo.name)}`, archivo);
+    await auFetch("auditoria_documentos", { method: "POST", body: { auditoria_id: auActual.id, nombre: archivo.name, nombre_archivo: archivo.name, archivo_path: path, puntos: [auPuntoActivo], fecha_recepcion: new Date().toISOString().slice(0, 10) } });
+    auDocs = await auFetch("auditoria_documentos", { params: { auditoria_id: `eq.${auActual.id}`, order: "created_at.asc" } }) || [];
+    input.value = "";
     await auRecalcularEstadosAutomaticos();
-    const aviso = await auAjustarVisitaYEstadoPorDocumentacion();
-    auCargadas = false;
-    auResetFormDoc();
+    const p = auPuntos.find(x => x.numero === auPuntoActivo);
+    if (p && !auP3EstadoTocado) document.getElementById("au-p3-estado").value = p.estado;
+    await auAjustarVisitaYEstadoPorDocumentacion();
     auRenderDocs();
-    auRenderPuntos();
-    mostrarToast(id ? "Documento actualizado." : `Documento agregado.${aviso}`);
+    mostrarToast("Archivo adjuntado.");
   } catch (error) {
-    setFormMessage("au-doc-message", error.message || "No se pudo guardar el documento.");
+    mostrarToast(error.message || "No se pudo adjuntar.", "error");
   } finally {
     boton.disabled = false;
   }
 }
 
-// Si la OS ya entregó documentación, la 2º visita no se realiza.
 async function auAjustarVisitaYEstadoPorDocumentacion() {
   const cambios = {};
-  if (!auDocs.length) {
+  const hayAlgo = auPuntos.some(p => p.estado !== "Pendiente" && p.estado !== "No aportado") || auDocs.length > 0;
+  if (!hayAlgo) {
     // Si se quitó toda la documentación, se vuelve atrás lo automático.
     if (auActual.visita_2_estado === "No requerida") cambios.visita_2_estado = "Pendiente";
     if (auActual.estado === "Documentación recibida") cambios.estado = "Esperando documentación";
@@ -751,7 +784,6 @@ async function auBorrarDoc(id) {
     await auRecalcularEstadosAutomaticos();
     await auAjustarVisitaYEstadoPorDocumentacion();
     auCargadas = false;
-    if (document.getElementById("au-doc-id").value === id) auResetFormDoc();
     auRenderDocs();
     auRenderPuntos();
     mostrarToast("Documento quitado.");
@@ -1103,9 +1135,11 @@ function auRenderPasos() {
 
 async function auIrAPaso(n) {
   if (auPasoActivo === 4 && n !== 4) await auGuardarEjeSiHayCambios();
+  if (auPasoActivo === 3 && n !== 3) await auGuardarPunto3SiHayCambios();
   auPasoActivo = n;
   auRenderPasos();
   window.scrollTo({ top: 0, behavior: "smooth" });
+  if (n === 3) auAbrirPaso3();
   if (n === 4) auAbrirInforme();
 }
 
@@ -1140,8 +1174,9 @@ async function auConfirmarEntregaRequerimiento() {
 
 async function auTerminarDocumentacion() {
   if (auActual.documentacion_completa) return auIrAPaso(4);
-  if (!auDocs.length) {
-    const ok = await mostrarConfirmacion("No hay documentación cargada. Si la Obra Social no entregó nada, corresponde la 2º visita con el mismo requerimiento. ¿La marco como programada? La fecha la completás en el paso 1.", { titulo: "Sin documentación", textoAceptar: "Programar 2º visita" });
+  await auGuardarPunto3SiHayCambios();
+  if (!auPuntos.some(p => p.estado === "Recibido" || p.estado === "Parcial")) {
+    const ok = await mostrarConfirmacion("No hay ningún punto recibido. Si la Obra Social no entregó nada, corresponde la 2º visita con el mismo requerimiento. ¿La marco como programada? La fecha la completás en el paso 1.", { titulo: "Sin documentación", textoAceptar: "Programar 2º visita" });
     if (!ok) return;
     await auPatchAuditoria({ visita_2_estado: "Programada", estado: "2º visita" });
     auRenderPasos();
@@ -1196,17 +1231,17 @@ function auComprimirImagen(blob) {
   });
 }
 
-function auAsegurarEditor() {
-  if (auEditor) return Promise.resolve(auEditor);
-  if (auEditorCargando) return auEditorCargando;
-  auEditorCargando = (window.tinymce ? Promise.resolve() : auCargarScript(AU_TINYMCE))
+const auEditoresCargando = {};
+function auCrearEditor(selector, altura, idEstado) {
+  if (auEditoresCargando[selector]) return auEditoresCargando[selector];
+  auEditoresCargando[selector] = (window.tinymce ? Promise.resolve() : auCargarScript(AU_TINYMCE))
     .then(() => new Promise(resolve => {
       window.tinymce.init({
-        selector: "#au-editor",
+        selector,
         license_key: "gpl",
         language: "es",
         language_url: AU_TINYMCE_ES,
-        height: 640,
+        height: altura,
         menubar: false,
         toolbar_mode: "wrap",
         branding: false,
@@ -1227,13 +1262,18 @@ function auAsegurarEditor() {
         table_default_styles: { "border-collapse": "collapse", width: "100%" },
         content_style: "body{font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt;line-height:1.45;max-width:760px;margin:16px auto;padding:0 12px} img{max-width:100%;height:auto} table td,table th{border:1px solid #999;padding:4px 6px} h4{font-size:11pt;margin:14px 0 6px}",
         setup: editor => {
-          editor.on("init", () => { auEditor = editor; resolve(editor); });
-          editor.on("input change undo redo", () => { document.getElementById("au-eje-guardado").textContent = "Cambios sin guardar"; });
+          editor.on("init", () => resolve(editor));
+          editor.on("input change undo redo", () => { const el = document.getElementById(idEstado); if (el) el.textContent = "Cambios sin guardar"; });
         }
       });
     }))
-    .catch(error => { auEditorCargando = null; throw error; });
-  return auEditorCargando;
+    .catch(error => { delete auEditoresCargando[selector]; throw error; });
+  return auEditoresCargando[selector];
+}
+
+async function auAsegurarEditor() {
+  if (!auEditor) auEditor = await auCrearEditor("#au-editor", 640, "au-eje-guardado");
+  return auEditor;
 }
 
 function auFechaDmy(iso) {
@@ -1371,6 +1411,7 @@ function auRenderRefEje(eje) {
       return `<div class="au-ref-punto">
         <div class="au-ref-cab"><span class="au-punto-num">${p.numero}</span><span class="au-ref-estado ${auClaseEstadoPunto(p.estado)}">${p.estado}</span></div>
         <div class="au-ref-texto">${escaparHtml(auTextoPlano(auReemplazarAnios(p.texto_html, anio)))}</div>
+        ${auTieneTexto(p.respuesta_html) ? `<div class="au-ref-respuesta">${escaparHtml(auTextoPlano(p.respuesta_html).slice(0, 400))}${auTextoPlano(p.respuesta_html).length > 400 ? "…" : ""}</div>` : ""}
         ${docs.map(d => `<div class="au-ref-doc">
           <div class="au-ref-doc-nombre">${d.archivo_path ? `<button type="button" class="au-link" data-au-ref-ver="${d.id}">${escaparHtml(d.nombre)}</button>` : escaparHtml(d.nombre)}</div>
           ${d.nota ? `<div class="au-ref-doc-nota">${escaparHtml(d.nota)}</div>` : ""}

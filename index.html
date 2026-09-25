@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=83">
+  <link rel="stylesheet" href="styles.css?v=84">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -154,7 +154,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 128</span>
+        <span>Versión 129</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1593,34 +1593,47 @@
 
           <div class="table-card au-card au-paso" data-au-paso="3" hidden>
             <div class="table-meta au-meta-flex">
-              <strong>Paso 3 · Documentación que entregó la Obra Social</strong>
+              <strong>Paso 3 · Respuesta de la Obra Social, punto por punto</strong>
+              <span class="au-resumen" id="au-p3-resumen"></span>
             </div>
-            <div class="au-doc-form">
-              <input type="hidden" id="au-doc-id">
-              <div class="form-grid">
-                <label class="full"><span>Documento *</span><input id="au-doc-nombre" placeholder="Padrón de beneficiarios 2026 por tipo"></label>
-                <div class="full"><span class="au-label">Responde a los puntos *</span><div id="au-doc-puntos" class="au-chips"></div></div>
-                <label><span>Fecha de recepción</span><input id="au-doc-fecha" type="date"></label>
-                <label><span>Archivo (opcional)</span><input id="au-doc-file" type="file"></label>
-                <label class="full"><span>Nota (qué contiene, qué te llamó la atención)</span><textarea id="au-doc-nota" rows="2"></textarea></label>
-              </div>
-              <div class="form-message" id="au-doc-message" hidden></div>
-              <div class="au-form-acciones">
-                <button type="button" class="secondary" id="au-doc-cancelar" hidden>Cancelar edición</button>
-                <button type="button" class="primary" id="au-doc-guardar">+ Agregar documento</button>
+            <div class="au-p3-nums-caja">
+              <div class="au-p3-nums" id="au-p3-nums"></div>
+              <div class="au-p3-leyenda">
+                <span><i class="au-dot"></i>Pendiente</span>
+                <span><i class="au-dot recibido"></i>Recibido</span>
+                <span><i class="au-dot parcial"></i>Parcial</span>
+                <span><i class="au-dot noaportado"></i>No aportado</span>
               </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table au-doc-tabla">
-                <thead><tr><th>Documento</th><th>Puntos</th><th>Recibido</th><th>Archivo</th><th></th></tr></thead>
-                <tbody id="au-doc-body"></tbody>
-              </table>
+            <div class="au-p3-cuerpo">
+              <div class="au-p3-cab">
+                <div class="au-p3-titulo" id="au-p3-titulo"></div>
+                <label class="au-hallazgo">Estado
+                  <select id="au-p3-estado">
+                    <option>Pendiente</option><option>Recibido</option><option>Parcial</option><option>No aportado</option>
+                  </select>
+                </label>
+              </div>
+              <textarea id="au-p3-editor"></textarea>
+              <div class="au-p3-adjuntos">
+                <span class="au-label">Archivos de este punto (opcional)</span>
+                <div id="au-p3-adj-lista" class="au-p3-adj-lista"></div>
+                <div class="au-orden-subir">
+                  <input type="file" id="au-p3-file">
+                  <button type="button" class="secondary small" id="au-p3-subir">Adjuntar</button>
+                </div>
+              </div>
+              <div class="au-informe-pie">
+                <button type="button" class="secondary" id="au-p3-anterior">← Punto anterior</button>
+                <span class="au-guardado" id="au-p3-guardado"></span>
+                <button type="button" class="secondary" id="au-p3-guardar">Guardar</button>
+                <button type="button" class="primary" id="au-p3-siguiente">Guardar y seguir →</button>
+              </div>
             </div>
-            <div class="table-empty" id="au-doc-empty">Todavía no se cargó documentación.</div>
-            <div class="au-resumen-pendientes" id="au-resumen-pendientes"></div>
             <div class="au-paso-pie">
               <span class="au-hint">Al terminar, los puntos que sigan "Pendiente" pasan a "No aportado".</span>
-              <button type="button" class="primary" id="au-doc-terminar">Terminé de cargar la documentación →</button>
+              <button type="button" class="au-link" id="au-ir-pendientes">Ver en Pendientes</button>
+              <button type="button" class="primary" id="au-doc-terminar">Terminé con la documentación →</button>
             </div>
           </div>
 
@@ -2516,6 +2529,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=78"></script>
-  <script src="auditorias.js?v=6"></script>
+  <script src="auditorias.js?v=7"></script>
 </body>
 </html>
