@@ -210,9 +210,9 @@ function auVincularEventos() {
   on("au-p3-subir", "click", auAdjuntarArchivoPunto);
   on("au-ir-pendientes", "click", async () => { await auGuardarPunto3SiHayCambios(); auPendFiltroAuditoria = auActual.id; showView("au-pendientes"); });
   on("au-pl-agregar", "click", () => auAbrirEditorPunto(null));
-  on("au-pend-search", "input", () => { auPendFiltroAuditoria = null; auRenderPendientes(); });
+  auVincularComboPendientes();
   on("au-pend-filtro", "change", auRenderPendientes);
-  on("au-pend-expediente", "change", e => { auPendFiltroAuditoria = e.target.value || null; document.getElementById("au-pend-search").value = ""; auRenderPendientes(); });
+
   on("au-pl-preview", "click", auPreviewPlantilla);
   on("au-pl-enc-editar", "click", auAbrirEditorEncabezado);
   on("au-enc-guardar", "click", auGuardarEncabezado);
@@ -1570,30 +1570,22 @@ async function auCargarPendientes() {
 function auRenderPendientes() {
   const cont = document.getElementById("au-pend-lista");
   const filtro = document.getElementById("au-pend-filtro").value;
-  const termino = normalizar(document.getElementById("au-pend-search").value || "");
-  const sel = document.getElementById("au-pend-expediente");
-  const opciones = `<option value="">Elegí un expediente...</option>` + auPendAuditorias.map(a => `<option value="${a.id}">${escaparHtml(a.obras_sociales?.sigla || a.obras_sociales?.denominacion || "")} · ${escaparHtml(a.numero_ex)}</option>`).join("");
-  if (sel.dataset.opciones !== opciones) { sel.innerHTML = opciones; sel.dataset.opciones = opciones; }
-  sel.value = auPendFiltroAuditoria || "";
-  const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? p.estado !== "Recibido" : p.estado === filtro;
-
   const vacio = document.getElementById("au-pend-empty");
-  if (!auPendFiltroAuditoria && termino.length < 2) {
-    cont.innerHTML = `<div class="au-pend-inicio">Elegí un expediente de la lista, o escribí el nombre, la sigla o el RNAS de la Obra Social, para ver sus puntos pendientes.</div>`;
+  const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? p.estado !== "Recibido" : p.estado === filtro;
+  auSincronizarComboPendientes();
+  if (!auPendFiltroAuditoria) {
+    cont.innerHTML = `<div class="au-pend-inicio">Tocá la flechita para ver los expedientes, o escribí para buscarlo.</div>`;
     vacio.hidden = true;
     return;
   }
 
   const bloques = auPendAuditorias
-    .filter(a => !auPendFiltroAuditoria || a.id === auPendFiltroAuditoria)
-    .filter(a => !termino || normalizar(a.numero_ex).includes(termino) || normalizar(a.obras_sociales?.denominacion).includes(termino) || normalizar(a.obras_sociales?.sigla).includes(termino) || normalizar(a.obras_sociales?.rnos).includes(termino))
+    .filter(a => a.id === auPendFiltroAuditoria)
     .map(a => ({ a, puntos: a.auditoria_puntos.filter(incluye) }))
     .filter(b => b.puntos.length);
 
   vacio.hidden = bloques.length !== 0;
-  vacio.textContent = auPendAuditorias.some(a => normalizar(a.numero_ex).includes(termino) || normalizar(a.obras_sociales?.denominacion).includes(termino) || normalizar(a.obras_sociales?.sigla).includes(termino) || normalizar(a.obras_sociales?.rnos).includes(termino))
-    ? "Esa Obra Social no tiene puntos en el estado elegido."
-    : "No hay auditorías abiertas para esa búsqueda.";
+  vacio.textContent = "Ese expediente no tiene puntos en el estado elegido.";
   const aviso = "";
   cont.innerHTML = aviso + bloques.map(({ a, puntos }) => {
     const anio = a.fecha_visita_1 ? Number(a.fecha_visita_1.slice(0, 4)) : new Date().getFullYear();
@@ -1619,7 +1611,6 @@ function auRenderPendientes() {
     </div>`;
   }).join("");
 
-  document.getElementById("au-pend-todas")?.addEventListener("click", () => { auPendFiltroAuditoria = null; const q = document.getElementById("au-pend-search"); q.value = ""; auRenderPendientes(); q.focus(); });
   cont.querySelectorAll("[data-au-pend-abrir]").forEach(b => b.addEventListener("click", () => {
     showView("au-auditorias");
     auAbrirDetalle(b.dataset.auPendAbrir);
@@ -1678,4 +1669,87 @@ async function auArmarEje(eje) {
   }
   if (eje === "F") partes.push("<p><strong>Leyes especiales:</strong> La documentación presentada acredita circuitos específicos para ____.</p>");
   return partes.join("");
+}
+
+
+// Campo único para elegir o buscar el expediente
+function auEtiquetaPend(a) {
+  return `${a.obras_sociales?.sigla || a.obras_sociales?.denominacion || ""} · ${a.numero_ex}`;
+}
+
+let auPendResaltado = 0;
+
+function auOpcionesPend() {
+  const q = normalizar(document.getElementById("au-pend-search").value || "");
+  const sel = auPendAuditorias.find(a => a.id === auPendFiltroAuditoria);
+  const texto = sel && document.getElementById("au-pend-search").value === auEtiquetaPend(sel) ? "" : q;
+  return auPendAuditorias.filter(a => !texto ||
+    normalizar(a.numero_ex).includes(texto) || normalizar(a.obras_sociales?.denominacion).includes(texto) ||
+    normalizar(a.obras_sociales?.sigla).includes(texto) || normalizar(a.obras_sociales?.rnos).includes(texto) ||
+    normalizar(auFormatearRnas(a.obras_sociales?.rnos)).includes(texto));
+}
+
+function auMostrarOpcionesPend() {
+  const lista = document.getElementById("au-pend-opciones");
+  const input = document.getElementById("au-pend-search");
+  const ops = auOpcionesPend();
+  auPendResaltado = Math.min(auPendResaltado, Math.max(0, ops.length - 1));
+  lista.innerHTML = ops.length
+    ? ops.map((a, i) => `<li role="option" data-au-op="${a.id}" class="${i === auPendResaltado ? "resaltado" : ""} ${a.id === auPendFiltroAuditoria ? "elegido" : ""}">
+        <strong>${escaparHtml(a.obras_sociales?.sigla || a.obras_sociales?.denominacion || "")}</strong>
+        <span>${escaparHtml(a.obras_sociales?.denominacion || "")} · RNAS ${escaparHtml(auFormatearRnas(a.obras_sociales?.rnos))}</span>
+        <span>${escaparHtml(a.numero_ex)}</span></li>`).join("")
+    : `<li class="vacio">${auPendAuditorias.length ? "No hay expedientes abiertos que coincidan." : "No hay expedientes abiertos."}</li>`;
+  lista.hidden = false;
+  input.setAttribute("aria-expanded", "true");
+  lista.querySelectorAll("[data-au-op]").forEach(li => li.addEventListener("mousedown", e => { e.preventDefault(); auElegirPend(li.dataset.auOp); }));
+}
+
+function auOcultarOpcionesPend() {
+  document.getElementById("au-pend-opciones").hidden = true;
+  document.getElementById("au-pend-search").setAttribute("aria-expanded", "false");
+}
+
+function auElegirPend(id) {
+  auPendFiltroAuditoria = id;
+  auOcultarOpcionesPend();
+  auRenderPendientes();
+}
+
+function auSincronizarComboPendientes() {
+  const input = document.getElementById("au-pend-search");
+  const sel = auPendAuditorias.find(a => a.id === auPendFiltroAuditoria);
+  if (sel && document.activeElement !== input) input.value = auEtiquetaPend(sel);
+  document.getElementById("au-pend-limpiar").hidden = !input.value;
+}
+
+function auVincularComboPendientes() {
+  const input = document.getElementById("au-pend-search");
+  input.addEventListener("focus", () => { auPendResaltado = 0; auMostrarOpcionesPend(); input.select(); });
+  input.addEventListener("click", auMostrarOpcionesPend);
+  input.addEventListener("input", () => {
+    auPendResaltado = 0;
+    document.getElementById("au-pend-limpiar").hidden = !input.value;
+    if (!input.value && auPendFiltroAuditoria) { auPendFiltroAuditoria = null; auRenderPendientes(); }
+    auMostrarOpcionesPend();
+  });
+  input.addEventListener("blur", () => setTimeout(() => { auOcultarOpcionesPend(); auSincronizarComboPendientes(); }, 120));
+  input.addEventListener("keydown", e => {
+    const ops = auOpcionesPend();
+    if (e.key === "ArrowDown") { e.preventDefault(); auPendResaltado = Math.min(ops.length - 1, auPendResaltado + 1); auMostrarOpcionesPend(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); auPendResaltado = Math.max(0, auPendResaltado - 1); auMostrarOpcionesPend(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (ops[auPendResaltado]) { auElegirPend(ops[auPendResaltado].id); input.blur(); } }
+    else if (e.key === "Escape") { auOcultarOpcionesPend(); input.blur(); }
+  });
+  document.getElementById("au-pend-flecha").addEventListener("mousedown", e => {
+    e.preventDefault();
+    if (document.getElementById("au-pend-opciones").hidden) { input.focus(); auMostrarOpcionesPend(); } else auOcultarOpcionesPend();
+  });
+  document.getElementById("au-pend-limpiar").addEventListener("mousedown", e => {
+    e.preventDefault();
+    input.value = "";
+    auPendFiltroAuditoria = null;
+    auRenderPendientes();
+    input.focus();
+  });
 }

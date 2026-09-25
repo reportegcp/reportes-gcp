@@ -2043,3 +2043,16 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .au-modelo-tag{font-size:11px;font-weight:700;color:#226d53;background:#e7f2ec;border-radius:6px;padding:2px 7px}
 #au-pendientes .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 #au-pendientes .toolbar .search-box{flex:1;min-width:240px}
+.au-combo{position:relative;flex:1;min-width:280px;display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px}
+.au-combo:focus-within{border-color:#8fb0d6;box-shadow:0 0 0 3px rgba(24,49,83,.08)}
+.au-combo .search-icon{padding:0 4px 0 14px;color:var(--muted)}
+.au-combo input{flex:1;border:0 !important;box-shadow:none !important;background:transparent;padding:12px 8px;min-width:0;outline:none}
+.au-combo-flecha,.au-combo-limpiar{border:0;background:transparent;color:var(--muted);font-size:18px;font-weight:700;padding:0 12px;cursor:pointer;height:44px}
+.au-combo-flecha{border-left:1px solid var(--line)}
+.au-combo-lista{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:40;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(15,35,60,.14);max-height:340px;overflow:auto;margin:0;padding:6px;list-style:none}
+.au-combo-lista li{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
+.au-combo-lista li span{font-size:12px;color:var(--muted)}
+.au-combo-lista li.resaltado,.au-combo-lista li:hover{background:#eef3f9}
+.au-combo-lista li.elegido strong::after{content:" ✓";color:#226d53}
+.au-combo-lista li.vacio{cursor:default;color:var(--muted)}
+.au-combo .search-icon{position:static;transform:none;left:auto;top:auto}
