@@ -395,13 +395,20 @@ function auRenderDetalle() {
 
 function auRenderOrden() {
   const cont = document.getElementById("au-orden-actual");
+  const caja = document.getElementById("au-orden-subir-box");
   const a = auActual;
   if (a.orden_archivo_path) {
-    cont.innerHTML = `<button type="button" class="au-link" id="au-orden-ver">📄 ${escaparHtml(a.orden_nombre_archivo || "Orden de auditoría")}</button>
-      <span class="au-hint">Habilita hasta 2 visitas. Para reemplazarla, elegí otro archivo y subilo.</span>`;
+    cont.innerHTML = `<div class="au-orden-fila">
+        <button type="button" class="au-link" id="au-orden-ver">📄 ${escaparHtml(a.orden_nombre_archivo || "Orden de auditoría")}</button>
+        <button type="button" class="au-link au-orden-cambiar" id="au-orden-cambiar">Reemplazar archivo</button>
+      </div>
+      <span class="au-hint">Ya está cargada. Clic en el nombre para abrirla.</span>`;
+    caja.hidden = true;
     document.getElementById("au-orden-ver").addEventListener("click", () => auAbrirArchivo(a.orden_archivo_path));
+    document.getElementById("au-orden-cambiar").addEventListener("click", () => { caja.hidden = false; });
   } else {
-    cont.innerHTML = `<span class="au-hint">Todavía no se subió la orden de auditoría.</span>`;
+    cont.innerHTML = `<span class="au-hint">Todavía no se cargó. Elegí el archivo y tocá "Subir archivo".</span>`;
+    caja.hidden = false;
   }
 }
 
