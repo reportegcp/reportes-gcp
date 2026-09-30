@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=89">
+  <link rel="stylesheet" href="styles.css?v=90">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -156,7 +156,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 136</span>
+        <span>Versión 137</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2110,7 +2110,7 @@
   <datalist id="us-os-datalist"></datalist>
 
   <div class="modal-backdrop" id="us-modal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="us-modal-title">
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="us-modal-title">
       <div class="modal-header">
         <div><span class="eyebrow">USUARIOS</span><h2 id="us-modal-title">Nuevo usuario</h2></div>
         <button class="icon-button" type="button" data-close-modal="us-modal" aria-label="Cerrar">×</button>
@@ -2128,6 +2128,14 @@
             <button type="button" class="secondary small" id="us-generar">Generar</button>
           </div>
           <span class="au-hint">Al primer ingreso el sistema le pide cambiarla.</span>
+        </div>
+        <div class="full us-accesos" id="us-accesos-bloque" hidden>
+          <div class="us-accesos-cab">
+            <span class="au-label">Accesos a módulos</span>
+            <button type="button" class="au-link" id="us-accesos-reset">Volver a los del perfil</button>
+          </div>
+          <p class="au-hint" style="margin:0 0 8px">Tildado = lo ve en el menú. Lo resaltado es distinto de lo que trae su perfil.</p>
+          <div id="us-accesos" class="us-accesos-grid"></div>
         </div>
         <div class="full us-acciones-extra" id="us-acciones-extra" hidden>
           <button type="button" class="secondary small" id="us-blanquear">Blanquear contraseña</button>
@@ -2599,8 +2607,8 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=78"></script>
+  <script src="app.js?v=79"></script>
   <script src="auditorias.js?v=12"></script>
-  <script src="usuarios.js?v=2"></script>
+  <script src="usuarios.js?v=3"></script>
 </body>
 </html>

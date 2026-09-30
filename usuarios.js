@@ -8,6 +8,7 @@ let usUsuarios = [];
 let usPerfiles = [];
 let usEventos = false;
 let usOsPorEtiqueta = new Map();
+let usAccesos = {};
 
 async function usLlamar(accion, datos = {}) {
   const session = await asegurarSesionVigente();
@@ -53,7 +54,8 @@ function inicializarVistaUsuarios() {
     document.getElementById("us-btn-nuevo").addEventListener("click", () => usAbrirModal(null));
     document.getElementById("us-search").addEventListener("input", usRender);
     document.getElementById("us-form").addEventListener("submit", usGuardar);
-    document.getElementById("us-perfil").addEventListener("change", usActualizarCampoOs);
+    document.getElementById("us-perfil").addEventListener("change", () => { usActualizarCampoOs(); usRenderAccesos(); });
+    document.getElementById("us-accesos-reset").addEventListener("click", () => { usAccesos = {}; usRenderAccesos(); });
     document.getElementById("us-generar").addEventListener("click", () => { document.getElementById("us-password").value = usGenerarPassword(); });
     document.getElementById("us-blanquear").addEventListener("click", usBlanquear);
     document.getElementById("us-bloquear").addEventListener("click", usBloquear);
@@ -89,7 +91,7 @@ function usRender() {
     return `<tr class="os-row" data-us-id="${u.id}" tabindex="0" role="button" title="Clic para editar">
       <td><strong>${escaparHtml(u.nombre || "—")}</strong></td>
       <td>${escaparHtml(u.email)}</td>
-      <td>${escaparHtml(u.perfil || "Sin perfil")}</td>
+      <td>${escaparHtml(u.perfil || "Sin perfil")}${u.accesos && Object.keys(u.accesos).length ? ` <span class="us-pill personalizado" title="Tiene accesos distintos a los de su perfil">+ accesos</span>` : ""}</td>
       <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(usEtiquetaOs(u.obra_social_id))}">${escaparHtml(u.obra_social_id ? usEtiquetaOs(u.obra_social_id) || `ID ${u.obra_social_id}` : "—")}</td>
       <td class="date-cell">${usFecha(u.ultimo_ingreso)}</td>
       <td>${estado}</td>
@@ -131,7 +133,9 @@ function usAbrirModal(id) {
   document.getElementById("us-guardar").hidden = false;
   document.getElementById("us-credenciales").hidden = true;
   setFormMessage("us-message");
+  usAccesos = { ...(u?.accesos || {}) };
   usActualizarCampoOs();
+  usRenderAccesos();
   abrirModal("us-modal");
 }
 
@@ -166,12 +170,12 @@ async function usGuardar(event) {
     if (!id) {
       const email = document.getElementById("us-email").value.trim();
       const password = document.getElementById("us-password").value;
-      await usLlamar("crear", { email, password, nombre, perfil, obra_social_id });
+      await usLlamar("crear", { email, password, nombre, perfil, obra_social_id, accesos: usAccesosLimpios(perfil) });
       usMostrarCredenciales(email.toLowerCase(), password, "Usuario creado. Enviale estos datos:");
       document.getElementById("us-guardar").hidden = true;
       mostrarToast("Usuario creado.");
     } else {
-      await usLlamar("editar", { id, nombre, perfil, obra_social_id });
+      await usLlamar("editar", { id, nombre, perfil, obra_social_id, accesos: usAccesosLimpios(perfil) });
       mostrarToast("Cambios guardados.");
       cerrarModal("us-modal");
     }
@@ -232,4 +236,47 @@ async function usEliminar() {
   } catch (error) {
     setFormMessage("us-message", error.message || "No se pudo eliminar.");
   }
+}
+
+// ---------- Accesos personalizados ----------
+
+function usAccesosLimpios(perfil) {
+  const out = {};
+  for (const [vista, valor] of Object.entries(usAccesos)) {
+    if (VISTAS_CON_ACCESO_PERSONALIZABLE.has(vista) && valor !== accesoPorDefectoPerfil(perfil, vista)) out[vista] = valor;
+  }
+  return out;
+}
+
+function usRenderAccesos() {
+  const perfil = document.getElementById("us-perfil").value;
+  const bloque = document.getElementById("us-accesos-bloque");
+  const personalizable = perfil && !["Administrador", "Cartilla OS"].includes(perfil);
+  bloque.hidden = !personalizable;
+  if (!personalizable) return;
+  usAccesos = usAccesosLimpios(perfil);
+  const efectivo = v => Object.prototype.hasOwnProperty.call(usAccesos, v) ? usAccesos[v] : accesoPorDefectoPerfil(perfil, v);
+  document.getElementById("us-accesos").innerHTML = MODULOS_ACCESO.map((m, i) => {
+    const marcados = m.vistas.filter(([v]) => efectivo(v)).length;
+    const estadoGrupo = marcados === 0 ? "" : marcados === m.vistas.length ? "checked" : "data-parcial";
+    return `<div class="us-modulo">
+      <label class="us-modulo-cab"><input type="checkbox" data-us-mod="${i}" ${estadoGrupo === "checked" ? "checked" : ""} ${estadoGrupo === "data-parcial" ? "data-parcial" : ""}> ${escaparHtml(m.nombre)}</label>
+      ${m.vistas.length > 1 ? `<div class="us-modulo-items">${m.vistas.map(([v, nombre]) => `<label class="${Object.prototype.hasOwnProperty.call(usAccesos, v) ? "cambiado" : ""}"><input type="checkbox" data-us-vista="${v}" ${efectivo(v) ? "checked" : ""}> ${escaparHtml(nombre)}</label>`).join("")}</div>` : ""}
+    </div>`;
+  }).join("");
+  const cont = document.getElementById("us-accesos");
+  cont.querySelectorAll("[data-parcial]").forEach(cb => { cb.indeterminate = true; });
+  // Resaltar módulos de una sola pantalla que cambiaron
+  MODULOS_ACCESO.forEach((m, i) => {
+    if (m.vistas.length === 1 && Object.prototype.hasOwnProperty.call(usAccesos, m.vistas[0][0])) cont.querySelector(`[data-us-mod="${i}"]`).closest("label").classList.add("cambiado");
+  });
+  const fijar = (vista, valor) => {
+    if (valor === accesoPorDefectoPerfil(perfil, vista)) delete usAccesos[vista];
+    else usAccesos[vista] = valor;
+  };
+  cont.querySelectorAll("[data-us-vista]").forEach(cb => cb.addEventListener("change", () => { fijar(cb.dataset.usVista, cb.checked); usRenderAccesos(); }));
+  cont.querySelectorAll("[data-us-mod]").forEach(cb => cb.addEventListener("change", () => {
+    MODULOS_ACCESO[Number(cb.dataset.usMod)].vistas.forEach(([v]) => fijar(v, cb.checked));
+    usRenderAccesos();
+  }));
 }

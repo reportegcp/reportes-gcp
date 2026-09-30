@@ -338,7 +338,76 @@ function obraSocialIdSesionActual() {
 }
 
 function vistaPermitidaParaSesion(vista) {
+  const accesos = accesosSesionActual();
+  if (VISTAS_CON_ACCESO_PERSONALIZABLE.has(vista) && Object.prototype.hasOwnProperty.call(accesos, vista)) return !!accesos[vista];
   return perfilPuedeVerVista(perfilSesionActual(), vista);
+}
+
+// ---------- Accesos personalizados por usuario (además del perfil) ----------
+// app_metadata.accesos = { "<vista>": true|false } guarda solo las diferencias con el perfil.
+const MODULOS_ACCESO = [
+  { nombre: "Inicio", vistas: [["inicio", "Inicio (estadísticas)"]] },
+  { nombre: "Agentes de Seguro", vistas: [["obras-sociales", "Agentes de Seguro"]] },
+  { nombre: "Configuración Cartilla", vistas: [["anexo-i-admin", "Anexo I · Edición"], ["anexo-iv-config", "Anexo IV"], ["cobertura-config", "Cobertura básica"]] },
+  { nombre: "Análisis de Cartilla", vistas: [["cartilla-revision", "Cartilla"], ["afiliados", "Afiliados"], ["cobertura", "Cobertura"], ["prestadores", "Anexo III"]] },
+  { nombre: "Presentaciones", vistas: [["pma", "PMA"], ["cartillas", "Cartillas"], ["reportes", "Reportes"]] },
+  { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"]] },
+  { nombre: "Urgencias Prestacionales", vistas: [["up-expedientes", "Expedientes"], ["up-drogas", "Catálogo de drogas"], ["up-patologias", "Patologías"], ["up-plantillas", "Plantillas"], ["up-reportes", "Reportes"]] },
+  { nombre: "Preexistencias", vistas: [["px-preexistencias", "Expedientes"], ["px-patologias", "Patologías"], ["px-plantillas", "Plantillas"], ["px-emp", "Reportes"]] },
+  { nombre: "Auditorías", vistas: [["au-auditorias", "Expedientes"], ["au-plantilla", "Planilla de requerimientos"], ["au-pendientes", "Pendientes"]] }
+];
+const VISTAS_CON_ACCESO_PERSONALIZABLE = new Set(MODULOS_ACCESO.flatMap(m => m.vistas.map(v => v[0])));
+
+function accesosSesionActual() {
+  if (!authSession?.access_token) return {};
+  const payload = decodeJwtPayload(authSession.access_token);
+  const appMetadata = authSession?.user?.app_metadata || payload.app_metadata || {};
+  const acc = appMetadata.accesos;
+  return acc && typeof acc === "object" ? acc : {};
+}
+
+// Qué ve en el menú cada perfil sin personalizar (misma regla que aplicarPermisosNavegacion).
+function accesoPorDefectoPerfil(perfil, vista) {
+  const p = normalizarPerfilAcceso(perfil);
+  const esAdm = ["administrador", "admin"].includes(p);
+  const esAP = esAdm || p === "admin prestacional";
+  const esAPres = p === "admin presentaciones";
+  const esCarga = p === "carga presentaciones";
+  const esAdmvo = p === "administrativo";
+  const esAPx = p === "admin preexistencias";
+  const esOS = p === "cartilla os";
+  if (vista === "inicio") return esAP;
+  if (vista === "obras-sociales") return esAP || esAPres || esAdmvo;
+  if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(vista)) return esAP;
+  if (["cartilla-revision", "cobertura"].includes(vista)) return esAP || esAPres;
+  if (["afiliados", "prestadores"].includes(vista)) return esAP || esAPres || esOS;
+  if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(vista)) return esAP || esAPres || esCarga || esAdmvo;
+  if (vista.startsWith("up-")) return esAdm;
+  if (vista === "px-patologias" || vista === "px-plantillas") return esAdm;
+  if (vista.startsWith("px-")) return esAdm || esAPx;
+  if (vista.startsWith("au-")) return esAP;
+  return false;
+}
+
+function aplicarAccesosPersonalizados() {
+  const accesos = accesosSesionActual();
+  const claves = Object.keys(accesos).filter(v => VISTAS_CON_ACCESO_PERSONALIZABLE.has(v));
+  if (!claves.length) return;
+  const perfil = perfilSesionActual();
+  document.querySelectorAll(".nav-item[data-view], .nav-subitem[data-view]").forEach(item => {
+    const vista = item.dataset.view;
+    if (!VISTAS_CON_ACCESO_PERSONALIZABLE.has(vista)) return;
+    const visible = Object.prototype.hasOwnProperty.call(accesos, vista) ? !!accesos[vista] : accesoPorDefectoPerfil(perfil, vista);
+    item.hidden = !visible;
+  });
+  document.querySelectorAll(".nav-group[data-nav-group]").forEach(grupo => {
+    const items = [...grupo.querySelectorAll(".nav-subitem[data-view]")].filter(i => VISTAS_CON_ACCESO_PERSONALIZABLE.has(i.dataset.view));
+    if (!items.length) return;
+    const tocado = items.some(i => claves.includes(i.dataset.view));
+    if (!tocado) return;
+    const algunoVisible = [...grupo.querySelectorAll(".nav-subitem[data-view]")].some(i => !i.hidden);
+    grupo.hidden = !algunoVisible;
+  });
 }
 
 function aplicarPermisosNavegacion() {
@@ -383,6 +452,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="prototipo"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPrestacional));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-view="px-plantillas"]')?.toggleAttribute("hidden", !esAdministrador);
+  aplicarAccesosPersonalizados();
 }
 
 function normalizar(texto) {
