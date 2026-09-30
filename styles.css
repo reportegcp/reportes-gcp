@@ -2072,3 +2072,4 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .us-acciones-extra{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--line)}
 .us-credenciales{background:#eef8f3;border:1px solid #b9e0cd;border-radius:12px;padding:12px 14px}
 .us-credenciales pre{margin:8px 0;white-space:pre-wrap;font-size:13px;font-family:ui-monospace,Consolas,monospace;background:#fff;border-radius:8px;padding:10px}
+.us-acciones-extra #us-eliminar{margin-left:auto}

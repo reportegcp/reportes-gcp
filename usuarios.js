@@ -57,6 +57,7 @@ function inicializarVistaUsuarios() {
     document.getElementById("us-generar").addEventListener("click", () => { document.getElementById("us-password").value = usGenerarPassword(); });
     document.getElementById("us-blanquear").addEventListener("click", usBlanquear);
     document.getElementById("us-bloquear").addEventListener("click", usBloquear);
+    document.getElementById("us-eliminar").addEventListener("click", usEliminar);
   }
   usCargar();
 }
@@ -214,5 +215,21 @@ async function usBloquear() {
     await usCargar();
   } catch (error) {
     setFormMessage("us-message", error.message || "No se pudo cambiar el acceso.");
+  }
+}
+
+async function usEliminar() {
+  const id = document.getElementById("us-id").value;
+  const u = usUsuarios.find(x => x.id === id);
+  if (!u) return;
+  const ok = await mostrarConfirmacion(`¿Eliminar definitivamente a ${u.nombre || u.email} (${u.email})? No se puede deshacer: para volver a darle acceso habría que crearlo de nuevo. Si solo querés que no entre por un tiempo, usá "Bloquear acceso".`, { titulo: "Eliminar usuario", textoAceptar: "Eliminar" });
+  if (!ok) return;
+  try {
+    await usLlamar("eliminar", { id });
+    mostrarToast("Usuario eliminado.");
+    cerrarModal("us-modal");
+    await usCargar();
+  } catch (error) {
+    setFormMessage("us-message", error.message || "No se pudo eliminar.");
   }
 }
