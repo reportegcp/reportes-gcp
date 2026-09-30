@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=87">
+  <link rel="stylesheet" href="styles.css?v=88">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -134,6 +134,8 @@
           </div>
         </div>
 
+        <button class="nav-item" data-view="usuarios" data-nav-access="usuarios" type="button" hidden>Usuarios</button>
+
         <div class="nav-group collapsed" data-nav-group="prototipo" data-nav-access="prototipo">
           <button class="nav-group-toggle" type="button" aria-expanded="false">
             <span>🧪 PROTOTIPO</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
@@ -154,7 +156,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 134</span>
+        <span>Versión 135</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1677,6 +1679,28 @@
         </div>
       </section>
 
+      <section id="usuarios" class="view">
+        <div class="module-actions">
+          <button class="primary" id="us-btn-nuevo" type="button">+ Nuevo usuario</button>
+        </div>
+        <div class="toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="us-search" type="search" placeholder="Buscar por nombre, correo, perfil u Obra Social..." autocomplete="off">
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-meta"><strong id="us-count">Cargando usuarios...</strong></div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Nombre</th><th>Correo (usuario)</th><th>Perfil</th><th>Obra Social</th><th>Último ingreso</th><th>Estado</th></tr></thead>
+              <tbody id="us-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="us-empty" hidden>No hay usuarios con ese criterio.</div>
+        </div>
+      </section>
+
       <section id="au-pendientes" class="view">
         <div class="toolbar">
           <div class="au-combo" id="au-pend-combo">
@@ -2083,6 +2107,41 @@
     </div>
   </div>
   <datalist id="au-os-datalist"></datalist>
+  <datalist id="us-os-datalist"></datalist>
+
+  <div class="modal-backdrop" id="us-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="us-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">USUARIOS</span><h2 id="us-modal-title">Nuevo usuario</h2></div>
+        <button class="icon-button" type="button" data-close-modal="us-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="us-form" class="form-grid" style="padding:18px 22px">
+        <input type="hidden" id="us-id">
+        <label class="full"><span>Nombre y apellido (o nombre de la Obra Social) *</span><input id="us-nombre" required></label>
+        <label class="full"><span>Correo (es el usuario para ingresar) *</span><input id="us-email" type="email" required autocomplete="off"></label>
+        <label class="full"><span>Perfil *</span><select id="us-perfil" required></select></label>
+        <label class="full" id="us-os-label" hidden><span>Obra Social *</span><input id="us-os" list="us-os-datalist" placeholder="Escribí para buscar..." autocomplete="off"></label>
+        <div class="full" id="us-pass-bloque">
+          <span class="au-label">Contraseña inicial *</span>
+          <div class="us-pass-fila">
+            <input id="us-password" type="text" autocomplete="off" minlength="8">
+            <button type="button" class="secondary small" id="us-generar">Generar</button>
+          </div>
+          <span class="au-hint">Al primer ingreso el sistema le pide cambiarla.</span>
+        </div>
+        <div class="full us-acciones-extra" id="us-acciones-extra" hidden>
+          <button type="button" class="secondary small" id="us-blanquear">Blanquear contraseña</button>
+          <button type="button" class="secondary small" id="us-bloquear">Bloquear acceso</button>
+        </div>
+        <div class="full us-credenciales" id="us-credenciales" hidden></div>
+        <div class="full form-message" id="us-message" hidden></div>
+        <div class="full modal-actions" style="padding:0">
+          <button type="button" class="secondary" data-close-modal="us-modal">Cerrar</button>
+          <button type="submit" class="primary" id="us-guardar">Crear usuario</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="au-enc-modal" hidden>
     <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="au-enc-title">
@@ -2541,5 +2600,6 @@
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=78"></script>
   <script src="auditorias.js?v=12"></script>
+  <script src="usuarios.js?v=1"></script>
 </body>
 </html>

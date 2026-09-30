@@ -34,6 +34,7 @@ const views = {
   "px-plantillas": { title: "Plantillas", subtitle: "Párrafo legal de apertura del informe INFFC" },
   "au-auditorias": { title: "Expedientes", subtitle: "Auditoría Integral: orden, visitas, requerimiento, documentación e informe" },
   "au-plantilla": { title: "Planilla de requerimientos", subtitle: "Texto común a todas las Obras Sociales, con años automáticos" },
+  "usuarios": { title: "Usuarios", subtitle: "Alta de usuarios, perfiles, contraseñas y bloqueos (solo Administrador)" },
   "au-pendientes": { title: "Pendientes", subtitle: "Puntos del requerimiento que todavía no entregó cada Obra Social" }
 };
 
@@ -280,6 +281,8 @@ function perfilPuedeVerVista(perfil, vista) {
   const p = normalizarPerfilAcceso(perfil);
   const esAdministrador = ["administrador", "admin"].includes(p);
 
+  // Usuarios: exclusivo del perfil "Administrador".
+  if (id === "usuarios") return esAdministrador;
   // Urgencias Prestacionales: exclusivo del perfil "Administrador", ni siquiera "Admin Prestacional" entra.
   if (id.startsWith("up-")) return esAdministrador;
 
@@ -350,6 +353,7 @@ function aplicarPermisosNavegacion() {
   const esCartillaOs = p === "cartilla os";
 
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
+  document.querySelector('[data-nav-access="usuarios"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="cartilla-hub"]')?.toggleAttribute("hidden", !esCartillaOs);
   // "Prestadores" (Red actual): la propia Obra Social la edita en vivo; Admin Prestacional/
@@ -4254,6 +4258,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
   if (resolved.startsWith("au-") && typeof inicializarVistaAuditorias === "function") inicializarVistaAuditorias(resolved);
+  if (resolved === "usuarios" && typeof inicializarVistaUsuarios === "function") inicializarVistaUsuarios();
   if (resolved === "px-emp") {
     pxReporteDrill = null;
     if (!pxEmpReporteCargado) cargarYRenderizarPxEmp(); else renderPxEmp();
