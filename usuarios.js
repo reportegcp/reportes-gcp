@@ -33,6 +33,11 @@ function usGenerarPassword() {
   return out;
 }
 
+function usRnasOs(id) {
+  const o = (typeof obrasSocialesTodas !== "undefined" ? obrasSocialesTodas : []).find(x => String(x.id) === String(id));
+  return o ? (o.rnos || o.rnemp || "") : "";
+}
+
 function usEtiquetaOs(id) {
   for (const [et, osId] of usOsPorEtiqueta) if (String(osId) === String(id)) return et;
   return "";
@@ -83,16 +88,16 @@ function usFecha(iso) {
 
 function usRender() {
   const q = normalizar(document.getElementById("us-search").value || "");
-  const filas = usUsuarios.filter(u => !q || [u.nombre, u.email, u.perfil, usEtiquetaOs(u.obra_social_id)].some(v => normalizar(v).includes(q)));
+  const filas = usUsuarios.filter(u => !q || [u.nombre, u.email, u.perfil, usEtiquetaOs(u.obra_social_id), usRnasOs(u.obra_social_id)].some(v => normalizar(v).includes(q)));
   document.getElementById("us-table-body").innerHTML = filas.map(u => {
     const estado = u.bloqueado ? `<span class="us-pill bloqueado">Bloqueado</span>`
       : u.debe_cambiar_password ? `<span class="us-pill pendiente">Debe cambiar contraseña</span>`
       : `<span class="us-pill activo">Activo</span>`;
     return `<tr class="os-row" data-us-id="${u.id}" tabindex="0" role="button" title="Clic para editar">
-      <td><strong>${escaparHtml(u.nombre || "—")}</strong></td>
+      <td class="ellipsis-cell" style="max-width:320px" title="${escaparHtml(u.nombre || "")}"><strong>${escaparHtml(u.nombre || "—")}</strong></td>
       <td>${escaparHtml(u.email)}</td>
       <td>${escaparHtml(u.perfil || "Sin perfil")}${u.accesos && Object.keys(u.accesos).length ? ` <span class="us-pill personalizado" title="Tiene accesos distintos a los de su perfil">+ accesos</span>` : ""}</td>
-      <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(usEtiquetaOs(u.obra_social_id))}">${escaparHtml(u.obra_social_id ? usEtiquetaOs(u.obra_social_id) || `ID ${u.obra_social_id}` : "—")}</td>
+      <td title="${escaparHtml(usEtiquetaOs(u.obra_social_id))}">${escaparHtml(u.obra_social_id ? usRnasOs(u.obra_social_id) || `ID ${u.obra_social_id}` : "—")}</td>
       <td class="date-cell">${usFecha(u.ultimo_ingreso)}</td>
       <td>${estado}</td>
     </tr>`;
@@ -252,8 +257,17 @@ function usRenderAccesos() {
   const perfil = document.getElementById("us-perfil").value;
   const bloque = document.getElementById("us-accesos-bloque");
   const personalizable = perfil && !["Administrador", "Cartilla OS"].includes(perfil);
-  bloque.hidden = !personalizable;
-  if (!personalizable) return;
+  bloque.hidden = false;
+  document.getElementById("us-accesos-reset").hidden = !personalizable;
+  if (!personalizable) {
+    const aviso = !perfil
+      ? "Elegí primero el perfil: los módulos se tildan solos según el perfil y después agregás o quitás los que quieras."
+      : perfil === "Administrador"
+        ? "El perfil Administrador ve todos los módulos (incluido Usuarios); no se personaliza."
+        : "El perfil Cartilla OS ve solo la presentación de Cartilla de su Obra Social; no se personaliza.";
+    document.getElementById("us-accesos").innerHTML = `<div class="us-accesos-aviso">${aviso}</div>`;
+    return;
+  }
   usAccesos = usAccesosLimpios(perfil);
   const efectivo = v => Object.prototype.hasOwnProperty.call(usAccesos, v) ? usAccesos[v] : accesoPorDefectoPerfil(perfil, v);
   document.getElementById("us-accesos").innerHTML = MODULOS_ACCESO.map((m, i) => {

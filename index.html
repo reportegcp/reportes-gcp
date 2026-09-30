@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=90">
+  <link rel="stylesheet" href="styles.css?v=91">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -156,7 +156,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 137</span>
+        <span>Versión 138</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1686,14 +1686,14 @@
         <div class="toolbar">
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="us-search" type="search" placeholder="Buscar por nombre, correo, perfil u Obra Social..." autocomplete="off">
+            <input id="us-search" type="search" placeholder="Buscar por nombre, correo, perfil o RNAS..." autocomplete="off">
           </div>
         </div>
         <div class="table-card">
           <div class="table-meta"><strong id="us-count">Cargando usuarios...</strong></div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Nombre</th><th>Correo (usuario)</th><th>Perfil</th><th>Obra Social</th><th>Último ingreso</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Correo (usuario)</th><th>Perfil</th><th>RNAS</th><th>Último ingreso</th><th>Estado</th></tr></thead>
               <tbody id="us-table-body"></tbody>
             </table>
           </div>
@@ -2121,14 +2121,6 @@
         <label class="full"><span>Correo (es el usuario para ingresar) *</span><input id="us-email" type="email" required autocomplete="off"></label>
         <label class="full"><span>Perfil *</span><select id="us-perfil" required></select></label>
         <label class="full" id="us-os-label" hidden><span>Obra Social *</span><input id="us-os" list="us-os-datalist" placeholder="Escribí para buscar..." autocomplete="off"></label>
-        <div class="full" id="us-pass-bloque">
-          <span class="au-label">Contraseña inicial *</span>
-          <div class="us-pass-fila">
-            <input id="us-password" type="text" autocomplete="off" minlength="8">
-            <button type="button" class="secondary small" id="us-generar">Generar</button>
-          </div>
-          <span class="au-hint">Al primer ingreso el sistema le pide cambiarla.</span>
-        </div>
         <div class="full us-accesos" id="us-accesos-bloque" hidden>
           <div class="us-accesos-cab">
             <span class="au-label">Accesos a módulos</span>
@@ -2136,6 +2128,14 @@
           </div>
           <p class="au-hint" style="margin:0 0 8px">Tildado = lo ve en el menú. Lo resaltado es distinto de lo que trae su perfil.</p>
           <div id="us-accesos" class="us-accesos-grid"></div>
+        </div>
+        <div class="full" id="us-pass-bloque">
+          <span class="au-label">Contraseña inicial *</span>
+          <div class="us-pass-fila">
+            <input id="us-password" type="text" autocomplete="off" minlength="8">
+            <button type="button" class="secondary small" id="us-generar">Generar</button>
+          </div>
+          <span class="au-hint">Al primer ingreso el sistema le pide cambiarla.</span>
         </div>
         <div class="full us-acciones-extra" id="us-acciones-extra" hidden>
           <button type="button" class="secondary small" id="us-blanquear">Blanquear contraseña</button>
@@ -2609,6 +2609,6 @@
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=79"></script>
   <script src="auditorias.js?v=12"></script>
-  <script src="usuarios.js?v=3"></script>
+  <script src="usuarios.js?v=5"></script>
 </body>
 </html>

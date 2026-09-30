@@ -2084,3 +2084,5 @@ tr.fila-pendiente-revision:hover{background:#fbe6d1}
 .us-modulo-items{display:flex;flex-direction:column;gap:2px;margin:4px 0 0 18px}
 .us-modulo label.cambiado{background:#e8f0fb;color:#1d4f8f;font-weight:700}
 .us-pill.personalizado{background:#e8f0fb;color:#1d4f8f;font-size:11px}
+.us-accesos-aviso{grid-column:1/-1;background:#f7f9fc;border:1px dashed var(--line);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--muted)}
+#us-modal .modal{max-height:92vh;overflow:auto}
