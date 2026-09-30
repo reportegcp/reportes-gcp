@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=92">
+  <link rel="stylesheet" href="styles.css?v=93">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -156,7 +156,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 139</span>
+        <span>Versión 140</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1670,12 +1670,43 @@
           </div>
 
           <div class="table-card au-card au-paso" data-au-paso="5" hidden>
-            <div class="table-meta"><strong>Paso 5 · Observaciones y sugerencias</strong></div>
-            <p class="au-proximamente">En preparación: se van a proponer a partir de los hallazgos de cada eje y de los puntos no aportados.</p>
+            <div class="table-meta au-meta-flex">
+              <strong>Paso 5 · Observaciones y sugerencias</strong>
+              <span class="au-resumen" id="au-obs-resumen"></span>
+            </div>
+            <p class="au-hint" style="margin:12px 16px 0">Se proponen solas a partir de los hallazgos de cada eje, los puntos no aportados y las presentaciones de PMA y Cartilla. Cada observación lleva su sugerencia: podés escribirla o elegirla de la biblioteca.</p>
+            <div id="au-obs-lista" class="au-obs-lista" data-edicion-form></div>
+            <div class="au-obs-acciones">
+              <button type="button" class="secondary" id="au-obs-agregar" data-edicion>+ Agregar observación</button>
+              <button type="button" class="au-link" id="au-obs-proponer" data-edicion>Volver a proponer desde los hallazgos</button>
+            </div>
+            <div class="au-paso-pie">
+              <span class="au-guardado" id="au-obs-guardado"></span>
+              <button type="button" class="secondary" id="au-obs-guardar" data-edicion>Guardar</button>
+              <button type="button" class="primary" id="au-obs-continuar" data-edicion>Guardar y continuar →</button>
+            </div>
           </div>
+
           <div class="table-card au-card au-paso" data-au-paso="6" hidden>
-            <div class="table-meta"><strong>Paso 6 · Conclusión e informe en Word</strong></div>
-            <p class="au-proximamente">En preparación.</p>
+            <div class="table-meta au-meta-flex">
+              <strong>Paso 6 · Conclusión e informe en Word</strong>
+              <span class="au-resumen" id="au-conc-resumen"></span>
+            </div>
+            <div class="au-p3-cuerpo">
+              <span class="au-label">Conclusión general</span>
+              <textarea id="au-conclusion"></textarea>
+              <div class="au-informe-pie">
+                <button type="button" class="au-link" id="au-conc-proponer" data-edicion>Volver a proponer la conclusión</button>
+                <span class="au-guardado" id="au-conc-guardado"></span>
+                <button type="button" class="secondary" id="au-conc-guardar" data-edicion>Guardar</button>
+              </div>
+              <div class="au-pendientes-blanco" id="au-blancos"></div>
+            </div>
+            <div class="au-paso-pie">
+              <span class="au-hint" id="au-emitido-estado"></span>
+              <button type="button" class="secondary" id="au-marcar-emitido" data-edicion>Marcar informe como emitido</button>
+              <button type="button" class="primary" id="au-word">Descargar informe (Word)</button>
+            </div>
           </div>
         </div>
       </section>
@@ -2609,7 +2640,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=80"></script>
-  <script src="auditorias.js?v=13"></script>
+  <script src="auditorias.js?v=14"></script>
   <script src="usuarios.js?v=6"></script>
 </body>
 </html>

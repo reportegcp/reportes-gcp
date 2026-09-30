@@ -190,7 +190,15 @@ function auVincularEventos() {
   on("au-tab-cerradas", "click", () => auCambiarTab("cerradas"));
   on("au-search", "input", auRenderLista);
   on("au-nueva-form", "submit", auCrearAuditoria);
-  on("au-volver", "click", async () => { await auGuardarEjeSiHayCambios(); await auGuardarPunto3SiHayCambios(); auMostrarLista(); auCargarLista(); });
+  on("au-volver", "click", async () => { await auGuardarEjeSiHayCambios(); await auGuardarPunto3SiHayCambios(); await auGuardarObservacionesSiHayCambios(); await auGuardarConclusionSiHayCambios(); auMostrarLista(); auCargarLista(); });
+  on("au-obs-agregar", "click", () => { auLeerObsDelDom(); auObs.push({ eje: "", texto: "", sugerencia: "" }); auObsSucio = true; auRenderObs(); });
+  on("au-obs-proponer", "click", auReproponerObservaciones);
+  on("au-obs-guardar", "click", () => auGuardarObservaciones(false));
+  on("au-obs-continuar", "click", () => auGuardarObservaciones(true));
+  on("au-conc-proponer", "click", auReproponerConclusion);
+  on("au-conc-guardar", "click", () => auGuardarConclusion(true));
+  on("au-marcar-emitido", "click", auMarcarEmitido);
+  on("au-word", "click", auDescargarWord);
   on("au-form", "submit", auGuardarDatos);
   on("au-eliminar", "click", auEliminarAuditoria);
   on("au-orden-subir", "click", auSubirOrden);
@@ -386,6 +394,8 @@ async function auAbrirDetalle(id) {
     window.scrollTo({ top: 0 });
     if (auPasoActivo === 3) auAbrirPaso3();
     if (auPasoActivo === 4) auAbrirInforme();
+    if (auPasoActivo === 5) auAbrirObservaciones();
+    if (auPasoActivo === 6) auAbrirConclusion();
   } catch (error) {
     mostrarToast(error.message || "No se pudo abrir la auditoría.", "error");
   }
@@ -1106,6 +1116,8 @@ function auPasoCompleto(n) {
   if (n === 2) return !!a.requerimiento_entregado;
   if (n === 3) return !!a.documentacion_completa;
   if (n === 4) return Object.keys(AU_EJES).every(e => auEjes[e]?.hallazgo);
+  if (n === 5) return !!a.observaciones_listas;
+  if (n === 6) return ["Informe emitido", "Cerrada"].includes(a.estado);
   return false;
 }
 
@@ -1149,11 +1161,15 @@ function auRenderPasos() {
 async function auIrAPaso(n) {
   if (auPasoActivo === 4 && n !== 4) await auGuardarEjeSiHayCambios();
   if (auPasoActivo === 3 && n !== 3) await auGuardarPunto3SiHayCambios();
+  if (auPasoActivo === 5 && n !== 5) await auGuardarObservacionesSiHayCambios();
+  if (auPasoActivo === 6 && n !== 6) await auGuardarConclusionSiHayCambios();
   auPasoActivo = n;
   auRenderPasos();
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (n === 3) auAbrirPaso3();
   if (n === 4) auAbrirInforme();
+  if (n === 5) auAbrirObservaciones();
+  if (n === 6) auAbrirConclusion();
 }
 
 async function auPatchAuditoria(cambios) {
@@ -1313,6 +1329,13 @@ function auTextoEjercicioOs() {
   const inicio = `2001-${ini[2].padStart(2, "0")}-${ini[1].padStart(2, "0")}`;
   const fin = auFinEjercicio(inicio);
   return `${inicio.slice(8, 10)}/${inicio.slice(5, 7)} – ${fin.slice(8, 10)}/${fin.slice(5, 7)}`;
+}
+
+async function auDatosPresentacion(tabla, anio) {
+  const filas = await auFetch(tabla, { params: { obra_social_id: `eq.${auActual.obra_social_id}`, select: "anio_inicio,fecha_inicio_ejercicio,numero_ee,fecha_ingreso,numero_disposicion,fecha_disposicion,condicion", order: "anio_inicio.desc" } }) || [];
+  const r = filas.find(f => Number(f.anio_inicio) === anio) || null;
+  const extemporanea = !!(r?.fecha_inicio_ejercicio && r?.fecha_ingreso && r.fecha_ingreso > auSumarDias(r.fecha_inicio_ejercicio, -90));
+  return { existe: !!r, extemporanea };
 }
 
 async function auParrafoPresentacion(tabla, anio) {
@@ -1524,8 +1547,9 @@ async function auGuardarEje(seguir) {
         await auCargarEjeEnEditor(siguiente);
         window.scrollTo({ top: document.getElementById("au-ejes-tabs").getBoundingClientRect().top + window.scrollY - 90, behavior: "smooth" });
       } else if (auPasoCompleto(4)) {
-        mostrarToast("Informe por ejes terminado. El paso 5 ya está habilitado.");
+        mostrarToast("Informe por ejes terminado. Seguimos con las observaciones.");
         auRenderPasos();
+        auIrAPaso(5);
       } else {
         const falta = Object.keys(AU_EJES).find(k => !auEjes[k]?.hallazgo);
         mostrarToast(`Falta el hallazgo del eje ${falta}.`, "error");
@@ -1753,4 +1777,562 @@ function auVincularComboPendientes() {
     auRenderPendientes();
     input.focus();
   });
+}
+
+// ---------------- Paso 5: observaciones y sugerencias ----------------
+
+let auObs = [];
+let auObsSucio = false;
+let auBiblioteca = [];
+
+const AU_EJES_INFORME = {
+  A: "ESTRUCTURA ORGANIZACIONAL Y ACCESO A LAS PRESTACIONES",
+  B: "POBLACIÓN BENEFICIARIA",
+  C: "ESTRUCTURA PRESTACIONAL",
+  D: "GESTIÓN PRESTACIONAL Y AUDITORÍA MÉDICA",
+  E: "PROGRAMAS PREVENTIVOS",
+  F: "CUMPLIMIENTO NORMATIVO"
+};
+
+function auListaNumeros(nums) {
+  if (nums.length <= 1) return nums.join("");
+  return `${nums.slice(0, -1).join(", ")} y ${nums[nums.length - 1]}`;
+}
+
+function auBuscarBiblioteca(titulo) {
+  return auBiblioteca.find(b => b.titulo === titulo) || null;
+}
+
+async function auProponerObservaciones() {
+  const anio = auAnioAuditoria(auActual);
+  const obs = [];
+  const usadosF = new Set();
+  // PMA y Cartilla, según lo registrado en Reportes GCP
+  for (const [tabla, nombre, clave] of [["pma", "Programa Médico Asistencial", "PMA extemporáneo"], ["cartillas", "Cartilla Médico Asistencial", "Cartilla extemporánea"]]) {
+    try {
+      const d = await auDatosPresentacion(tabla, anio);
+      if (!d.existe) {
+        obs.push({ eje: "F", texto: `No se registra la presentación ${tabla === "pma" ? "del" : "de la"} ${nombre} correspondiente al ejercicio ${anio}.`, sugerencia: `Regularizar la presentación ${tabla === "pma" ? "del" : "de la"} ${nombre} conforme a la normativa vigente.` });
+        usadosF.add(tabla);
+      } else if (d.extemporanea) {
+        const b = auBuscarBiblioteca(clave);
+        obs.push({ eje: "F", texto: b?.texto_observacion || `${nombre} presentado en forma extemporánea.`, sugerencia: b?.texto_sugerencia || "____" });
+        usadosF.add(tabla);
+      }
+    } catch (error) { console.error(error); }
+  }
+  // Ejes con hallazgo distinto de "Cumple"
+  for (const [eje, nombre] of Object.entries(AU_EJES)) {
+    const h = auEjes[eje]?.hallazgo;
+    if (!h || h === "Cumple" || h === "No aportado") continue;
+    if (eje === "F" && usadosF.size) continue;
+    obs.push({ eje, texto: `En relación con ${nombre.toLowerCase()}, se observó que ____.`, sugerencia: "____" });
+  }
+  // Puntos no aportados y parciales
+  const noAport = auPuntos.filter(p => p.estado === "No aportado").map(p => p.numero);
+  const parciales = auPuntos.filter(p => p.estado === "Parcial").map(p => p.numero);
+  if (noAport.length) {
+    const b = auBuscarBiblioteca("Documentación no aportada");
+    obs.push({ eje: "", texto: `El Agente del Seguro de Salud no aportó la documentación requerida en ${noAport.length === 1 ? "el punto" : "los puntos"} ${auListaNumeros(noAport)} del Requerimiento.`, sugerencia: b?.texto_sugerencia || "Remitir la documentación pendiente del Requerimiento a fin de completar la evaluación." });
+  }
+  if (parciales.length) {
+    obs.push({ eje: "", texto: `La documentación correspondiente ${parciales.length === 1 ? "al punto" : "a los puntos"} ${auListaNumeros(parciales)} del Requerimiento fue aportada en forma parcial.`, sugerencia: "Completar la documentación de los puntos indicados a fin de permitir su evaluación integral." });
+  }
+  return obs;
+}
+
+async function auAbrirObservaciones() {
+  document.getElementById("au-obs-guardado").textContent = "Cargando...";
+  try {
+    const [obs, bib] = await Promise.all([
+      auFetch("auditoria_observaciones", { params: { auditoria_id: `eq.${auActual.id}`, order: "orden.asc" } }),
+      auFetch("auditoria_sugerencias_biblioteca", { params: { order: "eje.asc.nullslast,titulo.asc" } })
+    ]);
+    auBiblioteca = bib || [];
+    auObs = (obs || []).map(o => ({ eje: o.eje || "", texto: o.texto, sugerencia: o.sugerencia || "" }));
+    auObsSucio = false;
+    if (!auObs.length && !auActual.observaciones_listas && !soloLecturaActiva()) {
+      auObs = await auProponerObservaciones();
+      auObsSucio = auObs.length > 0;
+      document.getElementById("au-obs-guardado").textContent = auObs.length ? "Propuestas desde los hallazgos, sin guardar" : "";
+    } else {
+      document.getElementById("au-obs-guardado").textContent = auObs.length ? "Guardado" : "";
+    }
+    auRenderObs();
+  } catch (error) {
+    document.getElementById("au-obs-guardado").textContent = "";
+    mostrarToast(error.message || "No se pudieron cargar las observaciones.", "error");
+  }
+}
+
+function auRenderObs() {
+  const cont = document.getElementById("au-obs-lista");
+  document.getElementById("au-obs-resumen").textContent = `${auObs.length} observacion${auObs.length === 1 ? "" : "es"}`;
+  if (!auObs.length) {
+    cont.innerHTML = `<div class="au-pend-inicio">No hay observaciones. Si el Agente cumple en todos los ejes, podés continuar sin observaciones; si no, agregalas con "+ Agregar observación".</div>`;
+    return;
+  }
+  const opcionesEje = eje => `<option value="" ${!eje ? "selected" : ""}>General</option>` + Object.entries(AU_EJES).map(([k, v]) => `<option value="${k}" ${eje === k ? "selected" : ""}>${k} · ${escaparHtml(v)}</option>`).join("");
+  cont.innerHTML = auObs.map((o, i) => {
+    const bib = auBiblioteca.filter(b => !o.eje || !b.eje || b.eje === o.eje);
+    return `<div class="au-obs" data-au-obs="${i}">
+      <div class="au-obs-cab">
+        <span class="au-p3-titulo-num">Observación ${i + 1}</span>
+        <select data-au-obs-eje>${opcionesEje(o.eje)}</select>
+        <span class="au-obs-mover">
+          <button type="button" class="au-link" data-au-obs-mover="-1" ${i === 0 ? "disabled" : ""} title="Subir">↑</button>
+          <button type="button" class="au-link" data-au-obs-mover="1" ${i === auObs.length - 1 ? "disabled" : ""} title="Bajar">↓</button>
+          <button type="button" class="au-link au-link-danger" data-au-obs-quitar>Quitar</button>
+        </span>
+      </div>
+      <textarea data-au-obs-texto rows="3" placeholder="Qué se observó">${escaparHtml(o.texto)}</textarea>
+      <div class="au-obs-sug-cab">
+        <span class="au-label" style="margin:0">Sugerencia</span>
+        <select data-au-obs-bib><option value="">Elegir de la biblioteca...</option>${bib.map(b => `<option value="${b.id}">${escaparHtml(b.titulo)}</option>`).join("")}</select>
+        <button type="button" class="au-link" data-au-obs-guardar-bib title="Guardar esta observación y su sugerencia en la biblioteca">Guardar en la biblioteca</button>
+      </div>
+      <textarea data-au-obs-sug rows="2" placeholder="Qué se sugiere">${escaparHtml(o.sugerencia)}</textarea>
+    </div>`;
+  }).join("");
+  cont.querySelectorAll("[data-au-obs]").forEach(card => {
+    const i = Number(card.dataset.auObs);
+    card.querySelectorAll("textarea, [data-au-obs-eje]").forEach(el => el.addEventListener("input", () => { auObsSucio = true; document.getElementById("au-obs-guardado").textContent = "Cambios sin guardar"; }));
+    card.querySelector("[data-au-obs-eje]").addEventListener("change", () => { auLeerObsDelDom(); auObsSucio = true; auRenderObs(); });
+    card.querySelectorAll("[data-au-obs-mover]").forEach(b => b.addEventListener("click", () => {
+      auLeerObsDelDom();
+      const d = i + Number(b.dataset.auObsMover);
+      [auObs[i], auObs[d]] = [auObs[d], auObs[i]];
+      auObsSucio = true; auRenderObs();
+    }));
+    card.querySelector("[data-au-obs-quitar]").addEventListener("click", () => { auLeerObsDelDom(); auObs.splice(i, 1); auObsSucio = true; auRenderObs(); });
+    card.querySelector("[data-au-obs-bib]").addEventListener("change", e => {
+      const b = auBiblioteca.find(x => x.id === e.target.value);
+      if (!b) return;
+      auLeerObsDelDom();
+      const o = auObs[i];
+      o.sugerencia = b.texto_sugerencia;
+      if (!o.texto.trim() || /_{4,}/.test(o.texto)) o.texto = b.texto_observacion || o.texto;
+      if (!o.eje && b.eje) o.eje = b.eje;
+      auObsSucio = true; auRenderObs();
+    });
+    card.querySelector("[data-au-obs-guardar-bib]").addEventListener("click", () => auGuardarEnBiblioteca(i));
+  });
+}
+
+function auLeerObsDelDom() {
+  document.querySelectorAll("#au-obs-lista [data-au-obs]").forEach(card => {
+    const o = auObs[Number(card.dataset.auObs)];
+    if (!o) return;
+    o.eje = card.querySelector("[data-au-obs-eje]").value;
+    o.texto = card.querySelector("[data-au-obs-texto]").value;
+    o.sugerencia = card.querySelector("[data-au-obs-sug]").value;
+  });
+}
+
+async function auGuardarEnBiblioteca(i) {
+  auLeerObsDelDom();
+  const o = auObs[i];
+  if (!o.sugerencia.trim() || /_{4,}/.test(o.sugerencia)) return mostrarToast("Completá la sugerencia antes de guardarla en la biblioteca.", "error");
+  const titulo = window.prompt("Nombre corto para encontrarla en la biblioteca (por ejemplo: \"Sin padrón de programas preventivos\"):", "");
+  if (!titulo || !titulo.trim()) return;
+  try {
+    const [nuevo] = await auFetch("auditoria_sugerencias_biblioteca", { method: "POST", prefer: "return=representation", body: { eje: o.eje || null, titulo: titulo.trim(), texto_observacion: /_{4,}/.test(o.texto) ? null : o.texto, texto_sugerencia: o.sugerencia } });
+    auBiblioteca.push(nuevo);
+    auRenderObs();
+    mostrarToast("Guardada en la biblioteca.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar en la biblioteca.", "error");
+  }
+}
+
+async function auReproponerObservaciones() {
+  const ok = await mostrarConfirmacion("¿Reemplazar las observaciones actuales por las que surgen de los hallazgos? Lo que escribiste se pierde cuando guardes.", { titulo: "Volver a proponer", textoAceptar: "Reemplazar" });
+  if (!ok) return;
+  auObs = await auProponerObservaciones();
+  auObsSucio = true;
+  document.getElementById("au-obs-guardado").textContent = "Propuestas desde los hallazgos, sin guardar";
+  auRenderObs();
+}
+
+async function auPersistirObservaciones() {
+  auLeerObsDelDom();
+  const limpias = auObs.filter(o => o.texto.trim());
+  await auFetch("auditoria_observaciones", { method: "DELETE", params: { auditoria_id: `eq.${auActual.id}` } });
+  if (limpias.length) {
+    await auFetch("auditoria_observaciones", { method: "POST", body: limpias.map((o, i) => ({ auditoria_id: auActual.id, orden: i + 1, eje: o.eje || null, texto: o.texto.trim(), sugerencia: o.sugerencia.trim() || null })) });
+  }
+  auObs = limpias;
+  auObsSucio = false;
+}
+
+async function auGuardarObservaciones(continuar) {
+  const botones = ["au-obs-guardar", "au-obs-continuar"].map(id => document.getElementById(id));
+  try {
+    botones.forEach(b => { b.disabled = true; });
+    await auPersistirObservaciones();
+    document.getElementById("au-obs-guardado").textContent = "Guardado";
+    if (continuar) {
+      if (!auActual.observaciones_listas) await auPatchAuditoria({ observaciones_listas: true });
+      auRenderPasos();
+      auIrAPaso(6);
+    } else {
+      auRenderObs();
+      mostrarToast("Observaciones guardadas.");
+    }
+  } catch (error) {
+    mostrarToast(error.message || "No se pudieron guardar las observaciones.", "error");
+  } finally {
+    botones.forEach(b => { b.disabled = false; });
+  }
+}
+
+async function auGuardarObservacionesSiHayCambios() {
+  if (!auObsSucio || auPasoActivo !== 5 || soloLecturaActiva()) return;
+  try { await auPersistirObservaciones(); mostrarToast("Observaciones guardadas."); }
+  catch (error) { mostrarToast(`No se pudieron guardar las observaciones. ${error.message || ""}`, "error"); }
+}
+
+// ---------------- Paso 6: conclusión e informe ----------------
+
+let auEditorConclusion = null;
+
+const AU_FRASES_CUMPLE = {
+  A: "una estructura médico-prestacional organizada, con circuitos definidos de acceso y autorización de prestaciones",
+  B: "información consistente de su población beneficiaria",
+  C: "una red prestacional con cobertura en su ámbito de actuación",
+  D: "mecanismos de auditoría médica y trazabilidad de las prestaciones",
+  E: "programas preventivos y acciones de promoción de la salud",
+  F: "el cumplimiento de las presentaciones normativas exigidas"
+};
+
+function auUnirFrases(frases) {
+  if (frases.length <= 1) return frases.join("");
+  return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
+}
+
+function auProponerConclusion() {
+  const os = auActual.obras_sociales?.denominacion || "la Obra Social";
+  const cumple = Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo === "Cumple");
+  const noCumple = Object.keys(AU_EJES).filter(e => ["No cumple", "Cumple parcialmente", "No aportado"].includes(auEjes[e]?.hallazgo));
+  const noAport = auPuntos.filter(p => p.estado === "No aportado").map(p => p.numero);
+  const partes = [];
+  partes.push(`<p>Del análisis de la documentación aportada y de las verificaciones realizadas en el marco de la auditoría integral a la ${escaparHtml(os)}, surge que el Agente del Seguro de Salud ${cumple.length ? `cuenta con ${auUnirFrases(cumple.map(e => AU_FRASES_CUMPLE[e]))}` : "presenta aspectos a regularizar en los distintos ejes evaluados"}.</p>`);
+  if (noCumple.length || noAport.length) {
+    const temas = noCumple.map(e => AU_EJES[e].toLowerCase());
+    let texto = "No obstante, se identificaron incumplimientos y aspectos a fortalecer";
+    if (temas.length) texto += ` vinculados con ${auUnirFrases(temas)}`;
+    if (noAport.length) texto += `${temas.length ? ", así como" : ", en particular"} la falta de aporte de la documentación correspondiente a ${noAport.length === 1 ? "el punto" : "los puntos"} ${auListaNumeros(noAport)} del Requerimiento`;
+    partes.push(`<p>${texto}, conforme se detalla en el apartado de Observaciones.</p>`);
+  }
+  partes.push(`<p>En consecuencia, se formulan las sugerencias detalladas precedentemente, cuya implementación permitirá al Agente del Seguro de Salud fortalecer la gestión prestacional y garantizar el acceso efectivo de sus beneficiarios a las prestaciones, conforme a la normativa vigente.</p>`);
+  return partes.join("");
+}
+
+async function auAbrirConclusion() {
+  const estado = document.getElementById("au-conc-guardado");
+  estado.textContent = "Cargando editor...";
+  try {
+    if (!auObs.length) {
+      const obs = await auFetch("auditoria_observaciones", { params: { auditoria_id: `eq.${auActual.id}`, order: "orden.asc" } });
+      auObs = (obs || []).map(o => ({ eje: o.eje || "", texto: o.texto, sugerencia: o.sugerencia || "" }));
+    }
+    if (!auEditorConclusion) auEditorConclusion = await auCrearEditor("#au-conclusion", 360, "au-conc-guardado");
+    auEditorConclusion.mode.set(soloLecturaActiva() ? "readonly" : "design");
+    const propuesta = !auActual.conclusion_html;
+    auEditorConclusion.setContent(auActual.conclusion_html || auProponerConclusion());
+    auEditorConclusion.undoManager.clear();
+    auEditorConclusion.setDirty(propuesta && !soloLecturaActiva());
+    estado.textContent = propuesta ? "Conclusión propuesta, sin guardar" : "Guardado";
+    auRenderEstadoInforme();
+  } catch (error) {
+    estado.textContent = "";
+    mostrarToast(`No se pudo cargar el editor. ${error.message || ""}`, "error");
+  }
+}
+
+function auContarBlancos(html) {
+  return (String(html || "").match(/_{4,}/g) || []).length;
+}
+
+function auRenderEstadoInforme() {
+  const detalle = [];
+  const puntosConBlancos = auPuntos.filter(p => auContarBlancos(p.respuesta_html)).map(p => p.numero);
+  Object.keys(AU_EJES).forEach(e => { const n = auContarBlancos(auEjes[e]?.analisis_html); if (n) detalle.push(`eje ${e}: ${n}`); });
+  const nObs = auObs.reduce((t, o) => t + auContarBlancos(o.texto) + auContarBlancos(o.sugerencia), 0);
+  if (nObs) detalle.push(`observaciones: ${nObs}`);
+  const nConc = auEditorConclusion ? auContarBlancos(auEditorConclusion.getContent()) : 0;
+  if (nConc) detalle.push(`conclusión: ${nConc}`);
+  const caja = document.getElementById("au-blancos");
+  caja.innerHTML = detalle.length
+    ? `⚠ Quedan espacios "____" sin completar en el informe (${escaparHtml(detalle.join(" · "))}). Podés descargarlo igual y completarlos en Word.`
+    : "✓ No quedan espacios \"____\" sin completar en el informe.";
+  caja.classList.toggle("ok", !detalle.length);
+  const emitido = ["Informe emitido", "Cerrada"].includes(auActual.estado);
+  document.getElementById("au-emitido-estado").textContent = emitido ? `Estado: ${auActual.estado}.` : "Cuando lo subas a GDE, marcalo como emitido.";
+  document.getElementById("au-marcar-emitido").hidden = emitido;
+  document.getElementById("au-conc-resumen").textContent = `${auObs.length} observacion${auObs.length === 1 ? "" : "es"} · ${Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo).length} ejes analizados`;
+}
+
+async function auGuardarConclusion(avisar) {
+  if (!auEditorConclusion || soloLecturaActiva()) return;
+  try {
+    await auPatchAuditoria({ conclusion_html: auEditorConclusion.getContent() });
+    auEditorConclusion.setDirty(false);
+    document.getElementById("au-conc-guardado").textContent = "Guardado";
+    auRenderEstadoInforme();
+    if (avisar) mostrarToast("Conclusión guardada.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo guardar la conclusión.", "error");
+  }
+}
+
+async function auGuardarConclusionSiHayCambios() {
+  if (!auEditorConclusion || auPasoActivo !== 6 || soloLecturaActiva() || !auEditorConclusion.isDirty()) return;
+  await auGuardarConclusion(true);
+}
+
+async function auReproponerConclusion() {
+  const ok = await mostrarConfirmacion("¿Reemplazar la conclusión por la propuesta según los hallazgos y observaciones?", { titulo: "Volver a proponer", textoAceptar: "Reemplazar" });
+  if (!ok || !auEditorConclusion) return;
+  auEditorConclusion.setContent(auProponerConclusion());
+  auEditorConclusion.setDirty(true);
+  document.getElementById("au-conc-guardado").textContent = "Cambios sin guardar";
+  auRenderEstadoInforme();
+}
+
+async function auMarcarEmitido() {
+  const ok = await mostrarConfirmacion("¿Marcar el informe como emitido? La auditoría queda en estado \"Informe emitido\" (después podés cerrarla desde el paso 1).", { titulo: "Informe emitido", textoAceptar: "Marcar como emitido" });
+  if (!ok) return;
+  try {
+    await auGuardarConclusionSiHayCambios();
+    await auPatchAuditoria({ estado: "Informe emitido" });
+    auRenderPasos();
+    auRenderEstadoInforme();
+    mostrarToast("Informe marcado como emitido.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo marcar.", "error");
+  }
+}
+
+// ---------------- Word ----------------
+
+const AU_DOCX_ANCHO_MAX = 600; // px (ancho útil de la hoja)
+
+function auDocxRuns(nodo, formato = {}) {
+  const { TextRun, ImageRun } = window.docx;
+  const runs = [];
+  nodo.childNodes.forEach(n => {
+    if (n.nodeType === 3) {
+      const texto = n.textContent.replace(/\s+/g, " ");
+      if (texto) runs.push(new TextRun({ text: texto, bold: !!formato.bold, italics: !!formato.italics, underline: formato.underline ? {} : undefined, size: 22, font: "Calibri" }));
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    const tag = n.tagName.toLowerCase();
+    if (tag === "br") { runs.push(new TextRun({ break: 1 })); return; }
+    if (tag === "img") { const img = auDocxImagenRun(n); if (img) runs.push(img); return; }
+    const estilo = (n.getAttribute("style") || "").toLowerCase();
+    const f = { ...formato };
+    if (["strong", "b"].includes(tag) || /font-weight:\s*(bold|[6-9]00)/.test(estilo)) f.bold = true;
+    if (["em", "i"].includes(tag) || /font-style:\s*italic/.test(estilo)) f.italics = true;
+    if (tag === "u" || /text-decoration:[^;]*underline/.test(estilo)) f.underline = true;
+    runs.push(...auDocxRuns(n, f));
+  });
+  return runs;
+}
+
+function auDocxImagenRun(img) {
+  const { ImageRun } = window.docx;
+  const src = img.getAttribute("src") || "";
+  if (!src.startsWith("data:image")) return null;
+  const estilo = img.getAttribute("style") || "";
+  let w = Number(img.getAttribute("width")) || Number((estilo.match(/width:\s*(\d+)px/) || [])[1]) || Number(img.dataset.nw) || 400;
+  let h = Number(img.getAttribute("height")) || Number((estilo.match(/height:\s*(\d+)px/) || [])[1]) || 0;
+  const nw = Number(img.dataset.nw), nh = Number(img.dataset.nh);
+  if (!h && nw && nh) h = Math.round(w * nh / nw);
+  if (!h) h = Math.round(w * 0.6);
+  if (w > AU_DOCX_ANCHO_MAX) { h = Math.round(h * AU_DOCX_ANCHO_MAX / w); w = AU_DOCX_ANCHO_MAX; }
+  try {
+    return new ImageRun({ data: dataUrlABytes(src), transformation: { width: w, height: h } });
+  } catch (error) {
+    console.error("Imagen no incluida en el Word", error);
+    return null;
+  }
+}
+
+function auDocxAlineacion(el) {
+  const { AlignmentType } = window.docx;
+  const estilo = (el.getAttribute("style") || "").toLowerCase();
+  const img = el.tagName === "IMG" ? el : el.querySelector(":scope > img");
+  const eImg = (img?.getAttribute("style") || "").toLowerCase();
+  if (/float:\s*right/.test(eImg) || /text-align:\s*right/.test(estilo)) return AlignmentType.RIGHT;
+  if (/margin-left:\s*auto/.test(eImg) || /display:\s*block/.test(eImg) && /margin-right:\s*auto/.test(eImg) || /text-align:\s*center/.test(estilo)) return AlignmentType.CENTER;
+  if (/text-align:\s*justify/.test(estilo)) return AlignmentType.JUSTIFIED;
+  return AlignmentType.JUSTIFIED;
+}
+
+function auDocxBloques(html) {
+  const { Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle } = window.docx;
+  const cont = document.createElement("div");
+  cont.innerHTML = html || "";
+  const out = [];
+  const parrafo = (el, extra = {}) => new Paragraph({ alignment: auDocxAlineacion(el), spacing: { after: 120, line: 276, lineRule: window.docx.LineRuleType.AUTO }, children: auDocxRuns(el), ...extra });
+  const recorrer = (nodo, nivelLista = 0) => {
+    nodo.childNodes.forEach(n => {
+      if (n.nodeType === 3) {
+        if (n.textContent.trim()) out.push(new Paragraph({ spacing: { after: 120 }, children: auDocxRuns({ childNodes: [n] }) }));
+        return;
+      }
+      if (n.nodeType !== 1) return;
+      const tag = n.tagName.toLowerCase();
+      if (["p", "div", "h1", "h2", "h3", "h4", "h5", "h6"].includes(tag)) {
+        if (n.querySelector(":scope > table, :scope > ul, :scope > ol, :scope > p")) { recorrer(n, nivelLista); return; }
+        if (!n.textContent.trim() && !n.querySelector("img")) return;
+        out.push(parrafo(n, tag.startsWith("h") ? { keepNext: true, children: auDocxRuns(n, { bold: true }) } : {}));
+      } else if (tag === "img") {
+        const run = auDocxImagenRun(n);
+        if (run) out.push(new Paragraph({ alignment: auDocxAlineacion(n), spacing: { after: 120 }, children: [run] }));
+      } else if (tag === "ul" || tag === "ol") {
+        let k = 0;
+        n.querySelectorAll(":scope > li").forEach(li => {
+          k++;
+          const sub = [...li.children].filter(c => ["ul", "ol"].includes(c.tagName.toLowerCase()));
+          const clon = li.cloneNode(true);
+          clon.querySelectorAll(":scope > ul, :scope > ol").forEach(x => x.remove());
+          const runs = auDocxRuns(clon);
+          out.push(tag === "ul"
+            ? new Paragraph({ bullet: { level: Math.min(nivelLista, 8) }, spacing: { after: 60 }, children: runs })
+            : new Paragraph({ indent: { left: 360 * (nivelLista + 1), hanging: 360 }, spacing: { after: 60 }, children: [new window.docx.TextRun({ text: `${k}. `, size: 22, font: "Calibri" }), ...runs] }));
+          sub.forEach(s => recorrer({ childNodes: [s] }, nivelLista + 1));
+        });
+      } else if (tag === "table") {
+        const filas = [...n.querySelectorAll("tr")];
+        if (!filas.length) return;
+        const borde = { style: BorderStyle.SINGLE, size: 4, color: "999999" };
+        out.push(new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: filas.map(tr => new TableRow({
+            children: [...tr.children].map(td => new TableCell({
+              borders: { top: borde, bottom: borde, left: borde, right: borde },
+              children: [new Paragraph({ children: auDocxRuns(td, { bold: td.tagName === "TH" }) })]
+            }))
+          }))
+        }));
+        out.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+      } else {
+        const runs = auDocxRuns(n);
+        if (runs.length) out.push(new Paragraph({ spacing: { after: 120 }, children: runs }));
+      }
+    });
+  };
+  recorrer(cont);
+  return out;
+}
+
+async function auPrepararImagenes(html) {
+  // Guarda el tamaño natural de cada imagen para respetar proporciones en el Word.
+  const cont = document.createElement("div");
+  cont.innerHTML = html || "";
+  for (const img of cont.querySelectorAll("img")) {
+    const src = img.getAttribute("src") || "";
+    if (!src.startsWith("data:image")) continue;
+    const d = await obtenerDimensionesImagen(src);
+    img.dataset.nw = d.width; img.dataset.nh = d.height;
+    if (!img.getAttribute("width") && !/width:\s*\d+px/.test(img.getAttribute("style") || "")) img.setAttribute("width", String(Math.min(d.width, AU_DOCX_ANCHO_MAX)));
+  }
+  return cont.innerHTML;
+}
+
+async function auDescargarWord() {
+  const boton = document.getElementById("au-word");
+  try {
+    boton.disabled = true;
+    boton.textContent = "Armando el informe...";
+    await auGuardarConclusionSiHayCambios();
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType } = window.docx;
+    const textos = await auCargarTextosPlantilla();
+    const [ejesFrescos, obsFrescas, docsFrescos] = await Promise.all([
+      auFetch("auditoria_ejes", { params: { auditoria_id: `eq.${auActual.id}` } }),
+      auFetch("auditoria_observaciones", { params: { auditoria_id: `eq.${auActual.id}`, order: "orden.asc" } }),
+      auFetch("auditoria_documentos", { params: { auditoria_id: `eq.${auActual.id}`, order: "fecha_recepcion.asc.nullslast" } })
+    ]);
+    (ejesFrescos || []).forEach(e => { auEjes[e.eje] = e; });
+    const obs = obsFrescas || [];
+    const docs = docsFrescos || [];
+    const a = auActual, os = a.obras_sociales || {};
+    const anio = auAnioAuditoria(a);
+    const T = (texto, o = {}) => new TextRun({ text: texto, size: 22, font: "Calibri", ...o });
+    const P = (children, o = {}) => new Paragraph({ spacing: { after: 120, line: 276, lineRule: window.docx.LineRuleType.AUTO }, alignment: AlignmentType.JUSTIFIED, children, ...o });
+    const titulo = texto => new Paragraph({ spacing: { before: 240, after: 120 }, keepNext: true, children: [T(texto, { bold: true, size: 24, color: "1F3864" })] });
+    const hijos = [];
+
+    hijos.push(P([T("Ref.: ", { bold: true }), T(os.denominacion || "", { bold: true })], { alignment: AlignmentType.LEFT, spacing: { after: 60 } }));
+    hijos.push(P([T("RNAS: ", { bold: true }), T(auFormatearRnas(os.rnos), { bold: true })], { alignment: AlignmentType.LEFT, spacing: { after: 60 } }));
+    hijos.push(P([T("Expediente: ", { bold: true }), T(a.numero_ex || "")], { alignment: AlignmentType.LEFT, spacing: { after: 200 } }));
+    hijos.push(P([T(a.numero_if_orden
+      ? `Visto lo indicado por ${a.numero_if_orden}, desde la Gerencia de Control Prestacional (GCP), se llevaron a cabo las acciones de auditoría colegiada conforme lo detallado a continuación.`
+      : `Visto lo actuado en el expediente ${a.numero_ex}, desde la Gerencia de Control Prestacional (GCP), se llevaron a cabo las acciones de auditoría colegiada conforme lo detallado a continuación.`)]));
+
+    hijos.push(titulo("OBJETO"));
+    hijos.push(P([T(textos.inf_objeto || "")]));
+    hijos.push(titulo("ALCANCE"));
+    hijos.push(P([T(textos.inf_alcance || "")]));
+    hijos.push(titulo("INTRODUCCIÓN"));
+    const fechaDoc = docs.find(d => d.fecha_recepcion)?.fecha_recepcion;
+    hijos.push(P([T(`En el marco de la auditoría colegiada realizada a la ${os.denominacion || ""}${os.sigla ? ` (${os.sigla})` : ""}, RNAS ${auFormatearRnas(os.rnos)}, se efectuó el relevamiento de los aspectos vinculados con la estructura organizacional y prestacional, la población beneficiaria, la red de prestadores, el funcionamiento de la Auditoría Médica, los programas preventivos y el cumplimiento de las presentaciones normativas.`)]));
+    hijos.push(P([T(`El Requerimiento fue entregado en la visita realizada el ${a.fecha_visita_1 ? auFechaLarga(a.fecha_visita_1) : "____"}${a.visita_2_estado === "Realizada" && a.fecha_visita_2 ? `, con una segunda visita el ${auFechaLarga(a.fecha_visita_2)}` : ""}${fechaDoc ? `, y la documentación aportada por el Agente del Seguro de Salud fue recibida a partir del ${auFechaLarga(fechaDoc)}` : ""}.`)]));
+
+    // 1. Documentación
+    let n = 1;
+    hijos.push(titulo(`${n}. DOCUMENTACIÓN APORTADA`));
+    const borde = { style: BorderStyle.SINGLE, size: 4, color: "999999" };
+    const celda = (texto, o = {}) => new TableCell({ borders: { top: borde, bottom: borde, left: borde, right: borde }, shading: o.fondo ? { fill: o.fondo } : undefined, width: o.ancho ? { size: o.ancho, type: WidthType.DXA } : undefined, children: [new Paragraph({ children: [T(texto, { size: 18, bold: !!o.bold })] })] });
+    hijos.push(new Table({
+      width: { size: 8832, type: WidthType.DXA },
+      columnWidths: [560, 4700, 1250, 2322],
+      rows: [
+        new TableRow({ tableHeader: true, children: [celda("Nº", { bold: true, fondo: "DCE6F1", ancho: 560 }), celda("Punto requerido", { bold: true, fondo: "DCE6F1", ancho: 4700 }), celda("Estado", { bold: true, fondo: "DCE6F1", ancho: 1250 }), celda("Documentación aportada", { bold: true, fondo: "DCE6F1", ancho: 2322 })] }),
+        ...auPuntos.map(p => {
+          const txt = auTextoPlano(auReemplazarAnios(p.texto_html, anio));
+          const dd = docs.filter(d => (d.puntos || []).includes(p.numero)).map(d => d.nombre).join("; ");
+          return new TableRow({ children: [celda(String(p.numero), { ancho: 560 }), celda(txt.length > 180 ? `${txt.slice(0, 177)}…` : txt, { ancho: 4700 }), celda(p.estado, { ancho: 1250 }), celda(dd || (p.estado === "No aportado" ? "—" : ""), { ancho: 2322 })] });
+        })
+      ]
+    }));
+
+    // 2 a 7. Ejes
+    for (const eje of Object.keys(AU_EJES)) {
+      n++;
+      hijos.push(titulo(`${n}. ${AU_EJES_INFORME[eje]}`));
+      const html = await auPrepararImagenes(auEjes[eje]?.analisis_html || await auArmarEje(eje));
+      hijos.push(...auDocxBloques(html));
+    }
+
+    n++;
+    hijos.push(titulo(`${n}. OBSERVACIONES`));
+    if (obs.length) obs.forEach((o, i) => hijos.push(P([T(`${n}.${i + 1}. `, { bold: true }), T(o.texto)], { indent: { left: 360, hanging: 360 } })));
+    else hijos.push(P([T("No se formulan observaciones.")]));
+    const sugs = obs.filter(o => o.sugerencia);
+    n++;
+    hijos.push(titulo(`${n}. SUGERENCIAS`));
+    if (sugs.length) sugs.forEach((o, i) => hijos.push(P([T(`${n}.${i + 1}. `, { bold: true }), T(o.sugerencia)], { indent: { left: 360, hanging: 360 } })));
+    else hijos.push(P([T("No se formulan sugerencias.")]));
+    n++;
+    hijos.push(titulo(`${n}. CONCLUSIÓN`));
+    hijos.push(...auDocxBloques(await auPrepararImagenes(a.conclusion_html || auProponerConclusion())));
+
+    const doc = new Document({
+      styles: { default: { document: { run: { font: "Calibri", size: 22 } } } },
+      sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, right: 1608, bottom: 1440, left: 1800 } } }, children: hijos }]
+    });
+    const blob = await Packer.toBlob(doc);
+    descargarBlob(blob, `Informe_Auditoria_${auNombreSeguro(os.sigla || os.rnos || "OS")}_${anio}.docx`);
+    mostrarToast("Informe descargado.");
+  } catch (error) {
+    console.error(error);
+    mostrarToast(`No se pudo armar el Word. ${error.message || ""}`, "error");
+  } finally {
+    boton.disabled = false;
+    boton.textContent = "Descargar informe (Word)";
+  }
 }
