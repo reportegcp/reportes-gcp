@@ -308,10 +308,10 @@ function perfilPuedeVerVista(perfil, vista) {
 
 function primeraVistaPermitida(perfil) {
   const p = normalizarPerfilAcceso(perfil);
-  if (p === "admin presentaciones") return "obras-sociales";
-  if (p === "carga presentaciones") return "pma";
-  if (p === "administrativo") return "obras-sociales";
   if (p === "cartilla os") return "cartilla-hub";
+  if (tipoPerfil(perfil) === "interno") {
+    for (const m of MODULOS_ACCESO) for (const [v] of m.vistas) if (v !== "prototipo" && vistaPermitidaParaSesion(v)) return v;
+  }
   return "inicio";
 }
 
@@ -338,13 +338,13 @@ function obraSocialIdSesionActual() {
 }
 
 function vistaPermitidaParaSesion(vista) {
-  const accesos = accesosSesionActual();
-  if (VISTAS_CON_ACCESO_PERSONALIZABLE.has(vista) && Object.prototype.hasOwnProperty.call(accesos, vista)) return !!accesos[vista];
-  return perfilPuedeVerVista(perfilSesionActual(), vista);
+  return nivelAccesoSesion(vista) !== "";
 }
 
-// ---------- Accesos personalizados por usuario (además del perfil) ----------
-// app_metadata.accesos = { "<vista>": true|false } guarda solo las diferencias con el perfil.
+// ---------- Perfiles y accesos por módulo ----------
+// Perfiles: Administrador (todo), Coordinador / Analista / Administrativo (personal de la
+// Gerencia: sus módulos se eligen uno por uno en Usuarios) y Obra Social ("Cartilla OS").
+// app_metadata.accesos = { "<vista>": "editar" | "ver" }. Lo que no figura = sin acceso.
 const MODULOS_ACCESO = [
   { nombre: "Inicio", vistas: [["inicio", "Inicio (estadísticas)"]] },
   { nombre: "Agentes de Seguro", vistas: [["obras-sociales", "Agentes de Seguro"]] },
@@ -354,59 +354,125 @@ const MODULOS_ACCESO = [
   { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"]] },
   { nombre: "Urgencias Prestacionales", vistas: [["up-expedientes", "Expedientes"], ["up-drogas", "Catálogo de drogas"], ["up-patologias", "Patologías"], ["up-plantillas", "Plantillas"], ["up-reportes", "Reportes"]] },
   { nombre: "Preexistencias", vistas: [["px-preexistencias", "Expedientes"], ["px-patologias", "Patologías"], ["px-plantillas", "Plantillas"], ["px-emp", "Reportes"]] },
-  { nombre: "Auditorías", vistas: [["au-auditorias", "Expedientes"], ["au-plantilla", "Planilla de requerimientos"], ["au-pendientes", "Pendientes"]] }
+  { nombre: "Auditorías", vistas: [["au-auditorias", "Expedientes"], ["au-plantilla", "Planilla de requerimientos"], ["au-pendientes", "Pendientes"]] },
+  { nombre: "Prototipo 2165", vistas: [["prototipo", "Prototipo 2165"]] }
 ];
 const VISTAS_CON_ACCESO_PERSONALIZABLE = new Set(MODULOS_ACCESO.flatMap(m => m.vistas.map(v => v[0])));
+// Pantallas donde "Solo mirar" ya bloquea la edición. En las demás, por ahora "Solo mirar" = "Editar".
+const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "au-auditorias", "au-plantilla", "au-pendientes"]);
+// Pantallas internas que dependen de otra (se abren desde ella).
+const VISTAS_DEPENDIENTES = { "anexo-ii-admin": "cartilla-revision", "anexo-iv-admin": "cartilla-revision" };
+const PERFILES_INTERNOS_NUEVOS = ["coordinador", "analista", "administrativo"];
+const PERFILES_INTERNOS_ANTERIORES = ["admin prestacional", "admin presentaciones", "carga presentaciones", "admin preexistencias", "personal gcp"];
 
 function accesosSesionActual() {
-  if (!authSession?.access_token) return {};
+  if (!authSession?.access_token) return null;
   const payload = decodeJwtPayload(authSession.access_token);
   const appMetadata = authSession?.user?.app_metadata || payload.app_metadata || {};
   const acc = appMetadata.accesos;
-  return acc && typeof acc === "object" ? acc : {};
+  return acc && typeof acc === "object" ? acc : null;
 }
 
-// Qué ve en el menú cada perfil sin personalizar (misma regla que aplicarPermisosNavegacion).
+function tipoPerfil(perfil) {
+  const p = normalizarPerfilAcceso(perfil);
+  if (["administrador", "admin"].includes(p)) return "administrador";
+  if (p === "cartilla os") return "obra social";
+  if (PERFILES_INTERNOS_NUEVOS.includes(p) || PERFILES_INTERNOS_ANTERIORES.includes(p)) return "interno";
+  return "";
+}
+
+// Lo que veía cada perfil anterior (para usuarios que todavía no se migraron).
 function accesoPorDefectoPerfil(perfil, vista) {
   const p = normalizarPerfilAcceso(perfil);
-  const esAdm = ["administrador", "admin"].includes(p);
-  const esAP = esAdm || p === "admin prestacional";
+  const esAP = p === "admin prestacional";
   const esAPres = p === "admin presentaciones";
   const esCarga = p === "carga presentaciones";
   const esAdmvo = p === "administrativo";
   const esAPx = p === "admin preexistencias";
-  const esOS = p === "cartilla os";
-  if (vista === "inicio") return esAP;
+  if (vista === "inicio" || vista === "prototipo") return esAP;
   if (vista === "obras-sociales") return esAP || esAPres || esAdmvo;
   if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(vista)) return esAP;
-  if (["cartilla-revision", "cobertura"].includes(vista)) return esAP || esAPres;
-  if (["afiliados", "prestadores"].includes(vista)) return esAP || esAPres || esOS;
+  if (["cartilla-revision", "cobertura", "afiliados", "prestadores"].includes(vista)) return esAP || esAPres;
   if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(vista)) return esAP || esAPres || esCarga || esAdmvo;
-  if (vista.startsWith("up-")) return esAdm;
-  if (vista === "px-patologias" || vista === "px-plantillas") return esAdm;
-  if (vista.startsWith("px-")) return esAdm || esAPx;
+  if (vista === "px-preexistencias" || vista === "px-emp") return esAPx;
   if (vista.startsWith("au-")) return esAP;
   return false;
 }
 
+// Accesos sugeridos al elegir un perfil en Usuarios.
+function accesosSugeridosPerfil(perfil) {
+  const p = normalizarPerfilAcceso(perfil);
+  const out = {};
+  if (p === "coordinador") {
+    VISTAS_CON_ACCESO_PERSONALIZABLE.forEach(v => { out[v] = "editar"; });
+  } else if (p === "analista") {
+    ["cartilla-revision", "afiliados", "cobertura", "prestadores", "pma", "cartillas", "reportes", "au-auditorias", "au-plantilla", "au-pendientes"].forEach(v => { out[v] = "editar"; });
+    ["obras-sociales", "criticidad", "metas-fisicas"].forEach(v => { out[v] = "ver"; });
+  } else if (p === "administrativo") {
+    ["pma", "cartillas", "reportes"].forEach(v => { out[v] = "editar"; });
+    ["obras-sociales", "criticidad", "metas-fisicas"].forEach(v => { out[v] = "ver"; });
+  }
+  return out;
+}
+
+// Nivel de acceso: "editar", "ver" o "" (sin acceso).
+function nivelAccesoPerfil(perfil, accesos, vista) {
+  const tipo = tipoPerfil(perfil);
+  if (vista === "usuarios") return tipo === "administrador" ? "editar" : "";
+  if (tipo === "administrador") return perfilPuedeVerVista(perfil, vista) || vista === "prototipo" ? "editar" : "";
+  if (tipo === "obra social") return perfilPuedeVerVista(perfil, vista) ? "editar" : "";
+  if (tipo !== "interno") return "";
+  const v = VISTAS_DEPENDIENTES[vista] || vista;
+  if (!VISTAS_CON_ACCESO_PERSONALIZABLE.has(v)) return "";
+  const p = normalizarPerfilAcceso(perfil);
+  let valor;
+  if (accesos && Object.prototype.hasOwnProperty.call(accesos, v)) valor = accesos[v];
+  else if (PERFILES_INTERNOS_NUEVOS.includes(p) && accesos) valor = "";
+  else if (PERFILES_INTERNOS_NUEVOS.includes(p) && p !== "administrativo") valor = accesosSugeridosPerfil(p)[v] || "";
+  else valor = accesoPorDefectoPerfil(perfil, v);
+  if (valor === true) return "editar";
+  if (valor === "editar" || valor === "ver") return valor;
+  return "";
+}
+
+function nivelAccesoSesion(vista) {
+  return nivelAccesoPerfil(perfilSesionActual(), accesosSesionActual(), vista);
+}
+
+// "Solo mirar": pantalla actual con nivel "ver" y ya adaptada.
+function soloLecturaActiva() {
+  return document.body.classList.contains("solo-lectura");
+}
+
+function aplicarSoloLectura(vista) {
+  const soloMirar = nivelAccesoSesion(vista) === "ver" && VISTAS_SOLO_MIRAR_LISTAS.has(vista);
+  document.body.classList.toggle("solo-lectura", soloMirar);
+}
+
+if (typeof document !== "undefined") {
+  // Red de seguridad: en "Solo mirar" no se envían formularios ni se usan botones de edición.
+  document.addEventListener("submit", e => {
+    if (soloLecturaActiva() && e.target.closest("[data-edicion-form]")) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      mostrarToast("Tenés acceso de solo lectura en esta pantalla.", "error");
+    }
+  }, true);
+  document.addEventListener("click", e => {
+    if (soloLecturaActiva() && e.target.closest("[data-edicion]")) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      mostrarToast("Tenés acceso de solo lectura en esta pantalla.", "error");
+    }
+  }, true);
+}
+
 function aplicarAccesosPersonalizados() {
-  const accesos = accesosSesionActual();
-  const claves = Object.keys(accesos).filter(v => VISTAS_CON_ACCESO_PERSONALIZABLE.has(v));
-  if (!claves.length) return;
-  const perfil = perfilSesionActual();
+  if (tipoPerfil(perfilSesionActual()) !== "interno") return;
   document.querySelectorAll(".nav-item[data-view], .nav-subitem[data-view]").forEach(item => {
-    const vista = item.dataset.view;
-    if (!VISTAS_CON_ACCESO_PERSONALIZABLE.has(vista)) return;
-    const visible = Object.prototype.hasOwnProperty.call(accesos, vista) ? !!accesos[vista] : accesoPorDefectoPerfil(perfil, vista);
-    item.hidden = !visible;
+    item.hidden = !vistaPermitidaParaSesion(item.dataset.view);
   });
   document.querySelectorAll(".nav-group[data-nav-group]").forEach(grupo => {
-    const items = [...grupo.querySelectorAll(".nav-subitem[data-view]")].filter(i => VISTAS_CON_ACCESO_PERSONALIZABLE.has(i.dataset.view));
-    if (!items.length) return;
-    const tocado = items.some(i => claves.includes(i.dataset.view));
-    if (!tocado) return;
-    const algunoVisible = [...grupo.querySelectorAll(".nav-subitem[data-view]")].some(i => !i.hidden);
-    grupo.hidden = !algunoVisible;
+    if (grupo.dataset.navGroup === "prototipo") { grupo.hidden = nivelAccesoSesion("prototipo") === ""; return; }
+    grupo.hidden = ![...grupo.querySelectorAll(".nav-subitem[data-view]")].some(i => !i.hidden);
   });
 }
 
@@ -1158,6 +1224,16 @@ function normalizarSesion(session) {
   };
 }
 
+function etiquetaPerfil(perfil) {
+  const p = normalizarPerfilAcceso(perfil);
+  if (["administrador", "admin"].includes(p)) return "Administrador";
+  if (["coordinador", "admin prestacional"].includes(p)) return "Coordinador";
+  if (["analista", "admin presentaciones", "admin preexistencias"].includes(p)) return "Analista";
+  if (["administrativo", "carga presentaciones"].includes(p)) return "Administrativo";
+  if (p === "cartilla os") return "Obra Social";
+  return perfil || "Perfil no definido";
+}
+
 function getSessionIdentity(session) {
   const payload = decodeJwtPayload(session?.access_token);
   const user = session?.user || {};
@@ -1166,13 +1242,7 @@ function getSessionIdentity(session) {
 
   const perfilOriginal = appMetadata.perfil || appMetadata.role_name || "Perfil no definido";
   const perfilNormalizado = normalizarPerfilAcceso(perfilOriginal);
-  const perfilVisible = ["administrador", "admin", "admin prestacional"].includes(perfilNormalizado)
-    ? "Admin Prestacional"
-    : perfilNormalizado === "admin presentaciones"
-      ? "Admin Presentaciones"
-      : perfilNormalizado === "carga presentaciones"
-        ? "Carga Presentaciones"
-        : perfilOriginal;
+  const perfilVisible = etiquetaPerfil(perfilOriginal);
 
   return {
     nombre:
@@ -4229,6 +4299,7 @@ function showView(id, updateHistory = true) {
   }
   const requested = Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
   const resolved = vistaPermitidaParaSesion(requested) ? requested : primeraVistaPermitida(perfilSesionActual());
+  aplicarSoloLectura(resolved);
 
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.querySelectorAll(".nav-item,.nav-subitem").forEach(b => b.classList.remove("active"));

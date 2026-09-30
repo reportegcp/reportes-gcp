@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=91">
+  <link rel="stylesheet" href="styles.css?v=92">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -156,7 +156,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 138</span>
+        <span>Versión 139</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -166,6 +166,7 @@
         <div class="topbar-copy" id="topbar-copy">
           <div class="title-with-help">
             <h1 id="page-title"></h1>
+            <span class="solo-lectura-aviso" title="Podés consultar esta pantalla pero no modificarla">👁 Solo lectura</span>
             <details class="section-help" id="section-help">
               <summary aria-label="Abrir manual de esta sección" title="Manual de esta sección">?</summary>
               <div class="section-help-popover" id="section-help-content"></div>
@@ -903,7 +904,7 @@
       <section id="pma" class="view">
         <div class="module-actions">
           <button class="secondary" id="btn-export-pma" type="button">Exportar Excel</button>
-          <button class="primary" id="btn-nueva-pma" type="button">+ Nueva presentación</button>
+          <button class="primary" id="btn-nueva-pma" data-edicion type="button">+ Nueva presentación</button>
         </div>
 
         <div class="toolbar pma-toolbar">
@@ -988,7 +989,7 @@
       <section id="cartillas" class="view">
         <div class="module-actions">
           <button class="secondary" id="btn-export-cartillas" type="button">Exportar Excel</button>
-          <button class="primary" id="btn-nueva-cartilla" type="button">+ Nueva presentación</button>
+          <button class="primary" id="btn-nueva-cartilla" data-edicion type="button">+ Nueva presentación</button>
         </div>
 
         <div class="toolbar cartillas-toolbar">
@@ -1508,7 +1509,7 @@
       <section id="au-auditorias" class="view">
         <div id="au-lista">
           <div class="module-actions">
-            <button class="primary" id="au-btn-nueva" type="button">+ Nueva auditoría</button>
+            <button class="primary" id="au-btn-nueva" data-edicion type="button">+ Nueva auditoría</button>
           </div>
           <div class="report-tabs" style="margin-bottom:10px">
             <button class="report-tab active" id="au-tab-activas" type="button">Activas</button>
@@ -1545,7 +1546,7 @@
 
           <div class="table-card au-card au-paso" data-au-paso="1">
             <div class="table-meta"><strong>Paso 1 · Datos de la auditoría y orden</strong></div>
-            <form id="au-form" class="form-grid au-form-body">
+            <form id="au-form" data-edicion-form class="form-grid au-form-body">
               <input type="hidden" id="au-id">
               <label><span>Nº EX *</span><input id="au-numero-ex" required placeholder="EX-2026-12345678- -APN-GCP#SSS"></label>
               <label><span>Obra Social *</span><input id="au-os-input" list="au-os-datalist" placeholder="Escribí para buscar..." autocomplete="off"></label>
@@ -1560,15 +1561,15 @@
               <div class="full au-orden-box">
                 <span class="au-label">Orden de auditoría (IF de Gerencia General que dispone la auditoría)</span>
                 <div id="au-orden-actual" class="au-orden-actual"></div>
-                <div class="au-orden-subir" id="au-orden-subir-box">
+                <div class="au-orden-subir" id="au-orden-subir-box" data-edicion>
                   <input type="file" id="au-orden-file" accept=".pdf,.doc,.docx,image/*">
                   <button type="button" class="secondary" id="au-orden-subir">Subir archivo</button>
                 </div>
               </div>
               <div class="full form-message" id="au-form-message" hidden></div>
               <div class="full au-form-acciones">
-                <button type="button" class="secondary danger" id="au-eliminar">Eliminar auditoría</button>
-                <button type="submit" class="primary" id="au-guardar">Guardar y continuar →</button>
+                <button type="button" class="secondary danger" id="au-eliminar" data-edicion>Eliminar auditoría</button>
+                <button type="submit" class="primary" id="au-guardar" data-edicion>Guardar y continuar →</button>
               </div>
             </form>
           </div>
@@ -1580,16 +1581,16 @@
             </div>
             <div class="au-paso-intro">
               <button type="button" class="primary" id="au-btn-requerimiento">Descargar requerimiento (PDF)</button>
-              <button type="button" class="secondary" id="au-puntos-editar">Cambiar el texto solo para esta auditoría</button>
+              <button type="button" class="secondary" id="au-puntos-editar" data-edicion>Cambiar el texto solo para esta auditoría</button>
             </div>
             <ol class="au-hoja-puntos au-req-lista" id="au-req-lista"></ol>
             <div class="au-puntos-edicion-acciones" id="au-puntos-edicion-acciones" hidden>
               <button type="button" class="secondary" id="au-puntos-cancelar">Cancelar</button>
-              <button type="button" class="primary" id="au-puntos-guardar">Guardar texto</button>
+              <button type="button" class="primary" id="au-puntos-guardar" data-edicion>Guardar texto</button>
             </div>
             <div class="au-paso-pie">
               <span class="au-hint" id="au-req-estado"></span>
-              <button type="button" class="primary" id="au-req-entregado">Confirmar entrega y continuar →</button>
+              <button type="button" class="primary" id="au-req-entregado" data-edicion>Confirmar entrega y continuar →</button>
             </div>
           </div>
 
@@ -1611,7 +1612,7 @@
               <div class="au-p3-cab">
                 <div class="au-p3-titulo" id="au-p3-titulo"></div>
                 <label class="au-hallazgo">Estado
-                  <select id="au-p3-estado">
+                  <select id="au-p3-estado" data-edicion-campo>
                     <option>Pendiente</option><option>Recibido</option><option>Parcial</option><option>No aportado</option>
                   </select>
                 </label>
@@ -1621,21 +1622,21 @@
                 <span class="au-label">Archivos de este punto (opcional)</span>
                 <div id="au-p3-adj-lista" class="au-p3-adj-lista"></div>
                 <div class="au-orden-subir">
-                  <input type="file" id="au-p3-file">
-                  <button type="button" class="secondary small" id="au-p3-subir">Adjuntar</button>
+                  <input type="file" id="au-p3-file" data-edicion-campo>
+                  <button type="button" class="secondary small" id="au-p3-subir" data-edicion>Adjuntar</button>
                 </div>
               </div>
               <div class="au-informe-pie">
                 <button type="button" class="secondary" id="au-p3-anterior">← Punto anterior</button>
                 <span class="au-guardado" id="au-p3-guardado"></span>
-                <button type="button" class="secondary" id="au-p3-guardar">Guardar</button>
-                <button type="button" class="primary" id="au-p3-siguiente">Guardar y seguir →</button>
+                <button type="button" class="secondary" id="au-p3-guardar" data-edicion>Guardar</button>
+                <button type="button" class="primary" id="au-p3-siguiente" data-edicion>Guardar y seguir →</button>
               </div>
             </div>
             <div class="au-paso-pie">
               <span class="au-hint">Al terminar, los puntos que sigan "Pendiente" pasan a "No aportado".</span>
               <button type="button" class="au-link" id="au-ir-pendientes">Ver en Pendientes</button>
-              <button type="button" class="primary" id="au-doc-terminar">Terminé con la documentación →</button>
+              <button type="button" class="primary" id="au-doc-terminar" data-edicion>Terminé con la documentación →</button>
             </div>
           </div>
 
@@ -1651,7 +1652,7 @@
                 <textarea id="au-editor"></textarea>
                 <div class="au-informe-pie">
                   <label class="au-hallazgo">Hallazgo del eje
-                    <select id="au-hallazgo">
+                    <select id="au-hallazgo" data-edicion-campo>
                       <option value="">Elegir...</option>
                       <option>Cumple</option>
                       <option>Cumple parcialmente</option>
@@ -1659,10 +1660,10 @@
                       <option>No aportado</option>
                     </select>
                   </label>
-                  <button type="button" class="au-link" id="au-eje-restaurar">Volver a armar desde los puntos</button>
+                  <button type="button" class="au-link" id="au-eje-restaurar" data-edicion>Volver a armar desde los puntos</button>
                   <span class="au-guardado" id="au-eje-guardado"></span>
-                  <button type="button" class="secondary" id="au-eje-guardar">Guardar</button>
-                  <button type="button" class="primary" id="au-eje-siguiente">Guardar y seguir →</button>
+                  <button type="button" class="secondary" id="au-eje-guardar" data-edicion>Guardar</button>
+                  <button type="button" class="primary" id="au-eje-siguiente" data-edicion>Guardar y seguir →</button>
                 </div>
               </div>
             </div>
@@ -1725,13 +1726,13 @@
       <section id="au-plantilla" class="view">
         <div class="module-actions">
           <button type="button" class="secondary" id="au-pl-preview">Vista previa PDF</button>
-          <button type="button" class="primary" id="au-pl-agregar">+ Agregar punto</button>
+          <button type="button" class="primary" id="au-pl-agregar" data-edicion>+ Agregar punto</button>
         </div>
         <div class="form-message" id="au-pl-message" hidden style="margin-bottom:12px"></div>
 
         <div class="au-hoja">
           <div class="au-hoja-bloque" id="au-pl-encabezado">
-            <button type="button" class="au-link au-hoja-editar" id="au-pl-enc-editar">Editar</button>
+            <button type="button" class="au-link au-hoja-editar" id="au-pl-enc-editar" data-edicion>Editar</button>
             <div class="au-hoja-titulo" id="au-pl-ver-titulo"></div>
             <div class="au-hoja-subtitulo" id="au-pl-ver-subtitulo"></div>
             <div class="au-hoja-intro" id="au-pl-ver-intro"></div>
@@ -2092,7 +2093,7 @@
         <div><span class="eyebrow">AUDITORÍA INTEGRAL</span><h2 id="au-nueva-title">Nueva auditoría</h2></div>
         <button class="icon-button" type="button" data-close-modal="au-nueva-modal" aria-label="Cerrar">×</button>
       </div>
-      <form id="au-nueva-form" class="form-grid" style="padding:18px 22px">
+      <form id="au-nueva-form" data-edicion-form class="form-grid" style="padding:18px 22px">
         <label class="full"><span>Nº EX *</span><input id="au-nueva-ex" required placeholder="EX-2026-12345678- -APN-GCP#SSS"></label>
         <label class="full"><span>Obra Social *</span><input id="au-nueva-os" list="au-os-datalist" placeholder="Escribí para buscar..." autocomplete="off"></label>
         <label class="full"><span>Nº IF de la orden de auditoría</span><input id="au-nueva-if" placeholder="IF-2026-12345678-APN-GG#SSS"></label>
@@ -2124,9 +2125,9 @@
         <div class="full us-accesos" id="us-accesos-bloque" hidden>
           <div class="us-accesos-cab">
             <span class="au-label">Accesos a módulos</span>
-            <button type="button" class="au-link" id="us-accesos-reset">Volver a los del perfil</button>
+            <button type="button" class="au-link" id="us-accesos-reset">Volver a los sugeridos del perfil</button>
           </div>
-          <p class="au-hint" style="margin:0 0 8px">Tildado = lo ve en el menú. Lo resaltado es distinto de lo que trae su perfil.</p>
+          <p class="au-hint" style="margin:0 0 8px">Elegí para cada módulo (o para cada pantalla): Sin acceso, Solo mirar o Editar.</p>
           <div id="us-accesos" class="us-accesos-grid"></div>
         </div>
         <div class="full" id="us-pass-bloque">
@@ -2384,7 +2385,7 @@
         </div>
         <button class="icon-button" type="button" data-close-modal="pma-modal" aria-label="Cerrar">×</button>
       </div>
-      <form id="pma-form">
+      <form id="pma-form" data-edicion-form>
         <input type="hidden" id="pma-id">
         <input type="hidden" id="pma-os-id">
         <input id="pma-res-170" type="hidden" value="SI">
@@ -2435,7 +2436,7 @@
           <div class="full notificaciones-block" id="pma-notificaciones-block">
             <div class="notificaciones-header">
               <span>Notificaciones a la Obra Social</span>
-              <button type="button" class="secondary small" id="pma-notificacion-add">+ Agregar notificación</button>
+              <button type="button" class="secondary small" id="pma-notificacion-add" data-edicion>+ Agregar notificación</button>
             </div>
             <div id="pma-notificaciones-lista" class="notificaciones-lista"></div>
             <p class="notificaciones-hint" id="pma-notificaciones-hint" hidden>Guardá la presentación primero para poder cargar notificaciones.</p>
@@ -2446,7 +2447,7 @@
         <div class="form-message" id="pma-form-message" hidden></div>
         <div class="modal-actions">
           <button type="button" class="secondary" data-close-modal="pma-modal">Cancelar</button>
-          <button type="submit" class="primary" id="pma-save">Guardar</button>
+          <button type="submit" class="primary" id="pma-save" data-edicion>Guardar</button>
         </div>
       </form>
     </div>
@@ -2464,7 +2465,7 @@
         <button class="icon-button" type="button" data-close-modal="cartilla-modal" aria-label="Cerrar">×</button>
       </div>
 
-      <form id="cartilla-form">
+      <form id="cartilla-form" data-edicion-form>
         <input type="hidden" id="cartilla-id">
         <input type="hidden" id="cartilla-os-id">
         <input id="cartilla-res-170" type="hidden" value="SI">
@@ -2511,7 +2512,7 @@
           <div class="full notificaciones-block" id="cartilla-notificaciones-block">
             <div class="notificaciones-header">
               <span>Notificaciones a la Obra Social</span>
-              <button type="button" class="secondary small" id="cartilla-notificacion-add">+ Agregar notificación</button>
+              <button type="button" class="secondary small" id="cartilla-notificacion-add" data-edicion>+ Agregar notificación</button>
             </div>
             <div id="cartilla-notificaciones-lista" class="notificaciones-lista"></div>
             <p class="notificaciones-hint" id="cartilla-notificaciones-hint" hidden>Guardá la presentación primero para poder cargar notificaciones.</p>
@@ -2529,7 +2530,7 @@
         <p class="notificaciones-hint" id="cartilla-archivo-aviso" hidden>📁 Esta presentación está en Archivo: queda solo como consulta, no se puede editar ni cargar notificaciones nuevas.</p>
         <div class="modal-actions">
           <button type="button" class="secondary" data-close-modal="cartilla-modal">Cancelar</button>
-          <button type="submit" class="primary" id="cartilla-save">Guardar</button>
+          <button type="submit" class="primary" id="cartilla-save" data-edicion>Guardar</button>
         </div>
       </form>
     </div>
@@ -2607,8 +2608,8 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=79"></script>
-  <script src="auditorias.js?v=12"></script>
-  <script src="usuarios.js?v=5"></script>
+  <script src="app.js?v=80"></script>
+  <script src="auditorias.js?v=13"></script>
+  <script src="usuarios.js?v=6"></script>
 </body>
 </html>

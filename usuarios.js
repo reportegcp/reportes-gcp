@@ -59,8 +59,8 @@ function inicializarVistaUsuarios() {
     document.getElementById("us-btn-nuevo").addEventListener("click", () => usAbrirModal(null));
     document.getElementById("us-search").addEventListener("input", usRender);
     document.getElementById("us-form").addEventListener("submit", usGuardar);
-    document.getElementById("us-perfil").addEventListener("change", () => { usActualizarCampoOs(); usRenderAccesos(); });
-    document.getElementById("us-accesos-reset").addEventListener("click", () => { usAccesos = {}; usRenderAccesos(); });
+    document.getElementById("us-perfil").addEventListener("change", () => { usAccesos = accesosSugeridosPerfil(document.getElementById("us-perfil").value); usActualizarCampoOs(); usRenderAccesos(); });
+    document.getElementById("us-accesos-reset").addEventListener("click", () => { usAccesos = accesosSugeridosPerfil(document.getElementById("us-perfil").value); usRenderAccesos(); });
     document.getElementById("us-generar").addEventListener("click", () => { document.getElementById("us-password").value = usGenerarPassword(); });
     document.getElementById("us-blanquear").addEventListener("click", usBlanquear);
     document.getElementById("us-bloquear").addEventListener("click", usBloquear);
@@ -88,7 +88,7 @@ function usFecha(iso) {
 
 function usRender() {
   const q = normalizar(document.getElementById("us-search").value || "");
-  const filas = usUsuarios.filter(u => !q || [u.nombre, u.email, u.perfil, usEtiquetaOs(u.obra_social_id), usRnasOs(u.obra_social_id)].some(v => normalizar(v).includes(q)));
+  const filas = usUsuarios.filter(u => !q || [u.nombre, u.email, etiquetaPerfil(u.perfil), usEtiquetaOs(u.obra_social_id), usRnasOs(u.obra_social_id)].some(v => normalizar(v).includes(q)));
   document.getElementById("us-table-body").innerHTML = filas.map(u => {
     const estado = u.bloqueado ? `<span class="us-pill bloqueado">Bloqueado</span>`
       : u.debe_cambiar_password ? `<span class="us-pill pendiente">Debe cambiar contraseña</span>`
@@ -96,7 +96,7 @@ function usRender() {
     return `<tr class="os-row" data-us-id="${u.id}" tabindex="0" role="button" title="Clic para editar">
       <td class="ellipsis-cell" style="max-width:320px" title="${escaparHtml(u.nombre || "")}"><strong>${escaparHtml(u.nombre || "—")}</strong></td>
       <td>${escaparHtml(u.email)}</td>
-      <td>${escaparHtml(u.perfil || "Sin perfil")}${u.accesos && Object.keys(u.accesos).length ? ` <span class="us-pill personalizado" title="Tiene accesos distintos a los de su perfil">+ accesos</span>` : ""}</td>
+      <td>${escaparHtml(etiquetaPerfil(u.perfil))}${usResumenModulos(u)}</td>
       <td title="${escaparHtml(usEtiquetaOs(u.obra_social_id))}">${escaparHtml(u.obra_social_id ? usRnasOs(u.obra_social_id) || `ID ${u.obra_social_id}` : "—")}</td>
       <td class="date-cell">${usFecha(u.ultimo_ingreso)}</td>
       <td>${estado}</td>
@@ -122,12 +122,12 @@ function usAbrirModal(id) {
   document.getElementById("us-form").reset();
   document.getElementById("us-id").value = u?.id || "";
   document.getElementById("us-modal-title").textContent = esNuevo ? "Nuevo usuario" : "Editar usuario";
-  document.getElementById("us-perfil").innerHTML = `<option value="">Elegir...</option>` + usPerfiles.map(p => `<option>${escaparHtml(p)}</option>`).join("");
+  document.getElementById("us-perfil").innerHTML = `<option value="">Elegir...</option>` + usPerfiles.map(p => `<option value="${escaparHtml(p)}">${escaparHtml(etiquetaPerfil(p))}</option>`).join("");
   document.getElementById("us-nombre").value = u?.nombre || "";
   const email = document.getElementById("us-email");
   email.value = u?.email || "";
   email.readOnly = !esNuevo;
-  document.getElementById("us-perfil").value = u?.perfil || "";
+  document.getElementById("us-perfil").value = u ? usPerfilActualizado(u.perfil) : "";
   document.getElementById("us-os").value = u?.obra_social_id ? usEtiquetaOs(u.obra_social_id) : "";
   document.getElementById("us-pass-bloque").hidden = !esNuevo;
   document.getElementById("us-password").required = esNuevo;
@@ -138,7 +138,7 @@ function usAbrirModal(id) {
   document.getElementById("us-guardar").hidden = false;
   document.getElementById("us-credenciales").hidden = true;
   setFormMessage("us-message");
-  usAccesos = { ...(u?.accesos || {}) };
+  usAccesos = u ? usAccesosEfectivos(u) : {};
   usActualizarCampoOs();
   usRenderAccesos();
   abrirModal("us-modal");
@@ -169,18 +169,19 @@ async function usGuardar(event) {
     if (!obra_social_id) return setFormMessage("us-message", "Elegí la Obra Social de la lista desplegable.");
   }
   if (!perfil) return setFormMessage("us-message", "Elegí el perfil.");
+  if (tipoPerfil(perfil) === "interno" && !Object.keys(usAccesosLimpios()).length) return setFormMessage("us-message", "Dale acceso al menos a un módulo (Solo mirar o Editar).");
   const boton = document.getElementById("us-guardar");
   try {
     boton.disabled = true;
     if (!id) {
       const email = document.getElementById("us-email").value.trim();
       const password = document.getElementById("us-password").value;
-      await usLlamar("crear", { email, password, nombre, perfil, obra_social_id, accesos: usAccesosLimpios(perfil) });
+      await usLlamar("crear", { email, password, nombre, perfil, obra_social_id, accesos: usAccesosLimpios() });
       usMostrarCredenciales(email.toLowerCase(), password, "Usuario creado. Enviale estos datos:");
       document.getElementById("us-guardar").hidden = true;
       mostrarToast("Usuario creado.");
     } else {
-      await usLlamar("editar", { id, nombre, perfil, obra_social_id, accesos: usAccesosLimpios(perfil) });
+      await usLlamar("editar", { id, nombre, perfil, obra_social_id, accesos: usAccesosLimpios() });
       mostrarToast("Cambios guardados.");
       cerrarModal("us-modal");
     }
@@ -243,54 +244,76 @@ async function usEliminar() {
   }
 }
 
-// ---------- Accesos personalizados ----------
+// ---------- Accesos por módulo (Sin acceso / Solo mirar / Editar) ----------
 
-function usAccesosLimpios(perfil) {
+const US_PERFIL_NUEVO = {
+  "admin prestacional": "Coordinador",
+  "admin presentaciones": "Analista",
+  "admin preexistencias": "Analista",
+  "carga presentaciones": "Administrativo",
+  "personal gcp": "Analista"
+};
+
+function usPerfilActualizado(perfil) {
+  return US_PERFIL_NUEVO[normalizarPerfilAcceso(perfil)] || perfil || "";
+}
+
+function usAccesosEfectivos(u) {
   const out = {};
-  for (const [vista, valor] of Object.entries(usAccesos)) {
-    if (VISTAS_CON_ACCESO_PERSONALIZABLE.has(vista) && valor !== accesoPorDefectoPerfil(perfil, vista)) out[vista] = valor;
-  }
+  VISTAS_CON_ACCESO_PERSONALIZABLE.forEach(v => {
+    const nivel = nivelAccesoPerfil(u.perfil, u.accesos, v);
+    if (nivel) out[v] = nivel;
+  });
+  return out;
+}
+
+function usResumenModulos(u) {
+  if (tipoPerfil(u.perfil) !== "interno") return "";
+  const acc = usAccesosEfectivos(u);
+  const mods = MODULOS_ACCESO.filter(m => m.vistas.some(([v]) => acc[v])).map(m => m.nombre);
+  return mods.length ? `<div class="us-modulos-resumen" title="${escaparHtml(mods.join(", "))}">${escaparHtml(mods.join(" · "))}</div>` : `<div class="us-modulos-resumen">Sin módulos</div>`;
+}
+
+function usAccesosLimpios() {
+  const out = {};
+  for (const [v, nivel] of Object.entries(usAccesos)) if (VISTAS_CON_ACCESO_PERSONALIZABLE.has(v) && (nivel === "editar" || nivel === "ver")) out[v] = nivel;
   return out;
 }
 
 function usRenderAccesos() {
   const perfil = document.getElementById("us-perfil").value;
   const bloque = document.getElementById("us-accesos-bloque");
-  const personalizable = perfil && !["Administrador", "Cartilla OS"].includes(perfil);
+  const personalizable = tipoPerfil(perfil) === "interno";
   bloque.hidden = false;
   document.getElementById("us-accesos-reset").hidden = !personalizable;
   if (!personalizable) {
     const aviso = !perfil
-      ? "Elegí primero el perfil: los módulos se tildan solos según el perfil y después agregás o quitás los que quieras."
-      : perfil === "Administrador"
-        ? "El perfil Administrador ve todos los módulos (incluido Usuarios); no se personaliza."
-        : "El perfil Cartilla OS ve solo la presentación de Cartilla de su Obra Social; no se personaliza.";
+      ? "Elegí primero el perfil: se cargan unos accesos sugeridos y después elegís, módulo por módulo, Sin acceso, Solo mirar o Editar."
+      : tipoPerfil(perfil) === "administrador"
+        ? "El Administrador ve y edita todo, incluido Usuarios. No se configura."
+        : "La Obra Social ve solo la presentación de Cartilla de su propia Obra Social. No se configura.";
     document.getElementById("us-accesos").innerHTML = `<div class="us-accesos-aviso">${aviso}</div>`;
     return;
   }
-  usAccesos = usAccesosLimpios(perfil);
-  const efectivo = v => Object.prototype.hasOwnProperty.call(usAccesos, v) ? usAccesos[v] : accesoPorDefectoPerfil(perfil, v);
+  const opciones = (actual, pendiente) => `<option value="" ${actual === "" ? "selected" : ""}>Sin acceso</option><option value="ver" ${actual === "ver" ? "selected" : ""}>Solo mirar${pendiente ? " *" : ""}</option><option value="editar" ${actual === "editar" ? "selected" : ""}>Editar</option>`;
   document.getElementById("us-accesos").innerHTML = MODULOS_ACCESO.map((m, i) => {
-    const marcados = m.vistas.filter(([v]) => efectivo(v)).length;
-    const estadoGrupo = marcados === 0 ? "" : marcados === m.vistas.length ? "checked" : "data-parcial";
-    return `<div class="us-modulo">
-      <label class="us-modulo-cab"><input type="checkbox" data-us-mod="${i}" ${estadoGrupo === "checked" ? "checked" : ""} ${estadoGrupo === "data-parcial" ? "data-parcial" : ""}> ${escaparHtml(m.nombre)}</label>
-      ${m.vistas.length > 1 ? `<div class="us-modulo-items">${m.vistas.map(([v, nombre]) => `<label class="${Object.prototype.hasOwnProperty.call(usAccesos, v) ? "cambiado" : ""}"><input type="checkbox" data-us-vista="${v}" ${efectivo(v) ? "checked" : ""}> ${escaparHtml(nombre)}</label>`).join("")}</div>` : ""}
-    </div>`;
-  }).join("");
+    const niveles = m.vistas.map(([v]) => usAccesos[v] || "");
+    const todos = niveles.every(n => n === niveles[0]) ? niveles[0] : "mixto";
+    const activo = niveles.some(Boolean);
+    const cabecera = `<div class="us-modulo-cab"><span>${escaparHtml(m.nombre)}</span>
+      <select data-us-mod="${i}" class="us-nivel ${todos === "mixto" ? "mixto" : "n-" + (todos || "no")}">
+        ${todos === "mixto" ? `<option value="mixto" selected>Personalizado</option>` : ""}${opciones(todos === "mixto" ? "mixto" : todos, m.vistas.some(([v]) => !VISTAS_SOLO_MIRAR_LISTAS.has(v)))}
+      </select></div>`;
+    const items = m.vistas.length > 1 ? `<div class="us-modulo-items">${m.vistas.map(([v, nombre]) => `<div class="us-item"><span>${escaparHtml(nombre)}</span>
+        <select data-us-vista="${v}" class="us-nivel n-${usAccesos[v] || "no"}">${opciones(usAccesos[v] || "", !VISTAS_SOLO_MIRAR_LISTAS.has(v))}</select></div>`).join("")}</div>` : "";
+    return `<div class="us-modulo ${activo ? "activo" : ""}">${cabecera}${items}</div>`;
+  }).join("") + `<div class="us-accesos-nota">* En estas pantallas "Solo mirar" todavía funciona como "Editar": las voy adaptando por etapas.</div>`;
   const cont = document.getElementById("us-accesos");
-  cont.querySelectorAll("[data-parcial]").forEach(cb => { cb.indeterminate = true; });
-  // Resaltar módulos de una sola pantalla que cambiaron
-  MODULOS_ACCESO.forEach((m, i) => {
-    if (m.vistas.length === 1 && Object.prototype.hasOwnProperty.call(usAccesos, m.vistas[0][0])) cont.querySelector(`[data-us-mod="${i}"]`).closest("label").classList.add("cambiado");
-  });
-  const fijar = (vista, valor) => {
-    if (valor === accesoPorDefectoPerfil(perfil, vista)) delete usAccesos[vista];
-    else usAccesos[vista] = valor;
-  };
-  cont.querySelectorAll("[data-us-vista]").forEach(cb => cb.addEventListener("change", () => { fijar(cb.dataset.usVista, cb.checked); usRenderAccesos(); }));
-  cont.querySelectorAll("[data-us-mod]").forEach(cb => cb.addEventListener("change", () => {
-    MODULOS_ACCESO[Number(cb.dataset.usMod)].vistas.forEach(([v]) => fijar(v, cb.checked));
+  const fijar = (v, nivel) => { if (nivel) usAccesos[v] = nivel; else delete usAccesos[v]; };
+  cont.querySelectorAll("[data-us-vista]").forEach(sel => sel.addEventListener("change", () => { fijar(sel.dataset.usVista, sel.value); usRenderAccesos(); }));
+  cont.querySelectorAll("[data-us-mod]").forEach(sel => sel.addEventListener("change", () => {
+    if (sel.value === "mixto") return;
+    MODULOS_ACCESO[Number(sel.dataset.usMod)].vistas.forEach(([v]) => fijar(v, sel.value));
     usRenderAccesos();
   }));
 }

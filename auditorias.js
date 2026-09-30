@@ -667,6 +667,7 @@ async function auAbrirPunto3(numero, forzar = false) {
   estadoEl.textContent = "Cargando editor...";
   try {
     if (!auEditorPunto) auEditorPunto = await auCrearEditor("#au-p3-editor", 420, "au-p3-guardado");
+    auEditorPunto.mode.set(soloLecturaActiva() ? "readonly" : "design");
     const usaModelo = !p.respuesta_html;
     auEditorPunto.setContent(p.respuesta_html || await auRenderModelo(p.modelo_html));
     auP3ModeloCargado = usaModelo ? auEditorPunto.getContent() : null;
@@ -702,7 +703,7 @@ async function auPersistirPunto3() {
 }
 
 async function auGuardarPunto3SiHayCambios() {
-  if (!auEditorPunto || auPasoActivo !== 3) return;
+  if (!auEditorPunto || auPasoActivo !== 3 || soloLecturaActiva()) return;
   if (!auEditorPunto.isDirty() && !auP3EstadoTocado) return;
   try { await auPersistirPunto3(); } catch (error) { mostrarToast(`No se pudo guardar el punto ${auPuntoActivo}. ${error.message || ""}`, "error"); }
 }
@@ -953,6 +954,7 @@ function auRenderPlantilla() {
 }
 
 function auAbrirEditorEncabezado() {
+  if (soloLecturaActiva()) return;
   const t = auPlantillaTextos;
   document.getElementById("au-pl-titulo").value = t.req_titulo || "";
   document.getElementById("au-pl-subtitulo").value = t.req_subtitulo || "";
@@ -985,6 +987,7 @@ async function auGuardarEncabezado() {
 }
 
 function auAbrirEditorPunto(id) {
+  if (soloLecturaActiva()) return;
   const esNuevo = !id;
   const it = esNuevo ? { texto_html: "", eje: "A", activo: true } : auPlantillaItems.find(x => x.id === id);
   if (!it) return;
@@ -1450,6 +1453,7 @@ async function auAbrirInforme() {
 async function auCargarEjeEnEditor(eje) {
   const guardado = auEjes[eje];
   const html = guardado?.analisis_html || await auArmarEje(eje);
+  auEditor.mode.set(soloLecturaActiva() ? "readonly" : "design");
   auEditor.setContent(html);
   auEditor.undoManager.clear();
   auEditor.setDirty(false);
@@ -1484,7 +1488,7 @@ async function auPersistirEje(eje, html, hallazgo) {
 }
 
 async function auGuardarEjeSiHayCambios() {
-  if (!auEditor || auPasoActivo !== 4) return;
+  if (!auEditor || auPasoActivo !== 4 || soloLecturaActiva()) return;
   const hallazgo = document.getElementById("au-hallazgo").value;
   const hallazgoCambio = (auEjes[auEjeActivo]?.hallazgo || "") !== hallazgo;
   if (!auEditor.isDirty() && !hallazgoCambio) return;
