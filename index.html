@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=94">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#183153">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Reportes GCP">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css?v=95">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -157,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 141</span>
+        <span>Versión 142</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2685,5 +2692,10 @@
   <script src="app.js?v=81"></script>
   <script src="auditorias.js?v=14"></script>
   <script src="usuarios.js?v=6"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(err => console.warn("Service worker:", err)));
+    }
+  </script>
 </body>
 </html>
