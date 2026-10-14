@@ -2146,3 +2146,5 @@ select.us-nivel.mixto{background:#fdf5e6;color:#8a5a12;border-color:#f0d9a8}
   #informe-gestion .table-scroll{overflow:visible}
   .ig-estados{grid-template-columns:1fr 1fr}
 }
+.ig-nota p{margin:0 0 4px}
+.ig-nota strong{color:var(--text)}
