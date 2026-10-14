@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCP | Reportes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%23183153'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='20' font-weight='700' fill='white'%3EGCP%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=93">
+  <link rel="stylesheet" href="styles.css?v=94">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -95,6 +95,7 @@
           <div class="nav-submenu">
             <button class="nav-subitem" data-view="criticidad" type="button">Criticidad</button>
             <button class="nav-subitem" data-view="metas-fisicas" type="button">Metas Físicas</button>
+            <button class="nav-subitem" data-view="informe-gestion" type="button">Informe de gestión</button>
           </div>
         </div>
 
@@ -156,7 +157,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 140</span>
+        <span>Versión 141</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1141,6 +1142,48 @@
           </div>
         </div>
         <p style="color:var(--muted);font-size:13px">Cantidad de trámites (expedientes) de PMA y de Cartilla que ingresaron en cada trimestre calendario del año elegido.</p>
+      </section>
+
+      <section id="informe-gestion" class="view">
+        <div class="toolbar ig-toolbar">
+          <label class="ig-anio"><span>Desde</span><input id="ig-desde" type="number" min="2020" max="2100"></label>
+          <label class="ig-anio"><span>Hasta</span><input id="ig-hasta" type="number" min="2020" max="2100"></label>
+          <button class="primary small" id="ig-generar" type="button">Generar</button>
+          <button class="secondary small" id="ig-exportar" type="button" hidden>Exportar Excel</button>
+          <button class="secondary small" id="ig-imprimir" type="button" hidden>Imprimir / PDF</button>
+        </div>
+
+        <div id="ig-resultado" hidden>
+          <div class="ig-encabezado">
+            <h2 id="ig-titulo"></h2>
+            <p id="ig-generado"></p>
+          </div>
+
+          <div class="table-card">
+            <div class="table-meta"><strong>Resumen por año</strong><span>Ingresados según fecha de ingreso · Disposiciones según fecha de disposición</span></div>
+            <div class="table-scroll">
+              <table class="data-table ig-tabla">
+                <thead>
+                  <tr><th rowspan="2">Año</th><th colspan="3" class="ig-grupo">PMA</th><th colspan="3" class="ig-grupo">CARTILLA</th><th colspan="2" class="ig-grupo">TOTAL</th></tr>
+                  <tr><th>Expedientes</th><th>Obras Sociales</th><th>Disposiciones</th><th>Expedientes</th><th>Obras Sociales</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th></tr>
+                </thead>
+                <tbody id="ig-resumen-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="ig-estados">
+            <div class="table-card">
+              <div class="table-meta"><strong>PMA · estado actual de lo ingresado</strong></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead id="ig-pma-head"></thead><tbody id="ig-pma-body"></tbody></table></div>
+            </div>
+            <div class="table-card">
+              <div class="table-meta"><strong>Cartilla · estado actual de lo ingresado</strong></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead id="ig-cart-head"></thead><tbody id="ig-cart-body"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+        <p class="ig-nota">Expedientes: trámites de PMA y de Cartilla cuya fecha de ingreso cae en el año. Obras Sociales: cuántos Agentes de Seguro distintos presentaron ese año. Disposiciones: disposiciones emitidas en el año, cualquiera sea el año en que ingresó el expediente. El estado es la condición que tiene hoy cada expediente en el sistema. El Excel suma una hoja con el detalle de todos los expedientes del período.</p>
       </section>
 
       <section id="reportes" class="view">
@@ -2639,7 +2682,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=80"></script>
+  <script src="app.js?v=81"></script>
   <script src="auditorias.js?v=14"></script>
   <script src="usuarios.js?v=6"></script>
 </body>

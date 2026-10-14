@@ -23,6 +23,7 @@ const views = {
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
+  "informe-gestion": { title: "Informe de gestión", subtitle: "Expedientes de PMA y Cartilla ingresados, disposiciones emitidas y estado actual, por año" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
@@ -299,9 +300,9 @@ function perfilPuedeVerVista(perfil, vista) {
   // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
   // de la coordinación (usuario Administrador/Admin Prestacional): el perfil "admin presentaciones"
   // (auditor) consulta y presenta, pero no configura.
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
-  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
-  if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
+  if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
+  if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
   if (p === "cartilla os") return ["cartilla-hub", "prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
   return false;
 }
@@ -351,7 +352,7 @@ const MODULOS_ACCESO = [
   { nombre: "Configuración Cartilla", vistas: [["anexo-i-admin", "Anexo I · Edición"], ["anexo-iv-config", "Anexo IV"], ["cobertura-config", "Cobertura básica"]] },
   { nombre: "Análisis de Cartilla", vistas: [["cartilla-revision", "Cartilla"], ["afiliados", "Afiliados"], ["cobertura", "Cobertura"], ["prestadores", "Anexo III"]] },
   { nombre: "Presentaciones", vistas: [["pma", "PMA"], ["cartillas", "Cartillas"], ["reportes", "Reportes"]] },
-  { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"]] },
+  { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"], ["informe-gestion", "Informe de gestión"]] },
   { nombre: "Urgencias Prestacionales", vistas: [["up-expedientes", "Expedientes"], ["up-drogas", "Catálogo de drogas"], ["up-patologias", "Patologías"], ["up-plantillas", "Plantillas"], ["up-reportes", "Reportes"]] },
   { nombre: "Preexistencias", vistas: [["px-preexistencias", "Expedientes"], ["px-patologias", "Patologías"], ["px-plantillas", "Plantillas"], ["px-emp", "Reportes"]] },
   { nombre: "Auditorías", vistas: [["au-auditorias", "Expedientes"], ["au-plantilla", "Planilla de requerimientos"], ["au-pendientes", "Pendientes"]] },
@@ -359,7 +360,7 @@ const MODULOS_ACCESO = [
 ];
 const VISTAS_CON_ACCESO_PERSONALIZABLE = new Set(MODULOS_ACCESO.flatMap(m => m.vistas.map(v => v[0])));
 // Pantallas donde "Solo mirar" ya bloquea la edición. En las demás, por ahora "Solo mirar" = "Editar".
-const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "au-auditorias", "au-plantilla", "au-pendientes"]);
+const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion", "au-auditorias", "au-plantilla", "au-pendientes"]);
 // Pantallas internas que dependen de otra (se abren desde ella).
 const VISTAS_DEPENDIENTES = { "anexo-ii-admin": "cartilla-revision", "anexo-iv-admin": "cartilla-revision" };
 const PERFILES_INTERNOS_NUEVOS = ["coordinador", "analista", "administrativo"];
@@ -393,7 +394,7 @@ function accesoPorDefectoPerfil(perfil, vista) {
   if (vista === "obras-sociales") return esAP || esAPres || esAdmvo;
   if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(vista)) return esAP;
   if (["cartilla-revision", "cobertura", "afiliados", "prestadores"].includes(vista)) return esAP || esAPres;
-  if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas"].includes(vista)) return esAP || esAPres || esCarga || esAdmvo;
+  if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(vista)) return esAP || esAPres || esCarga || esAdmvo;
   if (vista === "px-preexistencias" || vista === "px-emp") return esAPx;
   if (vista.startsWith("au-")) return esAP;
   return false;
@@ -407,10 +408,10 @@ function accesosSugeridosPerfil(perfil) {
     VISTAS_CON_ACCESO_PERSONALIZABLE.forEach(v => { out[v] = "editar"; });
   } else if (p === "analista") {
     ["cartilla-revision", "afiliados", "cobertura", "prestadores", "pma", "cartillas", "reportes", "au-auditorias", "au-plantilla", "au-pendientes"].forEach(v => { out[v] = "editar"; });
-    ["obras-sociales", "criticidad", "metas-fisicas"].forEach(v => { out[v] = "ver"; });
+    ["obras-sociales", "criticidad", "metas-fisicas", "informe-gestion"].forEach(v => { out[v] = "ver"; });
   } else if (p === "administrativo") {
     ["pma", "cartillas", "reportes"].forEach(v => { out[v] = "editar"; });
-    ["obras-sociales", "criticidad", "metas-fisicas"].forEach(v => { out[v] = "ver"; });
+    ["obras-sociales", "criticidad", "metas-fisicas", "informe-gestion"].forEach(v => { out[v] = "ver"; });
   }
   return out;
 }
@@ -4289,6 +4290,155 @@ function exportarMetasFisicasExcel() {
   window.XLSX.writeFile(libro, `metas_fisicas_${document.getElementById("metas-anio")?.value}.xlsx`);
 }
 
+// ---------- Informe de gestión (PMA + Cartillas por año) ----------
+// Expedientes ingresados (por fecha de ingreso), Obras Sociales distintas,
+// disposiciones emitidas (por fecha de disposición) y estado actual de lo ingresado.
+
+const IG_ORDEN_CONDICIONES = ["S/ASIGNAR", "EN ESTUDIO", "OBSERVADO", "NOTIFICADO", "PROYECTO DISPO", "PROYECTO EN DISPO", "PASE A JURIDICO", "PROCESO SUMARIAL", "APROBADO", "ARCHIVO"];
+let igDatos = null;
+
+function igAnioDe(fecha) {
+  return fecha ? Number(String(fecha).slice(0, 4)) : null;
+}
+
+function igCondicion(r) {
+  const c = String(r.condicion || "").trim().toUpperCase();
+  return c || "(Sin condición)";
+}
+
+function igCalcular(lista, anios) {
+  const porAnio = {};
+  anios.forEach(a => { porAnio[a] = { ingresados: 0, obras: new Set(), dispos: 0, estados: {} }; });
+  lista.forEach(r => {
+    const ai = igAnioDe(r.fecha_ingreso);
+    if (porAnio[ai]) {
+      const d = porAnio[ai];
+      d.ingresados++;
+      if (r.obra_social_id) d.obras.add(r.obra_social_id);
+      const c = igCondicion(r);
+      d.estados[c] = (d.estados[c] || 0) + 1;
+    }
+    const ad = igAnioDe(r.fecha_disposicion);
+    if (porAnio[ad] && String(r.numero_disposicion || "").trim()) porAnio[ad].dispos++;
+  });
+  return porAnio;
+}
+
+function igCondicionesPresentes(porAnio) {
+  const presentes = new Set();
+  Object.values(porAnio).forEach(d => Object.keys(d.estados).forEach(c => presentes.add(c)));
+  const ordenadas = IG_ORDEN_CONDICIONES.filter(c => presentes.has(c));
+  const resto = [...presentes].filter(c => !IG_ORDEN_CONDICIONES.includes(c)).sort();
+  return [...ordenadas, ...resto];
+}
+
+async function handleGenerarInformeGestion() {
+  const desde = Number(document.getElementById("ig-desde")?.value);
+  const hasta = Number(document.getElementById("ig-hasta")?.value);
+  if (!desde || !hasta || desde > hasta) { mostrarToast("Revisá los años: \"Desde\" tiene que ser menor o igual que \"Hasta\"."); return; }
+  const boton = document.getElementById("ig-generar");
+  if (boton) { boton.disabled = true; boton.textContent = "Generando..."; }
+  try {
+    await asegurarPmaYCartillasCargadas();
+    const anios = [];
+    for (let a = desde; a <= hasta; a++) anios.push(a);
+    const hoy = new Date();
+    const anioActual = hoy.getFullYear();
+    const hoyIso = `${anioActual}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    const etiquetaAnio = a => (a === anioActual ? `${a} (al ${formatearFecha(hoyIso)})` : String(a));
+
+    const datosPma = igCalcular(pma, anios);
+    const datosCart = igCalcular(cartillas, anios);
+    const enRango = r => { const a = igAnioDe(r.fecha_ingreso); return a >= desde && a <= hasta; };
+    const detalle = [
+      ...pma.filter(enRango).map(r => ({ tipo: "PMA", r })),
+      ...cartillas.filter(enRango).map(r => ({ tipo: "CARTILLA", r }))
+    ].sort((x, y) => String(x.r.fecha_ingreso).localeCompare(String(y.r.fecha_ingreso)) || x.tipo.localeCompare(y.tipo));
+
+    igDatos = { desde, hasta, anios, etiquetaAnio, datosPma, datosCart, detalle, generado: hoyIso };
+
+    // Resumen por año
+    const num = n => `<td style="text-align:center;font-weight:800">${n}</td>`;
+    const filas = anios.map(a => {
+      const p = datosPma[a], c = datosCart[a];
+      return `<tr><td><strong>${escaparHtml(etiquetaAnio(a))}</strong></td>${num(p.ingresados)}${num(p.obras.size)}${num(p.dispos)}${num(c.ingresados)}${num(c.obras.size)}${num(c.dispos)}${num(p.ingresados + c.ingresados)}${num(p.dispos + c.dispos)}</tr>`;
+    });
+    const suma = (d, k) => anios.reduce((acc, a) => acc + (k === "obras" ? 0 : d[a][k]), 0);
+    const tp = suma(datosPma, "ingresados"), tc = suma(datosCart, "ingresados");
+    const dp = suma(datosPma, "dispos"), dc = suma(datosCart, "dispos");
+    filas.push(`<tr class="ig-total"><td><strong>Total</strong></td>${num(tp)}<td style="text-align:center;color:var(--muted)">—</td>${num(dp)}${num(tc)}<td style="text-align:center;color:var(--muted)">—</td>${num(dc)}${num(tp + tc)}${num(dp + dc)}</tr>`);
+    document.getElementById("ig-resumen-body").innerHTML = filas.join("");
+
+    // Estado actual por tipo
+    const tablaEstados = (porAnio, idHead, idBody) => {
+      const conds = igCondicionesPresentes(porAnio);
+      document.getElementById(idHead).innerHTML = `<tr><th style="width:220px">Condición actual</th>${anios.map(a => `<th style="text-align:center">${escaparHtml(String(a))}</th>`).join("")}<th style="text-align:center">Total</th></tr>`;
+      const cuerpo = conds.map(c => {
+        const vals = anios.map(a => porAnio[a].estados[c] || 0);
+        return `<tr><td>${escaparHtml(c)}</td>${vals.map(v => `<td style="text-align:center">${v || "—"}</td>`).join("")}<td style="text-align:center;font-weight:800">${vals.reduce((x, y) => x + y, 0)}</td></tr>`;
+      });
+      const tot = anios.map(a => porAnio[a].ingresados);
+      cuerpo.push(`<tr class="ig-total"><td><strong>Total ingresados</strong></td>${tot.map(v => num(v)).join("")}${num(tot.reduce((x, y) => x + y, 0))}</tr>`);
+      document.getElementById(idBody).innerHTML = cuerpo.join("");
+    };
+    tablaEstados(datosPma, "ig-pma-head", "ig-pma-body");
+    tablaEstados(datosCart, "ig-cart-head", "ig-cart-body");
+
+    document.getElementById("ig-titulo").textContent = `Informe de gestión PMA y Cartilla · ${desde === hasta ? desde : `${desde} a ${hasta}`}`;
+    document.getElementById("ig-generado").textContent = `Datos de Reportes GCP al ${formatearFecha(hoyIso)}. ${detalle.length} expedientes ingresados en el período.`;
+    document.getElementById("ig-resultado")?.removeAttribute("hidden");
+    document.getElementById("ig-exportar")?.removeAttribute("hidden");
+    document.getElementById("ig-imprimir")?.removeAttribute("hidden");
+  } catch (error) {
+    mostrarToast("No se pudo generar el informe de gestión.");
+    console.error(error);
+  } finally {
+    if (boton) { boton.disabled = false; boton.textContent = "Generar"; }
+  }
+}
+
+function exportarInformeGestionExcel() {
+  if (!igDatos) return;
+  const { anios, etiquetaAnio, datosPma, datosCart, detalle, desde, hasta } = igDatos;
+  const libro = window.XLSX.utils.book_new();
+
+  const resumen = [["Año", "PMA ingresados", "PMA - Obras Sociales", "PMA - Disposiciones emitidas", "Cartilla ingresados", "Cartilla - Obras Sociales", "Cartilla - Disposiciones emitidas", "Total ingresados", "Total disposiciones"]];
+  anios.forEach(a => {
+    const p = datosPma[a], c = datosCart[a];
+    resumen.push([etiquetaAnio(a), p.ingresados, p.obras.size, p.dispos, c.ingresados, c.obras.size, c.dispos, p.ingresados + c.ingresados, p.dispos + c.dispos]);
+  });
+  const s = k => d => anios.reduce((acc, a) => acc + d[a][k], 0);
+  resumen.push(["Total", s("ingresados")(datosPma), "", s("dispos")(datosPma), s("ingresados")(datosCart), "", s("dispos")(datosCart), s("ingresados")(datosPma) + s("ingresados")(datosCart), s("dispos")(datosPma) + s("dispos")(datosCart)]);
+  const hojaResumen = window.XLSX.utils.aoa_to_sheet(resumen);
+  hojaResumen["!cols"] = [{ wch: 20 }, ...Array(8).fill({ wch: 16 })];
+  window.XLSX.utils.book_append_sheet(libro, hojaResumen, "Resumen por año");
+
+  const hojaEstados = porAnio => {
+    const conds = igCondicionesPresentes(porAnio);
+    const aoa = [["Condición actual", ...anios.map(String), "Total"]];
+    conds.forEach(c => { const v = anios.map(a => porAnio[a].estados[c] || 0); aoa.push([c, ...v, v.reduce((x, y) => x + y, 0)]); });
+    const t = anios.map(a => porAnio[a].ingresados);
+    aoa.push(["Total ingresados", ...t, t.reduce((x, y) => x + y, 0)]);
+    const h = window.XLSX.utils.aoa_to_sheet(aoa);
+    h["!cols"] = [{ wch: 22 }, ...Array(anios.length + 1).fill({ wch: 10 })];
+    return h;
+  };
+  window.XLSX.utils.book_append_sheet(libro, hojaEstados(datosPma), "PMA por estado");
+  window.XLSX.utils.book_append_sheet(libro, hojaEstados(datosCart), "Cartilla por estado");
+
+  const det = [["Tipo", "RNAS", "Obra Social", "Ejercicio", "Nº EE", "Fecha ingreso", "Condición", "Analista", "Nº Disposición", "Fecha disposición"]];
+  detalle.forEach(({ tipo, r }) => {
+    const os = r.obras_sociales || {};
+    det.push([tipo, os.rnos || "", os.denominacion || "", r.ejercicio || "", r.numero_ee || "", formatearFecha(r.fecha_ingreso), igCondicion(r), r.analista || "", r.numero_disposicion || "", r.fecha_disposicion ? formatearFecha(r.fecha_disposicion) : ""]);
+  });
+  const hojaDet = window.XLSX.utils.aoa_to_sheet(det);
+  hojaDet["!cols"] = [{ wch: 10 }, { wch: 9 }, { wch: 50 }, { wch: 12 }, { wch: 34 }, { wch: 12 }, { wch: 18 }, { wch: 10 }, { wch: 34 }, { wch: 14 }];
+  hojaDet["!autofilter"] = { ref: `A1:J${det.length}` };
+  window.XLSX.utils.book_append_sheet(libro, hojaDet, "Detalle expedientes");
+
+  window.XLSX.writeFile(libro, `informe_gestion_pma_cartilla_${desde}_${hasta}.xlsx`);
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const vistaAnteriorActiva = document.querySelector(".view.active")?.id;
@@ -4311,7 +4461,7 @@ function showView(id, updateHistory = true) {
   document.querySelectorAll(".nav-group").forEach(group => {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
-      (["criticidad", "metas-fisicas"].includes(resolved) && group.dataset.navGroup === "normativa") ||
+      (["criticidad", "metas-fisicas", "informe-gestion"].includes(resolved) && group.dataset.navGroup === "normativa") ||
       (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
@@ -4323,7 +4473,7 @@ function showView(id, updateHistory = true) {
   if (["pma", "cartillas", "reportes"].includes(resolved)) {
     document.querySelector('[data-nav-group="presentaciones"]')?.classList.add("active");
   }
-  if (["criticidad", "metas-fisicas"].includes(resolved)) {
+  if (["criticidad", "metas-fisicas", "informe-gestion"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
   if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved)) {
@@ -4373,6 +4523,10 @@ function showView(id, updateHistory = true) {
   }
   if (resolved === "metas-fisicas" && !document.getElementById("metas-anio").value) {
     document.getElementById("metas-anio").value = new Date().getFullYear();
+  }
+  if (resolved === "informe-gestion" && !document.getElementById("ig-desde").value) {
+    document.getElementById("ig-desde").value = 2024;
+    document.getElementById("ig-hasta").value = new Date().getFullYear();
   }
   if (resolved === "cartilla-hub") inicializarVistaCartillaHub();
   if (resolved === "cartilla-revision") inicializarVistaCartillaRevision();
@@ -12150,6 +12304,9 @@ async function initBrowser() {
   document.getElementById("criticidad-exportar-t4")?.addEventListener("click", () => exportarCriticidadTrimestre(3));
   document.getElementById("metas-generar")?.addEventListener("click", handleGenerarMetasFisicas);
   document.getElementById("metas-exportar")?.addEventListener("click", exportarMetasFisicasExcel);
+  document.getElementById("ig-generar")?.addEventListener("click", handleGenerarInformeGestion);
+  document.getElementById("ig-exportar")?.addEventListener("click", exportarInformeGestionExcel);
+  document.getElementById("ig-imprimir")?.addEventListener("click", () => window.print());
 
   document.getElementById("btn-nueva-pma")?.addEventListener("click", () => requiereAutenticacion(abrirModalPmaNueva));
   document.getElementById("pma-form")?.addEventListener("submit", handlePmaSubmit);

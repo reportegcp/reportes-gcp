@@ -2124,3 +2124,25 @@ select.us-nivel.mixto{background:#fdf5e6;color:#8a5a12;border-color:#f0d9a8}
 .au-pendientes-blanco{margin-top:12px;padding:10px 12px;border-radius:10px;background:#fdf5e6;border:1px solid #f0d9a8;color:#8a5a12;font-size:13px}
 .au-pendientes-blanco.ok{background:#eef8f3;border-color:#b9e0cd;color:#226d53}
 .au-pendientes-blanco:empty{display:none}
+
+/* ---------- Informe de gestión ---------- */
+.ig-toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;grid-template-columns:none}
+.ig-anio{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:#4d5d70}
+.ig-anio input{width:100px;height:34px;padding:5px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:9px}
+#ig-generar,#ig-exportar,#ig-imprimir{padding:6px 12px;font-size:12.5px;white-space:nowrap;height:34px}
+.ig-encabezado{margin:18px 0 10px}
+.ig-encabezado h2{margin:0 0 4px;font-size:18px;color:var(--navy)}
+.ig-encabezado p{margin:0;color:var(--muted);font-size:12.5px}
+.ig-tabla{width:auto;min-width:0}
+.ig-tabla th{text-align:center;white-space:nowrap}
+.ig-tabla th:first-child,.ig-tabla td:first-child{text-align:left;white-space:nowrap}
+.ig-tabla td{padding-left:14px;padding-right:14px}
+.ig-tabla th.ig-grupo{border-bottom:2px solid var(--navy-2)}
+.ig-tabla tr.ig-total td{background:var(--surface-soft);border-top:2px solid var(--line)}
+.ig-estados{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;margin-top:16px}
+.ig-nota{color:var(--muted);font-size:12.5px;max-width:900px;line-height:1.5}
+@media print{
+  #informe-gestion .ig-toolbar{display:none!important}
+  #informe-gestion .table-scroll{overflow:visible}
+  .ig-estados{grid-template-columns:1fr 1fr}
+}
