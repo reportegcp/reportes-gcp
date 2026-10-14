@@ -4422,7 +4422,7 @@ async function handleGenerarInformeGestion() {
     document.getElementById("ig-generado").textContent = `Datos de Reportes GCP al ${formatearFecha(hoyIso)}.`;
     document.getElementById("ig-obras").innerHTML =
       `Se trabajaron <strong>${tot.pmaExp + tot.cartExp} expedientes</strong>: ` +
-      `<strong>${tot.pmaExp} de PMA</strong> (${resPma.obras.size} Obras Sociales) y <strong>${tot.cartExp} de Cartilla</strong> (${resCart.obras.size} Obras Sociales) ` +
+      `<strong>${tot.pmaExp} de PMA</strong> y <strong>${tot.cartExp} de Cartilla</strong> ` +
       `${escaparHtml(igTextoPeriodo(desde, hasta))}.`;
     document.getElementById("ig-resultado")?.removeAttribute("hidden");
     document.getElementById("ig-exportar")?.removeAttribute("hidden");
@@ -4441,7 +4441,7 @@ function exportarInformeGestionExcel() {
   const libro = window.XLSX.utils.book_new();
 
   const resumen = [
-    [`Se trabajaron ${tot.pmaExp + tot.cartExp} expedientes: ${tot.pmaExp} de PMA (${resPma.obras.size} Obras Sociales) y ${tot.cartExp} de Cartilla (${resCart.obras.size} Obras Sociales) ${igTextoPeriodo(desde, hasta)}.`],
+    [`Se trabajaron ${tot.pmaExp + tot.cartExp} expedientes: ${tot.pmaExp} de PMA y ${tot.cartExp} de Cartilla ${igTextoPeriodo(desde, hasta)}.`],
     [],
     ["Ejercicio", "PMA - Expedientes", "PMA - Disposiciones", "Cartilla - Expedientes", "Cartilla - Disposiciones", "Total expedientes", "Total disposiciones"]
   ];
