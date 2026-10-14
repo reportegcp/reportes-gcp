@@ -4311,6 +4311,10 @@ function igCompararEjercicios(a, b) {
   return (igAnioEjercicio(a) - igAnioEjercicio(b)) || a.length - b.length || a.localeCompare(b);
 }
 
+function igTextoPeriodo(desde, hasta) {
+  return desde === hasta ? `en el ejercicio ${desde}` : `en el período comprendido entre los ejercicios ${desde} y ${hasta}`;
+}
+
 function igCondicion(r) {
   const c = String(r.condicion || "").trim().toUpperCase();
   return c || "(Sin condición)";
@@ -4417,8 +4421,9 @@ async function handleGenerarInformeGestion() {
     document.getElementById("ig-titulo").textContent = `Informe de gestión PMA y Cartilla · ${periodo}`;
     document.getElementById("ig-generado").textContent = `Datos de Reportes GCP al ${formatearFecha(hoyIso)}.`;
     document.getElementById("ig-obras").innerHTML =
-      `Sobre un total de <strong>${obrasTotal.size} Obras Sociales</strong> se trabajaron <strong>${tot.pmaExp + tot.cartExp} expedientes</strong>: ` +
-      `<strong>${tot.pmaExp} de PMA</strong> (${resPma.obras.size} Obras Sociales) y <strong>${tot.cartExp} de Cartilla</strong> (${resCart.obras.size} Obras Sociales).`;
+      `Se trabajaron <strong>${tot.pmaExp + tot.cartExp} expedientes</strong>: ` +
+      `<strong>${tot.pmaExp} de PMA</strong> (${resPma.obras.size} Obras Sociales) y <strong>${tot.cartExp} de Cartilla</strong> (${resCart.obras.size} Obras Sociales) ` +
+      `${escaparHtml(igTextoPeriodo(desde, hasta))}.`;
     document.getElementById("ig-resultado")?.removeAttribute("hidden");
     document.getElementById("ig-exportar")?.removeAttribute("hidden");
     document.getElementById("ig-imprimir")?.removeAttribute("hidden");
@@ -4436,7 +4441,7 @@ function exportarInformeGestionExcel() {
   const libro = window.XLSX.utils.book_new();
 
   const resumen = [
-    [`Sobre un total de ${obrasTotal.size} Obras Sociales se trabajaron ${tot.pmaExp + tot.cartExp} expedientes: ${tot.pmaExp} de PMA (${resPma.obras.size} Obras Sociales) y ${tot.cartExp} de Cartilla (${resCart.obras.size} Obras Sociales).`],
+    [`Se trabajaron ${tot.pmaExp + tot.cartExp} expedientes: ${tot.pmaExp} de PMA (${resPma.obras.size} Obras Sociales) y ${tot.cartExp} de Cartilla (${resCart.obras.size} Obras Sociales) ${igTextoPeriodo(desde, hasta)}.`],
     [],
     ["Ejercicio", "PMA - Expedientes", "PMA - Disposiciones", "Cartilla - Expedientes", "Cartilla - Disposiciones", "Total expedientes", "Total disposiciones"]
   ];
