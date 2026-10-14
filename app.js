@@ -5651,7 +5651,7 @@ function crearHojaExcelConDiseno(matriz, titulo = "Reporte", filaEncabezado = 3)
   };
   const titleCell = hoja.A1;
   if (titleCell) titleCell.s = {
-    font:{bold:true,sz:17,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"183153"}},
+    font:{bold:true,sz:17,color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"0F5C63"}},
     alignment:{horizontal:"left",vertical:"center"}
   };
   for (let c=0;c<maxCols;c++) {

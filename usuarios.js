@@ -10,7 +10,7 @@ let usEventos = false;
 let usOsPorEtiqueta = new Map();
 let usAccesos = {};
 
-async function usLlamar(accion, datos = {}) {
+async function usLlamar(accion, datos = {}, reintento = true) {
   const session = await asegurarSesionVigente();
   const resp = await fetchConTimeout(`${SUPABASE_URL}/functions/v1/admin-usuarios`, {
     method: "POST",
@@ -18,6 +18,17 @@ async function usLlamar(accion, datos = {}) {
     body: JSON.stringify({ accion, ...datos })
   }, 20000);
   const data = await resp.json().catch(() => ({}));
+  // Si el token quedó viejo (por ejemplo, al volver a la app instalada o tras iniciar sesión en otra ventana),
+  // se renueva la sesión y se reintenta una vez antes de mostrar el error.
+  const sesionInvalida = resp.status === 401 || /sesi[oó]n inv[aá]lida/i.test(String(data.error || ""));
+  if (sesionInvalida && reintento && authSession?.refresh_token) {
+    try {
+      guardarSesion(await authRefresh(authSession.refresh_token));
+      return usLlamar(accion, datos, false);
+    } catch (error) {
+      console.warn("No se pudo renovar la sesión:", error);
+    }
+  }
   if (!resp.ok || data.error) throw new Error(data.error || `El servidor respondió ${resp.status}.`);
   return data;
 }
