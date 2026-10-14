@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=96">
+  <link rel="stylesheet" href="styles.css?v=97">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 144</span>
+        <span>Versión 145</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1153,8 +1153,8 @@
 
       <section id="informe-gestion" class="view">
         <div class="toolbar ig-toolbar">
-          <label class="ig-anio"><span>Desde</span><input id="ig-desde" type="number" min="2020" max="2100"></label>
-          <label class="ig-anio"><span>Hasta</span><input id="ig-hasta" type="number" min="2020" max="2100"></label>
+          <label class="ig-anio"><span>Ejercicio desde</span><select id="ig-desde"></select></label>
+          <label class="ig-anio"><span>Ejercicio hasta</span><select id="ig-hasta"></select></label>
           <button class="primary small" id="ig-generar" type="button">Generar</button>
           <button class="secondary small" id="ig-exportar" type="button" hidden>Exportar Excel</button>
           <button class="secondary small" id="ig-imprimir" type="button" hidden>Imprimir / PDF</button>
@@ -1164,15 +1164,16 @@
           <div class="ig-encabezado">
             <h2 id="ig-titulo"></h2>
             <p id="ig-generado"></p>
+            <p id="ig-obras" class="ig-obras"></p>
           </div>
 
           <div class="table-card">
-            <div class="table-meta"><strong>Resumen por año</strong><span>Ingresados según fecha de ingreso · Disposiciones según fecha de disposición</span></div>
+            <div class="table-meta"><strong>Resumen por ejercicio</strong></div>
             <div class="table-scroll">
               <table class="data-table ig-tabla">
                 <thead>
-                  <tr><th rowspan="2">Año</th><th colspan="3" class="ig-grupo">PMA</th><th colspan="3" class="ig-grupo">CARTILLA</th><th colspan="2" class="ig-grupo">TOTAL</th></tr>
-                  <tr><th>Expedientes</th><th>Obras Sociales</th><th>Disposiciones</th><th>Expedientes</th><th>Obras Sociales</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th></tr>
+                  <tr><th rowspan="2">Ejercicio</th><th colspan="2" class="ig-grupo">PMA</th><th colspan="2" class="ig-grupo">CARTILLA</th><th colspan="2" class="ig-grupo">TOTAL</th></tr>
+                  <tr><th>Expedientes</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th></tr>
                 </thead>
                 <tbody id="ig-resumen-body"></tbody>
               </table>
@@ -1181,19 +1182,20 @@
 
           <div class="ig-estados">
             <div class="table-card">
-              <div class="table-meta"><strong>PMA · estado actual de lo ingresado</strong></div>
+              <div class="table-meta"><strong>PMA · estado actual por ejercicio</strong></div>
               <div class="table-scroll"><table class="data-table ig-tabla"><thead id="ig-pma-head"></thead><tbody id="ig-pma-body"></tbody></table></div>
             </div>
             <div class="table-card">
-              <div class="table-meta"><strong>Cartilla · estado actual de lo ingresado</strong></div>
+              <div class="table-meta"><strong>Cartilla · estado actual por ejercicio</strong></div>
               <div class="table-scroll"><table class="data-table ig-tabla"><thead id="ig-cart-head"></thead><tbody id="ig-cart-body"></tbody></table></div>
             </div>
           </div>
         </div>
         <div class="ig-nota">
-          <p><strong>Expedientes:</strong> trámites de PMA y de Cartilla cuya fecha de ingreso cae en el año.</p>
-          <p><strong>Obras Sociales:</strong> cuántos Agentes de Seguro distintos presentaron ese año.</p>
-          <p><strong>Disposiciones:</strong> disposiciones emitidas en el año, cualquiera sea el año en que ingresó el expediente.</p>
+          <p><strong>Ejercicio:</strong> período que presenta la Obra Social (anual, como 2024, o partido, como 2024/25), sin importar la fecha en que ingresó el expediente.</p>
+          <p><strong>Expedientes:</strong> trámites de PMA y de Cartilla presentados para ese ejercicio.</p>
+          <p><strong>Obras Sociales:</strong> Agentes de Seguro distintos que presentaron en el período; una misma Obra Social puede tener expedientes en varios ejercicios.</p>
+          <p><strong>Disposiciones:</strong> expedientes del ejercicio que ya tienen disposición emitida.</p>
           <p><strong>Estado:</strong> es la condición que tiene hoy cada expediente en el sistema.</p>
         </div>
       </section>
@@ -2694,7 +2696,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=81"></script>
+  <script src="app.js?v=82"></script>
   <script src="auditorias.js?v=14"></script>
   <script src="usuarios.js?v=6"></script>
   <script>
