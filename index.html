@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 148</span>
+        <span>Versión 149</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2291,6 +2291,8 @@
           <div class="anexo-i-rte" id="au-punto-modelo" contenteditable="true" style="min-height:110px"></div>
           <span class="au-hint">Se completan solos: {OS} nombre, {SIGLA}, {RNAS}, {EX}, {EJERCICIO}, {ANIO}, {ANIO_1}, {ANIO_2}. {PMA} y {CARTILLA} traen el párrafo armado desde Reportes GCP. Dejá ____ donde va un dato a completar.</span>
         </div>
+        <label class="full"><span>Descripción breve</span><input type="text" id="au-punto-breve" maxlength="200" placeholder="Ej.: programas preventivos de cáncer de mama y cuello uterino">
+          <span class="au-hint">Se usa en las observaciones para nombrar el punto, por ejemplo: "no aportó la documentación del punto 15 (otros programas preventivos)".</span></label>
         <label><span>Eje del informe</span><select id="au-punto-eje"></select></label>
         <label><span>Posición</span><select id="au-punto-posicion"></select></label>
         <div class="full au-check"><input type="checkbox" id="au-punto-activo"><label for="au-punto-activo">Incluir este punto en los próximos requerimientos</label></div>
@@ -2696,7 +2698,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=85"></script>
-  <script src="auditorias.js?v=14"></script>
+  <script src="auditorias.js?v=15"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
     if ("serviceWorker" in navigator) {

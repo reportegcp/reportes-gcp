@@ -333,7 +333,7 @@ async function auCrearAuditoria(event) {
 
   try {
     boton.disabled = true;
-    const plantilla = await auFetch("auditoria_requerimiento_items", { params: { select: "texto_html,modelo_html,eje,orden", activo: "eq.true", order: "orden.asc" } });
+    const plantilla = await auFetch("auditoria_requerimiento_items", { params: { select: "texto_html,modelo_html,descripcion_breve,eje,orden", activo: "eq.true", order: "orden.asc" } });
     if (!plantilla?.length) throw new Error("La plantilla del Requerimiento no tiene puntos activos.");
 
     const [aud] = await auFetch("auditorias", {
@@ -350,7 +350,7 @@ async function auCrearAuditoria(event) {
 
     await auFetch("auditoria_puntos", {
       method: "POST",
-      body: plantilla.map((item, i) => ({ auditoria_id: aud.id, numero: i + 1, texto_html: item.texto_html, modelo_html: item.modelo_html, eje: item.eje }))
+      body: plantilla.map((item, i) => ({ auditoria_id: aud.id, numero: i + 1, texto_html: item.texto_html, modelo_html: item.modelo_html, descripcion_breve: item.descripcion_breve || null, eje: item.eje }))
     });
 
     if (archivo) {
@@ -1007,6 +1007,7 @@ function auAbrirEditorPunto(id) {
   document.getElementById("au-punto-id").value = id || "";
   document.getElementById("au-punto-texto").innerHTML = it.texto_html || "";
   document.getElementById("au-punto-modelo").innerHTML = it.modelo_html || "";
+  document.getElementById("au-punto-breve").value = it.descripcion_breve || "";
   document.getElementById("au-punto-eje").innerHTML = Object.entries(AU_EJES).map(([k, v]) => `<option value="${k}" ${it.eje === k ? "selected" : ""}>${k} · ${escaparHtml(v)}</option>`).join("");
   document.getElementById("au-punto-posicion").innerHTML = Array.from({ length: total }, (_, i) => `<option value="${i + 1}" ${i + 1 === posicionActual ? "selected" : ""}>${i + 1}</option>`).join("");
   document.getElementById("au-punto-activo").checked = it.activo !== false;
@@ -1033,7 +1034,7 @@ async function auGuardarPunto() {
   try {
     boton.disabled = true;
     const modelo = document.getElementById("au-punto-modelo").innerHTML.trim();
-    const datos = { texto_html: texto, modelo_html: auTextoPlano(modelo) || /\{(PMA|CARTILLA)\}/.test(modelo) ? modelo : null, eje: document.getElementById("au-punto-eje").value, activo: document.getElementById("au-punto-activo").checked, updated_at: new Date().toISOString() };
+    const datos = { texto_html: texto, modelo_html: auTextoPlano(modelo) || /\{(PMA|CARTILLA)\}/.test(modelo) ? modelo : null, descripcion_breve: document.getElementById("au-punto-breve").value.trim() || null, eje: document.getElementById("au-punto-eje").value, activo: document.getElementById("au-punto-activo").checked, updated_at: new Date().toISOString() };
     const posicion = Number(document.getElementById("au-punto-posicion").value);
     let item;
     if (id) {
@@ -1799,6 +1800,22 @@ function auListaNumeros(nums) {
   return `${nums.slice(0, -1).join(", ")} y ${nums[nums.length - 1]}`;
 }
 
+// Descripción corta de un punto para usar dentro de una observación.
+// Usa la "Descripción breve" cargada en la planilla; si no hay, toma la primera oración del texto.
+function auDescripcionPunto(p, anio) {
+  const breve = (p.descripcion_breve || "").trim();
+  if (breve) return breve;
+  let t = auTextoPlano(auReemplazarAnios(p.texto_html || "", anio));
+  t = t.split(/[.:](\s|$)/)[0].replace(/\s*\([^)]*\)/g, "").replace(/^Adjuntar\s+/i, "").trim();
+  return t.charAt(0).toLowerCase() + t.slice(1);
+}
+
+function auListaPuntosDescriptos(puntos, anio) {
+  const partes = puntos.map(p => `${p.numero} (${auDescripcionPunto(p, anio)})`);
+  if (partes.length === 1) return `el punto ${partes[0]}`;
+  return `los siguientes puntos: ${partes.slice(0, -1).join("; ")} y ${partes[partes.length - 1]}`;
+}
+
 function auBuscarBiblioteca(titulo) {
   return auBiblioteca.find(b => b.titulo === titulo) || null;
 }
@@ -1829,14 +1846,14 @@ async function auProponerObservaciones() {
     obs.push({ eje, texto: `En relación con ${nombre.toLowerCase()}, se observó que ____.`, sugerencia: "____" });
   }
   // Puntos no aportados y parciales
-  const noAport = auPuntos.filter(p => p.estado === "No aportado").map(p => p.numero);
-  const parciales = auPuntos.filter(p => p.estado === "Parcial").map(p => p.numero);
+  const noAport = auPuntos.filter(p => p.estado === "No aportado");
+  const parciales = auPuntos.filter(p => p.estado === "Parcial");
   if (noAport.length) {
     const b = auBuscarBiblioteca("Documentación no aportada");
-    obs.push({ eje: "", texto: `El Agente del Seguro de Salud no aportó la documentación requerida en ${noAport.length === 1 ? "el punto" : "los puntos"} ${auListaNumeros(noAport)} del Requerimiento.`, sugerencia: b?.texto_sugerencia || "Remitir la documentación pendiente del Requerimiento a fin de completar la evaluación." });
+    obs.push({ eje: "", texto: `El Agente del Seguro de Salud no aportó la documentación requerida en ${noAport.length === 1 ? auListaPuntosDescriptos(noAport, anio) + " del Requerimiento" : "los siguientes puntos del Requerimiento: " + auListaPuntosDescriptos(noAport, anio).replace(/^los siguientes puntos: /, "")}.`, sugerencia: b?.texto_sugerencia || "Remitir la documentación pendiente del Requerimiento a fin de completar la evaluación." });
   }
   if (parciales.length) {
-    obs.push({ eje: "", texto: `La documentación correspondiente ${parciales.length === 1 ? "al punto" : "a los puntos"} ${auListaNumeros(parciales)} del Requerimiento fue aportada en forma parcial.`, sugerencia: "Completar la documentación de los puntos indicados a fin de permitir su evaluación integral." });
+    obs.push({ eje: "", texto: parciales.length === 1 ? `La documentación correspondiente al punto ${parciales[0].numero} del Requerimiento (${auDescripcionPunto(parciales[0], anio)}) fue aportada en forma parcial.` : `La documentación correspondiente a los siguientes puntos del Requerimiento fue aportada en forma parcial: ${auListaPuntosDescriptos(parciales, anio).replace(/^los siguientes puntos: /, "")}.`, sugerencia: "Completar la documentación de los puntos indicados a fin de permitir su evaluación integral." });
   }
   return obs;
 }
