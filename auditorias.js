@@ -654,7 +654,8 @@ function auRenderP3Nums() {
 function auRenderAdjuntosPunto() {
   const cont = document.getElementById("au-p3-adj-lista");
   if (!cont) return;
-  const docs = auDocsDePunto(auPuntoActivo);
+  // Solo archivos realmente subidos; lo escrito va en "Documentación aportada"
+  const docs = auDocsDePunto(auPuntoActivo).filter(d => d.archivo_path);
   cont.innerHTML = docs.length ? docs.map(d => `<div class="au-p3-adj">
       ${d.archivo_path ? `<button type="button" class="au-link" data-au-adj-ver="${d.id}">📄 ${escaparHtml(d.nombre_archivo || d.nombre)}</button>` : `<span>${escaparHtml(d.nombre)}</span>`}
       <button type="button" class="au-link au-link-danger" data-au-adj-borrar="${d.id}">Quitar</button>
