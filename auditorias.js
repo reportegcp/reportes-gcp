@@ -191,7 +191,7 @@ function auVincularEventos() {
   on("au-search", "input", auRenderLista);
   on("au-nueva-form", "submit", auCrearAuditoria);
   on("au-volver", "click", async () => { await auGuardarEjeSiHayCambios(); await auGuardarPunto3SiHayCambios(); await auGuardarObservacionesSiHayCambios(); await auGuardarConclusionSiHayCambios(); auMostrarLista(); auCargarLista(); });
-  on("au-obs-agregar", "click", () => { auLeerObsDelDom(); auObs.push({ eje: "", texto: "", sugerencia: "" }); auObsSucio = true; auRenderObs(); });
+  on("au-obs-agregar", "click", () => { auLeerObsDelDom(); auObs.push({ eje: "", titulo: "", texto: "", sugerencia: "" }); auObsSucio = true; auRenderObs(); });
   on("au-obs-proponer", "click", auReproponerObservaciones);
   on("au-obs-guardar", "click", () => auGuardarObservaciones(false));
   on("au-obs-continuar", "click", () => auGuardarObservaciones(true));
@@ -1820,42 +1820,146 @@ function auBuscarBiblioteca(titulo) {
   return auBiblioteca.find(b => b.titulo === titulo) || null;
 }
 
+// Textos modelo de observación y sugerencia por tema del Requerimiento.
+// Se reconocen por el texto del punto, así funcionan aunque cambie la numeración.
+const AU_OBS_TEMAS = [
+  { re: /modalidad de cobertura/i, titulo: "Modalidad de cobertura y acceso a las prestaciones",
+    no: "El Agente de Salud no remitió la descripción de su modalidad de cobertura ni de los circuitos de acceso de los beneficiarios a las prestaciones, por lo que no fue posible verificar de qué manera garantiza el acceso efectivo a la atención.",
+    sug: "Formalizar y documentar la modalidad de cobertura y los circuitos de acceso a las prestaciones, y asegurar su adecuada difusión entre los beneficiarios." },
+  { re: /Dirección Médica/i, titulo: "Dirección Médica y Auditoría Médica",
+    no: "No se presentó la estructura del Área de Dirección Médica y Auditoría Médica, lo que impidió conocer su conformación, las funciones asignadas a sus integrantes y su modalidad de trabajo.",
+    sug: "Formalizar la estructura del Área de Dirección Médica y Auditoría Médica mediante un organigrama aprobado, con la definición de las funciones y responsabilidades de cada integrante." },
+  { re: /autorización de Prestaciones/i, titulo: "Autorización de prestaciones",
+    no: "No se informó la organización del sector de autorización de prestaciones ni los requisitos exigidos a los beneficiarios, por lo que no fue posible evaluar los circuitos de acceso a prácticas, internaciones y estudios diagnósticos.",
+    sug: "Documentar los circuitos de autorización de prestaciones, con sus requisitos y plazos de respuesta, y ponerlos a disposición de los beneficiarios." },
+  { re: /auditorías que haya efectuado/i, titulo: "Auditorías a prestadores y a beneficiarios internados",
+    no: "No se aportaron informes de auditorías efectuadas a prestadores institucionales ni de auditoría de beneficiarios internados, lo que no permitió verificar las acciones de control prestacional desarrolladas por el Agente de Salud.",
+    parcial: "Los informes de auditoría remitidos no permitieron verificar en forma integral las acciones de control sobre prestadores institucionales y beneficiarios internados. En particular, ____.",
+    sug: "Planificar y documentar auditorías periódicas a prestadores institucionales y auditorías de terreno a beneficiarios internados, con registro de los hallazgos y seguimiento de las acciones correctivas." },
+  { re: /Prestadores Institucionales bajo convenio/i, titulo: "Red de prestadores institucionales",
+    no: "No se remitió el listado de prestadores de diagnóstico, internación y farmacias, lo que impidió evaluar la suficiencia y la distribución geográfica de la red prestacional.",
+    parcial: "El listado de prestadores remitido no permitió evaluar en forma integral la suficiencia y la distribución geográfica de la red prestacional. En particular, ____.",
+    sug: "Mantener actualizado el listado de prestadores contratados, con su modalidad de contratación, las prestaciones que brinda cada uno y su distribución geográfica, a fin de garantizar la accesibilidad de los beneficiarios." },
+  { re: /Redes\/Prestadores/i, titulo: "Redes y centros de diagnóstico contratados",
+    no: "No se informaron las redes, los prestadores institucionales ni los centros de diagnóstico contratados, como tampoco su modalidad de contratación y de pago.",
+    sug: "Sistematizar la información de las redes y prestadores contratados, con los convenios vigentes, su modalidad de pago y las prestaciones comprendidas en cada uno." },
+  { re: /número de beneficiarios/i, titulo: "Estructura de la población beneficiaria",
+    no: "No se aportó información sobre la composición de la población beneficiaria por tipo de afiliación, lo que impidió analizar su evolución en el período requerido.",
+    sug: "Disponer de información actualizada sobre la composición y la evolución de la población beneficiaria, discriminada por tipo de afiliación." },
+  { re: /grupos de edades/i, titulo: "Distribución de la población por edad",
+    no: "No se remitió la distribución de los beneficiarios por grupos de edad, dato necesario para valorar la adecuación de la oferta prestacional y de los programas preventivos al perfil de la población.",
+    sug: "Contar con la distribución etaria de la población beneficiaria y utilizarla en la planificación prestacional y en el diseño de los programas preventivos." },
+  { re: /localidad o provincia/i, titulo: "Distribución geográfica de la población",
+    no: "No se remitió la distribución geográfica de los beneficiarios, lo que impidió contrastar la ubicación de la población con la de la red prestacional.",
+    sug: "Contar con la distribución geográfica de los beneficiarios y contrastarla periódicamente con la red de prestadores, a fin de asegurar la cobertura en todas las zonas." },
+  { re: /beneficiarios nominales/i, titulo: "Beneficiarios con patologías oncológicas y autoinmunes",
+    no: "No se aportó el listado nominal de beneficiarios con patologías oncológicas y autoinmunes, por lo que no fue posible verificar el seguimiento de estos pacientes ni la continuidad de sus tratamientos.",
+    parcial: "El listado nominal remitido no permitió verificar en forma integral el seguimiento de los beneficiarios con patologías oncológicas y autoinmunes ni la continuidad de sus tratamientos. En particular, ____.",
+    sug: "Implementar un registro nominal de beneficiarios con patologías oncológicas y autoinmunes que permita el seguimiento de sus tratamientos, de los lugares de atención y de la continuidad de la cobertura." },
+  { re: /Planes Superadores/i, titulo: "Planes superadores",
+    no: "No se informaron las características de los planes superadores ofrecidos ni sus diferencias con el plan básico.",
+    sug: "Documentar las características y diferencias de los planes superadores, asegurando que el plan básico garantice la cobertura del Programa Médico Obligatorio." },
+  { re: /coseguros/i, titulo: "Coseguros",
+    no: "No se aportó el listado de coseguros vigentes ni la forma en que se comunican a los beneficiarios.",
+    sug: "Mantener el esquema de coseguros conforme a la normativa vigente y garantizar su comunicación clara y oportuna a los beneficiarios." },
+  { re: /Ca de Mama, Ca de Cuello/i, titulo: "Programas preventivos de cáncer de mama, cuello uterino y salud sexual",
+    no: "No se aportó información sobre los programas preventivos de cáncer de mama, cáncer de cuello uterino y salud sexual y reproductiva, por lo que no fue posible verificar su implementación.",
+    parcial: "Si bien se remitió información sobre los programas preventivos de cáncer de mama, cáncer de cuello uterino y salud sexual y reproductiva, no fue posible verificar su efectiva implementación ni identificar la población alcanzada. En particular, ____.",
+    sug: "Fortalecer la implementación y el seguimiento de los programas preventivos, identificando a la población bajo programa y generando indicadores que permitan evaluar su alcance y sus resultados." },
+  { re: /folletería/i, titulo: "Difusión de los programas preventivos",
+    no: "No se aportaron materiales de difusión, actividades informativas ni indicadores vinculados con los programas preventivos.",
+    sug: "Planificar acciones de difusión de los programas preventivos y medir su alcance mediante indicadores de participación de los beneficiarios." },
+  { re: /otros Programas Preventivos/i, titulo: "Otros programas preventivos",
+    no: "No se informó la realización de otros programas preventivos, como los de cáncer colorrectal, cáncer de próstata, tabaquismo u obesidad.",
+    sug: "Evaluar la incorporación de programas preventivos adicionales, acordes al perfil epidemiológico de la población beneficiaria." },
+  { re: /vacunación/i, titulo: "Vacunación e inmunizaciones",
+    no: "No se aportó documentación sobre campañas de vacunación ni sobre la cobertura de inmunizaciones alcanzada en la población beneficiaria.",
+    sug: "Registrar las campañas de vacunación realizadas y la cobertura alcanzada, a fin de monitorear el cumplimiento del Calendario Nacional de Vacunación." },
+  { re: /CARTILLA/, titulo: "Cartilla Médico Asistencial", clave: "cartillas",
+    no: "No se informó el estado de situación de la presentación de la Cartilla Médico Asistencial.",
+    sug: "Presentar la Cartilla Médico Asistencial dentro de los plazos previstos por la normativa vigente." },
+  { re: /\bPMA\b|Programa Médico Asistencial/i, titulo: "Programa Médico Asistencial", clave: "pma",
+    no: "No se informó el estado de situación de la presentación del Programa Médico Asistencial.",
+    sug: "Presentar el Programa Médico Asistencial dentro de los plazos establecidos por la normativa vigente." },
+  { re: /650\/97/, titulo: "Resolución ANSSAL N.º 650/97",
+    no: "No se aportó la información correspondiente a la Resolución ANSSAL N.º 650/97, por lo que no fue posible verificar su cumplimiento.",
+    parcial: "No fue posible efectuar un análisis integral de la información de la Resolución ANSSAL N.º 650/97, debido a que la documentación remitida resultó incompleta. En particular, ____.",
+    sug: "Desarrollar mecanismos de registro y consolidación de la información requerida por la Resolución ANSSAL N.º 650/97, asegurando su integridad, actualización y presentación en tiempo y forma." },
+  { re: /Órdenes de Pago/i, titulo: "Pagos de prestaciones de alta complejidad",
+    no: "No se remitieron las órdenes de pago ni las facturas de las prestaciones oncológicas, cardiovasculares y neonatológicas complejas del último semestre, por lo que no fue posible verificar la trazabilidad de los pagos ni la oportunidad de la cobertura.",
+    sug: "Mantener registros de facturación y pago que permitan acreditar la trazabilidad y la oportunidad de la cobertura de las prestaciones de alta complejidad." },
+  { re: /Información Estadística/i, titulo: "Información estadística prestacional",
+    no: "No se entregó la información estadística de prestaciones médico asistenciales, lo que impidió construir indicadores de utilización de los servicios.",
+    sug: "Sistematizar la información estadística de las prestaciones brindadas y utilizarla para construir indicadores de utilización y de gestión." }
+];
+
+function auTemaPunto(p) {
+  const plano = auTextoPlano(p.texto_html || "");
+  return AU_OBS_TEMAS.find(t => t.re.test(plano)) || null;
+}
+
+function auTituloPunto(p, tema, anio) {
+  const nombre = tema?.titulo || (() => { const d = auDescripcionPunto(p, anio); return d.charAt(0).toUpperCase() + d.slice(1); })();
+  return `Punto ${p.numero} – ${nombre}`;
+}
+
+const AU_ORDEN_EJES = Object.keys(AU_EJES);
+
 async function auProponerObservaciones() {
   const anio = auAnioAuditoria(auActual);
   const obs = [];
-  const usadosF = new Set();
+  const temasCubiertos = new Set();
   // PMA y Cartilla, según lo registrado en Reportes GCP
   for (const [tabla, nombre, clave] of [["pma", "Programa Médico Asistencial", "PMA extemporáneo"], ["cartillas", "Cartilla Médico Asistencial", "Cartilla extemporánea"]]) {
+    const punto = auPuntos.find(p => auTemaPunto(p)?.clave === tabla);
+    const art = tabla === "pma" ? "del" : "de la";
     try {
       const d = await auDatosPresentacion(tabla, anio);
+      temasCubiertos.add(tabla);
       if (!d.existe) {
-        obs.push({ eje: "F", texto: `No se registra la presentación ${tabla === "pma" ? "del" : "de la"} ${nombre} correspondiente al ejercicio ${anio}.`, sugerencia: `Regularizar la presentación ${tabla === "pma" ? "del" : "de la"} ${nombre} conforme a la normativa vigente.` });
-        usadosF.add(tabla);
+        obs.push({ eje: "F", punto: punto?.numero, titulo: punto ? `Punto ${punto.numero} – ${nombre}` : nombre,
+          texto: `No se registra en los sistemas de esta Gerencia la presentación ${art} ${nombre} correspondiente al ejercicio ${anio}.`,
+          sugerencia: `Presentar ${tabla === "pma" ? "el" : "la"} ${nombre} correspondiente al ejercicio en curso y dar cumplimiento, en lo sucesivo, a los plazos establecidos por la normativa vigente.` });
       } else if (d.extemporanea) {
         const b = auBuscarBiblioteca(clave);
-        obs.push({ eje: "F", texto: b?.texto_observacion || `${nombre} presentado en forma extemporánea.`, sugerencia: b?.texto_sugerencia || "____" });
-        usadosF.add(tabla);
+        obs.push({ eje: "F", punto: punto?.numero, titulo: punto ? `Punto ${punto.numero} – ${nombre}` : nombre,
+          texto: `Se verificó que la presentación ${art} ${nombre} fue realizada con posterioridad al plazo establecido por la normativa vigente, que exige su presentación con una antelación mínima de noventa (90) días al inicio del ejercicio correspondiente.`,
+          sugerencia: b?.texto_sugerencia || `Presentar ${tabla === "pma" ? "el" : "la"} ${nombre} dentro de los plazos establecidos por la normativa vigente y adecuar los circuitos internos de elaboración para asegurar su cumplimiento.` });
       }
     } catch (error) { console.error(error); }
   }
-  // Ejes con hallazgo distinto de "Cumple"
+  // Una observación por cada punto no aportado o aportado en forma parcial
+  for (const p of auPuntos) {
+    if (p.estado !== "No aportado" && p.estado !== "Parcial") continue;
+    const tema = auTemaPunto(p);
+    if (tema?.clave && temasCubiertos.has(tema.clave)) continue;
+    const desc = auDescripcionPunto(p, anio);
+    const texto = p.estado === "No aportado"
+      ? (tema?.no || `No se aportó la documentación correspondiente a ${desc}, por lo que no fue posible evaluar este aspecto.`)
+      : (tema?.parcial || `La documentación remitida sobre ${tema ? tema.titulo.charAt(0).toLowerCase() + tema.titulo.slice(1) : desc} resultó incompleta y no permitió un análisis integral de este aspecto. En particular, ____.`);
+    obs.push({ eje: p.eje || "", punto: p.numero, titulo: auTituloPunto(p, tema, anio), texto,
+      sugerencia: tema?.sug || `Remitir la documentación correspondiente a ${desc} a fin de completar la evaluación de este aspecto.` });
+  }
+  // Ejes con hallazgo desfavorable que no quedaron cubiertos por ninguna observación de punto
   for (const [eje, nombre] of Object.entries(AU_EJES)) {
     const h = auEjes[eje]?.hallazgo;
     if (!h || h === "Cumple" || h === "No aportado") continue;
-    if (eje === "F" && usadosF.size) continue;
-    obs.push({ eje, texto: `En relación con ${nombre.toLowerCase()}, se observó que ____.`, sugerencia: "____" });
+    if (obs.some(o => o.eje === eje)) continue;
+    obs.push({ eje, titulo: nombre.charAt(0) + nombre.slice(1).toLowerCase(), texto: "Se observó que ____.", sugerencia: "____" });
   }
-  // Puntos no aportados y parciales
-  const noAport = auPuntos.filter(p => p.estado === "No aportado");
-  const parciales = auPuntos.filter(p => p.estado === "Parcial");
-  if (noAport.length) {
-    const b = auBuscarBiblioteca("Documentación no aportada");
-    obs.push({ eje: "", texto: `El Agente del Seguro de Salud no aportó la documentación requerida en ${noAport.length === 1 ? auListaPuntosDescriptos(noAport, anio) + " del Requerimiento" : "los siguientes puntos del Requerimiento: " + auListaPuntosDescriptos(noAport, anio).replace(/^los siguientes puntos: /, "")}.`, sugerencia: b?.texto_sugerencia || "Remitir la documentación pendiente del Requerimiento a fin de completar la evaluación." });
-  }
-  if (parciales.length) {
-    obs.push({ eje: "", texto: parciales.length === 1 ? `La documentación correspondiente al punto ${parciales[0].numero} del Requerimiento (${auDescripcionPunto(parciales[0], anio)}) fue aportada en forma parcial.` : `La documentación correspondiente a los siguientes puntos del Requerimiento fue aportada en forma parcial: ${auListaPuntosDescriptos(parciales, anio).replace(/^los siguientes puntos: /, "")}.`, sugerencia: "Completar la documentación de los puntos indicados a fin de permitir su evaluación integral." });
-  }
-  return obs;
+  // Ordenadas por eje y, dentro de cada eje, por número de punto
+  const pos = e => { const k = AU_ORDEN_EJES.indexOf(e); return k < 0 ? 99 : k; };
+  obs.sort((a, b) => pos(a.eje) - pos(b.eje) || (a.punto || 0) - (b.punto || 0));
+  return obs.map(({ punto, ...o }) => o);
+}
+
+// Párrafo inicial de las Observaciones, según los hallazgos de los ejes
+function auProponerIntroObs(hayObs) {
+  const hs = Object.keys(AU_EJES).map(e => auEjes[e]?.hallazgo).filter(Boolean);
+  const cumple = hs.filter(h => h === "Cumple").length;
+  if (!hayObs) return "Del análisis realizado surge que el Agente de Salud presenta un adecuado cumplimiento de sus obligaciones prestacionales en los aspectos evaluados.";
+  if (hs.length && cumple >= hs.length / 2) return "Del análisis realizado surge que el Agente de Salud presenta, en términos generales, un adecuado cumplimiento de sus obligaciones prestacionales.\n\nNo obstante, se identificaron los siguientes aspectos susceptibles de mejora:";
+  return "Del análisis realizado se identificaron los siguientes aspectos que requieren la adopción de medidas por parte del Agente de Salud:";
 }
 
 async function auAbrirObservaciones() {
@@ -1866,7 +1970,7 @@ async function auAbrirObservaciones() {
       auFetch("auditoria_sugerencias_biblioteca", { params: { order: "eje.asc.nullslast,titulo.asc" } })
     ]);
     auBiblioteca = bib || [];
-    auObs = (obs || []).map(o => ({ eje: o.eje || "", texto: o.texto, sugerencia: o.sugerencia || "" }));
+    auObs = (obs || []).map(o => ({ eje: o.eje || "", titulo: o.titulo || "", texto: o.texto, sugerencia: o.sugerencia || "" }));
     auObsSucio = false;
     if (!auObs.length && !auActual.observaciones_listas && !soloLecturaActiva()) {
       auObs = await auProponerObservaciones();
@@ -1875,6 +1979,9 @@ async function auAbrirObservaciones() {
     } else {
       document.getElementById("au-obs-guardado").textContent = auObs.length ? "Guardado" : "";
     }
+    const introEl = document.getElementById("au-obs-intro");
+    introEl.value = auActual.observaciones_intro || auProponerIntroObs(auObs.length > 0);
+    introEl.oninput = () => { auObsSucio = true; document.getElementById("au-obs-guardado").textContent = "Cambios sin guardar"; };
     auRenderObs();
   } catch (error) {
     document.getElementById("au-obs-guardado").textContent = "";
@@ -1894,7 +2001,7 @@ function auRenderObs() {
     const bib = auBiblioteca.filter(b => !o.eje || !b.eje || b.eje === o.eje);
     return `<div class="au-obs" data-au-obs="${i}">
       <div class="au-obs-cab">
-        <span class="au-p3-titulo-num">Observación ${i + 1}</span>
+        <span class="au-p3-titulo-num">${String.fromCharCode(97 + (i % 26))})</span>
         <select data-au-obs-eje>${opcionesEje(o.eje)}</select>
         <span class="au-obs-mover">
           <button type="button" class="au-link" data-au-obs-mover="-1" ${i === 0 ? "disabled" : ""} title="Subir">↑</button>
@@ -1902,6 +2009,7 @@ function auRenderObs() {
           <button type="button" class="au-link au-link-danger" data-au-obs-quitar>Quitar</button>
         </span>
       </div>
+      <input type="text" data-au-obs-titulo class="au-obs-titulo" placeholder="Título (ej.: Punto 15 – Otros programas preventivos)" value="${escaparHtml(o.titulo || "")}">
       <textarea data-au-obs-texto rows="3" placeholder="Qué se observó">${escaparHtml(o.texto)}</textarea>
       <div class="au-obs-sug-cab">
         <span class="au-label" style="margin:0">Sugerencia</span>
@@ -1913,7 +2021,7 @@ function auRenderObs() {
   }).join("");
   cont.querySelectorAll("[data-au-obs]").forEach(card => {
     const i = Number(card.dataset.auObs);
-    card.querySelectorAll("textarea, [data-au-obs-eje]").forEach(el => el.addEventListener("input", () => { auObsSucio = true; document.getElementById("au-obs-guardado").textContent = "Cambios sin guardar"; }));
+    card.querySelectorAll("textarea, input, [data-au-obs-eje]").forEach(el => el.addEventListener("input", () => { auObsSucio = true; document.getElementById("au-obs-guardado").textContent = "Cambios sin guardar"; }));
     card.querySelector("[data-au-obs-eje]").addEventListener("change", () => { auLeerObsDelDom(); auObsSucio = true; auRenderObs(); });
     card.querySelectorAll("[data-au-obs-mover]").forEach(b => b.addEventListener("click", () => {
       auLeerObsDelDom();
@@ -1941,6 +2049,7 @@ function auLeerObsDelDom() {
     const o = auObs[Number(card.dataset.auObs)];
     if (!o) return;
     o.eje = card.querySelector("[data-au-obs-eje]").value;
+    o.titulo = card.querySelector("[data-au-obs-titulo]").value;
     o.texto = card.querySelector("[data-au-obs-texto]").value;
     o.sugerencia = card.querySelector("[data-au-obs-sug]").value;
   });
@@ -1966,6 +2075,7 @@ async function auReproponerObservaciones() {
   const ok = await mostrarConfirmacion("¿Reemplazar las observaciones actuales por las que surgen de los hallazgos? Lo que escribiste se pierde cuando guardes.", { titulo: "Volver a proponer", textoAceptar: "Reemplazar" });
   if (!ok) return;
   auObs = await auProponerObservaciones();
+  document.getElementById("au-obs-intro").value = auProponerIntroObs(auObs.length > 0);
   auObsSucio = true;
   document.getElementById("au-obs-guardado").textContent = "Propuestas desde los hallazgos, sin guardar";
   auRenderObs();
@@ -1976,7 +2086,12 @@ async function auPersistirObservaciones() {
   const limpias = auObs.filter(o => o.texto.trim());
   await auFetch("auditoria_observaciones", { method: "DELETE", params: { auditoria_id: `eq.${auActual.id}` } });
   if (limpias.length) {
-    await auFetch("auditoria_observaciones", { method: "POST", body: limpias.map((o, i) => ({ auditoria_id: auActual.id, orden: i + 1, eje: o.eje || null, texto: o.texto.trim(), sugerencia: o.sugerencia.trim() || null })) });
+    await auFetch("auditoria_observaciones", { method: "POST", body: limpias.map((o, i) => ({ auditoria_id: auActual.id, orden: i + 1, eje: o.eje || null, titulo: (o.titulo || "").trim() || null, texto: o.texto.trim(), sugerencia: o.sugerencia.trim() || null })) });
+  }
+  const intro = document.getElementById("au-obs-intro").value.trim();
+  if (intro !== (auActual.observaciones_intro || "")) {
+    await auFetch("auditorias", { method: "PATCH", params: { id: `eq.${auActual.id}` }, body: { observaciones_intro: intro || null } });
+    auActual.observaciones_intro = intro || null;
   }
   auObs = limpias;
   auObsSucio = false;
@@ -2327,13 +2442,17 @@ async function auDescargarWord() {
 
     n++;
     hijos.push(titulo(`${n}. OBSERVACIONES`));
-    if (obs.length) obs.forEach((o, i) => hijos.push(P([T(`${n}.${i + 1}. `, { bold: true }), T(o.texto)], { indent: { left: 360, hanging: 360 } })));
-    else hijos.push(P([T("No se formulan observaciones.")]));
-    const sugs = obs.filter(o => o.sugerencia);
+    const letra = i => `${String.fromCharCode(97 + (i % 26))})  `;
+    const introObs = (a.observaciones_intro || auProponerIntroObs(obs.length > 0)).split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean);
+    introObs.forEach(x => hijos.push(P([T(x)])));
+    obs.forEach((o, i) => hijos.push(P([T(letra(i), { bold: true }), ...(o.titulo ? [T(`${o.titulo}: `, { bold: true })] : []), T(o.texto)], { indent: { left: 360, hanging: 360 } })));
+    const sugs = obs.filter(o => o.sugerencia && o.sugerencia.trim());
     n++;
     hijos.push(titulo(`${n}. SUGERENCIAS`));
-    if (sugs.length) sugs.forEach((o, i) => hijos.push(P([T(`${n}.${i + 1}. `, { bold: true }), T(o.sugerencia)], { indent: { left: 360, hanging: 360 } })));
-    else hijos.push(P([T("No se formulan sugerencias.")]));
+    if (sugs.length) {
+      hijos.push(P([T("En función de las observaciones efectuadas, se sugiere al Agente de Salud adoptar las siguientes medidas:")]));
+      sugs.forEach((o, i) => hijos.push(P([T(letra(i), { bold: true }), T(o.sugerencia)], { indent: { left: 360, hanging: 360 } })));
+    } else hijos.push(P([T("No se formulan sugerencias.")]));
     n++;
     hijos.push(titulo(`${n}. CONCLUSIÓN`));
     hijos.push(...auDocxBloques(await auPrepararImagenes(a.conclusion_html || auProponerConclusion())));
