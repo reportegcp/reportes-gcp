@@ -2009,7 +2009,10 @@ function auRenderObs() {
           <button type="button" class="au-link au-link-danger" data-au-obs-quitar>Quitar</button>
         </span>
       </div>
-      <input type="text" data-au-obs-titulo class="au-obs-titulo" placeholder="Título (ej.: Punto 15 – Otros programas preventivos)" value="${escaparHtml(o.titulo || "")}">
+      <div class="au-obs-titulo-fila">
+        <select data-au-obs-punto title="Elegir el punto del Requerimiento al que se refiere"><option value="">Elegir punto…</option>${auPuntos.map(p => `<option value="${p.numero}">${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado || "Pendiente")}</option>`).join("")}</select>
+        <input type="text" data-au-obs-titulo class="au-obs-titulo" placeholder="Título (elegí un punto o escribilo)" value="${escaparHtml(o.titulo || "")}">
+      </div>
       <textarea data-au-obs-texto rows="3" placeholder="Qué se observó">${escaparHtml(o.texto)}</textarea>
       <div class="au-obs-sug-cab">
         <span class="au-label" style="margin:0">Sugerencia</span>
@@ -2041,6 +2044,21 @@ function auRenderObs() {
       auObsSucio = true; auRenderObs();
     });
     card.querySelector("[data-au-obs-guardar-bib]").addEventListener("click", () => auGuardarEnBiblioteca(i));
+    card.querySelector("[data-au-obs-punto]").addEventListener("change", e => {
+      const p = auPuntos.find(x => String(x.numero) === e.target.value);
+      if (!p) return;
+      auLeerObsDelDom();
+      const o = auObs[i];
+      const tema = auTemaPunto(p);
+      const anio = auAnioAuditoria(auActual);
+      o.titulo = auTituloPunto(p, tema, anio);
+      if (p.eje) o.eje = p.eje;
+      // Si la observación está vacía, trae el texto modelo según el estado del punto
+      if (!o.texto.trim() && tema) o.texto = p.estado === "Parcial" ? (tema.parcial || `La documentación remitida sobre ${tema.titulo.charAt(0).toLowerCase() + tema.titulo.slice(1)} resultó incompleta y no permitió un análisis integral de este aspecto. En particular, ____.`) : p.estado === "No aportado" ? tema.no : "";
+      if (!o.sugerencia.trim() && tema && (p.estado === "Parcial" || p.estado === "No aportado")) o.sugerencia = tema.sug;
+      auObsSucio = true; auRenderObs();
+      document.getElementById("au-obs-guardado").textContent = "Cambios sin guardar";
+    });
   });
 }
 
