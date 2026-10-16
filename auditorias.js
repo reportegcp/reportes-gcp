@@ -1500,7 +1500,10 @@ async function auCargarEjeEnEditor(eje) {
   document.getElementById("au-hallazgo").value = guardado?.hallazgo || "";
   document.getElementById("au-eje-guardado").textContent = guardado?.updated_at ? `Guardado ${new Date(guardado.updated_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}` : "Texto precargado, sin guardar";
   const siguiente = auSiguienteEje(eje);
-  document.getElementById("au-eje-siguiente").textContent = siguiente ? `Guardar y seguir con el eje ${siguiente} →` : "Guardar y terminar el informe →";
+  document.getElementById("au-eje-siguiente").textContent = siguiente ? `Guardar y continuar con ${AU_EJES[siguiente]} →` : "Guardar y pasar a Observaciones →";
+  const orden = Object.keys(AU_EJES);
+  const nums = auPuntos.filter(p => p.eje === eje).map(p => p.numero);
+  document.getElementById("au-eje-actual").innerHTML = `<span class="au-eje-actual-pos">Sección ${orden.indexOf(eje) + 1} de ${orden.length}</span> <strong>${escaparHtml(AU_EJES[eje])}</strong>${nums.length ? ` <span class="au-eje-actual-puntos">· Puntos ${auListaNumeros(nums)} del Requerimiento</span>` : ""}`;
 }
 
 function auSiguienteEje(eje) {

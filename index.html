@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=104">
+  <link rel="stylesheet" href="styles.css?v=105">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 158</span>
+        <span>Versión 159</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1705,16 +1705,17 @@
 
           <div class="table-card au-card au-paso" data-au-paso="4" hidden>
             <div class="table-meta au-meta-flex">
-              <strong>Paso 4 · Informe por eje</strong>
+              <strong>Paso 4 · Informe por sección</strong>
               <span class="au-resumen" id="au-informe-resumen"></span>
             </div>
             <div class="au-ejes-tabs" id="au-ejes-tabs"></div>
             <div class="au-informe-grid">
               <aside class="au-informe-ref" id="au-informe-ref"></aside>
               <div class="au-informe-editor">
+                <div class="au-eje-actual" id="au-eje-actual"></div>
                 <textarea id="au-editor"></textarea>
                 <div class="au-informe-pie">
-                  <label class="au-hallazgo">Hallazgo del eje
+                  <label class="au-hallazgo">Hallazgo de la sección
                     <select id="au-hallazgo" data-edicion-campo>
                       <option value="">Elegir...</option>
                       <option>Cumple</option>
@@ -1726,7 +1727,7 @@
                   <button type="button" class="au-link" id="au-eje-restaurar" data-edicion>Volver a armar desde los puntos</button>
                   <span class="au-guardado" id="au-eje-guardado"></span>
                   <button type="button" class="secondary" id="au-eje-guardar" data-edicion>Guardar</button>
-                  <button type="button" class="primary" id="au-eje-siguiente" data-edicion>Guardar y seguir →</button>
+                  <button type="button" class="primary au-btn-chico" id="au-eje-siguiente" data-edicion>Guardar y continuar →</button>
                 </div>
               </div>
             </div>
@@ -2712,7 +2713,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=85"></script>
-  <script src="auditorias.js?v=23"></script>
+  <script src="auditorias.js?v=24"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
     if ("serviceWorker" in navigator) {

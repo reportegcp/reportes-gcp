@@ -2187,3 +2187,8 @@ select.us-nivel.mixto{background:#fdf5e6;color:#8a5a12;border-color:#f0d9a8}
 .au-p3-num.noaplica{background:#eef0f3;border-color:#cfd5dd;color:#8a94a3;text-decoration:line-through}
 .au-dot.noaplica{background:#cfd5dd}
 .au-est-noaplica{color:#6b7686;background:#eef0f3 !important}
+
+button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7px 14px;min-height:0}
+.au-eje-actual{margin:0 0 10px;font-size:14px;color:var(--navy)}
+.au-eje-actual-pos{font-size:12px;font-weight:700;color:var(--muted);margin-right:4px}
+.au-eje-actual-puntos{font-size:12.5px;color:var(--muted)}
