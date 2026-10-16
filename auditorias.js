@@ -222,6 +222,7 @@ function auVincularEventos() {
     if (e.target.checked) setTimeout(() => ta.focus(), 30);
     auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar";
   });
+  on("au-p3-docs", "input", () => { auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-fort", "input", () => { auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
   on("au-intro-recepcion", "input", () => { auIntroTocada = true; document.getElementById("au-conc-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-subir", "click", auAdjuntarArchivoPunto);
@@ -677,6 +678,7 @@ async function auAbrirPunto3(numero, forzar = false) {
   document.getElementById("au-p3-titulo").innerHTML = `<span class="au-p3-titulo-num">Punto ${p.numero}</span><div class="au-p3-titulo-texto">${auReemplazarAnios(p.texto_html, anio)}</div>`;
   document.getElementById("au-p3-estado").value = p.estado;
   auP3EstadoTocado = false;
+  document.getElementById("au-p3-docs").value = p.documentacion || "";
   document.getElementById("au-p3-fort-check").checked = !!p.fortaleza;
   document.getElementById("au-p3-fort").value = p.fortaleza || "";
   document.getElementById("au-p3-fort").hidden = !p.fortaleza;
@@ -713,10 +715,11 @@ async function auPersistirPunto3() {
   let estado = document.getElementById("au-p3-estado").value;
   let manual = p.estado_manual;
   if (auP3EstadoTocado) manual = true;
-  else if (!p.estado_manual) estado = (auTieneTexto(html) || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
+  const documentacion = document.getElementById("au-p3-docs").value.trim() || null;
+  if (!auP3EstadoTocado && !p.estado_manual) estado = (auTieneTexto(html) || documentacion || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
   const fortaleza = document.getElementById("au-p3-fort-check").checked ? (document.getElementById("au-p3-fort").value.trim() || null) : null;
-  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual, fortaleza } });
-  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual, fortaleza });
+  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion } });
+  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion });
   auP3FortTocado = false;
   if (html !== null) auP3ModeloCargado = null;
   auEditorPunto.setDirty(false);
@@ -1466,7 +1469,8 @@ function auRenderRefEje(eje) {
         <div class="au-ref-cab"><span class="au-punto-num">${p.numero}</span><span class="au-ref-estado ${auClaseEstadoPunto(p.estado)}">${p.estado}</span></div>
         <div class="au-ref-texto">${escaparHtml(auTextoPlano(auReemplazarAnios(p.texto_html, anio)))}</div>
         ${auTieneTexto(p.respuesta_html) ? `<div class="au-ref-respuesta">${escaparHtml(auTextoPlano(p.respuesta_html).slice(0, 400))}${auTextoPlano(p.respuesta_html).length > 400 ? "…" : ""}</div>` : ""}
-        ${docs.map(d => `<div class="au-ref-doc">
+        ${p.documentacion ? `<div class="au-ref-doc"><div class="au-ref-doc-nombre">${escaparHtml(p.documentacion)}</div></div>` : ""}
+        ${docs.filter(d => d.archivo_path).map(d => `<div class="au-ref-doc">
           <div class="au-ref-doc-nombre">${d.archivo_path ? `<button type="button" class="au-link" data-au-ref-ver="${d.id}">${escaparHtml(d.nombre)}</button>` : escaparHtml(d.nombre)}</div>
           ${d.nota ? `<div class="au-ref-doc-nota">${escaparHtml(d.nota)}</div>` : ""}
         </div>`).join("")}
@@ -2503,21 +2507,28 @@ async function auDescargarWord() {
     hijos.push(titulo(`${n}. DOCUMENTACIÓN APORTADA`));
     const borde = { style: BorderStyle.SINGLE, size: 4, color: "999999" };
     const celda = (texto, o = {}) => new TableCell({ borders: { top: borde, bottom: borde, left: borde, right: borde }, shading: o.fondo ? { fill: o.fondo } : undefined, width: o.ancho ? { size: o.ancho, type: WidthType.DXA } : undefined, children: [new Paragraph({ children: [T(texto, { size: 18, bold: !!o.bold })] })] });
-    hijos.push(P([T("En este apartado se detalla la documentación remitida por el Agente de Salud en respuesta a cada uno de los puntos del Requerimiento, la cual constituyó la base del análisis desarrollado en los apartados siguientes.")]));
-    const aportados = auPuntos.filter(p => p.estado === "Recibido" || p.estado === "Parcial");
-    hijos.push(new Table({
-      width: { size: 8832, type: WidthType.DXA },
-      columnWidths: [560, 5000, 3272],
-      rows: [
-        new TableRow({ tableHeader: true, children: [celda("Nº", { bold: true, fondo: "DCE6F1", ancho: 560 }), celda("Punto requerido", { bold: true, fondo: "DCE6F1", ancho: 5000 }), celda("Documentación aportada", { bold: true, fondo: "DCE6F1", ancho: 3272 })] }),
-        ...aportados.map(p => {
-          const txt = auTextoPlano(auReemplazarAnios(p.texto_html, anio));
-          const dd = docs.filter(d => (d.puntos || []).includes(p.numero)).map(d => d.nombre).join("; ");
-          const sinDoc = auTemaPunto(p)?.clave ? "Verificado en los sistemas de la Gerencia" : "";
-          return new TableRow({ children: [celda(String(p.numero), { ancho: 560 }), celda(txt.length > 180 ? `${txt.slice(0, 177)}…` : txt, { ancho: 5000 }), celda(dd || sinDoc, { ancho: 3272 })] });
-        })
-      ]
-    }));
+    hijos.push(P([T("A continuación se detalla la documentación remitida por el Agente de Salud en respuesta al Requerimiento, la cual constituyó la base del análisis desarrollado en los apartados siguientes.")]));
+    // Cada documento una sola vez, en el orden en que aparece en los puntos
+    const docsInforme = [];
+    const vistos = new Set();
+    for (const p of auPuntos.filter(x => x.estado === "Recibido" || x.estado === "Parcial")) {
+      for (const item of String(p.documentacion || "").split(/;|\n/).map(x => x.trim()).filter(Boolean)) {
+        const clave = item.toLowerCase().replace(/\s+/g, " ");
+        if (!vistos.has(clave)) { vistos.add(clave); docsInforme.push(item); }
+      }
+    }
+    if (docsInforme.length) {
+      hijos.push(new Table({
+        width: { size: 8832, type: WidthType.DXA },
+        columnWidths: [8832],
+        rows: [
+          new TableRow({ tableHeader: true, children: [celda("Documentación aportada", { bold: true, fondo: "DCE6F1", ancho: 8832 })] }),
+          ...docsInforme.map(d => new TableRow({ children: [celda(d, { ancho: 8832 })] }))
+        ]
+      }));
+    } else {
+      hijos.push(P([T("____")]));
+    }
 
     // 2 a 7. Ejes
     for (const eje of Object.keys(AU_EJES)) {

@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=105">
+  <link rel="stylesheet" href="styles.css?v=106">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 159</span>
+        <span>Versión 160</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1675,6 +1675,11 @@
                   </select>
                 </label>
               </div>
+              <div class="au-p3-docs">
+                <span class="au-label">Documentación aportada</span>
+                <textarea id="au-p3-docs" rows="2" data-edicion-campo placeholder="Qué entregó la Obra Social para este punto, separado por punto y coma. Ej.: Folleto Campaña Antigripal 2026; Planillas de vacunación 2025"></textarea>
+                <span class="au-hint">Sale en la tabla "Documentación aportada" del informe. Si un documento sirve para varios puntos, escribilo igual en cada uno: en el informe aparece una sola vez.</span>
+              </div>
               <textarea id="au-p3-editor"></textarea>
               <div class="au-p3-fortaleza">
                 <label class="au-check-inline"><input type="checkbox" id="au-p3-fort-check" data-edicion-campo> Este punto presenta una fortaleza</label>
@@ -2713,7 +2718,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=85"></script>
-  <script src="auditorias.js?v=24"></script>
+  <script src="auditorias.js?v=25"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
     if ("serviceWorker" in navigator) {
