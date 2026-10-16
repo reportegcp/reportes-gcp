@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=108">
+  <link rel="stylesheet" href="styles.css?v=109">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 165</span>
+        <span>Versión 166</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1778,25 +1778,10 @@
               </div>
               <div class="au-pendientes-blanco" id="au-blancos"></div>
             </div>
-            <div class="au-cierre">
-              <div class="au-cierre-titulo">Para terminar la auditoría</div>
-              <div class="au-cierre-pasos">
-                <div class="au-cierre-paso">
-                  <span class="au-cierre-num">1</span>
-                  <div><strong>Descargá el informe</strong> y revisalo en Word.</div>
-                  <button type="button" class="primary" id="au-word">Descargar informe (Word)</button>
-                </div>
-                <div class="au-cierre-paso">
-                  <span class="au-cierre-num">2</span>
-                  <div><strong>Subí el informe a GDE</strong>, como cualquier otro documento del expediente.</div>
-                </div>
-                <div class="au-cierre-paso">
-                  <span class="au-cierre-num">3</span>
-                  <div><strong>Volvé acá y confirmá que ya lo subiste.</strong> La auditoría pasa a "Informe emitido" y deja de figurar como borrador.</div>
-                  <button type="button" class="secondary" id="au-marcar-emitido" data-edicion>Subido a GDE</button>
-                </div>
-              </div>
-              <div class="au-cierre-estado" id="au-emitido-estado"></div>
+            <div class="au-paso-pie">
+              <span class="au-cierre-ok" id="au-emitido-estado" hidden></span>
+              <button type="button" class="secondary" id="au-marcar-emitido" data-edicion>Subido a GDE</button>
+              <button type="button" class="primary" id="au-word">Descargar informe (Word)</button>
             </div>
           </div>
         </div>
@@ -2733,7 +2718,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=85"></script>
-  <script src="auditorias.js?v=28"></script>
+  <script src="auditorias.js?v=29"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
     if ("serviceWorker" in navigator) {
