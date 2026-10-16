@@ -144,7 +144,8 @@ function auClaseEstadoPunto(estado) {
   return {
     Recibido: "au-est-recibido",
     Parcial: "au-est-parcial",
-    "No aportado": "au-est-noaportado"
+    "No aportado": "au-est-noaportado",
+    "No aplica": "au-est-noaplica"
   }[estado] || "au-est-pendiente";
 }
 
@@ -630,7 +631,7 @@ function auTieneTexto(html) {
 }
 
 function auClaseDot(estado) {
-  return { Recibido: "recibido", Parcial: "parcial", "No aportado": "noaportado" }[estado] || "";
+  return { Recibido: "recibido", Parcial: "parcial", "No aportado": "noaportado", "No aplica": "noaplica" }[estado] || "";
 }
 
 function auRenderDocs() {
@@ -778,7 +779,7 @@ async function auAdjuntarArchivoPunto() {
 
 async function auAjustarVisitaYEstadoPorDocumentacion() {
   const cambios = {};
-  const hayAlgo = auPuntos.some(p => p.estado !== "Pendiente" && p.estado !== "No aportado") || auDocs.length > 0;
+  const hayAlgo = auPuntos.some(p => !["Pendiente", "No aportado", "No aplica"].includes(p.estado)) || auDocs.length > 0;
   if (!hayAlgo) {
     // Si se quitó toda la documentación, se vuelve atrás lo automático.
     if (auActual.visita_2_estado === "No requerida") cambios.visita_2_estado = "Pendiente";
@@ -1615,7 +1616,7 @@ function auRenderPendientes() {
   const cont = document.getElementById("au-pend-lista");
   const filtro = document.getElementById("au-pend-filtro").value;
   const vacio = document.getElementById("au-pend-empty");
-  const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? p.estado !== "Recibido" : p.estado === filtro;
+  const incluye = p => filtro === "todos" ? true : filtro === "faltantes" ? !["Recibido", "No aplica"].includes(p.estado) : p.estado === filtro;
   auSincronizarComboPendientes();
   if (!auPendFiltroAuditoria) {
     cont.innerHTML = `<div class="au-pend-inicio">Tocá la flechita para ver los expedientes, o escribí para buscarlo.</div>`;
@@ -1647,7 +1648,7 @@ function auRenderPendientes() {
             <span class="au-punto-num">${p.numero}</span>
             <div class="au-punto-fila-texto" title="${escaparHtml(texto)}">${escaparHtml(texto)}</div>
             <select data-au-pend-estado="${p.id}" data-au-pend-aud="${a.id}" class="${auClaseEstadoPunto(p.estado)}">
-              ${["Pendiente", "Recibido", "Parcial", "No aportado"].map(e => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}
+              ${["Pendiente", "Recibido", "Parcial", "No aportado", "No aplica"].map(e => `<option ${e === p.estado ? "selected" : ""}>${e}</option>`).join("")}
             </select>
           </div>`;
         }).join("")}
@@ -1708,7 +1709,7 @@ async function auArmarEje(eje) {
   const partes = [];
   for (const p of auPuntos.filter(x => x.eje === eje)) {
     if (auTieneTexto(p.respuesta_html)) partes.push(p.respuesta_html);
-    else if (p.estado === "No aportado") continue; // lo no aportado no se menciona en el informe
+    else if (p.estado === "No aportado" || p.estado === "No aplica") continue; // no se mencionan en el informe
     else partes.push(await auRenderModelo(p.modelo_html));
   }
   if (eje === "F") partes.push("<p><strong>Leyes especiales:</strong> La documentación presentada acredita circuitos específicos para ____.</p>");
@@ -2207,7 +2208,7 @@ function auProponerConclusion() {
   const cumple = Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo === "Cumple");
   const noCumple = Object.keys(AU_EJES).filter(e => ["No cumple", "Cumple parcialmente", "No aportado"].includes(auEjes[e]?.hallazgo));
   // PMA y Cartilla se verifican en los sistemas de la Gerencia: van con lo observado, no con lo no aportado
-  const noAportTemas = [...new Set(auPuntos.filter(p => p.estado === "No aportado").map(auNombreTemaPunto))];
+  const noAportTemas = [...new Set(auPuntos.filter(p => p.estado === "No aportado" || p.estado === "No aplica").map(auNombreTemaPunto))];
   const fortTemas = [...new Set(auPuntos.filter(p => p.fortaleza).map(auNombreTemaPunto))];
   // Temas observados: los títulos de las observaciones (sin número de punto); si no hay, los puntos parciales
   let observados = auObs.map(o => o.titulo).filter(Boolean).map(auTemaEnFrase);

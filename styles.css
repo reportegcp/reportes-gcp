@@ -2183,3 +2183,7 @@ select.us-nivel.mixto{background:#fdf5e6;color:#8a5a12;border-color:#f0d9a8}
 .au-p3-num.fortaleza{background:#9dd8bb;border-color:#6cbf98;color:#0f4f35}
 .au-p3-num.fortaleza:hover{border-color:#3f9a72}
 .au-dot.fortaleza{background:#9dd8bb;border-color:#6cbf98}
+
+.au-p3-num.noaplica{background:#eef0f3;border-color:#cfd5dd;color:#8a94a3;text-decoration:line-through}
+.au-dot.noaplica{background:#cfd5dd}
+.au-est-noaplica{color:#6b7686;background:#eef0f3 !important}
