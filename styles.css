@@ -2197,3 +2197,12 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .au-p3-docs .au-label{font-weight:700;font-size:13px}
 .au-p3-docs textarea{width:100%;font-size:13.5px;line-height:1.45;resize:vertical;margin-top:4px}
 .au-p3-docs .au-hint{display:block;margin-top:4px}
+
+.au-cierre{margin:0;padding:16px;border-top:1px solid var(--line);background:#fafbfd;border-radius:0 0 16px 16px}
+.au-cierre-titulo{font-weight:800;font-size:14px;color:var(--navy);margin-bottom:10px}
+.au-cierre-pasos{display:grid;gap:8px}
+.au-cierre-paso{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13.5px;line-height:1.4}
+.au-cierre-paso button{font-size:13px;padding:7px 14px;white-space:nowrap}
+.au-cierre-num{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.au-cierre-estado{margin-top:10px;padding:10px 12px;border-radius:10px;background:#e4f4ed;color:#226d53;font-weight:700;font-size:13.5px}
+@media (max-width:700px){.au-cierre-paso{grid-template-columns:28px 1fr}.au-cierre-paso button{grid-column:2}}

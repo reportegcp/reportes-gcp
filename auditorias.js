@@ -2279,7 +2279,9 @@ function auRenderEstadoInforme() {
     : "✓ No quedan espacios \"____\" sin completar en el informe.";
   caja.classList.toggle("ok", !detalle.length);
   const emitido = ["Informe emitido", "Cerrada"].includes(auActual.estado);
-  document.getElementById("au-emitido-estado").textContent = emitido ? `Estado: ${auActual.estado}.` : "Cuando lo subas a GDE, marcalo como emitido.";
+  const est = document.getElementById("au-emitido-estado");
+  est.textContent = emitido ? `✓ Listo: el informe figura como subido a GDE (estado "${auActual.estado}").` : "";
+  est.hidden = !emitido;
   document.getElementById("au-marcar-emitido").hidden = emitido;
   document.getElementById("au-conc-resumen").textContent = `${auObs.length} observacion${auObs.length === 1 ? "" : "es"} · ${Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo).length} ejes analizados`;
 }
@@ -2322,14 +2324,14 @@ async function auReproponerConclusion() {
 }
 
 async function auMarcarEmitido() {
-  const ok = await mostrarConfirmacion("¿Marcar el informe como emitido? La auditoría queda en estado \"Informe emitido\" (después podés cerrarla desde el paso 1).", { titulo: "Informe emitido", textoAceptar: "Marcar como emitido" });
+  const ok = await mostrarConfirmacion("¿Ya subiste el informe a GDE? Al confirmar, la auditoría pasa a \"Informe emitido\" y deja de figurar como borrador. Hacelo solo cuando el informe final ya esté en GDE.", { titulo: "Informe subido a GDE", textoAceptar: "Sí, ya lo subí" });
   if (!ok) return;
   try {
     await auGuardarConclusionSiHayCambios();
     await auPatchAuditoria({ estado: "Informe emitido" });
     auRenderPasos();
     auRenderEstadoInforme();
-    mostrarToast("Informe marcado como emitido.");
+    mostrarToast("Listo: la auditoría quedó como Informe emitido.");
   } catch (error) {
     mostrarToast(error.message || "No se pudo marcar.", "error");
   }
