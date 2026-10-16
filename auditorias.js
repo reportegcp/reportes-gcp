@@ -1844,6 +1844,7 @@ const AU_OBS_TEMAS = [
     no: "No se informaron las redes, los prestadores institucionales ni los centros de diagnóstico contratados, como tampoco su modalidad de contratación y de pago.",
     sug: "Sistematizar la información de las redes y prestadores contratados, con los convenios vigentes, su modalidad de pago y las prestaciones comprendidas en cada uno." },
   { re: /número de beneficiarios/i, titulo: "Estructura de la población beneficiaria",
+    obs: "Se observó una variación significativa de la población beneficiaria en el período analizado. ____.",
     no: "No se aportó información sobre la composición de la población beneficiaria por tipo de afiliación, lo que impidió analizar su evolución en el período requerido.",
     sug: "Disponer de información actualizada sobre la composición y la evolución de la población beneficiaria, discriminada por tipo de afiliación." },
   { re: /grupos de edades/i, titulo: "Distribución de la población por edad",
@@ -1863,6 +1864,7 @@ const AU_OBS_TEMAS = [
     no: "No se aportó el listado de coseguros vigentes ni la forma en que se comunican a los beneficiarios.",
     sug: "Mantener el esquema de coseguros conforme a la normativa vigente y garantizar su comunicación clara y oportuna a los beneficiarios." },
   { re: /Ca de Mama, Ca de Cuello/i, titulo: "Programas preventivos de cáncer de mama, cuello uterino y salud sexual",
+    obs: "Si bien el Agente de Salud cuenta con documentación relativa a los programas preventivos de cáncer de mama, cáncer de cuello uterino y salud sexual y reproductiva, no fue posible verificar su efectiva implementación ni identificar la población alcanzada por dichos programas.",
     no: "No se aportó información sobre los programas preventivos de cáncer de mama, cáncer de cuello uterino y salud sexual y reproductiva, por lo que no fue posible verificar su implementación.",
     parcial: "Si bien se remitió información sobre los programas preventivos de cáncer de mama, cáncer de cuello uterino y salud sexual y reproductiva, no fue posible verificar su efectiva implementación ni identificar la población alcanzada. En particular, ____.",
     sug: "Fortalecer la implementación y el seguimiento de los programas preventivos, identificando a la población bajo programa y generando indicadores que permitan evaluar su alcance y sus resultados." },
@@ -1876,12 +1878,15 @@ const AU_OBS_TEMAS = [
     no: "No se aportó documentación sobre campañas de vacunación ni sobre la cobertura de inmunizaciones alcanzada en la población beneficiaria.",
     sug: "Registrar las campañas de vacunación realizadas y la cobertura alcanzada, a fin de monitorear el cumplimiento del Calendario Nacional de Vacunación." },
   { re: /CARTILLA/, titulo: "Cartilla Médico Asistencial", clave: "cartillas",
+    obs: "Se verificó que la presentación de la Cartilla Médico Asistencial fue realizada con posterioridad al plazo previsto por la normativa vigente, que establece su presentación con una antelación mínima de noventa (90) días al inicio del ejercicio correspondiente.",
     no: "No se informó el estado de situación de la presentación de la Cartilla Médico Asistencial.",
     sug: "Presentar la Cartilla Médico Asistencial dentro de los plazos previstos por la normativa vigente." },
   { re: /\bPMA\b|Programa Médico Asistencial/i, titulo: "Programa Médico Asistencial", clave: "pma",
+    obs: "Se verificó que la presentación del Programa Médico Asistencial fue realizada con posterioridad al plazo establecido por la normativa vigente, que exige su presentación con una antelación mínima de noventa (90) días al inicio del ejercicio correspondiente.",
     no: "No se informó el estado de situación de la presentación del Programa Médico Asistencial.",
     sug: "Presentar el Programa Médico Asistencial dentro de los plazos establecidos por la normativa vigente." },
   { re: /650\/97/, titulo: "Resolución ANSSAL N.º 650/97",
+    obs: "No fue posible efectuar un análisis integral de la información presentada en el marco de la Resolución ANSSAL N.º 650/97, debido a ____.",
     no: "No se aportó la información correspondiente a la Resolución ANSSAL N.º 650/97, por lo que no fue posible verificar su cumplimiento.",
     parcial: "No fue posible efectuar un análisis integral de la información de la Resolución ANSSAL N.º 650/97, debido a que la documentación remitida resultó incompleta. En particular, ____.",
     sug: "Desarrollar mecanismos de registro y consolidación de la información requerida por la Resolución ANSSAL N.º 650/97, asegurando su integridad, actualización y presentación en tiempo y forma." },
@@ -2010,7 +2015,7 @@ function auRenderObs() {
         </span>
       </div>
       <div class="au-obs-titulo-fila">
-        <select data-au-obs-punto title="Elegir el punto del Requerimiento al que se refiere"><option value="">Elegir punto…</option>${auPuntos.map(p => `<option value="${p.numero}">${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado || "Pendiente")}</option>`).join("")}</select>
+        <select data-au-obs-punto title="Elegir el punto del Requerimiento al que se refiere"><option value="">Elegir punto…</option>${auPuntos.map(p => `<option value="${p.numero}" ${new RegExp(`^Punto ${p.numero}\\b`).test(o.titulo || "") ? "selected" : ""}>${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado || "Pendiente")}</option>`).join("")}</select>
         <input type="text" data-au-obs-titulo class="au-obs-titulo" placeholder="Título (elegí un punto o escribilo)" value="${escaparHtml(o.titulo || "")}">
       </div>
       <textarea data-au-obs-texto rows="3" placeholder="Qué se observó">${escaparHtml(o.texto)}</textarea>
@@ -2054,8 +2059,13 @@ function auRenderObs() {
       o.titulo = auTituloPunto(p, tema, anio);
       if (p.eje) o.eje = p.eje;
       // Si la observación está vacía, trae el texto modelo según el estado del punto
-      if (!o.texto.trim() && tema) o.texto = p.estado === "Parcial" ? (tema.parcial || `La documentación remitida sobre ${tema.titulo.charAt(0).toLowerCase() + tema.titulo.slice(1)} resultó incompleta y no permitió un análisis integral de este aspecto. En particular, ____.`) : p.estado === "No aportado" ? tema.no : "";
-      if (!o.sugerencia.trim() && tema && (p.estado === "Parcial" || p.estado === "No aportado")) o.sugerencia = tema.sug;
+      const nombre = tema ? tema.titulo.charAt(0).toLowerCase() + tema.titulo.slice(1) : auDescripcionPunto(p, anio);
+      if (!o.texto.trim()) o.texto = p.estado === "No aportado"
+        ? (tema?.no || `No se aportó la documentación correspondiente a ${nombre}, por lo que no fue posible evaluar este aspecto.`)
+        : p.estado === "Parcial"
+          ? (tema?.parcial || `La documentación remitida sobre ${nombre} resultó incompleta y no permitió un análisis integral de este aspecto. En particular, ____.`)
+          : (tema?.obs || `Del análisis de la información remitida sobre ${nombre} se observó que ____.`);
+      if (!o.sugerencia.trim()) o.sugerencia = tema?.sug || `Adecuar la información correspondiente a ${nombre} conforme a lo observado.`;
       auObsSucio = true; auRenderObs();
       document.getElementById("au-obs-guardado").textContent = "Cambios sin guardar";
     });
