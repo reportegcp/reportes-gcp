@@ -2170,22 +2170,46 @@ function auUnirFrases(frases) {
   return `${frases.slice(0, -1).join(", ")} y ${frases[frases.length - 1]}`;
 }
 
+// Nombre de un tema para usar dentro de una frase: sin "Punto N –" y en minúscula,
+// salvo nombres propios ("Programa Médico Asistencial", "Resolución ANSSAL…").
+function auTemaEnFrase(t) {
+  const x = String(t || "").replace(/^Punto\s+[\d.]+\s*[–-]\s*/i, "").replace(/[.:]\s*$/, "").trim();
+  const [w1, w2 = ""] = x.split(/\s+/);
+  if (!/^[A-ZÁÉÍÓÚÑ]/.test(w2)) return x.charAt(0).toLowerCase() + x.slice(1);
+  // Nombre propio: lleva artículo ("el Programa Médico Asistencial", "la Resolución…")
+  return (/^(Programa|Plan)\b/.test(w1) ? "el " : "la ") + x;
+}
+
+const AU_EJES_FRASE = { A: "la estructura organizacional", B: "la población beneficiaria", C: "la estructura prestacional", D: "la gestión médico-prestacional", E: "los programas preventivos", F: "el cumplimiento normativo" };
+
+function auNombreTemaPunto(p) {
+  const tema = auTemaPunto(p);
+  return auTemaEnFrase(tema ? tema.titulo : auDescripcionPunto(p, auAnioAuditoria(auActual)));
+}
+
 function auProponerConclusion() {
   const os = auActual.obras_sociales?.denominacion || "la Obra Social";
   const cumple = Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo === "Cumple");
   const noCumple = Object.keys(AU_EJES).filter(e => ["No cumple", "Cumple parcialmente", "No aportado"].includes(auEjes[e]?.hallazgo));
-  const noAport = auPuntos.filter(p => p.estado === "No aportado").map(p => p.numero);
+  // PMA y Cartilla se verifican en los sistemas de la Gerencia: van con lo observado, no con lo no aportado
+  const noAportTemas = [...new Set(auPuntos.filter(p => p.estado === "No aportado" && !auTemaPunto(p)?.clave).map(auNombreTemaPunto))];
+  // Temas observados: los títulos de las observaciones (sin número de punto); si no hay, los puntos parciales
+  let observados = auObs.map(o => o.titulo).filter(Boolean).map(auTemaEnFrase);
+  if (!observados.length) observados = auPuntos.filter(p => p.estado === "Parcial").map(auNombreTemaPunto);
+  observados = [...new Set(observados)].filter(t => !noAportTemas.includes(t));
   const partes = [];
   partes.push(`<p>Del análisis de la documentación aportada y de las verificaciones realizadas en el marco de la auditoría integral a la ${escaparHtml(os)}, surge que el Agente del Seguro de Salud ${cumple.length ? `cuenta con ${auUnirFrases(cumple.map(e => AU_FRASES_CUMPLE[e]))}` : "presenta aspectos a regularizar en los distintos ejes evaluados"}.</p>`);
-  if (noCumple.length || noAport.length) {
-    const temas = noCumple.map(e => AU_EJES[e].toLowerCase());
-    let texto = "No obstante, se identificaron incumplimientos y aspectos a fortalecer";
-    if (temas.length) texto += ` vinculados con ${auUnirFrases(temas)}`;
-    if (noAport.length) texto += `${temas.length ? ", así como" : ", en particular"} la falta de aporte de la documentación correspondiente a ${noAport.length === 1 ? "el punto" : "los puntos"} ${auListaNumeros(noAport)} del Requerimiento`;
-    partes.push(`<p>${texto}, conforme se detalla en el apartado de Observaciones.</p>`);
+  if (noCumple.length || observados.length) {
+    let texto = "No obstante, se identificaron aspectos susceptibles de mejora";
+    if (noCumple.length) texto += ` vinculados con ${auUnirFrases(noCumple.map(e => AU_EJES_FRASE[e] || AU_EJES[e].toLowerCase()))}`;
+    if (observados.length) texto += `${noCumple.length ? ", en particular en lo referido a" : " en lo referido a"} ${auUnirFrases(observados)}`;
+    partes.push(`<p>${escaparHtml(texto)}, conforme se detalla en el apartado de Observaciones.</p>`);
+  }
+  if (noAportTemas.length) {
+    partes.push(`<p>Asimismo, el Agente de Salud no aportó la información relativa a ${escaparHtml(auUnirFrases(noAportTemas))}, lo que limitó el alcance de la evaluación en esos aspectos.</p>`);
   }
   partes.push(`<p>En consecuencia, se formulan las sugerencias detalladas precedentemente, cuya implementación permitirá al Agente del Seguro de Salud fortalecer la gestión prestacional y garantizar el acceso efectivo de sus beneficiarios a las prestaciones, conforme a la normativa vigente.</p>`);
-  return partes.join("");
+  return partes.join("").replace(/\ba el\b/g, "al").replace(/\bde el\b/g, "del");
 }
 
 async function auAbrirConclusion() {
@@ -2194,7 +2218,7 @@ async function auAbrirConclusion() {
   try {
     if (!auObs.length) {
       const obs = await auFetch("auditoria_observaciones", { params: { auditoria_id: `eq.${auActual.id}`, order: "orden.asc" } });
-      auObs = (obs || []).map(o => ({ eje: o.eje || "", texto: o.texto, sugerencia: o.sugerencia || "" }));
+      auObs = (obs || []).map(o => ({ eje: o.eje || "", titulo: o.titulo || "", texto: o.texto, sugerencia: o.sugerencia || "" }));
     }
     if (!auEditorConclusion) auEditorConclusion = await auCrearEditor("#au-conclusion", 360, "au-conc-guardado");
     auEditorConclusion.mode.set(soloLecturaActiva() ? "readonly" : "design");
