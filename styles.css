@@ -2208,3 +2208,7 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 @media (max-width:700px){.au-cierre-paso{grid-template-columns:28px 1fr}.au-cierre-paso button{grid-column:2}}
 
 .au-cierre-ok{color:#226d53;font-weight:700;font-size:13.5px}
+
+.au-eje-aviso{margin:0 0 10px;padding:10px 12px;border:1px solid #e8c77a;border-radius:10px;background:#fdf6e3;color:#7a5a12;font-size:13.5px;line-height:1.45}
+.au-eje-aviso-botones{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.au-eje-aviso-botones button{font-size:13px;padding:6px 12px}

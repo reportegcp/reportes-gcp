@@ -724,6 +724,7 @@ async function auPersistirPunto3() {
   if (!auP3EstadoTocado && !p.estado_manual) estado = (auTieneTexto(html) || documentacion || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
   const fortaleza = document.getElementById("au-p3-fort-check").checked ? (document.getElementById("au-p3-fort").value.trim() || null) : null;
   await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion } });
+  if (html !== p.respuesta_html) p.respuesta_actualizada_at = new Date().toISOString();
   Object.assign(p, { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion });
   auP3FortTocado = false;
   if (html !== null) auP3ModeloCargado = null;
@@ -1501,6 +1502,7 @@ async function auAbrirInforme() {
 
 async function auCargarEjeEnEditor(eje) {
   const guardado = auEjes[eje];
+  auEjeArmadoAhora = !guardado?.analisis_html;
   const html = guardado?.analisis_html || await auArmarEje(eje);
   auEditor.mode.set(soloLecturaActiva() ? "readonly" : "design");
   auEditor.setContent(html);
@@ -1512,7 +1514,51 @@ async function auCargarEjeEnEditor(eje) {
   document.getElementById("au-eje-siguiente").textContent = siguiente ? `Guardar y continuar con ${AU_EJES[siguiente]} →` : "Guardar y pasar a Observaciones →";
   const orden = Object.keys(AU_EJES);
   const nums = auPuntos.filter(p => p.eje === eje).map(p => p.numero);
+  auRenderAvisoEje(eje);
   document.getElementById("au-eje-actual").innerHTML = `<span class="au-eje-actual-pos">Sección ${orden.indexOf(eje) + 1} de ${orden.length}</span> <strong>${escaparHtml(AU_EJES[eje])}</strong>${nums.length ? ` <span class="au-eje-actual-puntos">· Puntos ${auListaNumeros(nums)} del Requerimiento</span>` : ""}`;
+}
+
+let auEjeArmadoAhora = false;
+
+// Puntos de la sección modificados en el paso 3 después de armar la sección
+function auPuntosDesactualizados(eje) {
+  const fila = auEjes[eje];
+  if (!fila?.analisis_html) return [];
+  const desde = new Date(fila.puntos_al_dia_at || fila.updated_at || 0).getTime();
+  return auPuntos.filter(p => p.eje === eje && ["Recibido", "Parcial"].includes(p.estado) && p.respuesta_actualizada_at && new Date(p.respuesta_actualizada_at).getTime() > desde);
+}
+
+function auRenderAvisoEje(eje) {
+  const caja = document.getElementById("au-eje-aviso");
+  const pts = auPuntosDesactualizados(eje);
+  caja.hidden = !pts.length;
+  if (!pts.length) return;
+  const nums = pts.map(p => p.numero);
+  caja.innerHTML = `⚠ ${nums.length === 1 ? `El punto ${nums[0]} se modificó` : `Los puntos ${escaparHtml(auListaNumeros(nums))} se modificaron`} en el paso 3 después de armar esta sección, y esos cambios todavía no están en el texto del informe.
+    <div class="au-eje-aviso-botones">
+      <button type="button" class="primary" data-au-aviso-actualizar data-edicion>Actualizar la sección con los puntos</button>
+      <button type="button" class="secondary" data-au-aviso-ok data-edicion>Ya lo incorporé a mano</button>
+    </div>`;
+  caja.querySelector("[data-au-aviso-actualizar]").addEventListener("click", async () => {
+    const ok = await mostrarConfirmacion("La sección se vuelve a armar con lo que tienen hoy sus puntos en el paso 3. Si editaste el texto directamente acá, esos cambios se reemplazan.", { titulo: "Actualizar la sección", textoAceptar: "Actualizar" });
+    if (!ok) return;
+    auEditor.setContent(await auArmarEje(eje));
+    auEjeArmadoAhora = true;
+    try {
+      await auPersistirEje(eje, auEditor.getContent(), document.getElementById("au-hallazgo").value);
+      auEditor.setDirty(false);
+      document.getElementById("au-eje-guardado").textContent = "Guardado recién";
+      mostrarToast("Sección actualizada con los puntos.");
+    } catch (error) { mostrarToast(error.message || "No se pudo guardar.", "error"); }
+    auRenderAvisoEje(eje);
+  });
+  caja.querySelector("[data-au-aviso-ok]").addEventListener("click", async () => {
+    try {
+      const [fila] = await auFetch("auditoria_ejes", { method: "PATCH", params: { auditoria_id: `eq.${auActual.id}`, eje: `eq.${eje}` }, prefer: "return=representation", body: { puntos_al_dia_at: new Date().toISOString() } });
+      if (fila) auEjes[eje] = fila;
+    } catch (error) { mostrarToast(error.message || "No se pudo guardar.", "error"); }
+    auRenderAvisoEje(eje);
+  });
 }
 
 function auSiguienteEje(eje) {
@@ -1534,9 +1580,10 @@ async function auPersistirEje(eje, html, hallazgo) {
     method: "POST",
     prefer: "resolution=merge-duplicates,return=representation",
     params: { on_conflict: "auditoria_id,eje" },
-    body: { auditoria_id: auActual.id, eje, analisis_html: html, hallazgo: hallazgo || null, updated_at: new Date().toISOString() }
+    body: { auditoria_id: auActual.id, eje, analisis_html: html, hallazgo: hallazgo || null, updated_at: new Date().toISOString(), ...(auEjeArmadoAhora ? { puntos_al_dia_at: new Date().toISOString() } : {}) }
   });
   auEjes[eje] = fila;
+  auEjeArmadoAhora = false;
 }
 
 async function auGuardarEjeSiHayCambios() {
@@ -1596,6 +1643,7 @@ async function auRestaurarEje() {
   const ok = await mostrarConfirmacion(`¿Volver a armar el eje ${auEjeActivo} con lo que escribiste en sus puntos (paso 3)? Lo escrito en este eje se reemplaza cuando guardes.`, { titulo: "Volver a armar desde los puntos", textoAceptar: "Reemplazar" });
   if (!ok || !auEditor) return;
   auEditor.setContent(await auArmarEje(auEjeActivo));
+  auEjeArmadoAhora = true;
   auEditor.setDirty(true);
   document.getElementById("au-eje-guardado").textContent = "Cambios sin guardar";
 }
@@ -1720,8 +1768,8 @@ async function auRenderModelo(html) {
 async function auArmarEje(eje) {
   const partes = [];
   for (const p of auPuntos.filter(x => x.eje === eje)) {
+    if (p.estado === "No aportado" || p.estado === "No aplica") continue; // no se mencionan en el informe
     if (auTieneTexto(p.respuesta_html)) partes.push(p.respuesta_html);
-    else if (p.estado === "No aportado" || p.estado === "No aplica") continue; // no se mencionan en el informe
     else partes.push(await auRenderModelo(p.modelo_html));
   }
   if (eje === "F") partes.push("<p><strong>Leyes especiales:</strong> La documentación presentada acredita circuitos específicos para ____.</p>");
@@ -2282,6 +2330,11 @@ function auRenderEstadoInforme() {
     ? `⚠ Quedan espacios "____" sin completar en el informe (${escaparHtml(detalle.join(" · "))}). Podés descargarlo igual y completarlos en Word.`
     : "✓ No quedan espacios \"____\" sin completar en el informe.";
   caja.classList.toggle("ok", !detalle.length);
+  const desact = Object.keys(AU_EJES).filter(e => auPuntosDesactualizados(e).length);
+  if (desact.length) {
+    caja.innerHTML += `<br>⚠ ${desact.length === 1 ? "La sección" : "Las secciones"} ${escaparHtml(auUnirFrases(desact.map(e => AU_EJES[e])))} ${desact.length === 1 ? "tiene" : "tienen"} cambios del paso 3 que todavía no están en el informe. Actualizalas en el paso 4 antes de descargar el Word.`;
+    caja.classList.remove("ok");
+  }
   const emitido = ["Informe emitido", "Cerrada"].includes(auActual.estado);
   const est = document.getElementById("au-emitido-estado");
   est.textContent = emitido ? "✓ Subido a GDE" : "";
@@ -2344,6 +2397,7 @@ async function auMarcarEmitido() {
 // ---------------- Word ----------------
 
 const AU_DOCX_ANCHO_MAX = 600; // px (ancho útil de la hoja)
+const auTablasComoImagen = true; // GDE no acepta bien las tablas de Word: se insertan como imagen
 
 function auDocxRuns(nodo, formato = {}) {
   const { TextRun, ImageRun } = window.docx;
@@ -2398,6 +2452,65 @@ function auDocxAlineacion(el) {
   return AlignmentType.JUSTIFIED;
 }
 
+// Dibuja una tabla HTML como imagen (GDE no admite bien las tablas de Word)
+function auTablaAImagen(tabla) {
+  const filas = [...tabla.querySelectorAll("tr")].map(tr => [...tr.children].map(td => ({
+    texto: td.textContent.replace(/\s+/g, " ").trim(),
+    negrita: td.tagName === "TH" || !!td.closest("thead") || !!td.querySelector("strong, b")
+  })));
+  if (!filas.length) return null;
+  const nCol = Math.max(...filas.map(f => f.length));
+  const fuente = n => `${n ? "bold " : ""}14px Calibri, Carlito, Arial, sans-serif`;
+  const esc = 2, pad = 7, alto = 18, anchoMax = AU_DOCX_ANCHO_MAX;
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  // Ancho natural de cada columna
+  let anchos = Array(nCol).fill(30);
+  filas.forEach(f => f.forEach((cel, i) => { ctx.font = fuente(cel.negrita); anchos[i] = Math.max(anchos[i], Math.ceil(ctx.measureText(cel.texto).width) + pad * 2); }));
+  const total = anchos.reduce((a, b) => a + b, 0);
+  if (total > anchoMax) anchos = anchos.map(w => Math.max(40, Math.floor(w * anchoMax / total)));
+  const partir = (texto, ancho, negrita) => {
+    ctx.font = fuente(negrita);
+    const palabras = texto.split(" "); const lineas = []; let linea = "";
+    palabras.forEach(w => { const prueba = linea ? `${linea} ${w}` : w; if (ctx.measureText(prueba).width > ancho - pad * 2 && linea) { lineas.push(linea); linea = w; } else linea = prueba; });
+    if (linea || !lineas.length) lineas.push(linea);
+    return lineas;
+  };
+  const celdas = filas.map(f => f.map((cel, i) => ({ ...cel, lineas: partir(cel.texto, anchos[i], cel.negrita) })));
+  const altos = celdas.map(f => Math.max(...f.map(cel => cel.lineas.length)) * alto + pad * 2 - 4);
+  const W = anchos.reduce((a, b) => a + b, 0) + 1, H = altos.reduce((a, b) => a + b, 0) + 1;
+  c.width = W * esc; c.height = H * esc;
+  ctx.scale(esc, esc);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  ctx.textBaseline = "top";
+  let y = 0.5;
+  celdas.forEach((f, r) => {
+    let x = 0.5;
+    const encabezado = f.every(cel => cel.negrita);
+    for (let i = 0; i < nCol; i++) {
+      const cel = f[i] || { texto: "", lineas: [""], negrita: false };
+      if (encabezado) { ctx.fillStyle = "#DCE6F1"; ctx.fillRect(x, y, anchos[i], altos[r]); }
+      ctx.strokeStyle = "#999"; ctx.lineWidth = 1; ctx.strokeRect(x, y, anchos[i], altos[r]);
+      ctx.fillStyle = "#000"; ctx.font = fuente(cel.negrita);
+      const numerico = /^[\d.,%\s+\-–]+$/.test(cel.texto) && /\d/.test(cel.texto);
+      cel.lineas.forEach((l, k) => {
+        const tx = numerico ? x + anchos[i] - pad - ctx.measureText(l).width : x + pad;
+        ctx.fillText(l, tx, y + (altos[r] - cel.lineas.length * alto) / 2 + 2 + k * alto);
+      });
+      x += anchos[i];
+    }
+    y += altos[r];
+  });
+  return { dataUrl: c.toDataURL("image/png"), w: W, h: H };
+}
+
+function auTablaImagenParrafo(tabla) {
+  const { Paragraph, ImageRun, AlignmentType } = window.docx;
+  const img = auTablaAImagen(tabla);
+  if (!img) return null;
+  return new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 160 }, children: [new ImageRun({ data: dataUrlABytes(img.dataUrl), transformation: { width: img.w, height: img.h } })] });
+}
+
 function auDocxBloques(html) {
   const { Paragraph, Table, TableRow, TableCell, WidthType, BorderStyle } = window.docx;
   const cont = document.createElement("div");
@@ -2435,6 +2548,10 @@ function auDocxBloques(html) {
       } else if (tag === "table") {
         const filas = [...n.querySelectorAll("tr")];
         if (!filas.length) return;
+        if (auTablasComoImagen) {
+          const par = auTablaImagenParrafo(n);
+          if (par) { out.push(par); return; }
+        }
         const borde = { style: BorderStyle.SINGLE, size: 4, color: "999999" };
         out.push(new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
@@ -2524,7 +2641,12 @@ async function auDescargarWord() {
         if (!vistos.has(clave)) { vistos.add(clave); docsInforme.push(item); }
       }
     }
-    if (docsInforme.length) {
+    if (docsInforme.length && auTablasComoImagen) {
+      const t = document.createElement("table");
+      t.innerHTML = `<tr><th>Documentación aportada</th></tr>${docsInforme.map(d => `<tr><td>${escaparHtml(d)}</td></tr>`).join("")}`;
+      const par = auTablaImagenParrafo(t);
+      if (par) hijos.push(par);
+    } else if (docsInforme.length) {
       hijos.push(new Table({
         width: { size: 8832, type: WidthType.DXA },
         columnWidths: [8832],
