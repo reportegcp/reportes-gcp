@@ -642,7 +642,7 @@ function auResetFormDoc() {}
 function auRenderP3Nums() {
   const cont = document.getElementById("au-p3-nums");
   if (!cont) return;
-  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.fortaleza ? "fortaleza" : ""} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(p.estado)}${p.fortaleza ? " · Con fortaleza" : ""}">${p.numero}</button>`).join("");
+  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.fortaleza ? "fortaleza" : ""} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado)}${p.fortaleza ? " · Con fortaleza" : ""}">${p.numero}</button>`).join("");
   cont.querySelectorAll("[data-au-p3-num]").forEach(b => b.addEventListener("click", () => auAbrirPunto3(Number(b.dataset.auP3Num))));
   const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
   const faltan = auPuntos.filter(p => p.estado === "Pendiente").length;
