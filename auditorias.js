@@ -215,6 +215,14 @@ function auVincularEventos() {
   on("au-p3-siguiente", "click", () => auGuardarPunto3(true));
   on("au-p3-anterior", "click", () => auAbrirPunto3(auPuntoActivo - 1));
   on("au-p3-estado", "change", () => { auP3EstadoTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
+  on("au-p3-fort-check", "change", e => {
+    const ta = document.getElementById("au-p3-fort");
+    ta.hidden = !e.target.checked;
+    if (e.target.checked) setTimeout(() => ta.focus(), 30);
+    auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar";
+  });
+  on("au-p3-fort", "input", () => { auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
+  on("au-intro-recepcion", "input", () => { auIntroTocada = true; document.getElementById("au-conc-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-subir", "click", auAdjuntarArchivoPunto);
   on("au-ir-pendientes", "click", async () => { await auGuardarPunto3SiHayCambios(); auPendFiltroAuditoria = auActual.id; showView("au-pendientes"); });
   on("au-pl-agregar", "click", () => auAbrirEditorPunto(null));
@@ -614,6 +622,7 @@ async function auGuardarTextosPuntos() {
 let auPuntoActivo = 1;
 let auEditorPunto = null;
 let auP3EstadoTocado = false;
+let auP3FortTocado = false;
 let auP3ModeloCargado = null;
 
 function auTieneTexto(html) {
@@ -667,6 +676,10 @@ async function auAbrirPunto3(numero, forzar = false) {
   document.getElementById("au-p3-titulo").innerHTML = `<span class="au-p3-titulo-num">Punto ${p.numero}</span><div class="au-p3-titulo-texto">${auReemplazarAnios(p.texto_html, anio)}</div>`;
   document.getElementById("au-p3-estado").value = p.estado;
   auP3EstadoTocado = false;
+  document.getElementById("au-p3-fort-check").checked = !!p.fortaleza;
+  document.getElementById("au-p3-fort").value = p.fortaleza || "";
+  document.getElementById("au-p3-fort").hidden = !p.fortaleza;
+  auP3FortTocado = false;
   document.getElementById("au-p3-anterior").disabled = numero <= 1;
   const btnSig = document.getElementById("au-p3-siguiente");
   btnSig.hidden = numero >= auPuntos.length;
@@ -700,8 +713,10 @@ async function auPersistirPunto3() {
   let manual = p.estado_manual;
   if (auP3EstadoTocado) manual = true;
   else if (!p.estado_manual) estado = (auTieneTexto(html) || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
-  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual } });
-  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual });
+  const fortaleza = document.getElementById("au-p3-fort-check").checked ? (document.getElementById("au-p3-fort").value.trim() || null) : null;
+  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual, fortaleza } });
+  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual, fortaleza });
+  auP3FortTocado = false;
   if (html !== null) auP3ModeloCargado = null;
   auEditorPunto.setDirty(false);
   auP3EstadoTocado = false;
@@ -714,7 +729,7 @@ async function auPersistirPunto3() {
 
 async function auGuardarPunto3SiHayCambios() {
   if (!auEditorPunto || auPasoActivo !== 3 || soloLecturaActiva()) return;
-  if (!auEditorPunto.isDirty() && !auP3EstadoTocado) return;
+  if (!auEditorPunto.isDirty() && !auP3EstadoTocado && !auP3FortTocado) return;
   try { await auPersistirPunto3(); } catch (error) { mostrarToast(`No se pudo guardar el punto ${auPuntoActivo}. ${error.message || ""}`, "error"); }
 }
 
@@ -1693,7 +1708,7 @@ async function auArmarEje(eje) {
   const partes = [];
   for (const p of auPuntos.filter(x => x.eje === eje)) {
     if (auTieneTexto(p.respuesta_html)) partes.push(p.respuesta_html);
-    else if (p.estado === "No aportado") partes.push(`<p>No se aportó la documentación correspondiente al punto ${p.numero} del Requerimiento.</p>`);
+    else if (p.estado === "No aportado") continue; // lo no aportado no se menciona en el informe
     else partes.push(await auRenderModelo(p.modelo_html));
   }
   if (eje === "F") partes.push("<p><strong>Leyes especiales:</strong> La documentación presentada acredita circuitos específicos para ____.</p>");
@@ -1935,7 +1950,7 @@ async function auProponerObservaciones() {
   }
   // Una observación por cada punto no aportado o aportado en forma parcial
   for (const p of auPuntos) {
-    if (p.estado !== "No aportado" && p.estado !== "Parcial") continue;
+    if (p.estado !== "Parcial") continue; // lo no aportado no se menciona en el informe
     const tema = auTemaPunto(p);
     if (tema?.clave && temasCubiertos.has(tema.clave)) continue;
     const desc = auDescripcionPunto(p, anio);
@@ -2192,21 +2207,22 @@ function auProponerConclusion() {
   const cumple = Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo === "Cumple");
   const noCumple = Object.keys(AU_EJES).filter(e => ["No cumple", "Cumple parcialmente", "No aportado"].includes(auEjes[e]?.hallazgo));
   // PMA y Cartilla se verifican en los sistemas de la Gerencia: van con lo observado, no con lo no aportado
-  const noAportTemas = [...new Set(auPuntos.filter(p => p.estado === "No aportado" && !auTemaPunto(p)?.clave).map(auNombreTemaPunto))];
+  const noAportTemas = [...new Set(auPuntos.filter(p => p.estado === "No aportado").map(auNombreTemaPunto))];
+  const fortTemas = [...new Set(auPuntos.filter(p => p.fortaleza).map(auNombreTemaPunto))];
   // Temas observados: los títulos de las observaciones (sin número de punto); si no hay, los puntos parciales
   let observados = auObs.map(o => o.titulo).filter(Boolean).map(auTemaEnFrase);
   if (!observados.length) observados = auPuntos.filter(p => p.estado === "Parcial").map(auNombreTemaPunto);
   observados = [...new Set(observados)].filter(t => !noAportTemas.includes(t));
   const partes = [];
   partes.push(`<p>Del análisis de la documentación aportada y de las verificaciones realizadas en el marco de la auditoría integral a la ${escaparHtml(os)}, surge que el Agente del Seguro de Salud ${cumple.length ? `cuenta con ${auUnirFrases(cumple.map(e => AU_FRASES_CUMPLE[e]))}` : "presenta aspectos a regularizar en los distintos ejes evaluados"}.</p>`);
+  if (fortTemas.length) {
+    partes.push(`<p>Entre las fortalezas identificadas se destacan ${fortTemas.length === 1 ? "la vinculada" : "las vinculadas"} con ${escaparHtml(auUnirFrases(fortTemas))}, conforme se detalla en el apartado de Fortalezas.</p>`);
+  }
   if (noCumple.length || observados.length) {
     let texto = "No obstante, se identificaron aspectos susceptibles de mejora";
     if (noCumple.length) texto += ` vinculados con ${auUnirFrases(noCumple.map(e => AU_EJES_FRASE[e] || AU_EJES[e].toLowerCase()))}`;
     if (observados.length) texto += `${noCumple.length ? ", en particular en lo referido a" : " en lo referido a"} ${auUnirFrases(observados)}`;
     partes.push(`<p>${escaparHtml(texto)}, conforme se detalla en el apartado de Observaciones.</p>`);
-  }
-  if (noAportTemas.length) {
-    partes.push(`<p>Asimismo, el Agente de Salud no aportó la información relativa a ${escaparHtml(auUnirFrases(noAportTemas))}, lo que limitó el alcance de la evaluación en esos aspectos.</p>`);
   }
   partes.push(`<p>En consecuencia, se formulan las sugerencias detalladas precedentemente, cuya implementación permitirá al Agente del Seguro de Salud fortalecer la gestión prestacional y garantizar el acceso efectivo de sus beneficiarios a las prestaciones, conforme a la normativa vigente.</p>`);
   return partes.join("").replace(/\ba el\b/g, "al").replace(/\bde el\b/g, "del");
@@ -2222,6 +2238,8 @@ async function auAbrirConclusion() {
     }
     if (!auEditorConclusion) auEditorConclusion = await auCrearEditor("#au-conclusion", 360, "au-conc-guardado");
     auEditorConclusion.mode.set(soloLecturaActiva() ? "readonly" : "design");
+    document.getElementById("au-intro-recepcion").value = auActual.introduccion_recepcion || auProponerIntroRecepcion();
+    auIntroTocada = false;
     const propuesta = !auActual.conclusion_html;
     auEditorConclusion.setContent(auActual.conclusion_html || auProponerConclusion());
     auEditorConclusion.undoManager.clear();
@@ -2257,10 +2275,20 @@ function auRenderEstadoInforme() {
   document.getElementById("au-conc-resumen").textContent = `${auObs.length} observacion${auObs.length === 1 ? "" : "es"} · ${Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo).length} ejes analizados`;
 }
 
+let auIntroTocada = false;
+
+function auProponerIntroRecepcion(a = auActual) {
+  const v1 = a.fecha_visita_1 ? auFechaLarga(a.fecha_visita_1) : "____";
+  const v2 = a.visita_2_estado === "Realizada" && a.fecha_visita_2 ? ` y en la segunda visita del ${auFechaLarga(a.fecha_visita_2)}` : "";
+  return `El Requerimiento fue entregado en la visita realizada el ${v1}${v2}. La documentación solicitada fue remitida por el Agente de Salud por correo electrónico con posterioridad a dicha visita.`;
+}
+
 async function auGuardarConclusion(avisar) {
   if (!auEditorConclusion || soloLecturaActiva()) return;
   try {
-    await auPatchAuditoria({ conclusion_html: auEditorConclusion.getContent() });
+    const intro = document.getElementById("au-intro-recepcion").value.trim();
+    await auPatchAuditoria({ conclusion_html: auEditorConclusion.getContent(), introduccion_recepcion: intro || null });
+    auIntroTocada = false;
     auEditorConclusion.setDirty(false);
     document.getElementById("au-conc-guardado").textContent = "Guardado";
     auRenderEstadoInforme();
@@ -2271,7 +2299,7 @@ async function auGuardarConclusion(avisar) {
 }
 
 async function auGuardarConclusionSiHayCambios() {
-  if (!auEditorConclusion || auPasoActivo !== 6 || soloLecturaActiva() || !auEditorConclusion.isDirty()) return;
+  if (!auEditorConclusion || auPasoActivo !== 6 || soloLecturaActiva() || (!auEditorConclusion.isDirty() && !auIntroTocada)) return;
   await auGuardarConclusion(true);
 }
 
@@ -2464,22 +2492,25 @@ async function auDescargarWord() {
     hijos.push(titulo("INTRODUCCIÓN"));
     const fechaDoc = docs.find(d => d.fecha_recepcion)?.fecha_recepcion;
     hijos.push(P([T(`En el marco de la auditoría colegiada realizada a la ${os.denominacion || ""}${os.sigla ? ` (${os.sigla})` : ""}, RNAS ${auFormatearRnas(os.rnos)}, se efectuó el relevamiento de los aspectos vinculados con la estructura organizacional y prestacional, la población beneficiaria, la red de prestadores, el funcionamiento de la Auditoría Médica, los programas preventivos y el cumplimiento de las presentaciones normativas.`)]));
-    hijos.push(P([T(`El Requerimiento fue entregado en la visita realizada el ${a.fecha_visita_1 ? auFechaLarga(a.fecha_visita_1) : "____"}${a.visita_2_estado === "Realizada" && a.fecha_visita_2 ? `, con una segunda visita el ${auFechaLarga(a.fecha_visita_2)}` : ""}${fechaDoc ? `, y la documentación aportada por el Agente del Seguro de Salud fue recibida a partir del ${auFechaLarga(fechaDoc)}` : ""}.`)]));
+    (a.introduccion_recepcion || auProponerIntroRecepcion(a)).split(/\n+/).map(x => x.trim()).filter(Boolean).forEach(x => hijos.push(P([T(x)])));
 
     // 1. Documentación
     let n = 1;
     hijos.push(titulo(`${n}. DOCUMENTACIÓN APORTADA`));
     const borde = { style: BorderStyle.SINGLE, size: 4, color: "999999" };
     const celda = (texto, o = {}) => new TableCell({ borders: { top: borde, bottom: borde, left: borde, right: borde }, shading: o.fondo ? { fill: o.fondo } : undefined, width: o.ancho ? { size: o.ancho, type: WidthType.DXA } : undefined, children: [new Paragraph({ children: [T(texto, { size: 18, bold: !!o.bold })] })] });
+    hijos.push(P([T("En este apartado se detalla la documentación remitida por el Agente de Salud en respuesta a cada uno de los puntos del Requerimiento, la cual constituyó la base del análisis desarrollado en los apartados siguientes.")]));
+    const aportados = auPuntos.filter(p => p.estado === "Recibido" || p.estado === "Parcial");
     hijos.push(new Table({
       width: { size: 8832, type: WidthType.DXA },
-      columnWidths: [560, 4700, 1250, 2322],
+      columnWidths: [560, 5000, 3272],
       rows: [
-        new TableRow({ tableHeader: true, children: [celda("Nº", { bold: true, fondo: "DCE6F1", ancho: 560 }), celda("Punto requerido", { bold: true, fondo: "DCE6F1", ancho: 4700 }), celda("Estado", { bold: true, fondo: "DCE6F1", ancho: 1250 }), celda("Documentación aportada", { bold: true, fondo: "DCE6F1", ancho: 2322 })] }),
-        ...auPuntos.map(p => {
+        new TableRow({ tableHeader: true, children: [celda("Nº", { bold: true, fondo: "DCE6F1", ancho: 560 }), celda("Punto requerido", { bold: true, fondo: "DCE6F1", ancho: 5000 }), celda("Documentación aportada", { bold: true, fondo: "DCE6F1", ancho: 3272 })] }),
+        ...aportados.map(p => {
           const txt = auTextoPlano(auReemplazarAnios(p.texto_html, anio));
           const dd = docs.filter(d => (d.puntos || []).includes(p.numero)).map(d => d.nombre).join("; ");
-          return new TableRow({ children: [celda(String(p.numero), { ancho: 560 }), celda(txt.length > 180 ? `${txt.slice(0, 177)}…` : txt, { ancho: 4700 }), celda(p.estado, { ancho: 1250 }), celda(dd || (p.estado === "No aportado" ? "—" : ""), { ancho: 2322 })] });
+          const sinDoc = auTemaPunto(p)?.clave ? "Verificado en los sistemas de la Gerencia" : "";
+          return new TableRow({ children: [celda(String(p.numero), { ancho: 560 }), celda(txt.length > 180 ? `${txt.slice(0, 177)}…` : txt, { ancho: 5000 }), celda(dd || sinDoc, { ancho: 3272 })] });
         })
       ]
     }));
@@ -2492,9 +2523,18 @@ async function auDescargarWord() {
       hijos.push(...auDocxBloques(html));
     }
 
+    const letra = i => `${String.fromCharCode(97 + (i % 26))})  `;
+    // Fortalezas: solo si hay puntos marcados
+    const fortalezas = auPuntos.filter(p => p.fortaleza && p.fortaleza.trim());
+    if (fortalezas.length) {
+      n++;
+      hijos.push(titulo(`${n}. FORTALEZAS`));
+      hijos.push(P([T("Del análisis efectuado se destacan los siguientes aspectos favorables en la gestión del Agente de Salud:")]));
+      fortalezas.forEach((p, i) => hijos.push(P([T(letra(i), { bold: true }), T(`${auTituloPunto(p, auTemaPunto(p), anio)}: `, { bold: true }), T(p.fortaleza.trim())], { indent: { left: 360, hanging: 360 } })));
+    }
+
     n++;
     hijos.push(titulo(`${n}. OBSERVACIONES`));
-    const letra = i => `${String.fromCharCode(97 + (i % 26))})  `;
     const introObs = (a.observaciones_intro || auProponerIntroObs(obs.length > 0)).split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean);
     introObs.forEach(x => hijos.push(P([T(x)])));
     obs.forEach((o, i) => hijos.push(P([T(letra(i), { bold: true }), ...(o.titulo ? [T(`${o.titulo}: `, { bold: true })] : []), T(o.texto)], { indent: { left: 360, hanging: 360 } })));

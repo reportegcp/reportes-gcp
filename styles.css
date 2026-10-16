@@ -2172,3 +2172,10 @@ select.us-nivel.mixto{background:#fdf5e6;color:#8a5a12;border-color:#f0d9a8}
 .au-obs-titulo-fila{display:flex;gap:8px;align-items:center;margin:8px 0 6px;flex-wrap:wrap}
 .au-obs-titulo-fila select{flex:0 1 380px;min-width:0;font-size:12.5px;padding:6px 8px}
 .au-obs-titulo-fila .au-obs-titulo{flex:1 1 320px;margin:0}
+
+.au-p3-fortaleza{margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}
+.au-check-inline{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;cursor:pointer}
+.au-check-inline input{width:16px;height:16px;margin:0}
+.au-p3-fortaleza textarea{width:100%;margin-top:8px;font-size:13.5px;line-height:1.45;resize:vertical}
+.au-p3-fortaleza .au-hint{display:block;margin-top:6px}
+.au-intro-recepcion{width:100%;font-size:13.5px;line-height:1.45;resize:vertical}

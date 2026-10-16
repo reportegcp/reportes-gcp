@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=100">
+  <link rel="stylesheet" href="styles.css?v=101">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 153</span>
+        <span>Versión 154</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1674,6 +1674,11 @@
                 </label>
               </div>
               <textarea id="au-p3-editor"></textarea>
+              <div class="au-p3-fortaleza">
+                <label class="au-check-inline"><input type="checkbox" id="au-p3-fort-check" data-edicion-campo> Este punto presenta una fortaleza</label>
+                <textarea id="au-p3-fort" rows="2" data-edicion-campo placeholder="Describí la fortaleza. Ej.: no aplica coseguros y cubre el 80 % de los medicamentos para patologías crónicas." hidden></textarea>
+                <span class="au-hint">Las fortalezas marcadas salen en el Word en su propio apartado, antes de las Observaciones, y se mencionan en la conclusión.</span>
+              </div>
               <div class="au-p3-adjuntos">
                 <span class="au-label">Archivos de este punto (opcional)</span>
                 <div id="au-p3-adj-lista" class="au-p3-adj-lista"></div>
@@ -1730,7 +1735,7 @@
               <strong>Paso 5 · Observaciones y sugerencias</strong>
               <span class="au-resumen" id="au-obs-resumen"></span>
             </div>
-            <p class="au-hint" style="margin:12px 16px 0">Se propone una observación por cada punto no aportado o parcial, ordenadas por eje, más las de PMA y Cartilla según Reportes GCP. Podés editarlas, quitarlas o sumar otras con "+ Agregar observación". En el Word salen con letras a), b), c), y las sugerencias van en su propia sección.</p>
+            <p class="au-hint" style="margin:12px 16px 0">Se propone una observación por cada punto aportado en forma parcial, ordenadas por eje, más las de PMA y Cartilla según Reportes GCP. Lo no aportado no se menciona en el informe. Podés editarlas, quitarlas o sumar otras con "+ Agregar observación". En el Word salen con letras a), b), c), y las sugerencias van en su propia sección.</p>
             <div class="au-obs-intro-box" data-edicion-form>
               <span class="au-label">Párrafo inicial</span>
               <textarea id="au-obs-intro" rows="3" placeholder="Evaluación general antes de la lista de observaciones"></textarea>
@@ -1753,6 +1758,9 @@
               <span class="au-resumen" id="au-conc-resumen"></span>
             </div>
             <div class="au-p3-cuerpo">
+              <span class="au-label">Introducción: entrega del Requerimiento y recepción de la documentación</span>
+              <textarea id="au-intro-recepcion" rows="3" class="au-intro-recepcion" data-edicion-campo></textarea>
+              <span class="au-hint" style="display:block;margin:4px 0 14px">Es el último párrafo de la Introducción del Word. Se guarda con el botón Guardar de abajo.</span>
               <span class="au-label">Conclusión general</span>
               <textarea id="au-conclusion"></textarea>
               <div class="au-informe-pie">
@@ -2702,7 +2710,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=85"></script>
-  <script src="auditorias.js?v=19"></script>
+  <script src="auditorias.js?v=20"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
     if ("serviceWorker" in navigator) {
