@@ -2237,3 +2237,8 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .estado-num{font-weight:800;text-align:right}
 .estado-pct{color:var(--muted);font-size:12px;text-align:right}
 .clickable-row{cursor:pointer}
+
+.notif3-linea{font-size:12.5px;line-height:1.5;white-space:nowrap}
+.notif3-sit.mal{color:#a33846;font-weight:700}
+.notif3-sit.espera{color:#8a6a00;font-weight:700}
+.notif3-sit.ok{color:#226d53;font-weight:700}

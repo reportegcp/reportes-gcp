@@ -12631,14 +12631,35 @@ if (typeof module !== "undefined" && module.exports) {
 
 
 // ---------------- Obras Sociales con 3 o más notificaciones sin responder ----------------
+// Cuenta sobre TODAS las presentaciones (no depende de los filtros ni del período vigente).
+
+const tresNotifCompletas = { pma: null, cartilla: null };
+const tresNotifCargando = { pma: false, cartilla: false };
+
+function fuenteTresNotif(tipo) {
+  const completa = tipo === "pma" ? (pmaCompleta ? pma : null) : (cartillasCompleta ? cartillas : null);
+  return completa || tresNotifCompletas[tipo] || (tipo === "pma" ? pma : cartillas);
+}
+
+async function asegurarFuenteTresNotif(tipo) {
+  if ((tipo === "pma" ? pmaCompleta : cartillasCompleta) || tresNotifCompletas[tipo] || tresNotifCargando[tipo]) return;
+  tresNotifCargando[tipo] = true;
+  try {
+    tresNotifCompletas[tipo] = tipo === "pma" ? await cargarPmaDesdeSupabase() : await cargarCartillasDesdeSupabase();
+    renderPildoraTresNotif(tipo);
+  } catch (error) { console.error(error); } finally { tresNotifCargando[tipo] = false; }
+}
 
 function presentacionesTresNotif(tipo) {
-  const lista = tipo === "pma" ? obtenerPmaFiltradas() : filtrarCartillas();
   const mapa = tipo === "pma" ? pmaNotificacionesPorPma : cartillaNotificacionesPorCartilla;
-  return lista.map(p => {
-    const notifs = [...(mapa.get(Number(p.id)) || [])].sort((a, b) => (a.numero || 0) - (b.numero || 0));
-    return { p, notifs };
-  }).filter(x => x.notifs.length >= 3 && !x.notifs.some(n => n.estado === "RESPONDIO"));
+  const porId = new Map(fuenteTresNotif(tipo).map(p => [Number(p.id), p]));
+  const out = [];
+  mapa.forEach((lista, id) => {
+    const notifs = [...(lista || [])].sort((a, b) => (a.numero || 0) - (b.numero || 0));
+    if (notifs.length < 3 || notifs.some(n => n.estado === "RESPONDIO")) return;
+    out.push({ p: porId.get(Number(id)) || { id, obra_social_id: `?${id}` }, notifs });
+  });
+  return out;
 }
 
 function renderPildoraTresNotif(tipo) {
@@ -12646,6 +12667,7 @@ function renderPildoraTresNotif(tipo) {
   const btn = document.getElementById(`${tipo}-notif3-pill`);
   if (!btn) return;
   const filas = presentacionesTresNotif(tipo);
+  if (filas.some(x => !x.p.obras_sociales)) asegurarFuenteTresNotif(tipo);
   const nOs = new Set(filas.map(x => x.p.obra_social_id)).size;
   btn.hidden = false;
   btn.classList.toggle("vacia", nOs === 0);
@@ -12653,19 +12675,27 @@ function renderPildoraTresNotif(tipo) {
   btn.innerHTML = `<span class="notif3-num">${nOs}</span> ${nOs === 1 ? "Obra Social" : "Obras Sociales"} con 3 notificaciones sin responder${nOs ? ` <span class="notif3-ver">Ver listado →</span>` : ""}`;
 }
 
-function abrirModalTresNotif(tipo) {
+// Situación de cada notificación por separado
+function situacionNotificacion(n, hoy) {
+  if (n.estado === "RESPONDIO") return { txt: `Respondida${n.fecha_respuesta ? ` el ${formatFechaPantalla(n.fecha_respuesta)}` : ""}`, clase: "ok" };
+  if (n.estado === "NO_RESPONDIO") return { txt: "No respondió (girada)", clase: "mal" };
+  const vence = n.fecha_limite_respuesta || sumarDiasHabiles(n.fecha_notificacion, 10);
+  if (diasHabilesTranscurridos(n.fecha_notificacion, hoy) >= 10) return { txt: `Vencida sin respuesta (venció el ${formatFechaPantalla(vence)})`, clase: "mal" };
+  return { txt: `En plazo, vence el ${formatFechaPantalla(vence)}`, clase: "espera" };
+}
+
+async function abrirModalTresNotif(tipo) {
+  await asegurarFuenteTresNotif(tipo);
   const filas = presentacionesTresNotif(tipo).sort((a, b) => String(a.p.obras_sociales?.rnos || "").localeCompare(String(b.p.obras_sociales?.rnos || "")));
   const hoy = hoyLocalISO();
   const nOs = new Set(filas.map(x => x.p.obra_social_id)).size;
   document.getElementById("notif3-eyebrow").textContent = tipo === "pma" ? "PMA" : "CARTILLAS";
-  document.getElementById("notif3-meta").textContent = `${nOs} ${nOs === 1 ? "Obra Social" : "Obras Sociales"} · ${filas.length} ${filas.length === 1 ? "presentación" : "presentaciones"} con tres o más notificaciones y ninguna respondida (según los filtros de la pantalla).`;
+  document.getElementById("notif3-meta").textContent = `${nOs} ${nOs === 1 ? "Obra Social" : "Obras Sociales"} con tres o más notificaciones y ninguna respondida, en todas las presentaciones (sin aplicar los filtros de la pantalla).`;
   document.getElementById("notif3-body").innerHTML = filas.map(({ p, notifs }) => {
     const os = p.obras_sociales || {};
-    const est = tipo === "pma" ? estadoNotificacionesPma(p.id, hoy) : estadoNotificacionesCartilla(p.id, hoy);
-    const situacion = est.estado === "NO_RESPONDIO" ? "No respondió (girado)" : est.vencida ? "Vencida sin girar" : "Esperando respuesta";
-    const fechas = notifs.map(n => `${n.numero}ª: ${formatFechaPantalla(n.fecha_notificacion)}`).join("<br>");
-    return `<tr><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(p.ejercicio || "—")}</td><td class="history-wrap-cell">${escaparHtml(p.numero_ee || "—")}</td><td class="date-cell">${fechas}</td><td>${escaparHtml(situacion)}</td></tr>`;
-  }).join("") || `<tr><td colspan="6">No hay Obras Sociales en esta situación.</td></tr>`;
+    const detalle = notifs.map(n => { const s = situacionNotificacion(n, hoy); return `<div class="notif3-linea"><b>${n.numero}ª</b> ${formatFechaPantalla(n.fecha_notificacion)} · <span class="notif3-sit ${s.clase}">${escaparHtml(s.txt)}</span></div>`; }).join("");
+    return `<tr><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(p.ejercicio || "—")}</td><td class="history-wrap-cell">${escaparHtml(p.numero_ee || "—")}</td><td>${detalle}</td></tr>`;
+  }).join("") || `<tr><td colspan="5">No hay Obras Sociales en esta situación.</td></tr>`;
   abrirModal("notif3-modal");
 }
 
