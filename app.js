@@ -5790,7 +5790,7 @@ function renderPma() {
     const notifCelda = renderIconoNotificacion(notif);
     return `<tr class="pma-row" data-pma-id="${r.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(r.obras_sociales?.rnos||"—")}</strong></td>
-      <td class="denominacion-cell">${escaparHtml(r.obras_sociales?.denominacion||"—")}</td>
+      <td class="denominacion-cell"><span class="denom-1linea" title="${escaparHtml(r.obras_sociales?.denominacion||"")}">${escaparHtml(r.obras_sociales?.denominacion||"—")}</span></td>
       <td>${escaparHtml(r.ejercicio||"—")}</td>
       <td class="date-cell">${labelPatronEjercicio(patronEjercicioRegistro(r))}</td>
       <td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td>
@@ -5974,7 +5974,7 @@ function renderCartillas() {
     const notifCelda = renderIconoNotificacion(notif);
     return `<tr class="cartilla-row" data-cartilla-id="${c.id}" tabindex="0" role="button" title="Clic para ver o editar la presentación">
       <td><strong>${escaparHtml(os.rnos || "—")}</strong></td>
-      <td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td>
+      <td class="denominacion-cell"><span class="denom-1linea" title="${escaparHtml(os.denominacion || "")}">${escaparHtml(os.denominacion || "—")}</span></td>
       <td>${escaparHtml(c.ejercicio || "—")}</td>
       <td class="date-cell">${labelPatronEjercicio(patronEjercicioRegistro(c))}</td>
       <td class="date-cell">${formatFechaPantalla(c.fecha_ingreso)}</td>

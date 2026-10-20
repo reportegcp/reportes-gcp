@@ -2257,3 +2257,5 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .tiempos-sub:first-child{margin-top:0;padding-top:0;border-top:0}
 .tiempos-analistas{font-size:12.5px}
 .tiempos-analistas th,.tiempos-analistas td{padding:6px 8px}
+
+.denom-1linea{display:block;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
