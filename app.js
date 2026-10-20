@@ -5566,7 +5566,7 @@ function esReporteNunca(tipo = reporteActivo) {
 }
 
 function tipoBaseReporte(tipo = reporteActivo) {
-  if (tipo === "estados") return "estados";
+  if (tipo === "estados" || tipo === "tiempos") return tipo;
   return String(tipo || "").startsWith("pma") ? "pma" : "cartillas";
 }
 
@@ -6453,10 +6453,12 @@ function actualizarCabeceraReporte(tipo) {
   const eyebrow = document.getElementById("report-current-eyebrow");
   const title = document.getElementById("report-current-title");
   const description = document.getElementById("report-current-description");
-  if (base === "estados") {
+  if (base === "estados" || base === "tiempos") {
     if (eyebrow) eyebrow.textContent = "PMA Y CARTILLAS";
-    if (title) title.textContent = "Estado de las presentaciones";
-    if (description) description.textContent = "Cantidad de presentaciones de Cartillas y de PMA en cada estado. Tocá un estado para ver qué Obras Sociales están en esa situación.";
+    if (title) title.textContent = base === "estados" ? "Estado de las presentaciones" : "Tiempos de tramitación";
+    if (description) description.textContent = base === "estados"
+      ? "Cantidad de presentaciones de Cartillas y de PMA en cada estado. Tocá un estado para ver qué Obras Sociales están en esa situación."
+      : "Tiempo promedio de cada etapa del expediente: del ingreso a la asignación, de la asignación al inicio del estudio, y del inicio del estudio a cada estado de finalización.";
     ["report-cartillas-search-wrap", "report-pma-search-wrap", "report-cartillas-filters", "report-pma-filters"].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; });
     return;
   }
@@ -6533,6 +6535,7 @@ function actualizarSelectorReporte() {
   if (base === "cartillas") cargarYRenderizarReporteCartillas();
   if (base === "pma") cargarYRenderizarReportePma();
   if (base === "estados") cargarYRenderizarReporteEstados();
+  if (base === "tiempos") cargarYRenderizarReporteTiempos();
 }
 
 function cargarReporteActivo() {
@@ -6559,6 +6562,7 @@ function exportarReporteActivo() {
   if (reporteActivo === "cartillas-nunca") return exportarReporteNuncaPresentaron("cartillas");
   if (reporteActivo === "pma-nunca") return exportarReporteNuncaPresentaron("pma");
   if (reporteActivo === "estados") return exportarReporteEstados();
+  if (reporteActivo === "tiempos") return exportarReporteTiempos();
   mostrarToast("Este reporte todavía no está disponible.", "error");
 }
 
@@ -12497,6 +12501,9 @@ async function initBrowser() {
   document.getElementById("report-pma-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosPma(false));
   document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
   document.getElementById("report-estados-ejercicio")?.addEventListener("change", () => { reporteEstadosSel = null; renderReporteEstados(); });
+  document.getElementById("report-tiempos-ejercicio")?.addEventListener("change", () => { reporteTiemposSel = null; renderReporteTiempos(); });
+  document.getElementById("report-tiempos-analista")?.addEventListener("change", () => { reporteTiemposSel = null; renderReporteTiempos(); });
+  document.getElementById("report-tiempos-cerrar")?.addEventListener("click", () => { reporteTiemposSel = null; renderReporteTiempos(); });
   document.getElementById("report-estados-cerrar")?.addEventListener("click", () => { reporteEstadosSel = null; renderReporteEstados(); });
   document.getElementById("pma-notif3-pill")?.addEventListener("click", () => abrirModalTresNotif("pma"));
   document.getElementById("cartilla-notif3-pill")?.addEventListener("click", () => abrirModalTresNotif("cartilla"));
@@ -12798,4 +12805,140 @@ function exportarReporteEstados() {
     window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), nombre);
   });
   window.XLSX.writeFile(libro, `estado_presentaciones_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+
+// ---------------- Reporte: Tiempos de tramitación (PMA y Cartillas) ----------------
+// Usa el historial que registra la base automáticamente cada vez que cambia la condición o el analista.
+
+const ESTADOS_FINALIZACION = ["PROYECTO DISPO", "PASE A JURIDICO", "ARCHIVO", "PROCESO SUMARIAL"];
+const TRAMOS_TIEMPOS = [
+  { key: "asignacion", label: "Ingreso → Asignación" },
+  { key: "estudio", label: "Asignación → Inicio del estudio" },
+  ...ESTADOS_FINALIZACION.map(e => ({ key: `fin:${e}`, label: `Inicio del estudio → ${e.charAt(0) + e.slice(1).toLowerCase().replace("dispo", "Dispo").replace("juridico", "Jurídico")}` }))
+];
+let historialPresentaciones = null;
+let reporteTiemposSel = null; // { tipo, tramo }
+
+async function cargarHistorialPresentaciones() {
+  const all = [];
+  for (let offset = 0; ; offset += 1000) {
+    const params = new URLSearchParams({ select: "tipo,presentacion_id,campo,valor_anterior,valor_nuevo,fecha", order: "fecha.asc", limit: "1000", offset: String(offset), apikey: SUPABASE_PUBLISHABLE_KEY });
+    const r = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/presentacion_estados_historial?${params}`, { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+    if (!r.ok) throw new Error(`Supabase respondió ${r.status}`);
+    const page = await r.json();
+    all.push(...page);
+    if (page.length < 1000) break;
+  }
+  return all;
+}
+
+async function cargarYRenderizarReporteTiempos() {
+  const cont = document.getElementById("report-tiempos-cartillas");
+  if (cont) cont.innerHTML = `<p class="estados-ayuda">Cargando...</p>`;
+  try {
+    if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
+    if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; }
+    if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; pmaCompleta = true; }
+    historialPresentaciones = await cargarHistorialPresentaciones();
+  } catch (error) {
+    if (cont) cont.innerHTML = `<p class="estados-ayuda">No se pudieron cargar los datos. ${escaparHtml(error?.message || "")}</p>`;
+    return;
+  }
+  const llenar = (id, valores, todos) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const actual = sel.value;
+    sel.innerHTML = `<option value="">${todos}</option>` + valores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
+    sel.value = valores.includes(actual) ? actual : "";
+  };
+  llenar("report-tiempos-ejercicio", [...new Set([...cartillas, ...pma].map(r => String(r.ejercicio || "").trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a)), "Todos los ejercicios");
+  llenar("report-tiempos-analista", [...new Set([...cartillas, ...pma].map(r => String(r.analista || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)), "Todos los analistas");
+  renderReporteTiempos();
+}
+
+function diasEntre(desde, hasta) {
+  const a = new Date(String(desde).length <= 10 ? `${desde}T00:00:00` : desde);
+  const b = new Date(hasta);
+  return Math.max(0, (b - a) / 86400000);
+}
+
+// Fechas de cada etapa de una presentación según su historial
+function etapasPresentacion(tipo, p) {
+  const ev = (historialPresentaciones || []).filter(h => h.tipo === tipo && Number(h.presentacion_id) === Number(p.id));
+  const asign = ev.find(h => (h.campo === "analista" && String(h.valor_nuevo || "").trim() && !String(h.valor_anterior || "").trim())
+    || (h.campo === "condicion" && String(h.valor_anterior || "").trim() === "S/ASIGNAR" && String(h.valor_nuevo || "").trim() !== "S/ASIGNAR"));
+  const estudio = ev.find(h => h.campo === "condicion" && String(h.valor_nuevo || "").trim() === "EN ESTUDIO");
+  const fin = ev.find(h => h.campo === "condicion" && ESTADOS_FINALIZACION.includes(String(h.valor_nuevo || "").trim()));
+  return { asign: asign?.fecha || null, estudio: estudio?.fecha || null, fin: fin?.fecha || null, finEstado: fin ? String(fin.valor_nuevo).trim() : null };
+}
+
+function casosTramo(tipo, tramo) {
+  const ej = document.getElementById("report-tiempos-ejercicio")?.value || "";
+  const an = document.getElementById("report-tiempos-analista")?.value || "";
+  const fuente = (tipo === "pma" ? pma : cartillas).filter(r => (!ej || String(r.ejercicio || "").trim() === ej) && (!an || String(r.analista || "").trim() === an));
+  const t = tipo === "pma" ? "pma" : "cartilla";
+  const out = [];
+  fuente.forEach(p => {
+    const e = etapasPresentacion(t, p);
+    let desde = null, hasta = null;
+    if (tramo === "asignacion" && e.asign && p.fecha_ingreso) { desde = p.fecha_ingreso; hasta = e.asign; }
+    else if (tramo === "estudio" && e.asign && e.estudio && e.estudio >= e.asign) { desde = e.asign; hasta = e.estudio; }
+    else if (tramo.startsWith("fin:") && e.estudio && e.fin && e.finEstado === tramo.slice(4) && e.fin >= e.estudio) { desde = e.estudio; hasta = e.fin; }
+    if (desde && hasta) out.push({ p, desde, hasta, dias: diasEntre(desde, hasta) });
+  });
+  return out;
+}
+
+function fmtDias(n) { return n.toFixed(1).replace(".", ","); }
+
+function renderReporteTiempos() {
+  const aviso = document.getElementById("report-tiempos-aviso");
+  const n = (historialPresentaciones || []).length;
+  if (aviso) aviso.textContent = n
+    ? "Los tiempos se miden con los cambios registrados automáticamente desde el 20/10/2026. Cada tramo incluye solo los expedientes que pasaron por ambas etapas desde esa fecha."
+    : "Todavía no hay cambios de estado registrados. Los tiempos se empiezan a medir desde el 20/10/2026, a medida que se asignen expedientes y cambien de condición.";
+  ["cartillas", "pma"].forEach(tipo => {
+    const cont = document.getElementById(`report-tiempos-${tipo}`);
+    if (!cont) return;
+    cont.innerHTML = TRAMOS_TIEMPOS.map(tr => {
+      const casos = casosTramo(tipo, tr.key);
+      const prom = casos.length ? casos.reduce((a, c) => a + c.dias, 0) / casos.length : null;
+      const activo = reporteTiemposSel?.tipo === tipo && reporteTiemposSel?.tramo === tr.key;
+      return `<button type="button" class="tiempo-fila${activo ? " activo" : ""}${tr.key.startsWith("fin:") ? " sub" : ""}" data-tiempo-tipo="${tipo}" data-tiempo-tramo="${escaparHtml(tr.key)}" ${casos.length ? "" : "disabled"}>
+        <span class="tiempo-nombre">${escaparHtml(tr.label)}</span>
+        <span class="tiempo-prom">${prom === null ? "—" : `${fmtDias(prom)} días`}</span>
+        <span class="tiempo-n">${casos.length} ${casos.length === 1 ? "exp." : "exps."}</span>
+      </button>`;
+    }).join("");
+    cont.querySelectorAll("[data-tiempo-tipo]").forEach(b => b.addEventListener("click", () => {
+      const nuevo = { tipo: b.dataset.tiempoTipo, tramo: b.dataset.tiempoTramo };
+      reporteTiemposSel = (reporteTiemposSel?.tipo === nuevo.tipo && reporteTiemposSel?.tramo === nuevo.tramo) ? null : nuevo;
+      renderReporteTiempos();
+      if (reporteTiemposSel) document.getElementById("report-tiempos-detalle")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  });
+  const caja = document.getElementById("report-tiempos-detalle");
+  if (!caja) return;
+  caja.hidden = !reporteTiemposSel;
+  if (!reporteTiemposSel) return;
+  const casos = casosTramo(reporteTiemposSel.tipo, reporteTiemposSel.tramo).sort((a, b) => b.dias - a.dias);
+  const tr = TRAMOS_TIEMPOS.find(x => x.key === reporteTiemposSel.tramo);
+  document.getElementById("report-tiempos-detalle-titulo").textContent = `${reporteTiemposSel.tipo === "pma" ? "PMA" : "Cartillas"} · ${tr?.label || ""}: ${casos.length} ${casos.length === 1 ? "expediente" : "expedientes"}`;
+  document.getElementById("report-tiempos-body").innerHTML = casos.map(c => {
+    const os = c.p.obras_sociales || {};
+    return `<tr><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(c.p.ejercicio || "—")}</td><td class="history-wrap-cell">${escaparHtml(c.p.numero_ee || "—")}</td><td>${escaparHtml(c.p.analista || "—")}</td><td class="date-cell">${formatFechaPantalla(String(c.desde).slice(0, 10))}</td><td class="date-cell">${formatFechaPantalla(String(c.hasta).slice(0, 10))}</td><td><strong>${fmtDias(c.dias)}</strong></td></tr>`;
+  }).join("");
+}
+
+function exportarReporteTiempos() {
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error"); return; }
+  const libro = window.XLSX.utils.book_new();
+  ["cartillas", "pma"].forEach(tipo => {
+    const nombre = tipo === "pma" ? "PMA" : "Cartillas";
+    const matriz = [[`${nombre} - Tiempos de tramitación (días corridos)`], ["Generado", formatearFechaHoraExportacion()], [], ["TRAMO", "RNAS", "DENOMINACIÓN", "EJERCICIO", "Nº EE", "ANALISTA", "DESDE", "HASTA", "DÍAS"]];
+    TRAMOS_TIEMPOS.forEach(tr => casosTramo(tipo, tr.key).forEach(c => matriz.push([tr.label, c.p.obras_sociales?.rnos || "", c.p.obras_sociales?.denominacion || "", c.p.ejercicio || "", c.p.numero_ee || "", c.p.analista || "", formatFechaPantalla(String(c.desde).slice(0, 10)), formatFechaPantalla(String(c.hasta).slice(0, 10)), Number(c.dias.toFixed(1))])));
+    window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), nombre);
+  });
+  window.XLSX.writeFile(libro, `tiempos_tramitacion_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

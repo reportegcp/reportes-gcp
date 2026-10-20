@@ -2242,3 +2242,13 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .notif3-sit.mal{color:#a33846;font-weight:700}
 .notif3-sit.espera{color:#8a6a00;font-weight:700}
 .notif3-sit.ok{color:#226d53;font-weight:700}
+
+.tiempos-aviso{margin:0 0 12px;padding:9px 12px;border-radius:10px;background:#fdf6e3;border:1px solid #e8c77a;color:#7a5a12;font-size:13px}
+.tiempo-fila{display:grid;grid-template-columns:1fr 100px 70px;align-items:center;gap:10px;width:100%;padding:10px 8px;border:1px solid transparent;border-radius:8px;background:none;cursor:pointer;text-align:left;font:inherit}
+.tiempo-fila:hover:not(:disabled){background:var(--surface-soft,#f4f6f8)}
+.tiempo-fila:disabled{cursor:default;opacity:.65}
+.tiempo-fila.activo{border-color:var(--navy);background:var(--surface-soft,#f4f6f8)}
+.tiempo-fila.sub .tiempo-nombre{padding-left:14px;font-weight:600}
+.tiempo-nombre{font-weight:700;font-size:13px}
+.tiempo-prom{font-weight:800;text-align:right}
+.tiempo-n{color:var(--muted);font-size:12px;text-align:right}

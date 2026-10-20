@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=112">
+  <link rel="stylesheet" href="styles.css?v=113">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 170</span>
+        <span>Versión 171</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1236,6 +1236,7 @@
                 <option value="pma">PMA - Presentaciones</option>
                 <option value="pma-nunca">PMA - Nunca presentaron</option>
                 <option value="estados">PMA y Cartillas - Estado de las presentaciones</option>
+                <option value="tiempos">PMA y Cartillas - Tiempos de tramitación</option>
               </select>
             </label>
 
@@ -1320,6 +1321,23 @@
               <div class="table-scroll"><table class="data-table report-missing-table"><thead id="report-pma-head" data-rnas-sort-id="report-pma-rnas-sort"></thead><tbody id="report-pma-body"></tbody></table></div>
               <div class="table-pagination" id="report-pma-pagination"></div>
               <div class="table-empty" id="report-pma-empty" hidden>No hay Agentes de Seguro para mostrar con los filtros seleccionados.</div>
+            </div>
+          </div>
+
+          <div class="report-panel" id="report-tiempos-panel" data-report-panel="tiempos" hidden>
+            <div class="estados-filtros">
+              <label class="report-type-field"><span>Ejercicio</span><select id="report-tiempos-ejercicio"><option value="">Todos los ejercicios</option></select></label>
+              <label class="report-type-field"><span>Analista</span><select id="report-tiempos-analista"><option value="">Todos los analistas</option></select></label>
+              <span class="estados-ayuda">Promedios en días corridos. Tocá un tramo para ver los expedientes.</span>
+            </div>
+            <p class="tiempos-aviso" id="report-tiempos-aviso"></p>
+            <div class="estados-grid">
+              <div class="table-card estados-card"><div class="estados-card-head"><h3>Cartillas</h3></div><div id="report-tiempos-cartillas"></div></div>
+              <div class="table-card estados-card"><div class="estados-card-head"><h3>PMA</h3></div><div id="report-tiempos-pma"></div></div>
+            </div>
+            <div class="table-card" id="report-tiempos-detalle" hidden>
+              <div class="table-meta"><strong id="report-tiempos-detalle-titulo"></strong><button type="button" class="text-button" id="report-tiempos-cerrar">Cerrar listado</button></div>
+              <div class="table-scroll"><table class="data-table"><thead><tr><th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Nº EE</th><th>Analista</th><th>Desde</th><th>Hasta</th><th>Días</th></tr></thead><tbody id="report-tiempos-body"></tbody></table></div>
             </div>
           </div>
 
@@ -2754,7 +2772,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=88"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
