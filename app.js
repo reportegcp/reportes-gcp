@@ -12723,13 +12723,24 @@ async function cargarYRenderizarReporteEstados() {
     return;
   }
   poblarEjerciciosMulti("estados", () => { reporteEstadosSel = null; renderReporteEstados(); });
+  ["cartillas", "pma"].forEach(t => {
+    const sel = document.getElementById(`report-estados-analista-${t}`);
+    if (!sel) return;
+    const actual = sel.value;
+    const lista = [...new Set((t === "pma" ? pma : cartillas).map(r => String(r.analista || "").trim()).filter(a => !analistaVacio(a)))].sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = `<option value="">Todos</option><option value="__SIN__">Sin asignar</option>` + lista.map(a => `<option value="${escaparHtml(a)}">${escaparHtml(a)}</option>`).join("");
+    sel.value = actual && (lista.includes(actual) || actual === "__SIN__") ? actual : "";
+    sel.onchange = () => { reporteEstadosSel = null; renderReporteEstados(); };
+  });
   renderReporteEstados();
 }
 
 function registrosReporteEstados(tipo) {
   const ej = ejerciciosMultiSeleccionados("estados");
+  const an = document.getElementById(`report-estados-analista-${tipo === "pma" ? "pma" : "cartillas"}`)?.value || "";
   const fuente = tipo === "pma" ? pma : cartillas;
-  return fuente.filter(r => !ej.size || ej.has(String(r.ejercicio || "").trim()));
+  return fuente.filter(r => (!ej.size || ej.has(String(r.ejercicio || "").trim()))
+    && (!an || (an === "__SIN__" ? analistaVacio(r.analista) : String(r.analista || "").trim() === an)));
 }
 
 // Selector múltiple de ejercicios (sin ninguno tildado = todos)
@@ -12810,7 +12821,7 @@ function renderDetalleReporteEstados() {
   const body = document.getElementById("report-estados-body");
   body.innerHTML = filas.map(r => {
     const os = r.obras_sociales || {};
-    return `<tr class="clickable-row" data-estados-os="${escaparHtml(String(r.obra_social_id ?? ""))}"><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(r.ejercicio || "—")}</td><td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td><td class="history-wrap-cell">${escaparHtml(r.numero_ee || "—")}</td><td class="history-wrap-cell">${escaparHtml(r.numero_disposicion || "—")}</td></tr>`;
+    return `<tr class="clickable-row" data-estados-os="${escaparHtml(String(r.obra_social_id ?? ""))}"><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(r.ejercicio || "—")}</td><td>${escaparHtml(analistaVacio(r.analista) ? "Sin asignar" : r.analista)}</td><td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td><td class="history-wrap-cell">${escaparHtml(r.numero_ee || "—")}</td><td class="history-wrap-cell">${escaparHtml(r.numero_disposicion || "—")}</td></tr>`;
   }).join("");
   body.querySelectorAll("[data-estados-os]").forEach(tr => tr.addEventListener("click", () => abrirHistorialPresentaciones(reporteEstadosSel.tipo === "pma" ? "pma" : "cartillas", tr.dataset.estadosOs)));
 }
@@ -12824,8 +12835,8 @@ function exportarReporteEstados() {
     let regs = registrosReporteEstados(tipo);
     if (reporteEstadosSel) regs = filasDetalleEstados();
     const nombre = tipo === "pma" ? "PMA" : "Cartillas";
-    const matriz = [[`${nombre} - Estado de las presentaciones${reporteEstadosSel ? ` (${reporteEstadosSel.condicion})` : ""}${ej ? ` - Ejercicios ${ej}` : ""}`], ["Generado", formatearFechaHoraExportacion()], [], ["RNAS", "DENOMINACIÓN", "EJERCICIO", "FECHA INGRESO", "Nº EE", "CONDICIÓN", "Nº DISPO", "FECHA DISPOSICIÓN"]];
-    regs.sort((a, b) => condicionDe(a).localeCompare(condicionDe(b)) || String(a.obras_sociales?.rnos || "").localeCompare(String(b.obras_sociales?.rnos || ""))).forEach(r => matriz.push([r.obras_sociales?.rnos || "", r.obras_sociales?.denominacion || "", r.ejercicio || "", formatFechaPantalla(r.fecha_ingreso), r.numero_ee || "", condicionDe(r), r.numero_disposicion || "", formatFechaPantalla(r.fecha_disposicion)]));
+    const matriz = [[`${nombre} - Estado de las presentaciones${reporteEstadosSel ? ` (${reporteEstadosSel.condicion})` : ""}${ej ? ` - Ejercicios ${ej}` : ""}`], ["Generado", formatearFechaHoraExportacion()], [], ["RNAS", "DENOMINACIÓN", "EJERCICIO", "ANALISTA", "FECHA INGRESO", "Nº EE", "CONDICIÓN", "Nº DISPO", "FECHA DISPOSICIÓN"]];
+    regs.sort((a, b) => condicionDe(a).localeCompare(condicionDe(b)) || String(a.obras_sociales?.rnos || "").localeCompare(String(b.obras_sociales?.rnos || ""))).forEach(r => matriz.push([r.obras_sociales?.rnos || "", r.obras_sociales?.denominacion || "", r.ejercicio || "", analistaVacio(r.analista) ? "Sin asignar" : r.analista, formatFechaPantalla(r.fecha_ingreso), r.numero_ee || "", condicionDe(r), r.numero_disposicion || "", formatFechaPantalla(r.fecha_disposicion)]));
     window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), nombre);
   });
   window.XLSX.writeFile(libro, `estado_presentaciones_${new Date().toISOString().slice(0, 10)}.xlsx`);

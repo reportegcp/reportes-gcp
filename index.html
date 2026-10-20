@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 174</span>
+        <span>Versión 175</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1359,6 +1359,8 @@
                     <div class="period-options" id="report-estados-ej-opciones"></div>
                   </div>
                 </details></div>
+              <label class="report-type-field"><span>Analista de Cartillas</span><select id="report-estados-analista-cartillas"><option value="">Todos</option></select></label>
+              <label class="report-type-field"><span>Analista de PMA</span><select id="report-estados-analista-pma"><option value="">Todos</option></select></label>
               <span class="estados-ayuda">Tocá un estado para ver el listado de Obras Sociales.</span>
             </div>
             <div class="estados-grid">
@@ -1367,7 +1369,7 @@
             </div>
             <div class="table-card" id="report-estados-detalle" hidden>
               <div class="table-meta"><strong id="report-estados-detalle-titulo"></strong><button type="button" class="text-button" id="report-estados-cerrar">Cerrar listado</button></div>
-              <div class="table-scroll"><table class="data-table"><thead><tr><th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th><th>Nº EE</th><th>Nº Dispo</th></tr></thead><tbody id="report-estados-body"></tbody></table></div>
+              <div class="table-scroll"><table class="data-table"><thead><tr><th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Analista</th><th>Ingreso</th><th>Nº EE</th><th>Nº Dispo</th></tr></thead><tbody id="report-estados-body"></tbody></table></div>
               <p class="estados-ayuda" style="margin:8px 16px 14px">Tocá una Obra Social para ver su historial de presentaciones.</p>
             </div>
           </div>
@@ -2787,7 +2789,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=91"></script>
+  <script src="app.js?v=92"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
