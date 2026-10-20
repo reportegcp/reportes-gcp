@@ -12890,8 +12890,8 @@ async function cargarYRenderizarReporteTiempos() {
     const sel = document.getElementById(id);
     if (!sel) return;
     const actual = sel.value;
-    sel.innerHTML = `<option value="">${todos}</option>` + valores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
-    sel.value = valores.includes(actual) ? actual : "";
+    sel.innerHTML = `<option value="">${todos}</option><option value="__SIN__">Sin asignar</option>` + valores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
+    sel.value = valores.includes(actual) || actual === "__SIN__" ? actual : "";
   };
   poblarEjerciciosMulti("tiempos", () => { reporteTiemposSel = null; renderReporteTiempos(); });
   llenar("report-tiempos-analista-cartillas", [...new Set(cartillas.map(r => String(r.analista || "").trim()).filter(a => !analistaVacio(a)))].sort((a, b) => a.localeCompare(b)), "Todos");
@@ -12924,7 +12924,7 @@ function etapasPresentacion(tipo, p) {
 function casosTramo(tipo, tramo) {
   const ej = ejerciciosMultiSeleccionados("tiempos");
   const an = document.getElementById(`report-tiempos-analista-${tipo === "pma" ? "pma" : "cartillas"}`)?.value || "";
-  const fuente = (tipo === "pma" ? pma : cartillas).filter(r => (!ej.size || ej.has(String(r.ejercicio || "").trim())) && (!an || String(r.analista || "").trim() === an));
+  const fuente = fuenteTiempos(tipo, an);
   const t = tipo === "pma" ? "pma" : "cartilla";
   const out = [];
   fuente.forEach(p => {
@@ -12933,9 +12933,56 @@ function casosTramo(tipo, tramo) {
     if (tramo === "asignacion" && e.asign && p.fecha_ingreso) { desde = p.fecha_ingreso; hasta = e.asign; }
     else if (tramo === "estudio" && e.asign && e.estudio && e.estudio >= e.asign) { desde = e.asign; hasta = e.estudio; }
     else if (tramo.startsWith("fin:") && e.estudio && e.fin && e.finEstado === tramo.slice(4) && e.fin >= e.estudio) { desde = e.estudio; hasta = e.fin; }
+    else if (tramo === "dispo" && p.fecha_ingreso && p.fecha_disposicion && p.fecha_disposicion >= p.fecha_ingreso) { desde = p.fecha_ingreso; hasta = `${p.fecha_disposicion}T00:00:00`; }
+    else if (tramo.startsWith("abierto:") && p.fecha_ingreso && condicionDe(p) === tramo.slice(8)) { desde = p.fecha_ingreso; hasta = new Date().toISOString(); }
     if (desde && hasta) out.push({ p, desde, hasta, dias: diasEntre(desde, hasta) });
   });
   return out;
+}
+
+function fuenteTiempos(tipo, an) {
+  const ej = ejerciciosMultiSeleccionados("tiempos");
+  return (tipo === "pma" ? pma : cartillas).filter(r => (!ej.size || ej.has(String(r.ejercicio || "").trim()))
+    && (!an || (an === "__SIN__" ? analistaVacio(r.analista) : String(r.analista || "").trim() === an)));
+}
+
+const CONDICIONES_ABIERTAS = ["S/ASIGNAR", "EN ESTUDIO", "OBSERVADO", "PROYECTO DISPO", "PASE A JURIDICO", "PROCESO SUMARIAL"];
+
+function etiquetaTramo(key) {
+  if (key === "dispo") return "Ingreso → Disposición";
+  if (key.startsWith("abierto:")) return `Hoy en ${key.slice(8)}: días desde el ingreso`;
+  return TRAMOS_TIEMPOS.find(x => x.key === key)?.label || key;
+}
+
+function filaTramoHtml(tipo, key, casos, extraClase = "") {
+  const prom = casos.length ? casos.reduce((a, c) => a + c.dias, 0) / casos.length : null;
+  const activo = reporteTiemposSel?.tipo === tipo && reporteTiemposSel?.tramo === key;
+  return `<button type="button" class="tiempo-fila${activo ? " activo" : ""}${extraClase}" data-tiempo-tipo="${tipo}" data-tiempo-tramo="${escaparHtml(key)}" ${casos.length ? "" : "disabled"}>
+    <span class="tiempo-nombre">${escaparHtml(etiquetaTramo(key))}</span>
+    <span class="tiempo-prom">${prom === null ? "—" : `${fmtDias(prom)} días`}</span>
+    <span class="tiempo-n">${casos.length} ${casos.length === 1 ? "exp." : "exps."}</span>
+  </button>`;
+}
+
+// Resumen por analista con los datos actuales
+function tablaAnalistasHtml(tipo) {
+  const sel = document.getElementById(`report-tiempos-analista-${tipo}`)?.value || "";
+  const regs = fuenteTiempos(tipo, sel);
+  const grupos = new Map();
+  regs.forEach(r => { const k = analistaVacio(r.analista) ? "__SIN__" : String(r.analista).trim(); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(r); });
+  const hoy = new Date().toISOString();
+  const filas = [...grupos.entries()].map(([k, rs]) => {
+    const conDispo = rs.filter(r => r.fecha_ingreso && r.fecha_disposicion && r.fecha_disposicion >= r.fecha_ingreso);
+    const abiertos = rs.filter(r => r.fecha_ingreso && CONDICIONES_ABIERTAS.includes(condicionDe(r)) && condicionDe(r) !== "S/ASIGNAR");
+    const promDispo = conDispo.length ? conDispo.reduce((a, r) => a + diasEntre(r.fecha_ingreso, `${r.fecha_disposicion}T00:00:00`), 0) / conDispo.length : null;
+    const promAbiertos = abiertos.length ? abiertos.reduce((a, r) => a + diasEntre(r.fecha_ingreso, hoy), 0) / abiertos.length : null;
+    return { k, n: rs.length, nDispo: conDispo.length, promDispo, nAb: abiertos.length, promAbiertos };
+  }).sort((a, b) => (a.k === "__SIN__") - (b.k === "__SIN__") || b.n - a.n);
+  if (!filas.length) return "";
+  return `<div class="tiempos-sub">Por analista</div>
+    <div class="table-scroll"><table class="data-table tiempos-analistas"><thead><tr><th>Analista</th><th>Exps.</th><th>Con disposición</th><th>Prom. ingreso → dispo</th><th>En trámite</th><th>Antigüedad prom.</th></tr></thead><tbody>
+    ${filas.map(f => `<tr class="clickable-row" data-tiempo-analista="${escaparHtml(f.k)}" data-tiempo-analista-tipo="${tipo}"><td><strong>${f.k === "__SIN__" ? "Sin asignar" : escaparHtml(f.k)}</strong></td><td>${f.n}</td><td>${f.nDispo}</td><td>${f.promDispo === null ? "—" : `${fmtDias(f.promDispo)} días`}</td><td>${f.nAb}</td><td>${f.promAbiertos === null ? "—" : `${fmtDias(f.promAbiertos)} días`}</td></tr>`).join("")}
+    </tbody></table></div>`;
 }
 
 function fmtDias(n) { return n.toFixed(1).replace(".", ","); }
@@ -12943,22 +12990,24 @@ function fmtDias(n) { return n.toFixed(1).replace(".", ","); }
 function renderReporteTiempos() {
   const aviso = document.getElementById("report-tiempos-aviso");
   const n = (historialPresentaciones || []).length;
-  if (aviso) aviso.textContent = n
-    ? "Los tiempos se miden con los cambios registrados automáticamente desde el 20/10/2026. Cada tramo incluye solo los expedientes que pasaron por ambas etapas desde esa fecha."
-    : "Todavía no hay cambios de estado registrados. Los tiempos se empiezan a medir desde el 20/10/2026, a medida que se asignen expedientes y cambien de condición.";
+  if (aviso) aviso.textContent = "«Con los datos actuales» usa la fecha de ingreso, la de disposición y la condición de hoy. «Por etapa» usa los cambios registrados automáticamente desde el 20/10/2026" + (n ? "." : ": todavía no hay ninguno, se van a ir completando a medida que se asignen expedientes y cambien de condición.");
   ["cartillas", "pma"].forEach(tipo => {
     const cont = document.getElementById(`report-tiempos-${tipo}`);
     if (!cont) return;
-    cont.innerHTML = TRAMOS_TIEMPOS.map(tr => {
-      const casos = casosTramo(tipo, tr.key);
-      const prom = casos.length ? casos.reduce((a, c) => a + c.dias, 0) / casos.length : null;
-      const activo = reporteTiemposSel?.tipo === tipo && reporteTiemposSel?.tramo === tr.key;
-      return `<button type="button" class="tiempo-fila${activo ? " activo" : ""}${tr.key.startsWith("fin:") ? " sub" : ""}" data-tiempo-tipo="${tipo}" data-tiempo-tramo="${escaparHtml(tr.key)}" ${casos.length ? "" : "disabled"}>
-        <span class="tiempo-nombre">${escaparHtml(tr.label)}</span>
-        <span class="tiempo-prom">${prom === null ? "—" : `${fmtDias(prom)} días`}</span>
-        <span class="tiempo-n">${casos.length} ${casos.length === 1 ? "exp." : "exps."}</span>
-      </button>`;
-    }).join("");
+    const actuales = ["dispo", ...CONDICIONES_ABIERTAS.map(c => `abierto:${c}`)]
+      .map(k => ({ k, casos: casosTramo(tipo, k) })).filter(x => x.k === "dispo" || x.casos.length);
+    cont.innerHTML = `<div class="tiempos-sub">Con los datos actuales</div>`
+      + actuales.map(x => filaTramoHtml(tipo, x.k, x.casos)).join("")
+      + tablaAnalistasHtml(tipo)
+      + `<div class="tiempos-sub">Por etapa, desde el 20/10/2026</div>`
+      + TRAMOS_TIEMPOS.map(tr => filaTramoHtml(tipo, tr.key, casosTramo(tipo, tr.key), tr.key.startsWith("fin:") ? " sub" : "")).join("");
+    cont.querySelectorAll("[data-tiempo-analista]").forEach(tr => tr.addEventListener("click", () => {
+      const sel = document.getElementById(`report-tiempos-analista-${tr.dataset.tiempoAnalistaTipo}`);
+      if (!sel) return;
+      if (![...sel.options].some(o => o.value === tr.dataset.tiempoAnalista)) sel.insertAdjacentHTML("beforeend", `<option value="__SIN__">Sin asignar</option>`);
+      sel.value = sel.value === tr.dataset.tiempoAnalista ? "" : tr.dataset.tiempoAnalista;
+      reporteTiemposSel = null; renderReporteTiempos();
+    }));
     cont.querySelectorAll("[data-tiempo-tipo]").forEach(b => b.addEventListener("click", () => {
       const nuevo = { tipo: b.dataset.tiempoTipo, tramo: b.dataset.tiempoTramo };
       reporteTiemposSel = (reporteTiemposSel?.tipo === nuevo.tipo && reporteTiemposSel?.tramo === nuevo.tramo) ? null : nuevo;
@@ -12971,8 +13020,7 @@ function renderReporteTiempos() {
   caja.hidden = !reporteTiemposSel;
   if (!reporteTiemposSel) return;
   const casos = casosTramo(reporteTiemposSel.tipo, reporteTiemposSel.tramo).sort((a, b) => b.dias - a.dias);
-  const tr = TRAMOS_TIEMPOS.find(x => x.key === reporteTiemposSel.tramo);
-  document.getElementById("report-tiempos-detalle-titulo").textContent = `${reporteTiemposSel.tipo === "pma" ? "PMA" : "Cartillas"} · ${tr?.label || ""}: ${casos.length} ${casos.length === 1 ? "expediente" : "expedientes"}`;
+  document.getElementById("report-tiempos-detalle-titulo").textContent = `${reporteTiemposSel.tipo === "pma" ? "PMA" : "Cartillas"} · ${etiquetaTramo(reporteTiemposSel.tramo)}: ${casos.length} ${casos.length === 1 ? "expediente" : "expedientes"}`;
   document.getElementById("report-tiempos-body").innerHTML = casos.map(c => {
     const os = c.p.obras_sociales || {};
     return `<tr><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(c.p.ejercicio || "—")}</td><td class="history-wrap-cell">${escaparHtml(c.p.numero_ee || "—")}</td><td>${escaparHtml(c.p.analista || "—")}</td><td class="date-cell">${formatFechaPantalla(String(c.desde).slice(0, 10))}</td><td class="date-cell">${formatFechaPantalla(String(c.hasta).slice(0, 10))}</td><td><strong>${fmtDias(c.dias)}</strong></td></tr>`;
@@ -12985,7 +13033,7 @@ function exportarReporteTiempos() {
   ["cartillas", "pma"].forEach(tipo => {
     const nombre = tipo === "pma" ? "PMA" : "Cartillas";
     const matriz = [[`${nombre} - Tiempos de tramitación (días corridos)`], ["Generado", formatearFechaHoraExportacion()], [], ["TRAMO", "RNAS", "DENOMINACIÓN", "EJERCICIO", "Nº EE", "ANALISTA", "DESDE", "HASTA", "DÍAS"]];
-    TRAMOS_TIEMPOS.forEach(tr => casosTramo(tipo, tr.key).forEach(c => matriz.push([tr.label, c.p.obras_sociales?.rnos || "", c.p.obras_sociales?.denominacion || "", c.p.ejercicio || "", c.p.numero_ee || "", c.p.analista || "", formatFechaPantalla(String(c.desde).slice(0, 10)), formatFechaPantalla(String(c.hasta).slice(0, 10)), Number(c.dias.toFixed(1))])));
+    ["dispo", ...CONDICIONES_ABIERTAS.map(c => `abierto:${c}`), ...TRAMOS_TIEMPOS.map(t => t.key)].map(k => ({ key: k, label: etiquetaTramo(k) })).forEach(tr => casosTramo(tipo, tr.key).forEach(c => matriz.push([tr.label, c.p.obras_sociales?.rnos || "", c.p.obras_sociales?.denominacion || "", c.p.ejercicio || "", c.p.numero_ee || "", c.p.analista || "", formatFechaPantalla(String(c.desde).slice(0, 10)), formatFechaPantalla(String(c.hasta).slice(0, 10)), Number(c.dias.toFixed(1))])));
     window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), nombre);
   });
   window.XLSX.writeFile(libro, `tiempos_tramitacion_${new Date().toISOString().slice(0, 10)}.xlsx`);
