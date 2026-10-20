@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 171</span>
+        <span>Versión 172</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1326,7 +1326,14 @@
 
           <div class="report-panel" id="report-tiempos-panel" data-report-panel="tiempos" hidden>
             <div class="estados-filtros">
-              <label class="report-type-field"><span>Ejercicio</span><select id="report-tiempos-ejercicio"><option value="">Todos los ejercicios</option></select></label>
+              <div class="report-type-field"><span>Ejercicio</span>
+                <details class="period-select" id="report-tiempos-ej-select">
+                  <summary><span id="report-tiempos-ej-summary">Todos los ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+                  <div class="period-select-menu">
+                    <div class="period-select-actions"><button type="button" data-ej-todos="tiempos">Todos</button><button type="button" data-ej-limpiar="tiempos">Limpiar</button></div>
+                    <div class="period-options" id="report-tiempos-ej-opciones"></div>
+                  </div>
+                </details></div>
               <label class="report-type-field"><span>Analista</span><select id="report-tiempos-analista"><option value="">Todos los analistas</option></select></label>
               <span class="estados-ayuda">Promedios en días corridos. Tocá un tramo para ver los expedientes.</span>
             </div>
@@ -1343,7 +1350,14 @@
 
           <div class="report-panel" id="report-estados-panel" data-report-panel="estados" hidden>
             <div class="estados-filtros">
-              <label class="report-type-field"><span>Ejercicio</span><select id="report-estados-ejercicio"><option value="">Todos los ejercicios</option></select></label>
+              <div class="report-type-field"><span>Ejercicio</span>
+                <details class="period-select" id="report-estados-ej-select">
+                  <summary><span id="report-estados-ej-summary">Todos los ejercicios</span><span class="period-select-arrow" aria-hidden="true">▾</span></summary>
+                  <div class="period-select-menu">
+                    <div class="period-select-actions"><button type="button" data-ej-todos="estados">Todos</button><button type="button" data-ej-limpiar="estados">Limpiar</button></div>
+                    <div class="period-options" id="report-estados-ej-opciones"></div>
+                  </div>
+                </details></div>
               <span class="estados-ayuda">Tocá un estado para ver el listado de Obras Sociales.</span>
             </div>
             <div class="estados-grid">
@@ -2772,7 +2786,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=88"></script>
+  <script src="app.js?v=89"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>

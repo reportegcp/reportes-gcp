@@ -12500,8 +12500,8 @@ async function initBrowser() {
   document.getElementById("report-pma-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosPma(true));
   document.getElementById("report-pma-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosPma(false));
   document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
-  document.getElementById("report-estados-ejercicio")?.addEventListener("change", () => { reporteEstadosSel = null; renderReporteEstados(); });
-  document.getElementById("report-tiempos-ejercicio")?.addEventListener("change", () => { reporteTiemposSel = null; renderReporteTiempos(); });
+
+
   document.getElementById("report-tiempos-analista")?.addEventListener("change", () => { reporteTiemposSel = null; renderReporteTiempos(); });
   document.getElementById("report-tiempos-cerrar")?.addEventListener("click", () => { reporteTiemposSel = null; renderReporteTiempos(); });
   document.getElementById("report-estados-cerrar")?.addEventListener("click", () => { reporteEstadosSel = null; renderReporteEstados(); });
@@ -12722,18 +12722,43 @@ async function cargarYRenderizarReporteEstados() {
     if (cont) cont.innerHTML = `<p class="estados-ayuda">No se pudieron cargar las presentaciones. ${escaparHtml(error?.message || "")}</p>`;
     return;
   }
-  const sel = document.getElementById("report-estados-ejercicio");
-  if (sel && sel.options.length <= 1) {
-    const ejercicios = [...new Set([...cartillas, ...pma].map(r => String(r.ejercicio || "").trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-    sel.innerHTML = `<option value="">Todos los ejercicios</option>` + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
-  }
+  poblarEjerciciosMulti("estados", () => { reporteEstadosSel = null; renderReporteEstados(); });
   renderReporteEstados();
 }
 
 function registrosReporteEstados(tipo) {
-  const ej = document.getElementById("report-estados-ejercicio")?.value || "";
+  const ej = ejerciciosMultiSeleccionados("estados");
   const fuente = tipo === "pma" ? pma : cartillas;
-  return fuente.filter(r => !ej || String(r.ejercicio || "").trim() === ej);
+  return fuente.filter(r => !ej.size || ej.has(String(r.ejercicio || "").trim()));
+}
+
+// Selector múltiple de ejercicios (sin ninguno tildado = todos)
+function ejerciciosMultiSeleccionados(k) {
+  return new Set([...document.querySelectorAll(`#report-${k}-ej-opciones input:checked`)].map(i => i.value));
+}
+
+function resumenEjerciciosMulti(k) {
+  const sel = [...ejerciciosMultiSeleccionados(k)];
+  const el = document.getElementById(`report-${k}-ej-summary`);
+  if (el) el.textContent = !sel.length ? "Todos los ejercicios" : sel.length <= 3 ? sel.join(", ") : `${sel.length} ejercicios`;
+}
+
+function poblarEjerciciosMulti(k, alCambiar) {
+  const cont = document.getElementById(`report-${k}-ej-opciones`);
+  if (!cont) return;
+  const antes = ejerciciosMultiSeleccionados(k);
+  const ejercicios = [...new Set([...cartillas, ...pma].map(r => String(r.ejercicio || "").trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+  cont.innerHTML = ejercicios.map(e => `<label class="period-check"><input type="checkbox" value="${escaparHtml(e)}" ${antes.has(e) ? "checked" : ""}><span>${escaparHtml(e)}</span></label>`).join("");
+  cont.querySelectorAll("input").forEach(i => i.addEventListener("change", () => { resumenEjerciciosMulti(k); alCambiar(); }));
+  const todos = document.querySelector(`[data-ej-todos="${k}"]`), limpiar = document.querySelector(`[data-ej-limpiar="${k}"]`);
+  if (todos) todos.onclick = () => { cont.querySelectorAll("input").forEach(i => { i.checked = true; }); resumenEjerciciosMulti(k); alCambiar(); };
+  if (limpiar) limpiar.onclick = () => { cont.querySelectorAll("input").forEach(i => { i.checked = false; }); resumenEjerciciosMulti(k); alCambiar(); };
+  resumenEjerciciosMulti(k);
+}
+
+function textoEjerciciosMulti(k) {
+  const sel = [...ejerciciosMultiSeleccionados(k)];
+  return sel.length ? ` · ${sel.length === 1 ? "Ejercicio" : "Ejercicios"} ${sel.join(", ")}` : "";
 }
 
 function condicionDe(r) { return String(r.condicion || "").trim() || "SIN CONDICIÓN"; }
@@ -12781,8 +12806,7 @@ function renderDetalleReporteEstados() {
   if (!reporteEstadosSel) return;
   const filas = filasDetalleEstados();
   const nOs = new Set(filas.map(r => r.obra_social_id)).size;
-  const ej = document.getElementById("report-estados-ejercicio")?.value || "";
-  document.getElementById("report-estados-detalle-titulo").textContent = `${reporteEstadosSel.tipo === "pma" ? "PMA" : "Cartillas"} · ${reporteEstadosSel.condicion}${ej ? ` · Ejercicio ${ej}` : ""}: ${filas.length} ${filas.length === 1 ? "presentación" : "presentaciones"} de ${nOs} ${nOs === 1 ? "Obra Social" : "Obras Sociales"}`;
+  document.getElementById("report-estados-detalle-titulo").textContent = `${reporteEstadosSel.tipo === "pma" ? "PMA" : "Cartillas"} · ${reporteEstadosSel.condicion}${textoEjerciciosMulti("estados")}: ${filas.length} ${filas.length === 1 ? "presentación" : "presentaciones"} de ${nOs} ${nOs === 1 ? "Obra Social" : "Obras Sociales"}`;
   const body = document.getElementById("report-estados-body");
   body.innerHTML = filas.map(r => {
     const os = r.obras_sociales || {};
@@ -12793,14 +12817,14 @@ function renderDetalleReporteEstados() {
 
 function exportarReporteEstados() {
   if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error"); return; }
-  const ej = document.getElementById("report-estados-ejercicio")?.value || "";
+  const ej = [...ejerciciosMultiSeleccionados("estados")].join(", ");
   const libro = window.XLSX.utils.book_new();
   const tipos = reporteEstadosSel ? [reporteEstadosSel.tipo] : ["cartillas", "pma"];
   tipos.forEach(tipo => {
     let regs = registrosReporteEstados(tipo);
     if (reporteEstadosSel) regs = filasDetalleEstados();
     const nombre = tipo === "pma" ? "PMA" : "Cartillas";
-    const matriz = [[`${nombre} - Estado de las presentaciones${reporteEstadosSel ? ` (${reporteEstadosSel.condicion})` : ""}${ej ? ` - Ejercicio ${ej}` : ""}`], ["Generado", formatearFechaHoraExportacion()], [], ["RNAS", "DENOMINACIÓN", "EJERCICIO", "FECHA INGRESO", "Nº EE", "CONDICIÓN", "Nº DISPO", "FECHA DISPOSICIÓN"]];
+    const matriz = [[`${nombre} - Estado de las presentaciones${reporteEstadosSel ? ` (${reporteEstadosSel.condicion})` : ""}${ej ? ` - Ejercicios ${ej}` : ""}`], ["Generado", formatearFechaHoraExportacion()], [], ["RNAS", "DENOMINACIÓN", "EJERCICIO", "FECHA INGRESO", "Nº EE", "CONDICIÓN", "Nº DISPO", "FECHA DISPOSICIÓN"]];
     regs.sort((a, b) => condicionDe(a).localeCompare(condicionDe(b)) || String(a.obras_sociales?.rnos || "").localeCompare(String(b.obras_sociales?.rnos || ""))).forEach(r => matriz.push([r.obras_sociales?.rnos || "", r.obras_sociales?.denominacion || "", r.ejercicio || "", formatFechaPantalla(r.fecha_ingreso), r.numero_ee || "", condicionDe(r), r.numero_disposicion || "", formatFechaPantalla(r.fecha_disposicion)]));
     window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), nombre);
   });
@@ -12852,7 +12876,7 @@ async function cargarYRenderizarReporteTiempos() {
     sel.innerHTML = `<option value="">${todos}</option>` + valores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
     sel.value = valores.includes(actual) ? actual : "";
   };
-  llenar("report-tiempos-ejercicio", [...new Set([...cartillas, ...pma].map(r => String(r.ejercicio || "").trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a)), "Todos los ejercicios");
+  poblarEjerciciosMulti("tiempos", () => { reporteTiemposSel = null; renderReporteTiempos(); });
   llenar("report-tiempos-analista", [...new Set([...cartillas, ...pma].map(r => String(r.analista || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)), "Todos los analistas");
   renderReporteTiempos();
 }
@@ -12874,9 +12898,9 @@ function etapasPresentacion(tipo, p) {
 }
 
 function casosTramo(tipo, tramo) {
-  const ej = document.getElementById("report-tiempos-ejercicio")?.value || "";
+  const ej = ejerciciosMultiSeleccionados("tiempos");
   const an = document.getElementById("report-tiempos-analista")?.value || "";
-  const fuente = (tipo === "pma" ? pma : cartillas).filter(r => (!ej || String(r.ejercicio || "").trim() === ej) && (!an || String(r.analista || "").trim() === an));
+  const fuente = (tipo === "pma" ? pma : cartillas).filter(r => (!ej.size || ej.has(String(r.ejercicio || "").trim())) && (!an || String(r.analista || "").trim() === an));
   const t = tipo === "pma" ? "pma" : "cartilla";
   const out = [];
   fuente.forEach(p => {
