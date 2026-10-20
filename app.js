@@ -12502,7 +12502,7 @@ async function initBrowser() {
   document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
 
 
-  document.getElementById("report-tiempos-analista")?.addEventListener("change", () => { reporteTiemposSel = null; renderReporteTiempos(); });
+  ["cartillas", "pma"].forEach(t => document.getElementById(`report-tiempos-analista-${t}`)?.addEventListener("change", () => { reporteTiemposSel = null; renderReporteTiempos(); }));
   document.getElementById("report-tiempos-cerrar")?.addEventListener("click", () => { reporteTiemposSel = null; renderReporteTiempos(); });
   document.getElementById("report-estados-cerrar")?.addEventListener("click", () => { reporteEstadosSel = null; renderReporteEstados(); });
   document.getElementById("pma-notif3-pill")?.addEventListener("click", () => abrirModalTresNotif("pma"));
@@ -12883,8 +12883,15 @@ async function cargarYRenderizarReporteTiempos() {
     sel.value = valores.includes(actual) ? actual : "";
   };
   poblarEjerciciosMulti("tiempos", () => { reporteTiemposSel = null; renderReporteTiempos(); });
-  llenar("report-tiempos-analista", [...new Set([...cartillas, ...pma].map(r => String(r.analista || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)), "Todos los analistas");
+  llenar("report-tiempos-analista-cartillas", [...new Set(cartillas.map(r => String(r.analista || "").trim()).filter(a => !analistaVacio(a)))].sort((a, b) => a.localeCompare(b)), "Todos");
+  llenar("report-tiempos-analista-pma", [...new Set(pma.map(r => String(r.analista || "").trim()).filter(a => !analistaVacio(a)))].sort((a, b) => a.localeCompare(b)), "Todos");
   renderReporteTiempos();
+}
+
+// "S/A", "S/ASIGNAR", "-" o vacío significan que todavía no hay analista
+function analistaVacio(v) {
+  const t = String(v || "").trim().toUpperCase().replace(/\s+/g, "");
+  return !t || ["S/A", "S/ASIGNAR", "SINASIGNAR", "-", "—"].includes(t);
 }
 
 function diasEntre(desde, hasta) {
@@ -12896,7 +12903,7 @@ function diasEntre(desde, hasta) {
 // Fechas de cada etapa de una presentación según su historial
 function etapasPresentacion(tipo, p) {
   const ev = (historialPresentaciones || []).filter(h => h.tipo === tipo && Number(h.presentacion_id) === Number(p.id));
-  const asign = ev.find(h => (h.campo === "analista" && String(h.valor_nuevo || "").trim() && !String(h.valor_anterior || "").trim())
+  const asign = ev.find(h => (h.campo === "analista" && !analistaVacio(h.valor_nuevo) && analistaVacio(h.valor_anterior))
     || (h.campo === "condicion" && String(h.valor_anterior || "").trim() === "S/ASIGNAR" && String(h.valor_nuevo || "").trim() !== "S/ASIGNAR"));
   const estudio = ev.find(h => h.campo === "condicion" && String(h.valor_nuevo || "").trim() === "EN ESTUDIO");
   const fin = ev.find(h => h.campo === "condicion" && ESTADOS_FINALIZACION.includes(String(h.valor_nuevo || "").trim()));
@@ -12905,7 +12912,7 @@ function etapasPresentacion(tipo, p) {
 
 function casosTramo(tipo, tramo) {
   const ej = ejerciciosMultiSeleccionados("tiempos");
-  const an = document.getElementById("report-tiempos-analista")?.value || "";
+  const an = document.getElementById(`report-tiempos-analista-${tipo === "pma" ? "pma" : "cartillas"}`)?.value || "";
   const fuente = (tipo === "pma" ? pma : cartillas).filter(r => (!ej.size || ej.has(String(r.ejercicio || "").trim())) && (!an || String(r.analista || "").trim() === an));
   const t = tipo === "pma" ? "pma" : "cartilla";
   const out = [];
