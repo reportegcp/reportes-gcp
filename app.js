@@ -5566,6 +5566,7 @@ function esReporteNunca(tipo = reporteActivo) {
 }
 
 function tipoBaseReporte(tipo = reporteActivo) {
+  if (tipo === "estados") return "estados";
   return String(tipo || "").startsWith("pma") ? "pma" : "cartillas";
 }
 
@@ -5811,6 +5812,7 @@ function renderPma() {
   });
   renderGraficoNotifPorEjercicioPma();
   renderGraficoNotifPorNumeroPma();
+  renderPildoraTresNotif("pma");
 }
 
 function categoriaNotifParaGraficoPma(pmaId, hoyISO) {
@@ -5860,9 +5862,8 @@ function renderGraficoNotifPorNumeroPma() {
   if (!cont) return;
   const conteoPorNumero = new Map();
   obtenerPmaFiltradas().forEach(p => {
-    const notifs = pmaNotificacionesPorPma.get(Number(p.id)) || [];
-    const respondida = notifs.find(n => n.estado === "RESPONDIO");
-    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
+    const est = estadoNotificacionesPma(p.id);
+    if (est.estado === "RESPONDIO") conteoPorNumero.set(est.ultima.numero, (conteoPorNumero.get(est.ultima.numero) || 0) + 1);
   });
   const items = [...conteoPorNumero.entries()]
     .sort((a, b) => a[0] - b[0])
@@ -5997,6 +5998,7 @@ function renderCartillas() {
   });
   renderGraficoNotifPorEjercicio();
   renderGraficoNotifPorNumero();
+  renderPildoraTresNotif("cartilla");
 }
 
 // Resume el estado de notificación de una cartilla en una de 5 categorías para el gráfico
@@ -6048,10 +6050,11 @@ function renderGraficoNotifPorNumero() {
   const cont = document.getElementById("cartilla-notif-chart-numero");
   if (!cont) return;
   const conteoPorNumero = new Map();
+  // Cuenta las presentaciones cuya última notificación fue respondida (las mismas del verde "Respondió"),
+  // según el número de esa última notificación: así se ve cuántas notificaciones hicieron falta.
   filtrarCartillas().forEach(c => {
-    const notifs = cartillaNotificacionesPorCartilla.get(Number(c.id)) || [];
-    const respondida = notifs.find(n => n.estado === "RESPONDIO");
-    if (respondida) conteoPorNumero.set(respondida.numero, (conteoPorNumero.get(respondida.numero) || 0) + 1);
+    const est = estadoNotificacionesCartilla(c.id);
+    if (est.estado === "RESPONDIO") conteoPorNumero.set(est.ultima.numero, (conteoPorNumero.get(est.ultima.numero) || 0) + 1);
   });
   const items = [...conteoPorNumero.entries()]
     .sort((a, b) => a[0] - b[0])
@@ -6450,6 +6453,13 @@ function actualizarCabeceraReporte(tipo) {
   const eyebrow = document.getElementById("report-current-eyebrow");
   const title = document.getElementById("report-current-title");
   const description = document.getElementById("report-current-description");
+  if (base === "estados") {
+    if (eyebrow) eyebrow.textContent = "PMA Y CARTILLAS";
+    if (title) title.textContent = "Estado de las presentaciones";
+    if (description) description.textContent = "Cantidad de presentaciones de Cartillas y de PMA en cada estado. Tocá un estado para ver qué Obras Sociales están en esa situación.";
+    ["report-cartillas-search-wrap", "report-pma-search-wrap", "report-cartillas-filters", "report-pma-filters"].forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; });
+    return;
+  }
   if (eyebrow) eyebrow.textContent = base === "pma" ? "PMA" : "CARTILLAS";
   if (title) title.textContent = nunca ? "Agentes de Seguro que nunca presentaron" : "Agentes de Seguro con o sin presentación";
   if (description) description.textContent = nunca
@@ -6522,6 +6532,7 @@ function actualizarSelectorReporte() {
   if (exportButton) { exportButton.disabled = false; exportButton.title = "Descargar el reporte actual en Excel"; }
   if (base === "cartillas") cargarYRenderizarReporteCartillas();
   if (base === "pma") cargarYRenderizarReportePma();
+  if (base === "estados") cargarYRenderizarReporteEstados();
 }
 
 function cargarReporteActivo() {
@@ -6547,6 +6558,7 @@ function exportarReporteActivo() {
   if (reporteActivo === "pma") return exportarReportePmaExcel();
   if (reporteActivo === "cartillas-nunca") return exportarReporteNuncaPresentaron("cartillas");
   if (reporteActivo === "pma-nunca") return exportarReporteNuncaPresentaron("pma");
+  if (reporteActivo === "estados") return exportarReporteEstados();
   mostrarToast("Este reporte todavía no está disponible.", "error");
 }
 
@@ -12484,6 +12496,10 @@ async function initBrowser() {
   document.getElementById("report-pma-period-all")?.addEventListener("click", () => seleccionarTodosPeriodosPma(true));
   document.getElementById("report-pma-period-clear")?.addEventListener("click", () => seleccionarTodosPeriodosPma(false));
   document.getElementById("report-type-select")?.addEventListener("change", actualizarSelectorReporte);
+  document.getElementById("report-estados-ejercicio")?.addEventListener("change", () => { reporteEstadosSel = null; renderReporteEstados(); });
+  document.getElementById("report-estados-cerrar")?.addEventListener("click", () => { reporteEstadosSel = null; renderReporteEstados(); });
+  document.getElementById("pma-notif3-pill")?.addEventListener("click", () => abrirModalTresNotif("pma"));
+  document.getElementById("cartilla-notif3-pill")?.addEventListener("click", () => abrirModalTresNotif("cartilla"));
   document.getElementById("btn-export-report")?.addEventListener("click", exportarReporteActivo);
   document.getElementById("btn-report-cartillas-chart")?.addEventListener("click", () => mostrarGraficoReporte("cartillas", true));
   document.getElementById("btn-hide-cartillas-chart")?.addEventListener("click", () => mostrarGraficoReporte("cartillas", false));
@@ -12611,4 +12627,145 @@ if (typeof module !== "undefined" && module.exports) {
     perfilPuedeVerVista,
     primeraVistaPermitida
   };
+}
+
+
+// ---------------- Obras Sociales con 3 o más notificaciones sin responder ----------------
+
+function presentacionesTresNotif(tipo) {
+  const lista = tipo === "pma" ? obtenerPmaFiltradas() : filtrarCartillas();
+  const mapa = tipo === "pma" ? pmaNotificacionesPorPma : cartillaNotificacionesPorCartilla;
+  return lista.map(p => {
+    const notifs = [...(mapa.get(Number(p.id)) || [])].sort((a, b) => (a.numero || 0) - (b.numero || 0));
+    return { p, notifs };
+  }).filter(x => x.notifs.length >= 3 && !x.notifs.some(n => n.estado === "RESPONDIO"));
+}
+
+function renderPildoraTresNotif(tipo) {
+  if (typeof document === "undefined") return;
+  const btn = document.getElementById(`${tipo}-notif3-pill`);
+  if (!btn) return;
+  const filas = presentacionesTresNotif(tipo);
+  const nOs = new Set(filas.map(x => x.p.obra_social_id)).size;
+  btn.hidden = false;
+  btn.classList.toggle("vacia", nOs === 0);
+  btn.disabled = nOs === 0;
+  btn.innerHTML = `<span class="notif3-num">${nOs}</span> ${nOs === 1 ? "Obra Social" : "Obras Sociales"} con 3 notificaciones sin responder${nOs ? ` <span class="notif3-ver">Ver listado →</span>` : ""}`;
+}
+
+function abrirModalTresNotif(tipo) {
+  const filas = presentacionesTresNotif(tipo).sort((a, b) => String(a.p.obras_sociales?.rnos || "").localeCompare(String(b.p.obras_sociales?.rnos || "")));
+  const hoy = hoyLocalISO();
+  const nOs = new Set(filas.map(x => x.p.obra_social_id)).size;
+  document.getElementById("notif3-eyebrow").textContent = tipo === "pma" ? "PMA" : "CARTILLAS";
+  document.getElementById("notif3-meta").textContent = `${nOs} ${nOs === 1 ? "Obra Social" : "Obras Sociales"} · ${filas.length} ${filas.length === 1 ? "presentación" : "presentaciones"} con tres o más notificaciones y ninguna respondida (según los filtros de la pantalla).`;
+  document.getElementById("notif3-body").innerHTML = filas.map(({ p, notifs }) => {
+    const os = p.obras_sociales || {};
+    const est = tipo === "pma" ? estadoNotificacionesPma(p.id, hoy) : estadoNotificacionesCartilla(p.id, hoy);
+    const situacion = est.estado === "NO_RESPONDIO" ? "No respondió (girado)" : est.vencida ? "Vencida sin girar" : "Esperando respuesta";
+    const fechas = notifs.map(n => `${n.numero}ª: ${formatFechaPantalla(n.fecha_notificacion)}`).join("<br>");
+    return `<tr><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(p.ejercicio || "—")}</td><td class="history-wrap-cell">${escaparHtml(p.numero_ee || "—")}</td><td class="date-cell">${fechas}</td><td>${escaparHtml(situacion)}</td></tr>`;
+  }).join("") || `<tr><td colspan="6">No hay Obras Sociales en esta situación.</td></tr>`;
+  abrirModal("notif3-modal");
+}
+
+// ---------------- Reporte: Estado de las presentaciones (PMA y Cartillas) ----------------
+
+let reporteEstadosSel = null; // { tipo: "cartillas" | "pma", condicion }
+const COLORES_CONDICION = { "APROBADO": "#278664", "EN ESTUDIO": "#2f6fb0", "S/ASIGNAR": "#c0392b", "ARCHIVO": "#8a94a3", "PASE A JURIDICO": "#7b4fa3", "PROCESO SUMARIAL": "#8e2a2a", "PROYECTO DISPO": "#178a8a", "OBSERVADO": "#d08a00" };
+
+async function cargarYRenderizarReporteEstados() {
+  const cont = document.getElementById("report-estados-cartillas");
+  if (cont && !(cartillasCompleta && pmaCompleta)) cont.innerHTML = `<p class="estados-ayuda">Cargando presentaciones...</p>`;
+  try {
+    if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
+    if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; }
+    if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; pmaCompleta = true; }
+  } catch (error) {
+    if (cont) cont.innerHTML = `<p class="estados-ayuda">No se pudieron cargar las presentaciones. ${escaparHtml(error?.message || "")}</p>`;
+    return;
+  }
+  const sel = document.getElementById("report-estados-ejercicio");
+  if (sel && sel.options.length <= 1) {
+    const ejercicios = [...new Set([...cartillas, ...pma].map(r => String(r.ejercicio || "").trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+    sel.innerHTML = `<option value="">Todos los ejercicios</option>` + ejercicios.map(e => `<option value="${escaparHtml(e)}">${escaparHtml(e)}</option>`).join("");
+  }
+  renderReporteEstados();
+}
+
+function registrosReporteEstados(tipo) {
+  const ej = document.getElementById("report-estados-ejercicio")?.value || "";
+  const fuente = tipo === "pma" ? pma : cartillas;
+  return fuente.filter(r => !ej || String(r.ejercicio || "").trim() === ej);
+}
+
+function condicionDe(r) { return String(r.condicion || "").trim() || "SIN CONDICIÓN"; }
+
+function renderReporteEstados() {
+  ["cartillas", "pma"].forEach(tipo => {
+    const cont = document.getElementById(`report-estados-${tipo}`);
+    if (!cont) return;
+    const regs = registrosReporteEstados(tipo);
+    const conteo = new Map();
+    regs.forEach(r => conteo.set(condicionDe(r), (conteo.get(condicionDe(r)) || 0) + 1));
+    const total = regs.length;
+    document.getElementById(`report-estados-${tipo}-total`).textContent = `${total} ${total === 1 ? "presentación" : "presentaciones"}`;
+    const filas = [...conteo.entries()].sort((a, b) => b[1] - a[1]);
+    cont.innerHTML = filas.map(([cond, n]) => {
+      const pct = total ? n * 100 / total : 0;
+      const activo = reporteEstadosSel?.tipo === tipo && reporteEstadosSel?.condicion === cond;
+      return `<button type="button" class="estado-fila${activo ? " activo" : ""}" data-estado-tipo="${tipo}" data-estado-cond="${escaparHtml(cond)}">
+        <span class="estado-nombre">${escaparHtml(cond)}</span>
+        <span class="estado-barra"><span style="width:${pct.toFixed(1)}%;background:${COLORES_CONDICION[cond] || "#5b6b7d"}"></span></span>
+        <span class="estado-num">${n}</span><span class="estado-pct">${pct.toFixed(1).replace(".", ",")} %</span>
+      </button>`;
+    }).join("") || `<p class="estados-ayuda">No hay presentaciones para el ejercicio elegido.</p>`;
+    cont.querySelectorAll("[data-estado-tipo]").forEach(b => b.addEventListener("click", () => {
+      const nuevo = { tipo: b.dataset.estadoTipo, condicion: b.dataset.estadoCond };
+      reporteEstadosSel = (reporteEstadosSel?.tipo === nuevo.tipo && reporteEstadosSel?.condicion === nuevo.condicion) ? null : nuevo;
+      renderReporteEstados();
+      if (reporteEstadosSel) document.getElementById("report-estados-detalle")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  });
+  renderDetalleReporteEstados();
+}
+
+function filasDetalleEstados() {
+  if (!reporteEstadosSel) return [];
+  return registrosReporteEstados(reporteEstadosSel.tipo)
+    .filter(r => condicionDe(r) === reporteEstadosSel.condicion)
+    .sort((a, b) => String(a.obras_sociales?.rnos || "").localeCompare(String(b.obras_sociales?.rnos || "")) || String(b.ejercicio || "").localeCompare(String(a.ejercicio || "")));
+}
+
+function renderDetalleReporteEstados() {
+  const caja = document.getElementById("report-estados-detalle");
+  if (!caja) return;
+  caja.hidden = !reporteEstadosSel;
+  if (!reporteEstadosSel) return;
+  const filas = filasDetalleEstados();
+  const nOs = new Set(filas.map(r => r.obra_social_id)).size;
+  const ej = document.getElementById("report-estados-ejercicio")?.value || "";
+  document.getElementById("report-estados-detalle-titulo").textContent = `${reporteEstadosSel.tipo === "pma" ? "PMA" : "Cartillas"} · ${reporteEstadosSel.condicion}${ej ? ` · Ejercicio ${ej}` : ""}: ${filas.length} ${filas.length === 1 ? "presentación" : "presentaciones"} de ${nOs} ${nOs === 1 ? "Obra Social" : "Obras Sociales"}`;
+  const body = document.getElementById("report-estados-body");
+  body.innerHTML = filas.map(r => {
+    const os = r.obras_sociales || {};
+    return `<tr class="clickable-row" data-estados-os="${escaparHtml(String(r.obra_social_id ?? ""))}"><td><strong>${escaparHtml(os.rnos || "—")}</strong></td><td class="denominacion-cell">${escaparHtml(os.denominacion || "—")}</td><td>${escaparHtml(r.ejercicio || "—")}</td><td class="date-cell">${formatFechaPantalla(r.fecha_ingreso)}</td><td class="history-wrap-cell">${escaparHtml(r.numero_ee || "—")}</td><td class="history-wrap-cell">${escaparHtml(r.numero_disposicion || "—")}</td></tr>`;
+  }).join("");
+  body.querySelectorAll("[data-estados-os]").forEach(tr => tr.addEventListener("click", () => abrirHistorialPresentaciones(reporteEstadosSel.tipo === "pma" ? "pma" : "cartillas", tr.dataset.estadosOs)));
+}
+
+function exportarReporteEstados() {
+  if (!window.XLSX) { mostrarToast("No se pudo cargar el generador de Excel. Recargá la página e intentá nuevamente.", "error"); return; }
+  const ej = document.getElementById("report-estados-ejercicio")?.value || "";
+  const libro = window.XLSX.utils.book_new();
+  const tipos = reporteEstadosSel ? [reporteEstadosSel.tipo] : ["cartillas", "pma"];
+  tipos.forEach(tipo => {
+    let regs = registrosReporteEstados(tipo);
+    if (reporteEstadosSel) regs = filasDetalleEstados();
+    const nombre = tipo === "pma" ? "PMA" : "Cartillas";
+    const matriz = [[`${nombre} - Estado de las presentaciones${reporteEstadosSel ? ` (${reporteEstadosSel.condicion})` : ""}${ej ? ` - Ejercicio ${ej}` : ""}`], ["Generado", formatearFechaHoraExportacion()], [], ["RNAS", "DENOMINACIÓN", "EJERCICIO", "FECHA INGRESO", "Nº EE", "CONDICIÓN", "Nº DISPO", "FECHA DISPOSICIÓN"]];
+    regs.sort((a, b) => condicionDe(a).localeCompare(condicionDe(b)) || String(a.obras_sociales?.rnos || "").localeCompare(String(b.obras_sociales?.rnos || ""))).forEach(r => matriz.push([r.obras_sociales?.rnos || "", r.obras_sociales?.denominacion || "", r.ejercicio || "", formatFechaPantalla(r.fecha_ingreso), r.numero_ee || "", condicionDe(r), r.numero_disposicion || "", formatFechaPantalla(r.fecha_disposicion)]));
+    window.XLSX.utils.book_append_sheet(libro, crearHojaExcelConDiseno(matriz, nombre, 3), nombre);
+  });
+  window.XLSX.writeFile(libro, `estado_presentaciones_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

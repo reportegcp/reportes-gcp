@@ -2212,3 +2212,28 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .au-eje-aviso{margin:0 0 10px;padding:10px 12px;border:1px solid #e8c77a;border-radius:10px;background:#fdf6e3;color:#7a5a12;font-size:13.5px;line-height:1.45}
 .au-eje-aviso-botones{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 .au-eje-aviso-botones button{font-size:13px;padding:6px 12px}
+
+.notif3-wrap{margin:0 0 12px}
+.notif3-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid #e6b3ae;background:#fdf0ee;color:#8e2a2a;font-weight:700;font-size:13px;cursor:pointer}
+.notif3-pill:hover{background:#fbe2de}
+.notif3-pill .notif3-num{display:inline-flex;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#c0392b;color:#fff;align-items:center;justify-content:center;font-size:12px}
+.notif3-pill .notif3-ver{font-weight:600;text-decoration:underline}
+.notif3-pill.vacia{border-color:var(--line);background:var(--surface-soft,#f4f6f8);color:var(--muted);cursor:default}
+.notif3-pill.vacia .notif3-num{background:#9aa7b5}
+.estados-filtros{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:0 0 14px}
+.estados-ayuda{color:var(--muted);font-size:12.5px}
+.estados-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:900px){.estados-grid{grid-template-columns:1fr}}
+.estados-card{padding:16px 18px}
+.estados-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.estados-card-head h3{margin:0;font-size:16px;color:var(--navy)}
+.estados-card-head strong{font-size:13px;color:var(--muted)}
+.estado-fila{display:grid;grid-template-columns:150px 1fr 48px 58px;align-items:center;gap:10px;width:100%;padding:8px 8px;border:1px solid transparent;border-radius:8px;background:none;cursor:pointer;text-align:left;font:inherit}
+.estado-fila:hover{background:var(--surface-soft,#f4f6f8)}
+.estado-fila.activo{border-color:var(--navy);background:var(--surface-soft,#f4f6f8)}
+.estado-nombre{font-weight:700;font-size:12.5px}
+.estado-barra{height:12px;border-radius:6px;background:#eef1f4;overflow:hidden}
+.estado-barra span{display:block;height:100%;border-radius:6px}
+.estado-num{font-weight:800;text-align:right}
+.estado-pct{color:var(--muted);font-size:12px;text-align:right}
+.clickable-row{cursor:pointer}

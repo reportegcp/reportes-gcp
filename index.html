@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=110">
+  <link rel="stylesheet" href="styles.css?v=111">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 168</span>
+        <span>Versión 169</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -949,6 +949,8 @@
           </div>
         </div>
 
+        <div class="notif3-wrap"><button type="button" class="notif3-pill" id="pma-notif3-pill" hidden></button></div>
+
         <details class="table-card" id="pma-notif-charts-panel" style="padding:16px 20px">
           <summary style="cursor:pointer;font-weight:800;color:var(--navy);list-style:none">📊 Estadísticas de notificaciones</summary>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px">
@@ -1038,6 +1040,8 @@
             <input id="cartilla-ingreso-search" type="date" autocomplete="off" aria-label="Filtrar por fecha de ingreso">
           </div>
         </div>
+
+        <div class="notif3-wrap"><button type="button" class="notif3-pill" id="cartilla-notif3-pill" hidden></button></div>
 
         <details class="table-card" id="cartilla-notif-charts-panel" style="padding:16px 20px">
           <summary style="cursor:pointer;font-weight:800;color:var(--navy);list-style:none">📊 Estadísticas de notificaciones</summary>
@@ -1231,6 +1235,7 @@
                 <option value="cartillas-nunca">Cartillas - Nunca presentaron</option>
                 <option value="pma">PMA - Presentaciones</option>
                 <option value="pma-nunca">PMA - Nunca presentaron</option>
+                <option value="estados">PMA y Cartillas - Estado de las presentaciones</option>
               </select>
             </label>
 
@@ -1317,8 +1322,39 @@
               <div class="table-empty" id="report-pma-empty" hidden>No hay Agentes de Seguro para mostrar con los filtros seleccionados.</div>
             </div>
           </div>
+
+          <div class="report-panel" id="report-estados-panel" data-report-panel="estados" hidden>
+            <div class="estados-filtros">
+              <label class="report-type-field"><span>Ejercicio</span><select id="report-estados-ejercicio"><option value="">Todos los ejercicios</option></select></label>
+              <span class="estados-ayuda">Tocá un estado para ver el listado de Obras Sociales.</span>
+            </div>
+            <div class="estados-grid">
+              <div class="table-card estados-card"><div class="estados-card-head"><h3>Cartillas</h3><strong id="report-estados-cartillas-total"></strong></div><div id="report-estados-cartillas"></div></div>
+              <div class="table-card estados-card"><div class="estados-card-head"><h3>PMA</h3><strong id="report-estados-pma-total"></strong></div><div id="report-estados-pma"></div></div>
+            </div>
+            <div class="table-card" id="report-estados-detalle" hidden>
+              <div class="table-meta"><strong id="report-estados-detalle-titulo"></strong><button type="button" class="text-button" id="report-estados-cerrar">Cerrar listado</button></div>
+              <div class="table-scroll"><table class="data-table"><thead><tr><th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Ingreso</th><th>Nº EE</th><th>Nº Dispo</th></tr></thead><tbody id="report-estados-body"></tbody></table></div>
+              <p class="estados-ayuda" style="margin:8px 16px 14px">Tocá una Obra Social para ver su historial de presentaciones.</p>
+            </div>
+          </div>
         </div>
       </section>
+
+      <div class="modal-backdrop" id="notif3-modal" hidden>
+        <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="notif3-title">
+          <div class="modal-header">
+            <div>
+              <span class="eyebrow" id="notif3-eyebrow">NOTIFICACIONES</span>
+              <h2 id="notif3-title">Obras Sociales con 3 notificaciones sin responder</h2>
+              <p class="history-agent-meta" id="notif3-meta"></p>
+            </div>
+            <button class="icon-button" type="button" data-close-modal="notif3-modal" aria-label="Cerrar">×</button>
+          </div>
+          <div class="table-scroll"><table class="data-table"><thead><tr><th>RNAS</th><th>Denominación</th><th>Ejercicio</th><th>Nº EE</th><th>Notificaciones</th><th>Situación</th></tr></thead><tbody id="notif3-body"></tbody></table></div>
+          <div class="modal-actions"><button type="button" class="secondary" data-close-modal="notif3-modal">Cerrar</button></div>
+        </div>
+      </div>
 
       <section id="up-patologias" class="view">
         <div class="module-actions">
@@ -2718,7 +2754,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=85"></script>
+  <script src="app.js?v=86"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
