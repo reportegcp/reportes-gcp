@@ -12864,10 +12864,16 @@ async function cargarYRenderizarReporteTiempos() {
     if (!obrasSociales.length) obrasSociales = await cargarObrasSocialesDesdeSupabase();
     if (!cartillasCompleta) { cartillas = await cargarCartillasDesdeSupabase(); cartillasCargadas = true; cartillasCompleta = true; }
     if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(); pmaCargadas = true; pmaCompleta = true; }
-    historialPresentaciones = await cargarHistorialPresentaciones();
   } catch (error) {
     if (cont) cont.innerHTML = `<p class="estados-ayuda">No se pudieron cargar los datos. ${escaparHtml(error?.message || "")}</p>`;
     return;
+  }
+  try {
+    historialPresentaciones = await cargarHistorialPresentaciones();
+  } catch (error) {
+    console.error(error);
+    historialPresentaciones = [];
+    mostrarToast(`No se pudo leer el historial de cambios. ${error?.message || ""}`, "error");
   }
   const llenar = (id, valores, todos) => {
     const sel = document.getElementById(id);
