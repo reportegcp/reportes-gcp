@@ -2489,7 +2489,7 @@ function auTablaAImagen(tabla) {
     const encabezado = f.every(cel => cel.negrita);
     for (let i = 0; i < nCol; i++) {
       const cel = f[i] || { texto: "", lineas: [""], negrita: false };
-      if (encabezado) { ctx.fillStyle = "#DCE6F1"; ctx.fillRect(x, y, anchos[i], altos[r]); }
+      if (encabezado) { ctx.fillStyle = "#EDEDED"; ctx.fillRect(x, y, anchos[i], altos[r]); }
       ctx.strokeStyle = "#999"; ctx.lineWidth = 1; ctx.strokeRect(x, y, anchos[i], altos[r]);
       ctx.fillStyle = "#000"; ctx.font = fuente(cel.negrita);
       const numerico = /^[\d.,%\s+\-–]+$/.test(cel.texto) && /\d/.test(cel.texto);
@@ -2607,7 +2607,7 @@ async function auDescargarWord() {
     const anio = auAnioAuditoria(a);
     const T = (texto, o = {}) => new TextRun({ text: texto, size: 22, font: "Calibri", ...o });
     const P = (children, o = {}) => new Paragraph({ spacing: { after: 120, line: 276, lineRule: window.docx.LineRuleType.AUTO }, alignment: AlignmentType.JUSTIFIED, children, ...o });
-    const titulo = texto => new Paragraph({ spacing: { before: 240, after: 120 }, keepNext: true, children: [T(texto, { bold: true, size: 24, color: "1F3864" })] });
+    const titulo = texto => new Paragraph({ spacing: { before: 240, after: 120 }, keepNext: true, children: [T(texto, { bold: true, size: 24, color: "000000" })] });
     const hijos = [];
 
     hijos.push(P([T("Ref.: ", { bold: true }), T(os.denominacion || "", { bold: true })], { alignment: AlignmentType.LEFT, spacing: { after: 60 } }));
@@ -2651,7 +2651,7 @@ async function auDescargarWord() {
         width: { size: 8832, type: WidthType.DXA },
         columnWidths: [8832],
         rows: [
-          new TableRow({ tableHeader: true, children: [celda("Documentación aportada", { bold: true, fondo: "DCE6F1", ancho: 8832 })] }),
+          new TableRow({ tableHeader: true, children: [celda("Documentación aportada", { bold: true, fondo: "EDEDED", ancho: 8832 })] }),
           ...docsInforme.map(d => new TableRow({ children: [celda(d, { ancho: 8832 })] }))
         ]
       }));
