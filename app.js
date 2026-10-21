@@ -23,6 +23,9 @@ const views = {
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
+  "ju-oficios": { title: "Oficios", subtitle: "Oficios judiciales: ingreso, demandados, analista, respuesta y estado" },
+  "ju-reclamos": { title: "Reclamos", subtitle: "Reclamos (en preparación)" },
+  "ju-reportes": { title: "Reportes jurídicos", subtitle: "Indicadores de oficios: ingresos, tiempos de respuesta, motivos, analistas y pendientes" },
   "informe-gestion": { title: "Informe de gestión", subtitle: "Expedientes, disposiciones emitidas y estado actual de PMA o de Cartilla, por ejercicio" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
@@ -295,6 +298,8 @@ function perfilPuedeVerVista(perfil, vista) {
 
   // Auditorías: coordinación (Administrador / Admin Prestacional).
   if (id.startsWith("au-")) return ["admin prestacional", "administrador", "admin"].includes(p);
+  // Jurídico: coordinación; el resto se habilita por usuario desde Usuarios.
+  if (id.startsWith("ju-")) return ["admin prestacional", "administrador", "admin"].includes(p);
 
   if (["admin prestacional", "administrador", "admin"].includes(p)) return true;
   // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
@@ -355,12 +360,13 @@ const MODULOS_ACCESO = [
   { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"], ["informe-gestion", "Informe de gestión"]] },
   { nombre: "Urgencias Prestacionales", vistas: [["up-expedientes", "Expedientes"], ["up-drogas", "Catálogo de drogas"], ["up-patologias", "Patologías"], ["up-plantillas", "Plantillas"], ["up-reportes", "Reportes"]] },
   { nombre: "Preexistencias", vistas: [["px-preexistencias", "Expedientes"], ["px-patologias", "Patologías"], ["px-plantillas", "Plantillas"], ["px-emp", "Reportes"]] },
+  { nombre: "Jurídico", vistas: [["ju-oficios", "Oficios"], ["ju-reclamos", "Reclamos"], ["ju-reportes", "Reportes"]] },
   { nombre: "Auditorías", vistas: [["au-auditorias", "Expedientes"], ["au-plantilla", "Planilla de requerimientos"], ["au-pendientes", "Pendientes"]] },
   { nombre: "Prototipo 2165", vistas: [["prototipo", "Prototipo 2165"]] }
 ];
 const VISTAS_CON_ACCESO_PERSONALIZABLE = new Set(MODULOS_ACCESO.flatMap(m => m.vistas.map(v => v[0])));
 // Pantallas donde "Solo mirar" ya bloquea la edición. En las demás, por ahora "Solo mirar" = "Editar".
-const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion", "au-auditorias", "au-plantilla", "au-pendientes"]);
+const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion", "au-auditorias", "au-plantilla", "au-pendientes", "ju-oficios", "ju-reportes"]);
 // Pantallas internas que dependen de otra (se abren desde ella).
 const VISTAS_DEPENDIENTES = { "anexo-ii-admin": "cartilla-revision", "anexo-iv-admin": "cartilla-revision" };
 const PERFILES_INTERNOS_NUEVOS = ["coordinador", "analista", "administrativo"];
@@ -397,6 +403,7 @@ function accesoPorDefectoPerfil(perfil, vista) {
   if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(vista)) return esAP || esAPres || esCarga || esAdmvo;
   if (vista === "px-preexistencias" || vista === "px-emp") return esAPx;
   if (vista.startsWith("au-")) return esAP;
+  if (vista.startsWith("ju-")) return esAP;
   return false;
 }
 
@@ -516,6 +523,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="urgencias-prestacionales"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="preexistencias"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPreexistencias));
   document.querySelector('[data-nav-access="auditorias"]')?.toggleAttribute("hidden", !esAdminPrestacional);
+  document.querySelector('[data-nav-access="juridico"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="prototipo"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPrestacional));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-view="px-plantillas"]')?.toggleAttribute("hidden", !esAdministrador);
@@ -4539,7 +4547,8 @@ function showView(id, updateHistory = true) {
       (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias") ||
-      (resolved.startsWith("au-") && group.dataset.navGroup === "auditorias");
+      (resolved.startsWith("au-") && group.dataset.navGroup === "auditorias") ||
+      (resolved.startsWith("ju-") && group.dataset.navGroup === "juridico");
     group.classList.toggle("collapsed", !esGrupoDeLaVistaActual);
     group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded", String(esGrupoDeLaVistaActual));
   });
@@ -4563,6 +4572,9 @@ function showView(id, updateHistory = true) {
   }
   if (resolved.startsWith("au-")) {
     document.querySelector('[data-nav-group="auditorias"]')?.classList.add("active");
+  }
+  if (resolved.startsWith("ju-")) {
+    document.querySelector('[data-nav-group="juridico"]')?.classList.add("active");
   }
 
   const meta = views[resolved];
@@ -4623,6 +4635,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "px-plantillas" && !pxPlantillasCargadas) cargarYRenderizarPxPlantillas();
   if (resolved === "px-preexistencias" && !preexistenciasCargadas) cargarYRenderizarPreexistencias();
   if (resolved.startsWith("au-") && typeof inicializarVistaAuditorias === "function") inicializarVistaAuditorias(resolved);
+  if (resolved.startsWith("ju-") && typeof inicializarVistaJuridico === "function") inicializarVistaJuridico(resolved);
   if (resolved === "usuarios" && typeof inicializarVistaUsuarios === "function") inicializarVistaUsuarios();
   if (resolved === "px-emp") {
     pxReporteDrill = null;

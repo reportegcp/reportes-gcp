@@ -2261,3 +2261,45 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .denom-1linea{display:block;max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
 .ig-anio select#ig-tipo{width:150px}
 #ig-card-pma[hidden],#ig-card-cart[hidden]{display:none!important}
+
+/* ---------- Jurídico ---------- */
+.ju-toolbar{grid-template-columns:minmax(280px,1.4fr) repeat(4,minmax(140px,.7fr))}
+@media(max-width:1180px){.ju-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.ju-toolbar .search-box{grid-column:1/-1}}
+.ju-tabla td{font-size:12.5px;vertical-align:middle}
+.ju-ee{white-space:nowrap;font-size:11.5px}
+.ju-num{text-align:center;white-space:nowrap}
+.ju-tag{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#fdf5e6;color:#8a5a12;font-size:10px;font-weight:800}
+.ju-estado{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
+.ju-estado.tram{background:#e8f3f4;color:var(--navy)}
+.ju-estado.fin{background:#e4f4ed;color:#226d53}
+.ju-venc{font-weight:700}
+.ju-venc.vencido{color:#a33846}
+.ju-venc.por-vencer{color:#a85d13}
+.ju-venc.en-plazo{color:#226d53}
+.ju-dias{font-weight:800}
+.ju-dias.medio{color:#a85d13}
+.ju-dias.alto{color:#a33846}
+.ju-modal-sub{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.ju-form textarea{width:100%;resize:vertical;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:9px}
+.ju-check{display:flex!important;align-items:center;gap:8px}
+.ju-check input{width:16px;height:16px;accent-color:var(--navy)}
+.ju-check span{font-weight:600!important}
+.ju-proximamente{padding:22px 24px;max-width:720px}
+.ju-proximamente p{color:var(--muted);margin:8px 0 0;line-height:1.5}
+.ju-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.ju-kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:grid;gap:2px;box-shadow:var(--shadow)}
+.ju-kpi span{font-size:12px;font-weight:800;color:#4d5d70;text-transform:uppercase;letter-spacing:.3px}
+.ju-kpi strong{font-size:26px;color:var(--navy)}
+.ju-kpi small{color:var(--muted);font-size:12px}
+.ju-rep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;align-items:start}
+.ju-rep-grid .table-card{margin:0}
+.ju-chart{padding:12px 16px}
+#ju-reportes .table-meta{padding:10px 14px}
+@media print{
+  #ju-reportes .ig-toolbar{display:none!important}
+  .ju-rep-grid{display:block}
+  .ju-rep-grid .table-card{margin-bottom:12px;break-inside:avoid}
+  .ju-kpi{box-shadow:none}
+  #ju-reportes .table-scroll{overflow:visible!important}
+  #ju-reportes .data-table{font-size:10.5px}
+}

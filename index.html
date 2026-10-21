@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=116">
+  <link rel="stylesheet" href="styles.css?v=117">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -142,6 +142,17 @@
           </div>
         </div>
 
+        <div class="nav-group collapsed" data-nav-group="juridico" data-nav-access="juridico" hidden>
+          <button class="nav-group-toggle" type="button" aria-expanded="false">
+            <span>Jurídico</span><span class="nav-group-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="nav-submenu">
+            <button class="nav-subitem" data-view="ju-oficios" type="button">Oficios</button>
+            <button class="nav-subitem" data-view="ju-reclamos" type="button">Reclamos</button>
+            <button class="nav-subitem" data-view="ju-reportes" type="button">Reportes</button>
+          </div>
+        </div>
+
         <button class="nav-item" data-view="usuarios" data-nav-access="usuarios" type="button" hidden>Usuarios</button>
 
         <div class="nav-group collapsed" data-nav-group="prototipo" data-nav-access="prototipo">
@@ -164,7 +175,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 179</span>
+        <span>Versión 180</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1198,6 +1209,94 @@
           <p><strong>Expedientes:</strong> <span id="ig-def-expedientes">trámites presentados para ese ejercicio.</span></p>
           <p><strong>Disposiciones:</strong> expedientes del ejercicio que ya tienen disposición emitida.</p>
           <p><strong>Estado:</strong> es la condición que tiene hoy cada expediente en el sistema.</p>
+        </div>
+      </section>
+
+      <section id="ju-oficios" class="view">
+        <div class="module-actions">
+          <button class="secondary" id="ju-exportar" type="button">Exportar Excel</button>
+          <button class="primary" id="ju-btn-nuevo" data-edicion type="button">+ Nuevo oficio</button>
+        </div>
+        <div class="report-tabs" style="margin-bottom:10px">
+          <button class="report-tab active" data-ju-tab="tramite" type="button">En trámite</button>
+          <button class="report-tab" data-ju-tab="finalizados" type="button">Finalizados</button>
+          <button class="report-tab" data-ju-tab="todos" type="button">Todos</button>
+        </div>
+        <div class="toolbar ju-toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="ju-search" type="search" placeholder="Buscar por Nº EE, carátula, juzgado, demandado, RNAS o RNEMP..." autocomplete="off">
+          </div>
+          <select id="ju-motivo-filter"><option value="">Motivo: Todos</option></select>
+          <select id="ju-analista-filter"><option value="">Analista: Todos</option></select>
+          <select id="ju-area-filter"><option value="">Área de salida: Todas</option></select>
+          <select id="ju-trimestre-filter"><option value="">Trimestre: Todos</option></select>
+        </div>
+        <div class="table-card">
+          <div class="table-meta"><strong id="ju-count">Cargando oficios...</strong></div>
+          <div class="table-scroll">
+            <table class="data-table ju-tabla">
+              <thead><tr><th>Ingreso</th><th>Nº EE</th><th>Carátula</th><th>Demandado</th><th>Motivo</th><th>Analista</th><th id="ju-th-fecha2">Vencimiento</th><th id="ju-th-dias">Días en trámite</th><th>Estado</th></tr></thead>
+              <tbody id="ju-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="ju-empty" hidden>No hay oficios con ese criterio.</div>
+          <div class="table-pagination" id="ju-pagination"></div>
+        </div>
+      </section>
+
+      <section id="ju-reclamos" class="view">
+        <div class="table-card ju-proximamente">
+          <strong>Reclamos</strong>
+          <p>Esta pantalla se arma a partir de la planilla con la que hoy llevan los reclamos. Cuando la tengamos, va a funcionar igual que Oficios: listado, filtros, ficha para cargar y editar, y sus indicadores en Reportes.</p>
+        </div>
+      </section>
+
+      <section id="ju-reportes" class="view">
+        <div class="toolbar ig-toolbar">
+          <label class="ig-anio"><span>Ingresados desde</span><input id="ju-rep-desde" type="date"></label>
+          <label class="ig-anio"><span>Hasta</span><input id="ju-rep-hasta" type="date"></label>
+          <button class="primary small" id="ju-rep-generar" type="button">Generar</button>
+          <button class="secondary small" id="ju-rep-exportar" type="button">Exportar Excel</button>
+          <button class="secondary small" id="ju-rep-imprimir" type="button">Imprimir / PDF</button>
+        </div>
+        <div id="ju-rep-resultado" hidden>
+          <div class="ig-encabezado"><h2 id="ju-rep-titulo"></h2></div>
+          <div class="ju-kpis" id="ju-rep-kpis"></div>
+          <div class="ju-rep-grid">
+            <div class="table-card">
+              <div class="table-meta"><strong>Por trimestre</strong></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Trimestre</th><th>Ingresados</th><th>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-trimestre"></tbody></table></div>
+            </div>
+            <div class="table-card">
+              <div class="table-meta"><strong>Tiempo de respuesta</strong><span>Oficios finalizados</span></div>
+              <div class="ju-chart" id="ju-rep-tiempos"></div>
+            </div>
+            <div class="table-card">
+              <div class="table-meta"><strong>Por motivo</strong></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Motivo</th><th>Ingresados</th><th>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-motivo"></tbody></table></div>
+            </div>
+            <div class="table-card">
+              <div class="table-meta"><strong>Por analista</strong></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Analista</th><th>Asignados</th><th>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-analista"></tbody></table></div>
+            </div>
+            <div class="table-card">
+              <div class="table-meta"><strong>Más demandados</strong><span>Obras Sociales y prepagas</span></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>#</th><th>Demandado</th><th>Oficios</th></tr></thead><tbody id="ju-rep-demandados"></tbody></table></div>
+            </div>
+            <div class="table-card">
+              <div class="table-meta"><strong>Por área de salida</strong><span>Oficios finalizados</span></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Área</th><th>Oficios</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-area"></tbody></table></div>
+            </div>
+          </div>
+          <div class="table-card" style="margin-top:16px">
+            <div class="table-meta"><strong>Pendientes</strong><span id="ju-rep-pendientes-count"></span></div>
+            <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Ingreso</th><th>Nº EE</th><th>Carátula</th><th>Motivo</th><th>Analista</th><th>Días en trámite</th></tr></thead><tbody id="ju-rep-pendientes"></tbody></table></div>
+          </div>
+          <div class="ig-nota">
+            <p><strong>Días resp.:</strong> mediana de días entre la fecha de ingreso y la de egreso de los oficios finalizados.</p>
+            <p><strong>Más demandados:</strong> cuando un oficio demanda a la Obra Social y a la prepaga con el mismo nombre, se cuenta una sola vez.</p>
+          </div>
         </div>
       </section>
 
@@ -2284,6 +2383,43 @@
       </form>
     </div>
   </div>
+  <div class="modal-backdrop" id="ju-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="ju-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">JURÍDICO · OFICIOS</span><h2 id="ju-modal-title">Nuevo oficio</h2><span class="ju-modal-sub" id="ju-modal-sub"></span></div>
+        <button class="icon-button" type="button" data-close-modal="ju-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="ju-form" data-edicion-form class="form-grid ju-form" style="padding:18px 22px">
+        <input type="hidden" id="ju-id">
+        <label><span>Fecha de ingreso *</span><input id="ju-ingreso" type="date" required></label>
+        <label><span>Nº EE</span><input id="ju-ee" placeholder="EX-2026-12345678- -APN-SG#SSS" autocomplete="off"></label>
+        <label class="full"><span>Carátula</span><textarea id="ju-caratula" rows="2"></textarea></label>
+        <label><span>Agente de Seguro demandado</span><input id="ju-agente" list="ju-agentes-datalist" placeholder="Nombre o RNAS..." autocomplete="off"></label>
+        <label><span>Prepaga demandada</span><input id="ju-prepaga" list="ju-prepagas-datalist" placeholder="Nombre o RNEMP..." autocomplete="off"></label>
+        <label><span>Otros demandados</span><input id="ju-otros"></label>
+        <label><span>Juzgado / Sala</span><input id="ju-juzgado"></label>
+        <label><span>Motivo</span><select id="ju-motivo"><option value=""></option>
+          <option>Medicación</option><option>Discapacidad</option><option>Prepagas</option><option>Insumos</option><option>PMO</option><option>Internación geriátrica</option><option>Leyes especiales</option><option>Cirugia</option><option>Estudios y prácticas</option><option>Falta de Prestadores</option><option>Fertilidad</option></select></label>
+        <label><span>Analista</span><input id="ju-analista" list="ju-analistas-datalist" autocomplete="off"></label>
+        <label><span>Fecha de vencimiento (si el juzgado fija plazo)</span><input id="ju-vencimiento" type="date"></label>
+        <label><span>Estado</span><select id="ju-estado"><option>En trámite</option><option>Finalizado</option></select></label>
+        <label><span>Fecha de egreso</span><input id="ju-egreso" type="date"></label>
+        <label><span>Área de salida</span><select id="ju-area"><option value=""></option><option>SAC</option><option>SCEMPF</option><option>GAJ</option><option>GCEF</option><option>SD</option></select></label>
+        <label class="full"><span>Descripción</span><textarea id="ju-descripcion" rows="2" placeholder="Por ejemplo, medicamento, insumo o prestación que se reclama"></textarea></label>
+        <label class="full ju-check"><input id="ju-reingreso" type="checkbox"><span>Reingreso (el expediente ya había ingresado antes)</span></label>
+        <div class="full form-message" id="ju-message" hidden></div>
+        <div class="full modal-actions" style="padding:0">
+          <button type="button" class="secondary danger" id="ju-eliminar" data-edicion hidden>Eliminar oficio</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" data-close-modal="ju-modal">Cancelar</button>
+          <button type="submit" class="primary" id="ju-guardar">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <datalist id="ju-agentes-datalist"></datalist>
+  <datalist id="ju-prepagas-datalist"></datalist>
+  <datalist id="ju-analistas-datalist"></datalist>
   <datalist id="au-os-datalist"></datalist>
   <datalist id="us-os-datalist"></datalist>
 
@@ -2787,7 +2923,8 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=96"></script>
+  <script src="app.js?v=97"></script>
+  <script src="juridico.js?v=1"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
