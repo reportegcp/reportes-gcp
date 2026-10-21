@@ -388,9 +388,11 @@ function juRenderBusquedaDemandados() {
   if (q.length < 2) { lista.innerHTML = `<div class="ju-combo-vacio">Escribí al menos 2 letras o números...</div>`; lista.hidden = false; return; }
   const ya = new Set(juFicha.demandados.map(d => String(d.id)));
   const palabras = q.split(/\s+/);
-  const res = juPadron.filter(o => !ya.has(String(o.id)) && palabras.every(p => o._busqueda.includes(p))).slice(0, 25);
+  const inactiva = o => String(o.estado || "").toUpperCase() === "INACTIVA";
+  const res = juPadron.filter(o => !ya.has(String(o.id)) && palabras.every(p => o._busqueda.includes(p)))
+    .sort((a, b) => inactiva(a) - inactiva(b)).slice(0, 25);
   lista.innerHTML = res.map(o => `<button type="button" class="ju-combo-item" data-os-id="${o.id}">
-      <span>${escaparHtml(o.denominacion)}</span><small>${escaparHtml(juCodigoDe(o))} · ${o.rnos ? "Obra Social" : "Prepaga"}</small>
+      <span>${escaparHtml(o.denominacion)}</span><small>${escaparHtml(juCodigoDe(o))} · ${o.rnos ? "Obra Social" : "Prepaga"}${inactiva(o) ? " · inactiva" : ""}</small>
     </button>`).join("") || `<div class="ju-combo-vacio">No hay coincidencias en el padrón.</div>`;
   lista.hidden = false;
   lista.querySelectorAll("[data-os-id]").forEach(b => b.addEventListener("click", () => {

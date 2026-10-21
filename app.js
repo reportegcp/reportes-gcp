@@ -2032,7 +2032,7 @@ async function handleEliminarPlantilla() {
 // ---------- Expedientes ----------
 
 function buildObrasSocialesTodasUrl() {
-  const params = { select: "id,tipo,rnos,rnemp,denominacion", order: "denominacion.asc" };
+  const params = { select: "id,tipo,rnos,rnemp,denominacion,estado", order: "denominacion.asc" };
   return buildTableUrl("obras_sociales", params);
 }
 
