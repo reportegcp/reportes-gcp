@@ -23,7 +23,7 @@ const views = {
   reportes: { title: "Reportes", subtitle: "Consultas e indicadores de gestión" },
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
-  "informe-gestion": { title: "Informe de gestión", subtitle: "Expedientes de PMA y Cartilla, disposiciones emitidas y estado actual, por ejercicio" },
+  "informe-gestion": { title: "Informe de gestión", subtitle: "Expedientes, disposiciones emitidas y estado actual de PMA o de Cartilla, por ejercicio" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
   "up-plantillas": { title: "Plantillas de informe", subtitle: "Textos de apertura y cierre técnico" },
@@ -4365,7 +4365,14 @@ async function inicializarInformeGestion() {
   selHasta.value = todos[todos.length - 1] || "";
 }
 
+const IG_TIPOS = {
+  pma: { titulo: "PMA", texto: "de PMA", archivo: "pma" },
+  cartilla: { titulo: "Cartilla", texto: "de Cartilla", archivo: "cartilla" },
+  ambos: { titulo: "PMA y Cartilla", texto: "", archivo: "pma_cartilla" }
+};
+
 async function handleGenerarInformeGestion() {
+  const tipo = document.getElementById("ig-tipo")?.value || "pma";
   const desde = document.getElementById("ig-desde")?.value;
   const hasta = document.getElementById("ig-hasta")?.value;
   if (!desde || !hasta || igCompararEjercicios(desde, hasta) > 0) { mostrarToast("Revisá los ejercicios: \"Desde\" tiene que ser anterior o igual a \"Hasta\"."); return; }
@@ -4373,19 +4380,20 @@ async function handleGenerarInformeGestion() {
   if (boton) { boton.disabled = true; boton.textContent = "Generando..."; }
   try {
     await asegurarPmaYCartillasCargadas();
-    const ejercicios = [...new Set([...pma, ...cartillas].map(igEjercicio).filter(e => igAnioEjercicio(e)))]
+    const conPma = tipo !== "cartilla", conCart = tipo !== "pma";
+    const fuentes = [...(conPma ? pma : []), ...(conCart ? cartillas : [])];
+    const ejercicios = [...new Set(fuentes.map(igEjercicio).filter(e => igAnioEjercicio(e)))]
       .filter(e => igCompararEjercicios(e, desde) >= 0 && igCompararEjercicios(e, hasta) <= 0)
       .sort(igCompararEjercicios);
     const hoy = new Date();
     const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
 
-    const resPma = igCalcular(pma, ejercicios);
-    const resCart = igCalcular(cartillas, ejercicios);
-    const obrasTotal = new Set([...resPma.obras, ...resCart.obras]);
+    const resPma = igCalcular(conPma ? pma : [], ejercicios);
+    const resCart = igCalcular(conCart ? cartillas : [], ejercicios);
     const enRango = r => ejercicios.includes(igEjercicio(r));
     const detalle = [
-      ...pma.filter(enRango).map(r => ({ tipo: "PMA", r })),
-      ...cartillas.filter(enRango).map(r => ({ tipo: "CARTILLA", r }))
+      ...(conPma ? pma : []).filter(enRango).map(r => ({ tipo: "PMA", r })),
+      ...(conCart ? cartillas : []).filter(enRango).map(r => ({ tipo: "CARTILLA", r }))
     ].sort((x, y) => igCompararEjercicios(igEjercicio(x.r), igEjercicio(y.r)) || x.tipo.localeCompare(y.tipo) || String(x.r.fecha_ingreso || "").localeCompare(String(y.r.fecha_ingreso || "")));
 
     const sum = (porEj, k) => ejercicios.reduce((acc, e) => acc + porEj[e][k], 0);
@@ -4393,14 +4401,25 @@ async function handleGenerarInformeGestion() {
       pmaExp: sum(resPma.porEj, "expedientes"), pmaDis: sum(resPma.porEj, "dispos"),
       cartExp: sum(resCart.porEj, "expedientes"), cartDis: sum(resCart.porEj, "dispos")
     };
-    igDatos = { desde, hasta, ejercicios, resPma, resCart, obrasTotal, detalle, tot, generado: hoyIso };
+    igDatos = { tipo, desde, hasta, ejercicios, resPma, resCart, detalle, tot, generado: hoyIso };
 
     const num = n => `<td class="ig-num">${n}</td>`;
-    const filas = ejercicios.map(e => {
-      const p = resPma.porEj[e], c = resCart.porEj[e];
-      return `<tr><td><strong>${escaparHtml(e)}</strong></td>${num(p.expedientes)}${num(p.dispos)}${num(c.expedientes)}${num(c.dispos)}${num(p.expedientes + c.expedientes)}${num(p.dispos + c.dispos)}</tr>`;
-    });
-    filas.push(`<tr class="ig-total"><td><strong>Total</strong></td>${num(tot.pmaExp)}${num(tot.pmaDis)}${num(tot.cartExp)}${num(tot.cartDis)}${num(tot.pmaExp + tot.cartExp)}${num(tot.pmaDis + tot.cartDis)}</tr>`);
+    let head, filas;
+    if (tipo === "ambos") {
+      head = `<tr><th rowspan="2">Ejercicio</th><th colspan="2" class="ig-grupo">PMA</th><th colspan="2" class="ig-grupo">CARTILLA</th><th colspan="2" class="ig-grupo">TOTAL</th></tr>
+        <tr><th>Expedientes</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th></tr>`;
+      filas = ejercicios.map(e => {
+        const p = resPma.porEj[e], c = resCart.porEj[e];
+        return `<tr><td><strong>${escaparHtml(e)}</strong></td>${num(p.expedientes)}${num(p.dispos)}${num(c.expedientes)}${num(c.dispos)}${num(p.expedientes + c.expedientes)}${num(p.dispos + c.dispos)}</tr>`;
+      });
+      filas.push(`<tr class="ig-total"><td><strong>Total</strong></td>${num(tot.pmaExp)}${num(tot.pmaDis)}${num(tot.cartExp)}${num(tot.cartDis)}${num(tot.pmaExp + tot.cartExp)}${num(tot.pmaDis + tot.cartDis)}</tr>`);
+    } else {
+      const res = tipo === "pma" ? resPma : resCart;
+      head = `<tr><th>Ejercicio</th><th>Expedientes</th><th>Disposiciones</th></tr>`;
+      filas = ejercicios.map(e => `<tr><td><strong>${escaparHtml(e)}</strong></td>${num(res.porEj[e].expedientes)}${num(res.porEj[e].dispos)}</tr>`);
+      filas.push(`<tr class="ig-total"><td><strong>Total</strong></td>${num(sum(res.porEj, "expedientes"))}${num(sum(res.porEj, "dispos"))}</tr>`);
+    }
+    document.getElementById("ig-resumen-head").innerHTML = head;
     document.getElementById("ig-resumen-body").innerHTML = filas.join("");
 
     const tablaEstados = (porEj, idHead, idBody) => {
@@ -4414,16 +4433,17 @@ async function handleGenerarInformeGestion() {
       cuerpo.push(`<tr class="ig-total"><td><strong>Total</strong></td>${t.map(v => num(v)).join("")}${num(t.reduce((x, y) => x + y, 0))}</tr>`);
       document.getElementById(idBody).innerHTML = cuerpo.join("");
     };
-    tablaEstados(resPma.porEj, "ig-pma-head", "ig-pma-body");
-    tablaEstados(resCart.porEj, "ig-cart-head", "ig-cart-body");
+    document.getElementById("ig-card-pma").hidden = !conPma;
+    document.getElementById("ig-card-cart").hidden = !conCart;
+    if (conPma) tablaEstados(resPma.porEj, "ig-pma-head", "ig-pma-body");
+    if (conCart) tablaEstados(resCart.porEj, "ig-cart-head", "ig-cart-body");
 
+    const info = IG_TIPOS[tipo];
     const periodo = desde === hasta ? `ejercicio ${desde}` : `ejercicios ${desde} a ${hasta}`;
-    document.getElementById("ig-titulo").textContent = `Informe de gestión PMA y Cartilla · ${periodo}`;
+    document.getElementById("ig-titulo").textContent = `Informe de gestión ${info.titulo} · ${periodo}`;
     document.getElementById("ig-generado").textContent = `Datos de Reportes GCP al ${formatearFecha(hoyIso)}.`;
-    document.getElementById("ig-obras").innerHTML =
-      `Se trabajaron <strong>${tot.pmaExp + tot.cartExp} expedientes</strong>: ` +
-      `<strong>${tot.pmaExp} de PMA</strong> y <strong>${tot.cartExp} de Cartilla</strong> ` +
-      `${escaparHtml(igTextoPeriodo(desde, hasta))}.`;
+    document.getElementById("ig-obras").innerHTML = igFraseResumen(tipo, tot, desde, hasta, true);
+    document.getElementById("ig-def-expedientes").textContent = tipo === "ambos" ? "trámites de PMA y de Cartilla presentados para ese ejercicio." : `trámites ${info.texto} presentados para ese ejercicio.`;
     document.getElementById("ig-resultado")?.removeAttribute("hidden");
     document.getElementById("ig-exportar")?.removeAttribute("hidden");
     document.getElementById("ig-imprimir")?.removeAttribute("hidden");
@@ -4435,21 +4455,33 @@ async function handleGenerarInformeGestion() {
   }
 }
 
+function igFraseResumen(tipo, tot, desde, hasta, html) {
+  const b = t => (html ? `<strong>${t}</strong>` : t);
+  const periodo = html ? escaparHtml(igTextoPeriodo(desde, hasta)) : igTextoPeriodo(desde, hasta);
+  if (tipo === "pma") return `Se trabajaron ${b(`${tot.pmaExp} expedientes de PMA`)} ${periodo}.`;
+  if (tipo === "cartilla") return `Se trabajaron ${b(`${tot.cartExp} expedientes de Cartilla`)} ${periodo}.`;
+  return `Se trabajaron ${b(`${tot.pmaExp + tot.cartExp} expedientes`)}: ${b(`${tot.pmaExp} de PMA`)} y ${b(`${tot.cartExp} de Cartilla`)} ${periodo}.`;
+}
+
 function exportarInformeGestionExcel() {
   if (!igDatos) return;
-  const { ejercicios, resPma, resCart, obrasTotal, detalle, tot, desde, hasta } = igDatos;
+  const { tipo, ejercicios, resPma, resCart, detalle, tot, desde, hasta } = igDatos;
   const libro = window.XLSX.utils.book_new();
 
-  const resumen = [
-    [`Se trabajaron ${tot.pmaExp + tot.cartExp} expedientes: ${tot.pmaExp} de PMA y ${tot.cartExp} de Cartilla ${igTextoPeriodo(desde, hasta)}.`],
-    [],
-    ["Ejercicio", "PMA - Expedientes", "PMA - Disposiciones", "Cartilla - Expedientes", "Cartilla - Disposiciones", "Total expedientes", "Total disposiciones"]
-  ];
-  ejercicios.forEach(e => {
-    const p = resPma.porEj[e], c = resCart.porEj[e];
-    resumen.push([e, p.expedientes, p.dispos, c.expedientes, c.dispos, p.expedientes + c.expedientes, p.dispos + c.dispos]);
-  });
-  resumen.push(["Total", tot.pmaExp, tot.pmaDis, tot.cartExp, tot.cartDis, tot.pmaExp + tot.cartExp, tot.pmaDis + tot.cartDis]);
+  const resumen = [[igFraseResumen(tipo, tot, desde, hasta, false)], []];
+  if (tipo === "ambos") {
+    resumen.push(["Ejercicio", "PMA - Expedientes", "PMA - Disposiciones", "Cartilla - Expedientes", "Cartilla - Disposiciones", "Total expedientes", "Total disposiciones"]);
+    ejercicios.forEach(e => {
+      const p = resPma.porEj[e], c = resCart.porEj[e];
+      resumen.push([e, p.expedientes, p.dispos, c.expedientes, c.dispos, p.expedientes + c.expedientes, p.dispos + c.dispos]);
+    });
+    resumen.push(["Total", tot.pmaExp, tot.pmaDis, tot.cartExp, tot.cartDis, tot.pmaExp + tot.cartExp, tot.pmaDis + tot.cartDis]);
+  } else {
+    const res = tipo === "pma" ? resPma : resCart;
+    resumen.push(["Ejercicio", "Expedientes", "Disposiciones"]);
+    ejercicios.forEach(e => resumen.push([e, res.porEj[e].expedientes, res.porEj[e].dispos]));
+    resumen.push(["Total", tipo === "pma" ? tot.pmaExp : tot.cartExp, tipo === "pma" ? tot.pmaDis : tot.cartDis]);
+  }
   const hojaResumen = window.XLSX.utils.aoa_to_sheet(resumen);
   hojaResumen["!cols"] = [{ wch: 12 }, ...Array(6).fill({ wch: 20 })];
   window.XLSX.utils.book_append_sheet(libro, hojaResumen, "Resumen por ejercicio");
@@ -4464,20 +4496,20 @@ function exportarInformeGestionExcel() {
     h["!cols"] = [{ wch: 22 }, ...Array(ejercicios.length + 1).fill({ wch: 10 })];
     return h;
   };
-  window.XLSX.utils.book_append_sheet(libro, hojaEstados(resPma.porEj), "PMA por estado");
-  window.XLSX.utils.book_append_sheet(libro, hojaEstados(resCart.porEj), "Cartilla por estado");
+  if (tipo !== "cartilla") window.XLSX.utils.book_append_sheet(libro, hojaEstados(resPma.porEj), "PMA por estado");
+  if (tipo !== "pma") window.XLSX.utils.book_append_sheet(libro, hojaEstados(resCart.porEj), "Cartilla por estado");
 
   const det = [["Tipo", "Ejercicio", "RNAS", "Obra Social", "Nº EE", "Fecha ingreso", "Condición", "Analista", "Nº Disposición", "Fecha disposición"]];
-  detalle.forEach(({ tipo, r }) => {
+  detalle.forEach(({ tipo: t, r }) => {
     const os = r.obras_sociales || {};
-    det.push([tipo, igEjercicio(r), os.rnos || "", os.denominacion || "", r.numero_ee || "", r.fecha_ingreso ? formatearFecha(r.fecha_ingreso) : "", igCondicion(r), r.analista || "", r.numero_disposicion || "", r.fecha_disposicion ? formatearFecha(r.fecha_disposicion) : ""]);
+    det.push([t, igEjercicio(r), os.rnos || "", os.denominacion || "", r.numero_ee || "", r.fecha_ingreso ? formatearFecha(r.fecha_ingreso) : "", igCondicion(r), r.analista || "", r.numero_disposicion || "", r.fecha_disposicion ? formatearFecha(r.fecha_disposicion) : ""]);
   });
   const hojaDet = window.XLSX.utils.aoa_to_sheet(det);
   hojaDet["!cols"] = [{ wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 50 }, { wch: 34 }, { wch: 12 }, { wch: 18 }, { wch: 10 }, { wch: 34 }, { wch: 14 }];
   hojaDet["!autofilter"] = { ref: `A1:J${det.length}` };
   window.XLSX.utils.book_append_sheet(libro, hojaDet, "Detalle expedientes");
 
-  window.XLSX.writeFile(libro, `informe_gestion_pma_cartilla_${desde.replace("/", "-")}_${hasta.replace("/", "-")}.xlsx`);
+  window.XLSX.writeFile(libro, `informe_gestion_${IG_TIPOS[tipo].archivo}_${desde.replace("/", "-")}_${hasta.replace("/", "-")}.xlsx`);
 }
 
 function showView(id, updateHistory = true) {

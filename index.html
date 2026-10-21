@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=115">
+  <link rel="stylesheet" href="styles.css?v=116">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -164,7 +164,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 178</span>
+        <span>Versión 179</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1157,6 +1157,7 @@
 
       <section id="informe-gestion" class="view">
         <div class="toolbar ig-toolbar">
+          <label class="ig-anio"><span>Informe</span><select id="ig-tipo"><option value="pma">PMA</option><option value="cartilla">Cartilla</option><option value="ambos">PMA y Cartilla</option></select></label>
           <label class="ig-anio"><span>Ejercicio desde</span><select id="ig-desde"></select></label>
           <label class="ig-anio"><span>Ejercicio hasta</span><select id="ig-hasta"></select></label>
           <button class="primary small" id="ig-generar" type="button">Generar</button>
@@ -1175,21 +1176,18 @@
             <div class="table-meta"><strong>Resumen por ejercicio</strong></div>
             <div class="table-scroll">
               <table class="data-table ig-tabla">
-                <thead>
-                  <tr><th rowspan="2">Ejercicio</th><th colspan="2" class="ig-grupo">PMA</th><th colspan="2" class="ig-grupo">CARTILLA</th><th colspan="2" class="ig-grupo">TOTAL</th></tr>
-                  <tr><th>Expedientes</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th><th>Expedientes</th><th>Disposiciones</th></tr>
-                </thead>
+                <thead id="ig-resumen-head"></thead>
                 <tbody id="ig-resumen-body"></tbody>
               </table>
             </div>
           </div>
 
           <div class="ig-estados">
-            <div class="table-card">
+            <div class="table-card" id="ig-card-pma">
               <div class="table-meta"><strong>PMA · estado actual por ejercicio</strong></div>
               <div class="table-scroll"><table class="data-table ig-tabla"><thead id="ig-pma-head"></thead><tbody id="ig-pma-body"></tbody></table></div>
             </div>
-            <div class="table-card">
+            <div class="table-card" id="ig-card-cart">
               <div class="table-meta"><strong>Cartilla · estado actual por ejercicio</strong></div>
               <div class="table-scroll"><table class="data-table ig-tabla"><thead id="ig-cart-head"></thead><tbody id="ig-cart-body"></tbody></table></div>
             </div>
@@ -1197,7 +1195,7 @@
         </div>
         <div class="ig-nota">
           <p><strong>Ejercicio:</strong> período que presenta la Obra Social (anual, como 2024, o partido, como 2024/25), sin importar la fecha en que ingresó el expediente.</p>
-          <p><strong>Expedientes:</strong> trámites de PMA y de Cartilla presentados para ese ejercicio.</p>
+          <p><strong>Expedientes:</strong> <span id="ig-def-expedientes">trámites presentados para ese ejercicio.</span></p>
           <p><strong>Disposiciones:</strong> expedientes del ejercicio que ya tienen disposición emitida.</p>
           <p><strong>Estado:</strong> es la condición que tiene hoy cada expediente en el sistema.</p>
         </div>
@@ -2789,7 +2787,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=95"></script>
+  <script src="app.js?v=96"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
