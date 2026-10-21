@@ -5327,6 +5327,9 @@ function seleccionarEjerciciosFiltro(prefix, seleccionar, renderFn) {
 
 const ejercicioLabelFns = {};
 const ejercicioResumenNombre = {};
+// Cuando el histórico se carga al abrir el filtro de ejercicio, los ejercicios viejos que aparecen
+// llegan sin tildar: así la lista sigue mostrando lo mismo hasta que el usuario elija uno.
+const ejercicioNuevasDesmarcadas = {};
 function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = {}) {
   if (typeof document === "undefined") return;
   const container = document.getElementById(`${prefix}-ejercicio-options`);
@@ -5338,13 +5341,15 @@ function poblarSelectorMultipleEjercicios(prefix, valores, renderFn, opciones = 
   const labelFn = typeof opciones.labelFn === "function" ? opciones.labelFn : (v => v);
   ejercicioLabelFns[prefix] = labelFn;
   ejercicioResumenNombre[prefix] = opciones.nombreFiltro || "Ejercicio";
+  const nuevasTildadas = !ejercicioNuevasDesmarcadas[prefix];
+  delete ejercicioNuevasDesmarcadas[prefix];
   const ejercicios = [...new Set((valores || []).filter(Boolean).map(String))]
     .sort((a,b) => String(b).localeCompare(String(a), "es", {numeric:true}));
   container.innerHTML = ejercicios.map(e => {
     // Si la opción ya existía en el combo, respetamos si el usuario la había tildado o no.
     // Si es una opción NUEVA (por ejemplo, apareció recién al cargar "Ver historial completo"),
     // arranca tildada — si no, quedaría oculta del filtro sin que nadie la haya destildado a propósito.
-    const checked = teniaOpciones ? (opcionesPrevias.has(e) ? anteriores.has(e) : true) : defaultChecked;
+    const checked = teniaOpciones ? (opcionesPrevias.has(e) ? anteriores.has(e) : nuevasTildadas) : defaultChecked;
     return `<label class="period-check"><input type="checkbox" name="${prefix}-ejercicio-opcion" value="${escaparHtml(e)}" ${checked ? "checked" : ""}><span>${escaparHtml(labelFn(e))}</span></label>`;
   }).join("");
   container.querySelectorAll(`input[name="${prefix}-ejercicio-opcion"]`).forEach(input => {
@@ -12397,6 +12402,21 @@ async function initBrowser() {
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
   document.getElementById("cartilla-historico-btn")?.addEventListener("click", cargarHistoricoCompletoCartillas);
+  // Al abrir el filtro de ejercicio se trae el histórico, para poder elegir también ejercicios anteriores.
+  document.getElementById("pma-ejercicio-select")?.addEventListener("toggle", event => {
+    if (!event.target.open || pmaCompleta) return;
+    ejercicioNuevasDesmarcadas.pma = true;
+    const cont = document.getElementById("pma-ejercicio-options");
+    cont?.insertAdjacentHTML("beforeend", '<div class="period-check period-cargando">Cargando ejercicios anteriores…</div>');
+    cargarHistoricoCompletoPma().finally(() => { delete ejercicioNuevasDesmarcadas.pma; cont?.querySelector(".period-cargando")?.remove(); });
+  });
+  document.getElementById("cartilla-ejercicio-select")?.addEventListener("toggle", event => {
+    if (!event.target.open || cartillasCompleta) return;
+    ejercicioNuevasDesmarcadas.cartilla = true;
+    const cont = document.getElementById("cartilla-ejercicio-options");
+    cont?.insertAdjacentHTML("beforeend", '<div class="period-check period-cargando">Cargando ejercicios anteriores…</div>');
+    cargarHistoricoCompletoCartillas().finally(() => { delete ejercicioNuevasDesmarcadas.cartilla; cont?.querySelector(".period-cargando")?.remove(); });
+  });
   document.getElementById("prestadores-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialPrestadores)));
   document.getElementById("cobertura-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialCobertura)));
   document.getElementById("btn-configurar-basicas")?.addEventListener("click", () => requiereAutenticacion(abrirModalBasicas));
