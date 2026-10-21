@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=118">
+  <link rel="stylesheet" href="styles.css?v=119">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -175,7 +175,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 182</span>
+        <span>Versión 183</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1246,14 +1246,43 @@
       </section>
 
       <section id="ju-reclamos" class="view">
-        <div class="table-card ju-proximamente">
-          <strong>Reclamos</strong>
-          <p>Esta pantalla se arma a partir de la planilla con la que hoy llevan los reclamos. Cuando la tengamos, va a funcionar igual que Oficios: listado, filtros, ficha para cargar y editar, y sus indicadores en Reportes.</p>
+        <div class="module-actions">
+          <button class="secondary" id="re-exportar" type="button">Exportar Excel</button>
+          <button class="primary" id="re-btn-nuevo" data-edicion type="button">+ Nuevo reclamo</button>
+        </div>
+        <div class="report-tabs" style="margin-bottom:10px">
+          <button class="report-tab active" data-re-tab="Asignado" type="button">Asignados</button>
+          <button class="report-tab" data-re-tab="Devuelto" type="button">Devueltos</button>
+          <button class="report-tab" data-re-tab="Finalizado" type="button">Finalizados</button>
+          <button class="report-tab" data-re-tab="todos" type="button">Todos</button>
+        </div>
+        <div class="toolbar re-toolbar">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="re-search" type="search" placeholder="Buscar por Nº EE, demandado, RNAS, RNEMP, CUIT, tema u observaciones..." autocomplete="off">
+          </div>
+          <select id="re-tipo-filter"><option value="">Tipo: Todos</option></select>
+          <select id="re-tema-filter"><option value="">Tema: Todos</option></select>
+          <select id="re-analista-filter"><option value="">Analista: Todos</option></select>
+          <select id="re-envia-filter"><option value="">Área que envía: Todas</option></select>
+          <select id="re-trimestre-filter"><option value="">Trimestre: Todos</option></select>
+        </div>
+        <div class="table-card">
+          <div class="table-meta"><strong id="re-count">Cargando reclamos...</strong></div>
+          <div class="table-scroll">
+            <table class="data-table ju-tabla">
+              <thead><tr><th>Ingreso</th><th>Nº EE</th><th>Demandado</th><th>Tipo · Tema</th><th>Observaciones</th><th>Salida</th><th>Estado</th></tr></thead>
+              <tbody id="re-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="re-empty" hidden>No hay reclamos con ese criterio.</div>
+          <div class="table-pagination" id="re-pagination"></div>
         </div>
       </section>
 
       <section id="ju-reportes" class="view">
         <div class="toolbar ig-toolbar">
+          <label class="ig-anio"><span>Informe</span><select id="ju-rep-tipo"><option value="oficios">Oficios</option><option value="reclamos">Reclamos</option></select></label>
           <label class="ig-anio"><span>Ingresados desde</span><input id="ju-rep-desde" type="date"></label>
           <label class="ig-anio"><span>Hasta</span><input id="ju-rep-hasta" type="date"></label>
           <button class="primary small" id="ju-rep-generar" type="button">Generar</button>
@@ -1266,37 +1295,41 @@
           <div class="ju-rep-grid">
             <div class="table-card">
               <div class="table-meta"><strong>Por trimestre</strong></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Trimestre</th><th>Ingresados</th><th>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-trimestre"></tbody></table></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Trimestre</th><th>Ingresados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-trimestre"></tbody></table></div>
             </div>
             <div class="table-card">
-              <div class="table-meta"><strong>Tiempo de respuesta</strong><span>Oficios finalizados</span></div>
+              <div class="table-meta"><strong>Tiempo de respuesta</strong><span>Días hasta la salida</span></div>
               <div class="ju-chart" id="ju-rep-tiempos"></div>
             </div>
             <div class="table-card">
-              <div class="table-meta"><strong>Por motivo</strong></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Motivo</th><th>Ingresados</th><th>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-motivo"></tbody></table></div>
+              <div class="table-meta"><strong id="ju-rep-clase1-titulo">Por motivo</strong></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th id="ju-rep-clase1-col">Motivo</th><th>Ingresados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-motivo"></tbody></table></div>
+            </div>
+            <div class="table-card" id="ju-rep-clase2-card" hidden>
+              <div class="table-meta"><strong>Por tema</strong><span>Los 20 más frecuentes</span></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Tema</th><th>Ingresados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-tema"></tbody></table></div>
             </div>
             <div class="table-card">
               <div class="table-meta"><strong>Por analista</strong></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Analista</th><th>Asignados</th><th>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-analista"></tbody></table></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Analista</th><th>Asignados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-analista"></tbody></table></div>
             </div>
             <div class="table-card">
               <div class="table-meta"><strong>Más demandados</strong><span>Obras Sociales y prepagas</span></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>#</th><th>Demandado</th><th>Oficios</th></tr></thead><tbody id="ju-rep-demandados"></tbody></table></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>#</th><th>Demandado</th><th data-ju-rep-unidad>Oficios</th></tr></thead><tbody id="ju-rep-demandados"></tbody></table></div>
             </div>
             <div class="table-card">
-              <div class="table-meta"><strong>Por área de salida</strong><span>Oficios finalizados</span></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Área</th><th>Oficios</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-area"></tbody></table></div>
+              <div class="table-meta"><strong>Por área de salida</strong><span>Con salida registrada</span></div>
+              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Área</th><th data-ju-rep-unidad>Oficios</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-area"></tbody></table></div>
             </div>
           </div>
           <div class="table-card" style="margin-top:16px">
             <div class="table-meta"><strong>Pendientes</strong><span id="ju-rep-pendientes-count"></span></div>
-            <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Ingreso</th><th>Nº EE</th><th>Carátula</th><th>Motivo</th><th>Analista</th><th>Días en trámite</th></tr></thead><tbody id="ju-rep-pendientes"></tbody></table></div>
+            <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Ingreso</th><th>Nº EE</th><th id="ju-rep-texto-col">Carátula</th><th id="ju-rep-clase1-col2">Motivo</th><th>Analista</th><th>Días en trámite</th></tr></thead><tbody id="ju-rep-pendientes"></tbody></table></div>
           </div>
           <div class="ig-nota">
-            <p><strong>Días resp.:</strong> mediana de días entre la fecha de ingreso y la de egreso de los oficios finalizados.</p>
+            <p><strong>Días resp.:</strong> mediana de días entre la fecha de ingreso y la de egreso (oficios) o de salida GCP (reclamos).</p>
             <p><strong>Ingresos:</strong> cada ingreso de un expediente, incluidos los reingresos.</p>
-            <p><strong>Más demandados:</strong> cuando un oficio demanda a la Obra Social y a la prepaga con el mismo nombre, se cuenta una sola vez.</p>
+            <p><strong>Más demandados:</strong> cuando se demanda a la Obra Social y a la prepaga con el mismo nombre, se cuenta una sola vez.</p>
           </div>
         </div>
       </section>
@@ -2428,6 +2461,57 @@
     </div>
   </div>
   <datalist id="ju-analistas-datalist"></datalist>
+  <div class="modal-backdrop" id="re-modal" hidden>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="re-modal-title">
+      <div class="modal-header">
+        <div><span class="eyebrow">JURÍDICO · RECLAMOS</span><h2 id="re-modal-title">Nuevo reclamo</h2><span class="ju-modal-sub" id="re-modal-sub"></span></div>
+        <button class="icon-button" type="button" data-close-modal="re-modal" aria-label="Cerrar">×</button>
+      </div>
+      <form id="re-form" data-edicion-form class="ju-form" style="padding:14px 22px 18px" autocomplete="off">
+        <fieldset id="re-fieldset" class="ju-fieldset">
+          <div class="form-grid">
+            <label><span>Nº EE *</span><input id="re-ee" placeholder="EX-2026-12345678- -APN-SAL#SSS" required></label>
+            <label><span>Área de reclamo</span><select id="re-area-reclamo"><option value=""></option><option>Cobertura</option><option>Reintegro</option></select></label>
+            <div class="full ju-ee-aviso" id="re-ee-aviso" hidden></div>
+            <label><span>Tipo de reclamo</span><select id="re-tipo"><option value=""></option><option>PMO SI</option><option>PMO NO</option><option>LEYES ESPECIALES</option><option>DISCAPACIDAD</option><option>COSEGUROS</option><option>ODONTOLOGIA</option><option>DENTRO DE CARTILLA</option><option>FUERA DE CARTILLA</option></select></label>
+            <label><span>Tema</span><input id="re-tema" list="re-temas-datalist" placeholder="Elegí de la lista o escribí uno nuevo"></label>
+            <div class="full re-checks">
+              <label class="ju-check"><input id="re-insumo" type="checkbox"><span>Insumo</span></label>
+              <label class="ju-check"><input id="re-medicacion" type="checkbox"><span>Medicación</span></label>
+              <label class="ju-check"><input id="re-prestacion" type="checkbox"><span>Prestación</span></label>
+              <label class="ju-check"><input id="re-informe" type="checkbox"><span>Informe médico</span></label>
+            </div>
+            <div class="full ju-demandados">
+              <span class="ju-label">Demandados (Obras Sociales y prepagas)</span>
+              <div class="ju-chips" id="re-chips"></div>
+              <div class="ju-combo">
+                <input id="re-dem-buscar" placeholder="Escribí el nombre, RNAS o RNEMP para agregar..." autocomplete="off">
+                <div class="ju-combo-list" id="re-dem-lista" hidden></div>
+              </div>
+            </div>
+            <label><span>CUIT del beneficiario</span><input id="re-cuit" inputmode="numeric" placeholder="Solo números"></label>
+            <label class="ju-check re-menor"><input id="re-menor" type="checkbox"><span>Menor de 18 años</span></label>
+          </div>
+          <div class="ju-ingresos-cab">
+            <span class="ju-label">Ingresos</span>
+            <button type="button" class="secondary small" id="re-reingreso-btn" hidden>+ Registrar reingreso</button>
+          </div>
+          <div id="re-ingresos"></div>
+        </fieldset>
+        <div class="form-message" id="re-message" hidden></div>
+        <div class="modal-actions ju-acciones">
+          <button type="button" class="secondary danger" id="re-eliminar" data-edicion hidden>Eliminar reclamo</button>
+          <span style="flex:1"></span>
+          <button type="button" class="secondary" id="re-cancelar">Cerrar</button>
+          <button type="button" class="primary" id="re-editar" data-edicion hidden>Editar</button>
+          <button type="submit" class="primary" id="re-guardar">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <datalist id="re-analistas-datalist"></datalist>
+  <datalist id="re-temas-datalist"></datalist>
+  <datalist id="re-areas-datalist"></datalist>
   <datalist id="au-os-datalist"></datalist>
   <datalist id="us-os-datalist"></datalist>
 
@@ -2931,8 +3015,8 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=98"></script>
-  <script src="juridico.js?v=3"></script>
+  <script src="app.js?v=99"></script>
+  <script src="juridico.js?v=4"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>

@@ -146,6 +146,7 @@ function juPromedio(valores) {
 function inicializarVistaJuridico(vista) {
   if (!juEventos) juVincularEventos();
   if (vista === "ju-oficios") juMostrarOficios();
+  if (vista === "ju-reclamos") reMostrarReclamos();
   if (vista === "ju-reportes") juMostrarReportes();
 }
 
@@ -182,6 +183,7 @@ function juVincularEventos() {
   });
   document.querySelector('#ju-modal [data-close-modal="ju-modal"]')?.addEventListener("click", () => { juFicha = null; });
   on("ju-rep-generar", "click", juGenerarReporte);
+  on("ju-rep-tipo", "change", () => { juReporteDatos = null; juMostrarReportes(); });
   on("ju-rep-exportar", "click", juExportarReporte);
   on("ju-rep-imprimir", "click", () => window.print());
 }
@@ -565,23 +567,516 @@ async function juEliminar() {
   }
 }
 
-// ---------------- Reportes ----------------
+// =====================================================================
+// Reclamos (reemplaza la lista de Teams). Misma lógica que Oficios:
+// un reclamo por Nº EE, con su historial de ingresos y sus demandados.
+// =====================================================================
+
+const RE_SELECT = "*,reclamo_demandados(obra_social_id,obras_sociales(id,denominacion,rnos,rnemp,tipo,estado)),reclamo_ingresos(*)";
+const RE_ESTADOS = ["Asignado", "Devuelto", "Finalizado"];
+const RE_TIPOS = ["PMO SI", "PMO NO", "LEYES ESPECIALES", "DISCAPACIDAD", "COSEGUROS", "ODONTOLOGIA", "DENTRO DE CARTILLA", "FUERA DE CARTILLA"];
+const RE_AREAS = ["SAL", "GAJ", "SD", "SGSUSS", "GDYAISS", "DUSS", "SAUSS", "GAYSUSS", "SAISS", "GGE", "SG", "GCEF", "GEF", "SAC"];
+
+let reReclamos = [];
+let reCargados = false;
+let reCargando = null;
+let reTab = "Asignado";
+let rePage = 1;
+let reEventos = false;
+let reFicha = null;
+
+function rePreparar(r) {
+  const ingresos = [...(r.reclamo_ingresos || [])].sort((a, b) => String(a.fecha_ingreso || "").localeCompare(String(b.fecha_ingreso || "")) || a.id - b.id);
+  const demandados = (r.reclamo_demandados || []).map(d => d.obras_sociales).filter(Boolean)
+    .sort((a, b) => String(a.denominacion).localeCompare(String(b.denominacion), "es"));
+  const ultimo = ingresos[ingresos.length - 1] || {};
+  return { ...r, ingresos, demandados, ultimo, estado: ultimo.estado || "Asignado" };
+}
+
+async function reCargarReclamos(forzar = false) {
+  if (reCargados && !forzar) return reReclamos;
+  if (reCargando && !forzar) return reCargando;
+  reCargando = (async () => {
+    let todos = [];
+    for (let offset = 0; ; offset += 1000) {
+      const filas = await juFetch("reclamos", { params: { select: RE_SELECT, order: "id.desc", limit: 1000, offset } });
+      todos = todos.concat(filas || []);
+      if (!filas || filas.length < 1000) break;
+    }
+    reReclamos = todos.map(rePreparar);
+    reCargados = true;
+    return reReclamos;
+  })();
+  try { return await reCargando; } finally { reCargando = null; }
+}
+
+async function reRecargarReclamo(id) {
+  const [fila] = await juFetch("reclamos", { params: { select: RE_SELECT, id: `eq.${id}` } });
+  const r = rePreparar(fila);
+  const idx = reReclamos.findIndex(x => String(x.id) === String(id));
+  if (idx >= 0) reReclamos[idx] = r; else reReclamos.unshift(r);
+  return r;
+}
+
+function reTodosLosIngresos() {
+  return reReclamos.flatMap(r => r.ingresos.map(i => ({ ...i, reclamo: r })));
+}
+
+function reMayus(v) {
+  return String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+}
+
+// ---------------- Eventos ----------------
+
+function reVincularEventos() {
+  reEventos = true;
+  const on = (id, ev, fn) => document.getElementById(id)?.addEventListener(ev, fn);
+  on("re-btn-nuevo", "click", () => requiereAutenticacion(() => reAbrirFicha(null)));
+  on("re-exportar", "click", reExportarListado);
+  on("re-search", "input", () => { rePage = 1; reRenderReclamos(); });
+  ["re-tipo-filter", "re-tema-filter", "re-analista-filter", "re-envia-filter", "re-trimestre-filter"].forEach(id => on(id, "change", () => { rePage = 1; reRenderReclamos(); }));
+  document.querySelectorAll("[data-re-tab]").forEach(btn => btn.addEventListener("click", () => {
+    reTab = btn.dataset.reTab; rePage = 1;
+    document.querySelectorAll("[data-re-tab]").forEach(b => b.classList.toggle("active", b === btn));
+    reRenderReclamos();
+  }));
+  on("re-form", "submit", reGuardar);
+  on("re-eliminar", "click", reEliminar);
+  on("re-editar", "click", () => reSetEditando(true));
+  on("re-cancelar", "click", reCerrarFicha);
+  on("re-reingreso-btn", "click", reAgregarReingreso);
+  on("re-ee", "input", reVerificarEe);
+  on("re-dem-buscar", "input", reRenderBusquedaDemandados);
+  on("re-dem-buscar", "focus", reRenderBusquedaDemandados);
+  on("re-dem-buscar", "keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.querySelector("#re-dem-lista [data-os-id]")?.click(); }
+    if (e.key === "Escape") document.getElementById("re-dem-lista").hidden = true;
+  });
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".ju-combo")) { const l = document.getElementById("re-dem-lista"); if (l) l.hidden = true; }
+  });
+  document.querySelector('#re-modal [data-close-modal="re-modal"]')?.addEventListener("click", () => { reFicha = null; });
+}
+
+// ---------------- Listado ----------------
+
+async function reMostrarReclamos() {
+  if (!reEventos) reVincularEventos();
+  const count = document.getElementById("re-count");
+  if (!reCargados && count) count.textContent = "Cargando reclamos...";
+  try {
+    await Promise.all([reCargarReclamos(), juAsegurarPadron()]);
+    reLlenarFiltros();
+    reRenderReclamos();
+  } catch (error) {
+    if (count) count.textContent = `No se pudieron cargar los reclamos. ${error.message || ""}`;
+    console.error(error);
+  }
+}
+
+function reLlenarFiltros() {
+  const llenar = (id, etiqueta, valores) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const actual = sel.value;
+    sel.innerHTML = `<option value="">${etiqueta}</option>` + valores.map(v => `<option value="${escaparHtml(v.valor)}">${escaparHtml(v.texto)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === actual)) sel.value = actual;
+  };
+  const ingresos = reTodosLosIngresos();
+  const unicos = (lista, campo) => [...new Set(lista.map(x => x[campo]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  const tipos = [...new Set([...RE_TIPOS, ...unicos(reReclamos, "tipo_reclamo")])];
+  const temas = unicos(reReclamos, "tema");
+  const analistas = unicos(ingresos, "analista");
+  llenar("re-tipo-filter", "Tipo: Todos", tipos.map(v => ({ valor: v, texto: v })));
+  llenar("re-tema-filter", "Tema: Todos", temas.map(v => ({ valor: v, texto: v })));
+  llenar("re-analista-filter", "Analista: Todos", analistas.map(v => ({ valor: v, texto: v })));
+  llenar("re-envia-filter", "Área que envía: Todas", [...new Set([...RE_AREAS, ...unicos(ingresos, "area_envia")])].map(v => ({ valor: v, texto: v })));
+  const trimestres = [...new Map(ingresos.filter(i => i.fecha_ingreso).map(i => [juClaveTrimestre(i.fecha_ingreso), juTrimestre(i.fecha_ingreso)])).entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]));
+  llenar("re-trimestre-filter", "Trimestre: Todos", trimestres.map(([valor, texto]) => ({ valor, texto })));
+  const setDl = (id, vals) => { const dl = document.getElementById(id); if (dl) dl.innerHTML = vals.map(v => `<option value="${escaparHtml(v)}"></option>`).join(""); };
+  setDl("re-analistas-datalist", analistas);
+  setDl("re-temas-datalist", temas);
+  setDl("re-areas-datalist", [...new Set([...RE_AREAS, ...unicos(ingresos, "area_envia"), ...unicos(ingresos, "area_salida")])]);
+}
+
+function reFiltrados() {
+  const q = normalizar(document.getElementById("re-search")?.value || "");
+  const qEe = juClaveEe(document.getElementById("re-search")?.value || "");
+  const tipo = document.getElementById("re-tipo-filter")?.value || "";
+  const tema = document.getElementById("re-tema-filter")?.value || "";
+  const analista = document.getElementById("re-analista-filter")?.value || "";
+  const envia = document.getElementById("re-envia-filter")?.value || "";
+  const trimestre = document.getElementById("re-trimestre-filter")?.value || "";
+  return reReclamos.filter(r =>
+    (reTab === "todos" || r.estado === reTab) &&
+    (!tipo || r.tipo_reclamo === tipo) &&
+    (!tema || r.tema === tema) &&
+    (!analista || r.ultimo.analista === analista) &&
+    (!envia || r.ingresos.some(i => i.area_envia === envia)) &&
+    (!trimestre || r.ingresos.some(i => juClaveTrimestre(i.fecha_ingreso) === trimestre)) &&
+    (!q || juClaveEe(r.numero_ee).includes(qEe) || String(r.cuit_beneficiario || "").includes(q.replace(/\D/g, "") || "~") ||
+      [r.tema, r.tipo_reclamo, ...r.ingresos.map(i => i.observaciones), ...r.demandados.flatMap(d => [d.denominacion, d.rnos, d.rnemp])]
+        .some(v => normalizar(v).includes(q)))
+  );
+}
+
+function reRenderReclamos() {
+  const tbody = document.getElementById("re-table-body");
+  if (!tbody) return;
+  const filas = reFiltrados().sort((a, b) => reTab === "Asignado"
+    ? String(a.ultimo.fecha_ingreso || "").localeCompare(String(b.ultimo.fecha_ingreso || ""))
+    : String(b.ultimo.fecha_ingreso || "").localeCompare(String(a.ultimo.fecha_ingreso || "")));
+  const pageInfo = paginarRegistros(filas, rePage);
+  rePage = pageInfo.page;
+  const clase = e => e === "Finalizado" ? "fin" : e === "Devuelto" ? "dev" : "tram";
+  tbody.innerHTML = pageInfo.items.map(r => {
+    const u = r.ultimo;
+    const demandado = juDemandado(r);
+    const tema = [r.tipo_reclamo, r.tema].filter(Boolean).join(" · ");
+    return `<tr class="os-row" data-re-id="${r.id}" tabindex="0" role="button" title="Clic para abrir">
+      <td class="date-cell">${formatearFecha(u.fecha_ingreso)}${r.ingresos.length > 1 ? `<br><span class="ju-tag" title="Ingresó ${r.ingresos.length} veces">Reingreso</span>` : ""}</td>
+      <td class="ju-ee">${escaparHtml(r.numero_ee || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:280px" title="${escaparHtml(demandado)}">${escaparHtml(demandado || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(tema)}">${escaparHtml(tema || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:300px" title="${escaparHtml(u.observaciones || "")}">${escaparHtml(u.observaciones || "—")}</td>
+      <td class="date-cell">${formatearFecha(u.fecha_salida)}</td>
+      <td><span class="ju-estado ${clase(r.estado)}">${escaparHtml(r.estado)}</span></td>
+    </tr>`;
+  }).join("");
+  const count = document.getElementById("re-count");
+  if (count) count.textContent = `${filas.length} reclamo${filas.length === 1 ? "" : "s"}${pageInfo.totalPages > 1 ? ` · Página ${pageInfo.page} de ${pageInfo.totalPages}` : ""}`;
+  document.getElementById("re-empty").hidden = filas.length !== 0;
+  renderPaginacion("re-pagination", pageInfo, page => { rePage = page; reRenderReclamos(); });
+  tbody.querySelectorAll("[data-re-id]").forEach(row => {
+    const abrir = () => requiereAutenticacion(() => reAbrirFicha(row.dataset.reId));
+    row.addEventListener("click", abrir);
+    row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(); } });
+  });
+}
+
+function reExportarListado() {
+  const filas = reFiltrados();
+  const siNo = v => v == null ? "" : v ? "Sí" : "No";
+  const codigos = (r, campo) => r.demandados.map(d => d[campo]).filter(Boolean).join(" / ");
+  const aoa = [["Nº EE", "Demandados", "RNAS", "RNEMP", "Área de reclamo", "Tipo de reclamo", "Tema", "Insumo", "Medicación", "Prestación", "Informe médico", "CUIT beneficiario", "Menor de 18", "Ingresos", "Último ingreso", "Área que envía", "Analista", "Fecha firma", "Fecha salida", "Área de salida", "Fecha notificación", "Estado", "Días de respuesta", "Observaciones"]];
+  filas.forEach(r => {
+    const u = r.ultimo;
+    aoa.push([r.numero_ee || "", r.demandados.map(d => d.denominacion).join(" / "), codigos(r, "rnos"), codigos(r, "rnemp"), r.area_reclamo || "", r.tipo_reclamo || "", r.tema || "",
+      siNo(r.insumo), siNo(r.medicacion), siNo(r.prestacion), siNo(r.informe_medico), r.cuit_beneficiario || "", siNo(r.menor_18), r.ingresos.length,
+      u.fecha_ingreso ? formatearFecha(u.fecha_ingreso) : "", u.area_envia || "", u.analista || "", u.fecha_firma ? formatearFecha(u.fecha_firma) : "",
+      u.fecha_salida ? formatearFecha(u.fecha_salida) : "", u.area_salida || "", u.fecha_notificacion ? formatearFecha(u.fecha_notificacion) : "", r.estado,
+      (u.fecha_salida && u.fecha_ingreso ? juDiasEntre(u.fecha_ingreso, u.fecha_salida) : "") ?? "", u.observaciones || ""]);
+  });
+  const det = [["Nº EE", "Nº de ingreso", "Fecha ingreso", "Área que envía", "Analista", "Fecha firma", "Fecha salida", "Área de salida", "Fecha notificación", "Estado", "Observaciones"]];
+  filas.forEach(r => r.ingresos.forEach((i, n) => det.push([r.numero_ee || "", n + 1, i.fecha_ingreso ? formatearFecha(i.fecha_ingreso) : "", i.area_envia || "", i.analista || "",
+    i.fecha_firma ? formatearFecha(i.fecha_firma) : "", i.fecha_salida ? formatearFecha(i.fecha_salida) : "", i.area_salida || "", i.fecha_notificacion ? formatearFecha(i.fecha_notificacion) : "", i.estado, i.observaciones || ""])));
+  const libro = window.XLSX.utils.book_new();
+  const hoja = window.XLSX.utils.aoa_to_sheet(aoa);
+  hoja["!cols"] = [32, 45, 14, 14, 12, 18, 24, 8, 10, 10, 10, 14, 10, 8, 12, 12, 14, 12, 12, 12, 14, 11, 10, 60].map(wch => ({ wch }));
+  hoja["!autofilter"] = { ref: `A1:X${aoa.length}` };
+  window.XLSX.utils.book_append_sheet(libro, hoja, "Reclamos");
+  const hojaDet = window.XLSX.utils.aoa_to_sheet(det);
+  hojaDet["!cols"] = [32, 8, 12, 12, 14, 12, 12, 12, 14, 11, 60].map(wch => ({ wch }));
+  window.XLSX.utils.book_append_sheet(libro, hojaDet, "Ingresos");
+  window.XLSX.writeFile(libro, `reclamos_${juHoyIso()}.xlsx`);
+}
+
+// ---------------- Ficha ----------------
+
+function reIngresoVacio() {
+  return { id: null, fecha_ingreso: juHoyIso(), area_envia: "", analista: "", fecha_firma: "", fecha_salida: "", area_salida: "", fecha_notificacion: "", observaciones: "", estado: "Asignado" };
+}
+
+async function reAbrirFicha(id, { conReingreso = false } = {}) {
+  await juAsegurarPadron();
+  const r = id ? reReclamos.find(x => String(x.id) === String(id)) : null;
+  document.getElementById("re-form").reset();
+  setFormMessage("re-message");
+  document.getElementById("re-ee-aviso").hidden = true;
+  const set = (campo, valor) => { const el = document.getElementById(campo); if (el) el.value = valor ?? ""; };
+  set("re-ee", r?.numero_ee);
+  set("re-area-reclamo", r?.area_reclamo || (r ? "" : "Cobertura"));
+  set("re-tipo", r?.tipo_reclamo);
+  set("re-tema", r?.tema);
+  set("re-cuit", r?.cuit_beneficiario);
+  set("re-dem-buscar", "");
+  [["re-insumo", "insumo"], ["re-medicacion", "medicacion"], ["re-prestacion", "prestacion"], ["re-informe", "informe_medico"], ["re-menor", "menor_18"]]
+    .forEach(([el, campo]) => { document.getElementById(el).checked = Boolean(r?.[campo]); });
+  const tipoSel = document.getElementById("re-tipo");
+  if (r?.tipo_reclamo && ![...tipoSel.options].some(o => o.value === r.tipo_reclamo)) tipoSel.insertAdjacentHTML("beforeend", `<option>${escaparHtml(r.tipo_reclamo)}</option>`);
+  tipoSel.value = r?.tipo_reclamo || "";
+  reFicha = { id: r?.id || null, nuevo: !r, demandados: [...(r?.demandados || [])], ingresos: r ? r.ingresos.map(i => ({ ...i })) : [reIngresoVacio()] };
+  document.getElementById("re-modal-title").textContent = r ? (r.numero_ee || "Reclamo sin Nº EE") : "Nuevo reclamo";
+  document.getElementById("re-modal-sub").textContent = r
+    ? `${r.ingresos.length === 1 ? "1 ingreso" : `${r.ingresos.length} ingresos`} · ${r.estado}${r.origen === "teams" ? " · importado de Teams" : ""}` : "";
+  const esAdmin = ["administrador", "admin"].includes(normalizarPerfilAcceso(perfilSesionActual()));
+  document.getElementById("re-eliminar").hidden = !(r && esAdmin);
+  reSetEditando(!r);
+  abrirModal("re-modal");
+  if (conReingreso) reAgregarReingreso();
+  else if (!r) setTimeout(() => document.getElementById("re-ee")?.focus(), 0);
+}
+
+function reCerrarFicha() {
+  reFicha = null;
+  cerrarModal("re-modal");
+}
+
+function reSetEditando(editando) {
+  if (!reFicha) return;
+  if (editando) reLeerIngresosDelDom();
+  reFicha.editando = editando;
+  document.getElementById("re-fieldset").disabled = !editando;
+  document.getElementById("re-form").classList.toggle("ju-solo-lectura", !editando);
+  document.getElementById("re-guardar").hidden = !editando;
+  document.getElementById("re-editar").hidden = editando;
+  document.getElementById("re-reingreso-btn").hidden = reFicha.nuevo;
+  document.getElementById("re-cancelar").textContent = editando && !reFicha.nuevo ? "Cancelar" : "Cerrar";
+  document.getElementById("re-dem-buscar").closest(".ju-combo").hidden = !editando;
+  reRenderChips();
+  reRenderIngresos();
+}
+
+function reRenderChips() {
+  const cont = document.getElementById("re-chips");
+  if (!cont || !reFicha) return;
+  cont.innerHTML = reFicha.demandados.map(d => `<span class="ju-chip">
+      <strong>${escaparHtml(d.denominacion)}</strong><small>${escaparHtml(juCodigoDe(d))}</small>
+      ${reFicha.editando ? `<button type="button" data-quitar-os="${d.id}" aria-label="Quitar">×</button>` : ""}
+    </span>`).join("") || `<span class="ju-sin-dato">Sin demandados cargados</span>`;
+  cont.querySelectorAll("[data-quitar-os]").forEach(b => b.addEventListener("click", () => {
+    reFicha.demandados = reFicha.demandados.filter(d => String(d.id) !== b.dataset.quitarOs);
+    reRenderChips();
+  }));
+}
+
+function reRenderBusquedaDemandados() {
+  const input = document.getElementById("re-dem-buscar");
+  const lista = document.getElementById("re-dem-lista");
+  if (!reFicha?.editando) { lista.hidden = true; return; }
+  const q = normalizar(input.value.trim());
+  if (q.length < 2) { lista.innerHTML = `<div class="ju-combo-vacio">Escribí al menos 2 letras o números...</div>`; lista.hidden = false; return; }
+  const ya = new Set(reFicha.demandados.map(d => String(d.id)));
+  const palabras = q.split(/\s+/);
+  const inactiva = o => String(o.estado || "").toUpperCase() === "INACTIVA";
+  const res = juPadron.filter(o => !ya.has(String(o.id)) && palabras.every(p => o._busqueda.includes(p)))
+    .sort((a, b) => inactiva(a) - inactiva(b)).slice(0, 25);
+  lista.innerHTML = res.map(o => `<button type="button" class="ju-combo-item" data-os-id="${o.id}">
+      <span>${escaparHtml(o.denominacion)}</span><small>${escaparHtml(juCodigoDe(o))} · ${o.rnos ? "Obra Social" : "Prepaga"}${inactiva(o) ? " · inactiva" : ""}</small>
+    </button>`).join("") || `<div class="ju-combo-vacio">No hay coincidencias en el padrón.</div>`;
+  lista.hidden = false;
+  lista.querySelectorAll("[data-os-id]").forEach(b => b.addEventListener("click", () => {
+    const os = juPadron.find(o => String(o.id) === b.dataset.osId);
+    if (os) reFicha.demandados.push(os);
+    input.value = "";
+    lista.hidden = true;
+    reRenderChips();
+    input.focus();
+  }));
+}
+
+function reVerificarEe() {
+  const aviso = document.getElementById("re-ee-aviso");
+  if (!reFicha) return null;
+  const clave = juClaveEe(document.getElementById("re-ee").value);
+  const previo = clave ? reReclamos.find(r => juClaveEe(r.numero_ee) === clave && String(r.id) !== String(reFicha.id)) : null;
+  if (!previo) { aviso.hidden = true; return null; }
+  aviso.innerHTML = `Este expediente ya está cargado (último ingreso ${formatearFecha(previo.ultimo.fecha_ingreso)}, ${escaparHtml(previo.estado.toLowerCase())}). No se puede cargar dos veces: si volvió a ingresar, registrá el reingreso en ese mismo reclamo.
+    <button type="button" class="primary small" id="re-ir-reingreso">Abrir y registrar reingreso</button>`;
+  aviso.hidden = false;
+  document.getElementById("re-ir-reingreso").addEventListener("click", () => reAbrirFicha(previo.id, { conReingreso: true }));
+  return previo;
+}
+
+function reLeerIngresosDelDom() {
+  if (!reFicha) return;
+  document.querySelectorAll("[data-re-ing-idx]").forEach(card => {
+    const ing = reFicha.ingresos[Number(card.dataset.reIngIdx)];
+    if (!ing) return;
+    card.querySelectorAll("[data-campo]").forEach(el => { ing[el.dataset.campo] = el.value; });
+  });
+}
+
+function reRenderIngresos() {
+  const cont = document.getElementById("re-ingresos");
+  if (!cont || !reFicha) return;
+  const ed = reFicha.editando;
+  const esAdmin = ["administrador", "admin"].includes(normalizarPerfilAcceso(perfilSesionActual()));
+  const opciones = (lista, valor) => lista.map(v => `<option ${v === valor ? "selected" : ""}>${escaparHtml(v)}</option>`).join("");
+  cont.innerHTML = reFicha.ingresos.map((i, idx) => {
+    const titulo = idx === 0 ? "1º ingreso" : `Reingreso (${idx + 1}º ingreso)`;
+    const dias = i.fecha_salida && i.fecha_ingreso ? juDiasEntre(i.fecha_ingreso, i.fecha_salida) : null;
+    const quitar = ed && idx > 0 && (!i.id || esAdmin) ? `<button type="button" class="ju-link-danger" data-quitar-ing="${idx}">Quitar</button>` : "";
+    return `<div class="ju-ingreso ${idx > 0 ? "es-reingreso" : ""}" data-re-ing-idx="${idx}">
+      <div class="ju-ingreso-cab"><strong>${titulo}</strong><span>${escaparHtml(i.estado)}${dias != null ? ` · ${dias} día${dias === 1 ? "" : "s"} hasta la salida` : ""}</span>${quitar}</div>
+      <div class="ju-ingreso-grid">
+        <label><span>Fecha de ingreso *</span><input type="date" data-campo="fecha_ingreso" value="${escaparHtml(i.fecha_ingreso || "")}"></label>
+        <label><span>Área que envía</span><input data-campo="area_envia" list="re-areas-datalist" value="${escaparHtml(i.area_envia || "")}"></label>
+        <label><span>Analista</span><input data-campo="analista" list="re-analistas-datalist" value="${escaparHtml(i.analista || "")}"></label>
+        <label><span>Estado</span><select data-campo="estado">${opciones(RE_ESTADOS, i.estado)}</select></label>
+        <label><span>Fecha de firma</span><input type="date" data-campo="fecha_firma" value="${escaparHtml(i.fecha_firma || "")}"></label>
+        <label><span>Fecha de salida GCP</span><input type="date" data-campo="fecha_salida" value="${escaparHtml(i.fecha_salida || "")}"></label>
+        <label><span>Área de salida</span><input data-campo="area_salida" list="re-areas-datalist" value="${escaparHtml(i.area_salida || "")}"></label>
+        <label><span>Fecha de notificación</span><input type="date" data-campo="fecha_notificacion" value="${escaparHtml(i.fecha_notificacion || "")}"></label>
+        <label class="ju-ingreso-full"><span>Observaciones</span><textarea data-campo="observaciones" rows="2">${escaparHtml(i.observaciones || "")}</textarea></label>
+      </div>
+    </div>`;
+  }).join("");
+  cont.querySelectorAll("[data-re-ing-idx]").forEach(card => {
+    const salida = card.querySelector('[data-campo="fecha_salida"]');
+    const estado = card.querySelector('[data-campo="estado"]');
+    salida.addEventListener("change", () => { if (salida.value && estado.value === "Asignado") estado.value = "Finalizado"; });
+    estado.addEventListener("change", () => { if (estado.value !== "Asignado" && !salida.value) salida.value = juHoyIso(); });
+  });
+  cont.querySelectorAll("[data-quitar-ing]").forEach(b => b.addEventListener("click", () => {
+    reLeerIngresosDelDom();
+    const idx = Number(b.dataset.quitarIng);
+    const ing = reFicha.ingresos[idx];
+    if (ing.id && !window.confirm("¿Quitar este reingreso? Se borra al guardar.")) return;
+    if (ing.id) (reFicha.borrarIngresos ||= []).push(ing.id);
+    reFicha.ingresos.splice(idx, 1);
+    reRenderIngresos();
+  }));
+}
+
+function reAgregarReingreso() {
+  if (!reFicha) return;
+  if (!reFicha.editando) reSetEditando(true);
+  reLeerIngresosDelDom();
+  const ultimo = reFicha.ingresos[reFicha.ingresos.length - 1];
+  if (ultimo && !ultimo.id) { mostrarToast("Ya hay un reingreso nuevo sin guardar.", "error"); return; }
+  reFicha.ingresos.push({ ...reIngresoVacio(), analista: ultimo?.analista || "", area_envia: ultimo?.area_envia || "" });
+  reRenderIngresos();
+  const cards = document.querySelectorAll("[data-re-ing-idx]");
+  cards[cards.length - 1]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  cards[cards.length - 1]?.querySelector('[data-campo="fecha_ingreso"]')?.focus();
+}
+
+async function reGuardar(event) {
+  event.preventDefault();
+  if (!reFicha?.editando) return;
+  reLeerIngresosDelDom();
+  const val = id => document.getElementById(id)?.value.trim() || "";
+  if (reVerificarEe()) { setFormMessage("re-message", "Ese Nº EE ya está cargado. Abrí el reclamo existente para registrar el reingreso."); return; }
+  if (!val("re-ee")) { setFormMessage("re-message", "El Nº EE es obligatorio."); return; }
+  for (const [n, i] of reFicha.ingresos.entries()) {
+    const nombre = n === 0 ? "el 1º ingreso" : `el ${n + 1}º ingreso`;
+    const esNuevoOCambiado = !i.id || reFicha.editando;
+    if (!i.fecha_ingreso && (!i.id)) { setFormMessage("re-message", `Falta la fecha de ingreso en ${nombre}.`); return; }
+    if (i.fecha_salida && i.fecha_ingreso && i.fecha_salida < i.fecha_ingreso && esNuevoOCambiado) { setFormMessage("re-message", `En ${nombre}, la fecha de salida es anterior a la de ingreso.`); return; }
+    if (n > 0 && i.fecha_ingreso && reFicha.ingresos[n - 1].fecha_ingreso && i.fecha_ingreso < reFicha.ingresos[n - 1].fecha_ingreso) { setFormMessage("re-message", `La fecha de ${nombre} es anterior al ingreso previo.`); return; }
+  }
+  const datos = {
+    numero_ee: val("re-ee"),
+    area_reclamo: val("re-area-reclamo") || null,
+    tipo_reclamo: val("re-tipo") || null,
+    tema: reMayus(val("re-tema")) || null,
+    cuit_beneficiario: val("re-cuit").replace(/\D/g, "") || null,
+    insumo: document.getElementById("re-insumo").checked,
+    medicacion: document.getElementById("re-medicacion").checked,
+    prestacion: document.getElementById("re-prestacion").checked,
+    informe_medico: document.getElementById("re-informe").checked,
+    menor_18: document.getElementById("re-menor").checked
+  };
+  const boton = document.getElementById("re-guardar");
+  boton.disabled = true;
+  try {
+    let id = reFicha.id;
+    if (id) await juFetch("reclamos", { method: "PATCH", params: { id: `eq.${id}` }, body: datos, prefer: "return=minimal" });
+    else { const [fila] = await juFetch("reclamos", { method: "POST", params: { select: "id" }, body: datos, prefer: "return=representation" }); id = fila.id; }
+    const original = new Set((reReclamos.find(r => String(r.id) === String(id))?.demandados || []).map(d => String(d.id)));
+    const actual = new Set(reFicha.demandados.map(d => String(d.id)));
+    const quitar = [...original].filter(x => !actual.has(x));
+    const agregar = [...actual].filter(x => !original.has(x));
+    if (quitar.length) await juFetch("reclamo_demandados", { method: "DELETE", params: { reclamo_id: `eq.${id}`, obra_social_id: `in.(${quitar.join(",")})` } });
+    if (agregar.length) await juFetch("reclamo_demandados", { method: "POST", body: agregar.map(x => ({ reclamo_id: id, obra_social_id: Number(x) })), prefer: "return=minimal" });
+    for (const borrar of reFicha.borrarIngresos || []) await juFetch("reclamo_ingresos", { method: "DELETE", params: { id: `eq.${borrar}` } });
+    for (const i of reFicha.ingresos) {
+      const fila = {
+        fecha_ingreso: i.fecha_ingreso || null, area_envia: reMayus(i.area_envia) || null, analista: (i.analista || "").trim() || null,
+        fecha_firma: i.fecha_firma || null, fecha_salida: i.fecha_salida || null, area_salida: reMayus(i.area_salida) || null,
+        fecha_notificacion: i.fecha_notificacion || null, observaciones: (i.observaciones || "").trim() || null, estado: i.estado || "Asignado"
+      };
+      if (i.id) await juFetch("reclamo_ingresos", { method: "PATCH", params: { id: `eq.${i.id}` }, body: fila, prefer: "return=minimal" });
+      else await juFetch("reclamo_ingresos", { method: "POST", body: { ...fila, reclamo_id: id }, prefer: "return=minimal" });
+    }
+    await reRecargarReclamo(id);
+    mostrarToast(reFicha.nuevo ? "Reclamo cargado." : "Cambios guardados.");
+    reLlenarFiltros();
+    reRenderReclamos();
+    juReporteDatos = null;
+    reAbrirFicha(id);
+  } catch (error) {
+    const msg = String(error.message || "");
+    setFormMessage("re-message", /reclamos_numero_ee_unico|duplicate key/i.test(msg) ? "Ese Nº EE ya está cargado en otro reclamo." : `No se pudo guardar. ${msg}`);
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+async function reEliminar() {
+  const id = reFicha?.id;
+  if (!id || !window.confirm("¿Eliminar este reclamo con todos sus ingresos? No se puede deshacer.")) return;
+  try {
+    await juFetch("reclamos", { method: "DELETE", params: { id: `eq.${id}` } });
+    reReclamos = reReclamos.filter(r => String(r.id) !== String(id));
+    reCerrarFicha();
+    mostrarToast("Reclamo eliminado.");
+    reRenderReclamos();
+  } catch (error) {
+    setFormMessage("re-message", `No se pudo eliminar. ${error.message || ""}`);
+  }
+}
+
+// ---------------- Reportes (Oficios y Reclamos) ----------------
+
+const JU_REP_CONFIG = {
+  oficios: {
+    nombre: "Oficios", singular: "oficio", clase1: "Por motivo", col1: "Motivo", clase2: null, texto: "Carátula", areaSalida: "Por área de salida",
+    async cargar() { await juCargarOficios(); },
+    items() {
+      return juTodosLosIngresos().map(i => ({
+        fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_egreso, estado: i.estado, finalizado: i.estado === "Finalizado", devuelto: false,
+        analista: i.analista, area_salida: i.area_salida, clase1: i.oficio.motivo, clase2: null,
+        numero_ee: i.oficio.numero_ee, texto: i.oficio.caratula, demandados: i.oficio.demandados, esReingreso: i.oficio.ingresos[0]?.id !== i.id
+      }));
+    }
+  },
+  reclamos: {
+    nombre: "Reclamos", singular: "reclamo", clase1: "Por tipo de reclamo", col1: "Tipo", clase2: "Por tema", texto: "Observaciones", areaSalida: "Por área de salida",
+    async cargar() { await reCargarReclamos(); },
+    items() {
+      return reTodosLosIngresos().map(i => ({
+        fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_salida, estado: i.estado, finalizado: i.estado !== "Asignado", devuelto: i.estado === "Devuelto",
+        analista: i.analista, area_salida: i.area_salida, clase1: i.reclamo.tipo_reclamo, clase2: i.reclamo.tema,
+        numero_ee: i.reclamo.numero_ee, texto: i.observaciones, demandados: i.reclamo.demandados, esReingreso: i.reclamo.ingresos[0]?.id !== i.id
+      }));
+    }
+  }
+};
+
+function juRepTipo() {
+  return document.getElementById("ju-rep-tipo")?.value || "oficios";
+}
 
 async function juMostrarReportes() {
-  const desde = document.getElementById("ju-rep-desde");
-  const hasta = document.getElementById("ju-rep-hasta");
+  const cfg = JU_REP_CONFIG[juRepTipo()];
   try {
-    await juCargarOficios();
+    await cfg.cargar();
   } catch (error) {
-    mostrarToast("No se pudieron cargar los oficios.", "error");
+    mostrarToast(`No se pudieron cargar los ${cfg.nombre.toLowerCase()}.`, "error");
     return;
   }
-  if (desde && !desde.value) {
-    const fechas = juTodosLosIngresos().map(i => i.fecha_ingreso).filter(Boolean).sort();
+  const desde = document.getElementById("ju-rep-desde");
+  const hasta = document.getElementById("ju-rep-hasta");
+  if (desde && (!desde.value || desde.dataset.tipo !== juRepTipo())) {
+    const fechas = cfg.items().map(i => i.fecha_ingreso).filter(Boolean).sort();
     desde.value = fechas[0] || "";
     hasta.value = juHoyIso();
+    desde.dataset.tipo = juRepTipo();
   }
-  if (!juReporteDatos) juGenerarReporte();
+  if (!juReporteDatos || juReporteDatos.tipo !== juRepTipo()) juGenerarReporte();
 }
 
 function juAgrupar(lista, claveFn) {
@@ -595,85 +1090,103 @@ function juAgrupar(lista, claveFn) {
 }
 
 function juResumenGrupo(lista) {
-  const fin = lista.filter(o => o.estado === "Finalizado");
+  const fin = lista.filter(o => o.finalizado);
   const dias = fin.map(juDiasRespuesta);
-  return { total: lista.length, finalizados: fin.length, tramite: lista.length - fin.length, mediana: juMediana(dias), promedio: juPromedio(dias) };
+  return { total: lista.length, finalizados: fin.length, tramite: lista.length - fin.length, devueltos: lista.filter(o => o.devuelto).length, mediana: juMediana(dias), promedio: juPromedio(dias) };
 }
 
 function juGenerarReporte() {
+  const tipo = juRepTipo();
+  const cfg = JU_REP_CONFIG[tipo];
   const desde = document.getElementById("ju-rep-desde")?.value || "";
   const hasta = document.getElementById("ju-rep-hasta")?.value || "";
   if (desde && hasta && desde > hasta) { mostrarToast("\"Desde\" tiene que ser anterior a \"Hasta\".", "error"); return; }
-  const lista = juTodosLosIngresos().filter(i => (!desde || i.fecha_ingreso >= desde) && (!hasta || i.fecha_ingreso <= hasta));
-  const reingresos = lista.filter(i => i.oficio.ingresos[0]?.id !== i.id).length;
+  const lista = cfg.items().filter(i => i.fecha_ingreso && (!desde || i.fecha_ingreso >= desde) && (!hasta || i.fecha_ingreso <= hasta));
+  const reingresos = lista.filter(i => i.esReingreso).length;
   const total = juResumenGrupo(lista);
-  const fin = lista.filter(o => o.estado === "Finalizado");
+  const fin = lista.filter(o => o.finalizado);
   const diasFin = fin.map(juDiasRespuesta).filter(d => Number.isFinite(d) && d >= 0);
-  const rangos = [["0 a 2 días", d => d <= 2], ["3 a 5 días", d => d >= 3 && d <= 5], ["6 a 10 días", d => d >= 6 && d <= 10], ["Más de 10 días", d => d > 10]]
-    .map(([etiqueta, fn]) => ({ etiqueta, valor: diasFin.filter(fn).length }));
+  const cortes = tipo === "reclamos"
+    ? [["0 a 7 días", d => d <= 7], ["8 a 15 días", d => d >= 8 && d <= 15], ["16 a 30 días", d => d >= 16 && d <= 30], ["Más de 30 días", d => d > 30]]
+    : [["0 a 2 días", d => d <= 2], ["3 a 5 días", d => d >= 3 && d <= 5], ["6 a 10 días", d => d >= 6 && d <= 10], ["Más de 10 días", d => d > 10]];
+  const rangos = cortes.map(([etiqueta, fn]) => ({ etiqueta, valor: diasFin.filter(fn).length }));
 
   const porTrimestre = [...juAgrupar(lista, o => juClaveTrimestre(o.fecha_ingreso)).entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([k, l]) => ({ etiqueta: juTrimestre(l[0].fecha_ingreso), ...juResumenGrupo(l) }));
   const ordenar = arr => arr.sort((a, b) => b.total - a.total || a.etiqueta.localeCompare(b.etiqueta, "es"));
-  const porMotivo = ordenar([...juAgrupar(lista, o => o.oficio.motivo).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
+  const porClase1 = ordenar([...juAgrupar(lista, o => o.clase1).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
+  const porClase2 = cfg.clase2 ? ordenar([...juAgrupar(lista, o => o.clase2).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) }))).slice(0, 20) : [];
   const porAnalista = ordenar([...juAgrupar(lista, o => o.analista).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
   const porArea = ordenar([...juAgrupar(fin, o => o.area_salida).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
   const demandados = new Map();
-  lista.forEach(o => {
-    new Set((o.oficio.demandados || []).map(d => d.denominacion)).forEach(n => demandados.set(n, (demandados.get(n) || 0) + 1));
-  });
+  lista.forEach(o => new Set((o.demandados || []).map(d => d.denominacion)).forEach(n => demandados.set(n, (demandados.get(n) || 0) + 1)));
   const porDemandado = [...demandados.entries()].map(([etiqueta, total]) => ({ etiqueta, total })).sort((a, b) => b.total - a.total).slice(0, 15);
-  const pendientes = lista.filter(o => o.estado !== "Finalizado").sort((a, b) => String(a.fecha_ingreso).localeCompare(String(b.fecha_ingreso)));
+  const pendientes = lista.filter(o => !o.finalizado).sort((a, b) => String(a.fecha_ingreso).localeCompare(String(b.fecha_ingreso)));
 
-  juReporteDatos = { desde, hasta, reingresos, total, rangos, porTrimestre, porMotivo, porAnalista, porArea, porDemandado, pendientes };
+  juReporteDatos = { tipo, desde, hasta, reingresos, total, rangos, porTrimestre, porClase1, porClase2, porAnalista, porArea, porDemandado, pendientes };
 
   const kpi = (titulo, valor, nota = "") => `<div class="ju-kpi"><span>${titulo}</span><strong>${valor}</strong>${nota ? `<small>${nota}</small>` : ""}</div>`;
+  const pct = n => total.total ? `${Math.round((n / total.total) * 100)}% del total` : "";
   document.getElementById("ju-rep-kpis").innerHTML =
     kpi("Ingresos", total.total, reingresos ? `incluye ${reingresos} reingreso${reingresos === 1 ? "" : "s"}` : "") +
-    kpi("Finalizados", total.finalizados, total.total ? `${Math.round((total.finalizados / total.total) * 100)}% del total` : "") +
-    kpi("En trámite", total.tramite) +
+    (tipo === "reclamos"
+      ? kpi("Finalizados", total.finalizados - total.devueltos, pct(total.finalizados - total.devueltos)) + kpi("Devueltos", total.devueltos, pct(total.devueltos)) + kpi("Asignados", total.tramite, "en trámite")
+      : kpi("Finalizados", total.finalizados, pct(total.finalizados)) + kpi("En trámite", total.tramite)) +
     kpi("Tiempo de respuesta", total.mediana ?? "—", total.mediana != null ? `días (mediana) · promedio ${String(total.promedio).replace(".", ",")}` : "");
-  document.getElementById("ju-rep-titulo").textContent = `Oficios ingresados entre el ${formatearFecha(desde)} y el ${formatearFecha(hasta)}`;
+  document.getElementById("ju-rep-titulo").textContent = `${cfg.nombre} ingresados entre el ${formatearFecha(desde)} y el ${formatearFecha(hasta)}`;
 
-  const tabla = (filas, conTiempo = true) => filas.map(f => `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td><td class="ju-num">${f.finalizados}</td><td class="ju-num">${f.tramite}</td>${conTiempo ? `<td class="ju-num">${f.mediana ?? "—"}</td>` : ""}</tr>`).join("");
+  const tabla = filas => filas.map(f => `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td><td class="ju-num">${f.finalizados}</td><td class="ju-num">${f.tramite}</td><td class="ju-num">${f.mediana ?? "—"}</td></tr>`).join("");
   document.getElementById("ju-rep-trimestre").innerHTML = tabla(porTrimestre);
-  document.getElementById("ju-rep-motivo").innerHTML = tabla(porMotivo);
+  document.getElementById("ju-rep-clase1-titulo").textContent = cfg.clase1;
+  document.getElementById("ju-rep-clase1-col").textContent = cfg.col1;
+  document.getElementById("ju-rep-motivo").innerHTML = tabla(porClase1);
+  document.getElementById("ju-rep-clase2-card").hidden = !cfg.clase2;
+  if (cfg.clase2) document.getElementById("ju-rep-tema").innerHTML = tabla(porClase2);
   document.getElementById("ju-rep-analista").innerHTML = tabla(porAnalista);
   document.getElementById("ju-rep-area").innerHTML = porArea.map(f => `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td><td class="ju-num">${f.mediana ?? "—"}</td></tr>`).join("");
+  document.querySelectorAll("[data-ju-rep-cerrados]").forEach(el => { el.textContent = tipo === "reclamos" ? "Finalizados y devueltos" : "Finalizados"; });
+  document.querySelectorAll("[data-ju-rep-unidad]").forEach(el => { el.textContent = cfg.nombre; });
+  document.getElementById("ju-rep-texto-col").textContent = cfg.texto;
+  document.getElementById("ju-rep-clase1-col2").textContent = cfg.col1;
   renderBarChart("ju-rep-tiempos", rangos);
   document.getElementById("ju-rep-demandados").innerHTML = porDemandado.map((f, i) => `<tr><td class="ju-num">${i + 1}</td><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td></tr>`).join("");
   const hoy = juHoyIso();
   document.getElementById("ju-rep-pendientes-count").textContent = `${pendientes.length} en trámite`;
   document.getElementById("ju-rep-pendientes").innerHTML = pendientes.map(o => {
     const dias = juDiasEntre(o.fecha_ingreso, hoy);
-    return `<tr><td class="date-cell">${formatearFecha(o.fecha_ingreso)}</td><td class="ju-ee">${escaparHtml(o.oficio.numero_ee || "—")}</td><td class="ellipsis-cell" style="max-width:280px" title="${escaparHtml(o.oficio.caratula || "")}">${escaparHtml(o.oficio.caratula || "—")}</td><td>${escaparHtml(o.oficio.motivo || "—")}</td><td>${escaparHtml(o.analista || "—")}</td><td class="ju-num"><span class="ju-dias ${dias > 30 ? "alto" : dias > 10 ? "medio" : ""}">${dias}</span></td></tr>`;
-  }).join("") || `<tr><td colspan="6" style="color:var(--muted)">No hay oficios en trámite en el período.</td></tr>`;
+    return `<tr><td class="date-cell">${formatearFecha(o.fecha_ingreso)}</td><td class="ju-ee">${escaparHtml(o.numero_ee || "—")}</td><td class="ellipsis-cell" style="max-width:280px" title="${escaparHtml(o.texto || "")}">${escaparHtml(o.texto || "—")}</td><td>${escaparHtml(o.clase1 || "—")}</td><td>${escaparHtml(o.analista || "—")}</td><td class="ju-num"><span class="ju-dias ${dias > 30 ? "alto" : dias > 10 ? "medio" : ""}">${dias}</span></td></tr>`;
+  }).join("") || `<tr><td colspan="6" style="color:var(--muted)">No hay ${cfg.nombre.toLowerCase()} en trámite en el período.</td></tr>`;
   document.getElementById("ju-rep-resultado").hidden = false;
 }
 
 function juExportarReporte() {
   const d = juReporteDatos;
   if (!d) return;
+  const cfg = JU_REP_CONFIG[d.tipo];
   const libro = window.XLSX.utils.book_new();
   const hoja = (nombre, aoa, cols) => {
     const h = window.XLSX.utils.aoa_to_sheet(aoa);
     h["!cols"] = cols.map(wch => ({ wch }));
     window.XLSX.utils.book_append_sheet(libro, h, nombre);
   };
-  hoja("Resumen", [
-    [`Oficios ingresados entre el ${formatearFecha(d.desde)} y el ${formatearFecha(d.hasta)}`], [],
-    ["Ingresos", d.total.total], ["Reingresos incluidos", d.reingresos], ["Finalizados", d.total.finalizados], ["En trámite", d.total.tramite],
-    ["Tiempo de respuesta (mediana, días)", d.total.mediana ?? ""], ["Tiempo de respuesta (promedio, días)", d.total.promedio ?? ""], [],
-    ["Tiempo de respuesta", "Oficios"], ...d.rangos.map(r => [r.etiqueta, r.valor])
-  ], [38, 12]);
-  const grupo = (titulo, filas) => [[titulo, "Ingresados", "Finalizados", "En trámite", "Días de respuesta (mediana)"], ...filas.map(f => [f.etiqueta, f.total, f.finalizados, f.tramite, f.mediana ?? ""])];
-  hoja("Por trimestre", grupo("Trimestre", d.porTrimestre), [20, 12, 12, 12, 26]);
-  hoja("Por motivo", grupo("Motivo", d.porMotivo), [24, 12, 12, 12, 26]);
-  hoja("Por analista", grupo("Analista", d.porAnalista), [18, 12, 12, 12, 26]);
-  hoja("Por área de salida", [["Área de salida", "Finalizados", "Días de respuesta (mediana)"], ...d.porArea.map(f => [f.etiqueta, f.total, f.mediana ?? ""])], [18, 12, 26]);
-  hoja("Más demandados", [["#", "Demandado", "Oficios"], ...d.porDemandado.map((f, i) => [i + 1, f.etiqueta, f.total])], [5, 60, 10]);
+  const resumen = [
+    [`${cfg.nombre} ingresados entre el ${formatearFecha(d.desde)} y el ${formatearFecha(d.hasta)}`], [],
+    ["Ingresos", d.total.total], ["Reingresos incluidos", d.reingresos]
+  ];
+  if (d.tipo === "reclamos") resumen.push(["Finalizados", d.total.finalizados - d.total.devueltos], ["Devueltos", d.total.devueltos], ["Asignados (en trámite)", d.total.tramite]);
+  else resumen.push(["Finalizados", d.total.finalizados], ["En trámite", d.total.tramite]);
+  resumen.push(["Tiempo de respuesta (mediana, días)", d.total.mediana ?? ""], ["Tiempo de respuesta (promedio, días)", d.total.promedio ?? ""], [], ["Tiempo de respuesta", cfg.nombre], ...d.rangos.map(r => [r.etiqueta, r.valor]));
+  hoja("Resumen", resumen, [38, 12]);
+  const cerrados = d.tipo === "reclamos" ? "Finalizados y devueltos" : "Finalizados";
+  const grupo = (titulo, filas) => [[titulo, "Ingresados", cerrados, "En trámite", "Días de respuesta (mediana)"], ...filas.map(f => [f.etiqueta, f.total, f.finalizados, f.tramite, f.mediana ?? ""])];
+  hoja("Por trimestre", grupo("Trimestre", d.porTrimestre), [20, 12, 14, 12, 26]);
+  hoja(cfg.clase1, grupo(cfg.col1, d.porClase1), [24, 12, 14, 12, 26]);
+  if (cfg.clase2) hoja(cfg.clase2, grupo("Tema", d.porClase2), [34, 12, 14, 12, 26]);
+  hoja("Por analista", grupo("Analista", d.porAnalista), [18, 12, 14, 12, 26]);
+  hoja("Por área de salida", [["Área de salida", cerrados, "Días de respuesta (mediana)"], ...d.porArea.map(f => [f.etiqueta, f.total, f.mediana ?? ""])], [18, 14, 26]);
+  hoja("Más demandados", [["#", "Demandado", cfg.nombre], ...d.porDemandado.map((f, i) => [i + 1, f.etiqueta, f.total])], [5, 60, 10]);
   const hoy = juHoyIso();
-  hoja("Pendientes", [["Fecha ingreso", "Nº EE", "Carátula", "Motivo", "Analista", "Días en trámite"], ...d.pendientes.map(o => [formatearFecha(o.fecha_ingreso), o.oficio.numero_ee || "", o.oficio.caratula || "", o.oficio.motivo || "", o.analista || "", juDiasEntre(o.fecha_ingreso, hoy)])], [12, 32, 70, 20, 14, 14]);
-  window.XLSX.writeFile(libro, `reporte_oficios_${d.desde}_${d.hasta}.xlsx`);
+  hoja("Pendientes", [["Fecha ingreso", "Nº EE", cfg.texto, cfg.col1, "Analista", "Días en trámite"], ...d.pendientes.map(o => [formatearFecha(o.fecha_ingreso), o.numero_ee || "", o.texto || "", o.clase1 || "", o.analista || "", juDiasEntre(o.fecha_ingreso, hoy)])], [12, 32, 70, 20, 14, 14]);
+  window.XLSX.writeFile(libro, `reporte_${cfg.nombre.toLowerCase()}_${d.desde}_${d.hasta}.xlsx`);
 }

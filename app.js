@@ -24,8 +24,8 @@ const views = {
   criticidad: { title: "Criticidad", subtitle: "Cumplimiento trimestral de PMA/Cartillas por Obra Social" },
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
   "ju-oficios": { title: "Oficios", subtitle: "Oficios judiciales: ingreso, demandados, analista, respuesta y estado" },
-  "ju-reclamos": { title: "Reclamos", subtitle: "Reclamos (en preparación)" },
-  "ju-reportes": { title: "Reportes jurídicos", subtitle: "Indicadores de oficios: ingresos, tiempos de respuesta, motivos, analistas y pendientes" },
+  "ju-reclamos": { title: "Reclamos", subtitle: "Reclamos de beneficiarios: demandados, tipo, tema, analista, salida y estado" },
+  "ju-reportes": { title: "Reportes jurídicos", subtitle: "Indicadores de oficios y reclamos: ingresos, tiempos de respuesta, clasificación, analistas y pendientes" },
   "informe-gestion": { title: "Informe de gestión", subtitle: "Expedientes, disposiciones emitidas y estado actual de PMA o de Cartilla, por ejercicio" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
@@ -366,7 +366,7 @@ const MODULOS_ACCESO = [
 ];
 const VISTAS_CON_ACCESO_PERSONALIZABLE = new Set(MODULOS_ACCESO.flatMap(m => m.vistas.map(v => v[0])));
 // Pantallas donde "Solo mirar" ya bloquea la edición. En las demás, por ahora "Solo mirar" = "Editar".
-const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion", "au-auditorias", "au-plantilla", "au-pendientes", "ju-oficios", "ju-reportes"]);
+const VISTAS_SOLO_MIRAR_LISTAS = new Set(["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion", "au-auditorias", "au-plantilla", "au-pendientes", "ju-oficios", "ju-reclamos", "ju-reportes"]);
 // Pantallas internas que dependen de otra (se abren desde ella).
 const VISTAS_DEPENDIENTES = { "anexo-ii-admin": "cartilla-revision", "anexo-iv-admin": "cartilla-revision" };
 const PERFILES_INTERNOS_NUEVOS = ["coordinador", "analista", "administrativo"];

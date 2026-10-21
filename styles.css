@@ -2338,4 +2338,12 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .ju-solo-lectura select{appearance:none;-webkit-appearance:none}
 .ju-solo-lectura input[type=date]::-webkit-calendar-picker-indicator{display:none}
 @media(max-width:760px){.ju-ingreso-grid{grid-template-columns:1fr 1fr}}
-.ju-solo-lectura ::placeholder{color:transparent}
+.ju-solo-lectura ::placeholder{color:transparent!important;-webkit-text-fill-color:transparent!important}
+/* Jurídico · Reclamos */
+.re-toolbar{grid-template-columns:minmax(260px,1.3fr) repeat(5,minmax(120px,.6fr))}
+@media(max-width:1280px){.re-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}.re-toolbar .search-box{grid-column:1/-1}}
+.ju-estado.dev{background:#fdf0e1;color:#8a5a12}
+.re-checks{display:flex;flex-wrap:wrap;gap:18px}
+.re-menor{align-self:end;padding-bottom:8px}
+.ju-ingreso-full{grid-column:1/-1}
+.ju-ingreso-grid textarea{width:100%;resize:vertical;font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:8px}
