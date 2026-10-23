@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=123">
+  <link rel="stylesheet" href="styles.css?v=124">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -77,6 +77,7 @@
             <button class="nav-subitem" data-view="cartilla-revision" data-nav-access="cartilla-revision" type="button">Cartilla</button>
             <button class="nav-subitem" data-view="afiliados" data-nav-access="afiliados" type="button">Afiliados</button>
             <button class="nav-subitem" data-view="cobertura" data-nav-access="cobertura" type="button">Cobertura</button>
+            <button class="nav-subitem" data-view="cartilla-comparacion" data-nav-access="cartilla-comparacion" type="button">Comparación</button>
             <button class="nav-subitem" data-view="anexo-i" data-nav-access="anexo-i" type="button">Anexo I</button>
             <button class="nav-subitem" data-view="anexo-ii" data-nav-access="anexo-ii" type="button">Anexo II</button>
             <button class="nav-subitem" data-view="prestadores" data-nav-access="prestadores" type="button">Anexo III</button>
@@ -175,7 +176,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 188</span>
+        <span>Versión 189</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -461,7 +462,7 @@
           </div>
           <div class="prestadores-fila-superior-der" id="prestadores-acciones-editar">
             <button class="secondary small" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
-            <button class="secondary small" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla histórica (Excel)</button>
+            <button class="secondary small" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla (Excel)</button>
             <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
             <button class="primary small" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
           </div>
@@ -688,6 +689,43 @@
             </table>
           </div>
           <div class="table-empty" id="cobertura-empty" hidden>Esta Obra Social todavía no tiene afiliados por provincia cargados.</div>
+        </div>
+      </section>
+
+      <section id="cartilla-comparacion" class="view">
+        <div class="toolbar comparacion-toolbar">
+          <div class="search-box transaction-agent-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="comparacion-os-search" type="text" list="comparacion-os-list" placeholder="Elegí la Obra Social..." autocomplete="off">
+            <datalist id="comparacion-os-list"></datalist>
+          </div>
+          <label class="comparacion-ejercicio"><span>Ejercicio</span><select id="comparacion-nuevo" disabled></select></label>
+          <label class="comparacion-ejercicio"><span>Comparado con</span><select id="comparacion-anterior" disabled></select></label>
+          <button class="secondary small" id="btn-export-comparacion" type="button" disabled>Exportar Excel</button>
+        </div>
+
+        <div id="comparacion-resumen" class="deadline-card neutral comparacion-resumen" hidden></div>
+
+        <div class="report-tabs comparacion-tabs" id="comparacion-tabs" hidden>
+          <button class="report-tab active" type="button" data-comparacion-tab="altas">Altas</button>
+          <button class="report-tab" type="button" data-comparacion-tab="bajas">Bajas</button>
+          <button class="report-tab" type="button" data-comparacion-tab="modificados">Modificados</button>
+          <button class="report-tab" type="button" data-comparacion-tab="afiliados">Afiliados por provincia</button>
+          <button class="report-tab" type="button" data-comparacion-tab="cobertura">Cobertura básica</button>
+        </div>
+
+        <div class="table-card">
+          <div class="table-meta">
+            <strong id="comparacion-count">Elegí una Obra Social para comparar su Cartilla entre ejercicios.</strong>
+            <input id="comparacion-buscar" type="search" placeholder="Buscar prestador, CUIT o localidad" hidden>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table comparacion-table">
+              <thead><tr id="comparacion-table-head"></tr></thead>
+              <tbody id="comparacion-table-body"></tbody>
+            </table>
+          </div>
+          <div class="table-empty" id="comparacion-empty" hidden></div>
         </div>
       </section>
 
@@ -3080,7 +3118,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=102"></script>
+  <script src="app.js?v=103"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>

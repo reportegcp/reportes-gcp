@@ -17,6 +17,7 @@ const views = {
   "anexo-iv-config": { title: "Anexo IV · Configuración", subtitle: "Nomenclador de Tipo de prestación y Especialidad que se sugiere al cargar un prestador" },
   "cobertura-config": { title: "Cobertura básica · Configuración", subtitle: "Especialidades básicas obligatorias que se evalúan en el reporte de Cobertura" },
   cobertura: { title: "Cobertura", subtitle: "Especialidades básicas obligatorias cubiertas por provincia con afiliados" },
+  "cartilla-comparacion": { title: "Comparación de Cartilla", subtitle: "Qué cambió en la red de prestadores entre dos ejercicios" },
   afiliados: { title: "Afiliados", subtitle: "Total y distribución geográfica de afiliados por Obra Social" },
   pma: { title: "PMA", subtitle: "Seguimiento de presentaciones" },
   cartillas: { title: "Cartillas", subtitle: "Presentaciones y cumplimiento del plazo de 90 días" },
@@ -282,7 +283,7 @@ function normalizarPerfilAcceso(perfil) {
 
 // Portal de Cartilla para Obras Sociales (perfil "Cartilla OS": Presentar Cartilla,
 // Anexos I a IV, carga de Afiliados y Prestadores). Suspendido por ahora: la Cartilla la
-// carga la Superintendencia con "Importar Cartilla histórica (Excel)" y la analiza desde
+// carga la Superintendencia con "Importar Cartilla (Excel)" y la analiza desde
 // Análisis de Cartilla. El código y los datos quedan; para reactivarlo, poner true.
 const PORTAL_OBRA_SOCIAL_HABILITADO = false;
 
@@ -311,7 +312,7 @@ function perfilPuedeVerVista(perfil, vista) {
   // Anexo I · Edición, Anexo IV (config del nomenclador) y Cobertura básica son configuración
   // de la coordinación (usuario Administrador/Admin Prestacional): el perfil "admin presentaciones"
   // (auditor) consulta y presenta, pero no configura.
-  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
+  if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-comparacion", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
   if (p === "cartilla os") return PORTAL_OBRA_SOCIAL_HABILITADO && ["cartilla-hub", "prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
@@ -361,7 +362,7 @@ const MODULOS_ACCESO = [
   { nombre: "Inicio", vistas: [["inicio", "Inicio (estadísticas)"]] },
   { nombre: "Agentes de Seguro", vistas: [["obras-sociales", "Agentes de Seguro"]] },
   { nombre: "Configuración Cartilla", vistas: [["anexo-i-admin", "Anexo I · Edición"], ["anexo-iv-config", "Anexo IV"], ["cobertura-config", "Cobertura básica"]] },
-  { nombre: "Análisis de Cartilla", vistas: [["cartilla-revision", "Cartilla"], ["afiliados", "Afiliados"], ["cobertura", "Cobertura"], ["prestadores", "Anexo III"]] },
+  { nombre: "Análisis de Cartilla", vistas: [["cartilla-revision", "Cartilla"], ["afiliados", "Afiliados"], ["cobertura", "Cobertura"], ["cartilla-comparacion", "Comparación"], ["prestadores", "Anexo III"]] },
   { nombre: "Presentaciones", vistas: [["pma", "PMA"], ["cartillas", "Cartillas"], ["reportes", "Reportes"]] },
   { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"], ["informe-gestion", "Informe de gestión"]] },
   { nombre: "Urgencias Prestacionales", vistas: [["up-expedientes", "Expedientes"], ["up-drogas", "Catálogo de drogas"], ["up-patologias", "Patologías"], ["up-plantillas", "Plantillas"], ["up-reportes", "Reportes"]] },
@@ -405,7 +406,7 @@ function accesoPorDefectoPerfil(perfil, vista) {
   if (vista === "inicio" || vista === "prototipo") return esAP;
   if (vista === "obras-sociales") return esAP || esAPres || esAdmvo;
   if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(vista)) return esAP;
-  if (["cartilla-revision", "cobertura", "afiliados", "prestadores"].includes(vista)) return esAP || esAPres;
+  if (["cartilla-revision", "cobertura", "cartilla-comparacion", "afiliados", "prestadores"].includes(vista)) return esAP || esAPres;
   if (["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(vista)) return esAP || esAPres || esCarga || esAdmvo;
   if (vista === "px-preexistencias" || vista === "px-emp") return esAPx;
   if (vista.startsWith("au-")) return esAP;
@@ -420,7 +421,7 @@ function accesosSugeridosPerfil(perfil) {
   if (p === "coordinador") {
     VISTAS_CON_ACCESO_PERSONALIZABLE.forEach(v => { out[v] = "editar"; });
   } else if (p === "analista") {
-    ["cartilla-revision", "afiliados", "cobertura", "prestadores", "pma", "cartillas", "reportes", "au-auditorias", "au-plantilla", "au-pendientes"].forEach(v => { out[v] = "editar"; });
+    ["cartilla-revision", "afiliados", "cobertura", "cartilla-comparacion", "prestadores", "pma", "cartillas", "reportes", "au-auditorias", "au-plantilla", "au-pendientes"].forEach(v => { out[v] = "editar"; });
     ["obras-sociales", "criticidad", "metas-fisicas", "informe-gestion"].forEach(v => { out[v] = "ver"; });
   } else if (p === "administrativo") {
     ["pma", "cartillas", "reportes"].forEach(v => { out[v] = "editar"; });
@@ -506,14 +507,15 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
   document.querySelector('[data-nav-access="cartilla-hub"]')?.toggleAttribute("hidden", !esCartillaOs);
   // "Prestadores" (Red actual): la propia Obra Social la edita en vivo; Admin Prestacional/
-  // Admin Presentaciones entran para auditar cualquier OS y para "Importar Cartilla histórica"
-  // (la carga inicial única de una OS nueva).
+  // Admin Presentaciones entran para auditar cualquier OS y para "Importar Cartilla (Excel)"
+  // (una vez por ejercicio: guarda la foto y actualiza la red).
   document.querySelector('[data-nav-access="prestadores"]')?.toggleAttribute("hidden", !(esCartillaOs || esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="cartilla-revision"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   document.querySelector('[data-nav-access="anexo-i"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="anexo-ii"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="anexo-iv"]')?.toggleAttribute("hidden", !esCartillaOs);
   document.querySelector('[data-nav-access="cobertura"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
+  document.querySelector('[data-nav-access="cartilla-comparacion"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones));
   // Configuración Cartilla es exclusiva de la coordinación (Administrador/Admin Prestacional):
   // el auditor ("admin presentaciones") consulta pero no configura.
   document.querySelector('[data-nav-access="anexo-i-admin"]')?.toggleAttribute("hidden", !esAdminPrestacional);
@@ -4744,7 +4746,7 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas", "informe-gestion"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["afiliados", "prestadores", "cobertura", "cartilla-comparacion", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias") ||
@@ -4759,7 +4761,7 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas", "informe-gestion"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved)) {
+  if (["afiliados", "prestadores", "cobertura", "cartilla-comparacion", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
   if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved)) {
@@ -4793,7 +4795,7 @@ function showView(id, updateHistory = true) {
     if (copy) copy.hidden = false;
     if (title) title.textContent = meta.title;
     if (subtitle) subtitle.textContent = meta.subtitle;
-    if (!["prestadores", "afiliados", "cobertura", "anexo-i", "cartilla-hub", "cartilla-revision"].includes(resolved)) mostrarOsActualEnCabecera(null);
+    if (!["prestadores", "afiliados", "cobertura", "cartilla-comparacion", "anexo-i", "cartilla-hub", "cartilla-revision"].includes(resolved)) mostrarOsActualEnCabecera(null);
     const helpContent = document.getElementById("section-help-content");
     const help = document.getElementById("section-help");
     if (helpContent) helpContent.innerHTML = manualesSeccion[resolved] || "";
@@ -4823,6 +4825,7 @@ function showView(id, updateHistory = true) {
   if (resolved === "anexo-iv-config") inicializarVistaAnexoIVConfig();
   if (resolved === "cobertura-config") inicializarVistaCoberturaConfig();
   if (resolved === "cobertura") inicializarVistaCobertura();
+  if (resolved === "cartilla-comparacion") inicializarVistaComparacion();
   if (resolved === "afiliados") inicializarVistaAfiliados();
   if (resolved === "up-patologias" && !patologiasCargadas) cargarYRenderizarPatologias();
   if (resolved === "up-drogas" && !drogasCargadas) cargarYRenderizarDrogas();
@@ -8030,7 +8033,7 @@ function renderGruposEspecialidadesModal() {
   });
 }
 
-// ---------- Importador de Cartilla histórica (Excel Carátula + Anexo III) ----------
+// ---------- Importador de Cartilla (Excel Carátula + Anexo III) ----------
 
 const PROVINCIAS_CANONICAS = {
   "buenos aires": "Buenos Aires", "caba": "Ciudad Autónoma de Buenos Aires",
@@ -8177,104 +8180,137 @@ async function manejarArchivoImportarCartilla(file) {
   }
 }
 
+async function cargarPresentacionesCartillaOs(obraSocialId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "id,ejercicio,anio_inicio,fecha_ingreso", obra_social_id: `eq.${obraSocialId}`, order: "anio_inicio.desc" });
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+async function cargarCartillasConFoto() {
+  const session = await asegurarSesionVigente();
+  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/rpc/cartillas_con_foto?apikey=${SUPABASE_PUBLISHABLE_KEY}`, {
+    method: "POST", headers: { ...authHeaders(session.access_token), "Content-Type": "application/json" }, body: "{}", cache: "no-store"
+  }, 15000, fetch);
+  if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+  return response.json();
+}
+
+// Elige la presentación que corresponde al "Período de vigencia" de la Carátula.
+function presentacionSugeridaImportacion(presentaciones, anioCaratula) {
+  const anios = String(anioCaratula || "").match(/\d{4}/g)?.map(Number) || [];
+  for (const a of anios) {
+    const p = presentaciones.find(x => Number(x.anio_inicio) === a) || presentaciones.find(x => String(x.ejercicio || "").startsWith(String(a)));
+    if (p) return p;
+  }
+  return presentaciones[0] || null;
+}
+
 async function renderPreviewImportarCartilla() {
   const { caratula, prestadores, os, matcheo } = importarCartillaEstado;
   const resumen = document.getElementById("importar-cartilla-resumen");
   const avisos = document.getElementById("importar-cartilla-avisos");
   const totalAfiliados = Object.values(caratula.afiliadosPorProvincia).reduce((a, b) => a + b, 0);
+
+  let presentaciones = [];
+  let conFoto = new Set();
+  if (os) {
+    try {
+      presentaciones = await cargarPresentacionesCartillaOs(os.id);
+      conFoto = new Set((await cargarCartillasConFoto()).filter(c => Number(c.obra_social_id) === Number(os.id)).map(c => Number(c.cartilla_id)));
+    } catch (error) { console.error(error); }
+  }
+  importarCartillaEstado.presentaciones = presentaciones;
+  importarCartillaEstado.conFoto = conFoto;
+  const sugerida = presentacionSugeridaImportacion(presentaciones, caratula.anio);
+
   resumen.innerHTML = `
     <div class="deadline-card neutral">
       <div><span>Obra Social (por RNAS ${escaparHtml(caratula.rnas)})</span><strong>${os ? escaparHtml(getObraSocialDisplay(os)) : "⚠️ No encontrada en el sistema"}</strong></div>
-      <div><span>Período</span><strong>${escaparHtml(String(caratula.anio || "—"))}</strong></div>
-      <div><span>Prestadores a importar</span><strong>${prestadores.length}</strong></div>
-      <div><span>Especialidades matcheadas</span><strong>${matcheo.paresOk} / ${matcheo.paresTotal}</strong></div>
+      <div><span>Período de vigencia (Carátula)</span><strong>${escaparHtml(String(caratula.anio || "—"))}</strong></div>
+      <div><span>Sedes de prestadores</span><strong>${prestadores.length}</strong></div>
+      <div><span>Especialidades reconocidas</span><strong>${matcheo.paresOk} / ${matcheo.paresTotal}</strong></div>
       <div><span>Beneficiarios (Carátula)</span><strong>${caratula.totalBeneficiarios ?? "—"}</strong></div>
       <div><span>Suma por provincia</span><strong>${totalAfiliados}${caratula.totalBeneficiarios && totalAfiliados !== caratula.totalBeneficiarios ? " ⚠️ no coincide" : ""}</strong></div>
-    </div>`;
+    </div>
+    ${presentaciones.length ? `
+    <label class="importar-cartilla-presentacion" style="display:flex;flex-direction:column;gap:4px;margin:14px 0 4px;max-width:420px">
+      <span>Presentación a la que corresponde este Excel</span>
+      <select id="importar-cartilla-presentacion">
+        ${presentaciones.map(pr => `<option value="${pr.id}" ${sugerida && pr.id === sugerida.id ? "selected" : ""}>Ejercicio ${escaparHtml(pr.ejercicio || String(pr.anio_inicio))}${pr.fecha_ingreso ? ` · ingresó ${escaparHtml(formatearFecha(pr.fecha_ingreso))}` : ""}${conFoto.has(Number(pr.id)) ? " · ya tiene foto cargada" : ""}</option>`).join("")}
+      </select>
+    </label>` : ""}`;
+
+  document.getElementById("importar-cartilla-presentacion")?.addEventListener("change", renderAvisosImportarCartilla);
+  renderAvisosImportarCartilla();
+}
+
+function renderAvisosImportarCartilla() {
+  const { caratula, os, matcheo, presentaciones = [], conFoto = new Set() } = importarCartillaEstado;
+  const avisos = document.getElementById("importar-cartilla-avisos");
+  const cartillaId = Number(document.getElementById("importar-cartilla-presentacion")?.value || 0);
+  const elegida = presentaciones.find(p => Number(p.id) === cartillaId);
   let avisosHtml = "";
-  if (!os) avisosHtml += `<p class="notificaciones-hint">⚠️ No encontré ninguna Obra Social con RNAS ${escaparHtml(caratula.rnas)} en el sistema — no se puede importar hasta que exista.</p>`;
-  let yaTienePrestadores = false;
-  if (os) {
-    try {
-      const session = await asegurarSesionVigente();
-      const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "id", obra_social_id: `eq.${os.id}`, limit: "1" });
-      const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/prestadores?${params.toString()}`, { headers: authHeaders(session.access_token) }, 10000, fetch);
-      if (response.ok) { const filas = await response.json(); yaTienePrestadores = filas.length > 0; }
-    } catch (error) { console.error(error); }
-  }
-  if (yaTienePrestadores) {
-    avisosHtml += `<p class="notificaciones-hint">⚠️ Esta Obra Social ya tiene prestadores cargados en el sistema. Esta herramienta es para la carga inicial única — si volvés a importar, se van a <b>duplicar</b>. Si es un reemplazo intencional, borrá los prestadores existentes antes de confirmar.</p>`;
+  if (!os) avisosHtml += `<p class="notificaciones-hint">⚠️ No encontré ninguna Obra Social con RNAS ${escaparHtml(caratula.rnas)} en Agentes de Seguro. Dala de alta antes de importar.</p>`;
+  else if (!presentaciones.length) avisosHtml += `<p class="notificaciones-hint">⚠️ Esta Obra Social no tiene presentaciones cargadas en Presentaciones → Cartillas. Cargá primero la presentación del ejercicio y después importá el Excel.</p>`;
+  if (elegida) {
+    if (conFoto.has(cartillaId)) avisosHtml += `<p class="notificaciones-hint">⚠️ El ejercicio ${escaparHtml(elegida.ejercicio || "")} ya tiene una foto cargada. Si confirmás, se <b>reemplaza</b> por la de este Excel.</p>`;
+    const hayPosterior = presentaciones.some(p => conFoto.has(Number(p.id)) && Number(p.anio_inicio) > Number(elegida.anio_inicio));
+    avisosHtml += hayPosterior
+      ? `<p class="notificaciones-hint">Este Excel es de un ejercicio anterior al último cargado: se guarda solo como foto de ${escaparHtml(elegida.ejercicio || "")} y la red actual no cambia.</p>`
+      : `<p class="notificaciones-hint">Se guarda la foto del ejercicio ${escaparHtml(elegida.ejercicio || "")} y la red actual de la Obra Social pasa a ser la de este Excel. Las fotos de otros ejercicios no se tocan.</p>`;
   }
   if (matcheo.sinMatch.size) {
-    avisosHtml += `<p class="notificaciones-hint">Quedaron afuera ${[...matcheo.sinMatch.values()].reduce((a, b) => a + b, 0)} filas por combinaciones de Tipo/Especialidad que no matchean con el sistema:</p><ul style="font-size:12px;color:var(--muted);margin:4px 0 0 18px">${[...matcheo.sinMatch.entries()].map(([k, v]) => `<li>${escaparHtml(k)} (${v})</li>`).join("")}</ul>`;
+    avisosHtml += `<p class="notificaciones-hint">Quedaron afuera ${[...matcheo.sinMatch.values()].reduce((a, b) => a + b, 0)} filas por combinaciones de Tipo/Especialidad que no coinciden con las del sistema:</p><ul style="font-size:12px;color:var(--muted);margin:4px 0 0 18px">${[...matcheo.sinMatch.entries()].map(([k, v]) => `<li>${escaparHtml(k)} (${v})</li>`).join("")}</ul>`;
   }
   avisos.innerHTML = avisosHtml;
   const confirmar = document.getElementById("importar-cartilla-confirmar");
-  if (confirmar) confirmar.disabled = !os || yaTienePrestadores;
+  if (confirmar) confirmar.disabled = !os || !elegida;
+}
+
+// "Tipo: esp1, esp2; Tipo2: esp3", el mismo formato que usa la foto de la presentación.
+function textoTiposYEspecialidades(especialidadIds) {
+  const porTipo = new Map();
+  (especialidadIds || []).forEach(id => {
+    const e = especialidadesPrestadorCache.find(x => x.id === id);
+    if (!e) return;
+    const tipo = tiposPrestadorCache.find(t => t.id === e.tipo_prestador_id);
+    const clave = tipo?.nombre || "Otros";
+    if (!porTipo.has(clave)) porTipo.set(clave, { orden: tipo?.orden ?? 99, nombres: [] });
+    porTipo.get(clave).nombres.push(e.nombre);
+  });
+  return [...porTipo.entries()].sort((a, b) => a[1].orden - b[1].orden).map(([t, v]) => `${t}: ${v.nombres.join(", ")}`).join("; ");
 }
 
 async function confirmarImportarCartilla() {
-  const { caratula, prestadores, os } = importarCartillaEstado;
-  if (!os) return;
+  const { caratula, prestadores, os, presentaciones = [] } = importarCartillaEstado;
+  const cartillaId = Number(document.getElementById("importar-cartilla-presentacion")?.value || 0);
+  const elegida = presentaciones.find(p => Number(p.id) === cartillaId);
+  if (!os || !elegida) return;
   const boton = document.getElementById("importar-cartilla-confirmar");
   boton.disabled = true; boton.textContent = "Importando...";
   setFormMessage("importar-cartilla-message", "");
   try {
     const session = await asegurarSesionVigente();
-    const headers = { ...authHeaders(session.access_token), Prefer: "return=representation" };
-
-    const idPorClave = new Map();
-    const BATCH = 200;
-    for (let i = 0; i < prestadores.length; i += BATCH) {
-      const lote = prestadores.slice(i, i + BATCH);
-      const payload = lote.map(p => ({
-        obra_social_id: os.id, nombre_completo: p.nombre.slice(0, 300), cuit: p.cuit,
-        adulto_pediatrico: p.adultoPediatrico, telefono: p.telefono, email: p.email,
+    const body = {
+      p_cartilla_id: cartillaId,
+      p_prestadores: prestadores.map(p => ({
+        nombre_completo: p.nombre, cuit: p.cuit, adulto_pediatrico: p.adultoPediatrico, telefono: p.telefono, email: p.email,
         provincia: p.provincia, partido: p.partido, localidad: p.localidad, domicilio: p.domicilio,
-        contrato_presentado: false, activo: true
-      }));
-      const response = await fetchConTimeout(buildPrestadorWriteUrl(), { method: "POST", headers, body: JSON.stringify(payload) }, 20000, fetch);
-      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
-      const filas = await response.json();
-      lote.forEach((p, idx) => idPorClave.set(claveUnicaPrestadorImportacion(p.nombre, p.provincia, p.localidad, p.domicilio), filas[idx].id));
-    }
-
-    const vinculos = [];
-    prestadores.forEach(p => {
-      const prestadorId = idPorClave.get(claveUnicaPrestadorImportacion(p.nombre, p.provincia, p.localidad, p.domicilio));
-      (p.especialidadIds || []).forEach(eid => vinculos.push({ prestador_id: prestadorId, especialidad_id: eid }));
-    });
-    for (let i = 0; i < vinculos.length; i += 500) {
-      const lote = vinculos.slice(i, i + 500);
-      const response = await fetchConTimeout(buildPrestadorEspecialidadesUrl(), {
-        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" }, body: JSON.stringify(lote)
-      }, 20000, fetch);
-      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
-    }
-
-    const filasAfiliados = Object.entries(caratula.afiliadosPorProvincia).map(([provincia, cantidad]) => ({
-      obra_social_id: os.id, provincia, cantidad_beneficiarios: cantidad, actualizado_en: new Date().toISOString()
-    }));
-    if (filasAfiliados.length) {
-      const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, on_conflict: "obra_social_id,provincia" });
-      const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_provincia?${params.toString()}`, {
-        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify(filasAfiliados)
-      }, 20000, fetch);
-      if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
-    }
-
-    if (caratula.totalBeneficiarios != null) {
-      const paramsTotal = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, on_conflict: "obra_social_id" });
-      const responseTotal = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/afiliados_total?${paramsTotal.toString()}`, {
-        method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify([{ obra_social_id: os.id, total_declarado: caratula.totalBeneficiarios, actualizado_en: new Date().toISOString() }])
-      }, 20000, fetch);
-      if (!responseTotal.ok) throw new Error(await leerErrorApi(responseTotal) || `Supabase respondió ${responseTotal.status}`);
-    }
+        especialidad_ids: p.especialidadIds || [], tipos_y_especialidades: textoTiposYEspecialidades(p.especialidadIds)
+      })),
+      p_afiliados: Object.entries(caratula.afiliadosPorProvincia).map(([provincia, cantidad]) => ({ provincia, cantidad })),
+      p_total: caratula.totalBeneficiarios ?? null
+    };
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/rpc/importar_cartilla_excel?apikey=${SUPABASE_PUBLISHABLE_KEY}`, {
+      method: "POST", headers: { ...authHeaders(session.access_token), "Content-Type": "application/json" }, body: JSON.stringify(body)
+    }, 120000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    const resultado = await response.json();
 
     cerrarModal("importar-cartilla-modal");
-    mostrarToast(`Se importaron ${prestadores.length} prestadores de ${getObraSocialDisplay(os)}.`);
+    mostrarToast(`Cartilla ${elegida.ejercicio || ""} de ${getObraSocialDisplay(os)} importada: ${resultado.prestadores} sedes.${resultado.red_actualizada ? "" : " La red actual no cambió (ejercicio anterior)."}`);
     document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
     await handleSeleccionObraSocialPrestadores();
   } catch (error) {
@@ -8282,6 +8318,341 @@ async function confirmarImportarCartilla() {
   } finally {
     boton.disabled = false; boton.textContent = "Confirmar importación";
   }
+}
+
+// ---------- Comparación de Cartilla entre ejercicios ----------
+// Compara la foto de dos presentaciones (la que se guarda al importar el Excel de cada
+// ejercicio). Un prestador es "el mismo" si coincide el CUIT (o el nombre, si no tiene CUIT)
+// en la misma provincia y localidad; un CUIT puede tener varias sedes en la localidad.
+
+const comparacionEstado = { fotos: [], os: null, resultado: null, tab: "altas", nombres: { nuevo: "", anterior: "" } };
+
+const fmtNum = n => Number(n || 0).toLocaleString("es-AR");
+
+async function inicializarVistaComparacion() {
+  if (typeof document === "undefined") return;
+  try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
+  if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  try {
+    comparacionEstado.fotos = await cargarCartillasConFoto();
+  } catch (error) {
+    console.error(error);
+    comparacionEstado.fotos = [];
+  }
+  const ids = new Set(comparacionEstado.fotos.map(f => Number(f.obra_social_id)));
+  const list = document.getElementById("comparacion-os-list");
+  if (list) list.innerHTML = obrasSociales
+    .filter(os => ids.has(Number(os.id)))
+    .sort((a, b) => (a.rnos || "").localeCompare(b.rnos || "", undefined, { numeric: true }))
+    .map(os => `<option value="${escaparHtml(getObraSocialDisplay(os))}"></option>`).join("");
+  const input = document.getElementById("comparacion-os-search");
+  if (input) input.placeholder = ids.size
+    ? `Elegí entre las ${ids.size} Obras Sociales con Cartilla importada...`
+    : "Todavía no hay Cartillas importadas";
+  await handleSeleccionOsComparacion();
+}
+
+function limpiarComparacion(mensaje) {
+  comparacionEstado.resultado = null;
+  document.getElementById("comparacion-resumen").hidden = true;
+  document.getElementById("comparacion-tabs").hidden = true;
+  document.getElementById("comparacion-buscar").hidden = true;
+  document.getElementById("btn-export-comparacion").disabled = true;
+  document.getElementById("comparacion-table-head").innerHTML = "";
+  document.getElementById("comparacion-table-body").innerHTML = "";
+  document.getElementById("comparacion-empty").hidden = true;
+  document.getElementById("comparacion-count").textContent = mensaje;
+}
+
+function etiquetaFoto(f) {
+  return f ? `${f.ejercicio || f.anio_inicio}` : "";
+}
+
+async function handleSeleccionOsComparacion() {
+  const os = resolverObraSocialCartilla(document.getElementById("comparacion-os-search")?.value || "");
+  comparacionEstado.os = os;
+  mostrarOsActualEnCabecera(os);
+  const selNuevo = document.getElementById("comparacion-nuevo");
+  const selAnterior = document.getElementById("comparacion-anterior");
+  if (!os) {
+    selNuevo.innerHTML = ""; selAnterior.innerHTML = "";
+    selNuevo.disabled = true; selAnterior.disabled = true;
+    limpiarComparacion("Elegí una Obra Social para comparar su Cartilla entre ejercicios.");
+    return;
+  }
+  const fotos = comparacionEstado.fotos.filter(f => Number(f.obra_social_id) === Number(os.id)).sort((a, b) => b.anio_inicio - a.anio_inicio);
+  selNuevo.innerHTML = fotos.map(f => `<option value="${f.cartilla_id}">${escaparHtml(etiquetaFoto(f))}</option>`).join("");
+  selNuevo.disabled = fotos.length < 2;
+  if (fotos.length < 2) {
+    selAnterior.innerHTML = ""; selAnterior.disabled = true;
+    limpiarComparacion(fotos.length
+      ? `Esta Obra Social tiene una sola Cartilla importada (ejercicio ${etiquetaFoto(fotos[0])}). Importá el Excel de otro ejercicio desde Anexo III para poder comparar.`
+      : "Esta Obra Social no tiene Cartillas importadas.");
+    return;
+  }
+  poblarSelectAnteriorComparacion();
+  await calcularYRenderComparacion();
+}
+
+function poblarSelectAnteriorComparacion() {
+  const os = comparacionEstado.os;
+  const selNuevo = document.getElementById("comparacion-nuevo");
+  const selAnterior = document.getElementById("comparacion-anterior");
+  const fotos = comparacionEstado.fotos.filter(f => Number(f.obra_social_id) === Number(os.id)).sort((a, b) => b.anio_inicio - a.anio_inicio);
+  const nuevo = fotos.find(f => Number(f.cartilla_id) === Number(selNuevo.value));
+  const anteriores = fotos.filter(f => Number(f.cartilla_id) !== Number(nuevo?.cartilla_id));
+  const previos = anteriores.filter(f => f.anio_inicio < nuevo.anio_inicio);
+  const sugerido = previos[0] || anteriores[0];
+  selAnterior.innerHTML = anteriores.map(f => `<option value="${f.cartilla_id}" ${f === sugerido ? "selected" : ""}>${escaparHtml(etiquetaFoto(f))}</option>`).join("");
+  selAnterior.disabled = false;
+}
+
+async function cargarFotoCartilla(cartillaId) {
+  const session = await asegurarSesionVigente();
+  const headers = authHeaders(session.access_token);
+  const sedes = [];
+  for (let offset = 0; ; offset += 1000) {
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "nombre_completo,cuit,provincia,partido,localidad,domicilio,activo,especialidad_ids,tipos_y_especialidades", cartilla_id: `eq.${cartillaId}`, order: "id", limit: "1000", offset: String(offset) });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { headers, cache: "no-store" }, 20000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    const lote = await response.json();
+    sedes.push(...lote);
+    if (lote.length < 1000) break;
+  }
+  const paramsProv = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "provincia,cantidad_beneficiarios", cartilla_id: `eq.${cartillaId}` });
+  const paramsTotal = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "total_declarado", cartilla_id: `eq.${cartillaId}` });
+  const [rProv, rTotal] = await Promise.all([
+    fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_provincia_snapshot?${paramsProv.toString()}`, { headers, cache: "no-store" }, 10000, fetch),
+    fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_afiliados_total_snapshot?${paramsTotal.toString()}`, { headers, cache: "no-store" }, 10000, fetch)
+  ]);
+  const afiliados = rProv.ok ? await rProv.json() : [];
+  const total = rTotal.ok ? (await rTotal.json())[0]?.total_declarado ?? null : null;
+  return { sedes: sedes.filter(s => s.activo !== false), afiliados, total };
+}
+
+function nombreEspecialidadComparacion(id) {
+  const e = especialidadesPrestadorCache.find(x => x.id === id);
+  if (!e) return "Especialidad dada de baja";
+  const tipo = tiposPrestadorCache.find(t => t.id === e.tipo_prestador_id);
+  return tipo ? `${e.nombre} (${tipo.nombre})` : e.nombre;
+}
+
+function agruparSedesComparacion(sedes) {
+  const grupos = new Map();
+  sedes.forEach(s => {
+    const cuit = String(s.cuit || "").replace(/\D/g, "");
+    const clave = `${cuit || "N:" + normalizarTexto(s.nombre_completo)}|${normalizarTexto(s.provincia)}|${normalizarTexto(s.localidad)}`;
+    if (!grupos.has(clave)) grupos.set(clave, { clave, nombre: s.nombre_completo || "", cuit: s.cuit || "", provincia: s.provincia || "", localidad: s.localidad || "", domicilios: new Map(), esp: new Set(), sedes: 0 });
+    const g = grupos.get(clave);
+    g.sedes++;
+    if (s.domicilio) g.domicilios.set(normalizarTexto(s.domicilio), s.domicilio);
+    (s.especialidad_ids || []).forEach(id => g.esp.add(id));
+  });
+  return grupos;
+}
+
+function cubiertasPorProvinciaComparacion(sedes, basicasIds) {
+  const out = new Map();
+  sedes.forEach(s => {
+    const prov = normalizarTexto(s.provincia);
+    if (!prov) return;
+    if (!out.has(prov)) out.set(prov, new Set());
+    (s.especialidad_ids || []).forEach(id => { if (basicasIds.has(id)) out.get(prov).add(id); });
+  });
+  return out;
+}
+
+function calcularComparacionCartilla(ant, nue) {
+  const gA = agruparSedesComparacion(ant.sedes);
+  const gN = agruparSedesComparacion(nue.sedes);
+  const altas = [...gN.values()].filter(g => !gA.has(g.clave));
+  const bajas = [...gA.values()].filter(g => !gN.has(g.clave));
+  const modificados = [];
+  gN.forEach((n, clave) => {
+    const a = gA.get(clave);
+    if (!a) return;
+    const agregadas = [...n.esp].filter(id => !a.esp.has(id)).map(nombreEspecialidadComparacion);
+    const quitadas = [...a.esp].filter(id => !n.esp.has(id)).map(nombreEspecialidadComparacion);
+    const domNuevos = [...n.domicilios.keys()].filter(k => !a.domicilios.has(k)).map(k => n.domicilios.get(k));
+    const domQuitados = [...a.domicilios.keys()].filter(k => !n.domicilios.has(k)).map(k => a.domicilios.get(k));
+    if (agregadas.length || quitadas.length || domNuevos.length || domQuitados.length) {
+      modificados.push({ ...n, agregadas, quitadas, domNuevos, domQuitados });
+    }
+  });
+  const ordenar = arr => arr.sort((x, y) => x.provincia.localeCompare(y.provincia) || x.localidad.localeCompare(y.localidad) || x.nombre.localeCompare(y.nombre));
+  ordenar(altas); ordenar(bajas); ordenar(modificados);
+
+  // Afiliados por provincia
+  const provs = new Map();
+  ant.afiliados.forEach(r => { const k = normalizarTexto(r.provincia); provs.set(k, { provincia: r.provincia, anterior: r.cantidad_beneficiarios || 0, nuevo: 0 }); });
+  nue.afiliados.forEach(r => {
+    const k = normalizarTexto(r.provincia);
+    if (!provs.has(k)) provs.set(k, { provincia: r.provincia, anterior: 0, nuevo: 0 });
+    const p = provs.get(k); p.nuevo = r.cantidad_beneficiarios || 0; p.provincia = r.provincia;
+  });
+  const afiliados = [...provs.values()].map(p => ({ ...p, dif: p.nuevo - p.anterior })).sort((a, b) => b.nuevo - a.nuevo || b.anterior - a.anterior);
+
+  // Cobertura de especialidades básicas por provincia con afiliados
+  const basicas = especialidadesPrestadorCache.filter(e => e.basica_obligatoria);
+  const basicasIds = new Set(basicas.map(e => e.id));
+  const cA = cubiertasPorProvinciaComparacion(ant.sedes, basicasIds);
+  const cN = cubiertasPorProvinciaComparacion(nue.sedes, basicasIds);
+  const nombreBasica = id => { const e = basicas.find(x => x.id === id); return e ? (BASICAS_NOMBRES_CORTOS[e.nombre] || e.nombre) : ""; };
+  const cobertura = afiliados.filter(p => p.nuevo > 0 || p.anterior > 0).map(p => {
+    const k = normalizarTexto(p.provincia);
+    const a = cA.get(k) || new Set();
+    const n = cN.get(k) || new Set();
+    return {
+      provincia: p.provincia, beneficiarios: p.nuevo,
+      perdidas: [...a].filter(id => !n.has(id)).map(nombreBasica),
+      ganadas: [...n].filter(id => !a.has(id)).map(nombreBasica),
+      faltan: p.nuevo > 0 ? basicas.filter(e => !n.has(e.id)).map(e => BASICAS_NOMBRES_CORTOS[e.nombre] || e.nombre) : []
+    };
+  }).sort((x, y) => (y.perdidas.length - x.perdidas.length) || (y.beneficiarios - x.beneficiarios));
+
+  const cuits = sedes => new Set(sedes.map(s => String(s.cuit || "").replace(/\D/g, "") || "N:" + normalizarTexto(s.nombre_completo))).size;
+  const sumaAfil = arr => arr.reduce((t, r) => t + (r.cantidad_beneficiarios || 0), 0);
+  const resumen = {
+    prestadores: [cuits(ant.sedes), cuits(nue.sedes)],
+    sedes: [ant.sedes.length, nue.sedes.length],
+    beneficiarios: [ant.total ?? sumaAfil(ant.afiliados), nue.total ?? sumaAfil(nue.afiliados)],
+    provincias: [ant.afiliados.filter(r => r.cantidad_beneficiarios > 0).length, nue.afiliados.filter(r => r.cantidad_beneficiarios > 0).length]
+  };
+  return { altas, bajas, modificados, afiliados, cobertura, resumen, provinciasConPerdida: cobertura.filter(c => c.perdidas.length).length };
+}
+
+async function calcularYRenderComparacion() {
+  const idNuevo = Number(document.getElementById("comparacion-nuevo")?.value || 0);
+  const idAnterior = Number(document.getElementById("comparacion-anterior")?.value || 0);
+  if (!idNuevo || !idAnterior) return;
+  const fotoN = comparacionEstado.fotos.find(f => Number(f.cartilla_id) === idNuevo);
+  const fotoA = comparacionEstado.fotos.find(f => Number(f.cartilla_id) === idAnterior);
+  comparacionEstado.nombres = { nuevo: etiquetaFoto(fotoN), anterior: etiquetaFoto(fotoA) };
+  limpiarComparacion("Comparando...");
+  try {
+    const [ant, nue] = await Promise.all([cargarFotoCartilla(idAnterior), cargarFotoCartilla(idNuevo)]);
+    comparacionEstado.resultado = calcularComparacionCartilla(ant, nue);
+  } catch (error) {
+    console.error(error);
+    limpiarComparacion(error.message || "No se pudo armar la comparación.");
+    return;
+  }
+  renderResumenComparacion();
+  renderTablaComparacion();
+}
+
+function celdaResumenComparacion(etiqueta, [a, n], { invertir = false } = {}) {
+  const dif = n - a;
+  const clase = dif === 0 ? "" : ((dif > 0) !== invertir ? "sube" : "baja");
+  const difTxt = dif === 0 ? "sin cambios" : `${dif > 0 ? "+" : "−"}${fmtNum(Math.abs(dif))}`;
+  return `<div><span>${escaparHtml(etiqueta)}</span><strong>${fmtNum(a)} → ${fmtNum(n)}<small class="${clase}">${difTxt}</small></strong></div>`;
+}
+
+function renderResumenComparacion() {
+  const r = comparacionEstado.resultado;
+  const { nuevo, anterior } = comparacionEstado.nombres;
+  const box = document.getElementById("comparacion-resumen");
+  box.innerHTML =
+    celdaResumenComparacion("Prestadores (CUIT)", r.resumen.prestadores) +
+    celdaResumenComparacion("Sedes", r.resumen.sedes) +
+    celdaResumenComparacion("Beneficiarios", r.resumen.beneficiarios) +
+    celdaResumenComparacion("Provincias con afiliados", r.resumen.provincias) +
+    `<p>Ejercicio ${escaparHtml(nuevo)} comparado con ${escaparHtml(anterior)}: ${fmtNum(r.altas.length)} altas, ${fmtNum(r.bajas.length)} bajas y ${fmtNum(r.modificados.length)} prestadores con cambios. ${r.provinciasConPerdida ? `<b>En ${r.provinciasConPerdida} ${r.provinciasConPerdida === 1 ? "provincia" : "provincias"} se perdió alguna especialidad básica que antes estaba cubierta.</b>` : "No se perdió cobertura básica en ninguna provincia."}</p>`;
+  box.hidden = false;
+  const conteos = { altas: r.altas.length, bajas: r.bajas.length, modificados: r.modificados.length, afiliados: r.afiliados.length, cobertura: r.provinciasConPerdida };
+  document.querySelectorAll("[data-comparacion-tab]").forEach(btn => {
+    const t = btn.dataset.comparacionTab;
+    const base = { altas: "Altas", bajas: "Bajas", modificados: "Modificados", afiliados: "Afiliados por provincia", cobertura: "Cobertura básica perdida" }[t];
+    btn.innerHTML = `${base}<span class="n">${fmtNum(conteos[t])}</span>`;
+    btn.classList.toggle("active", t === comparacionEstado.tab);
+  });
+  document.getElementById("comparacion-tabs").hidden = false;
+  document.getElementById("comparacion-buscar").hidden = false;
+  document.getElementById("btn-export-comparacion").disabled = false;
+}
+
+function filasTabComparacion(tab, filtro = "") {
+  const r = comparacionEstado.resultado;
+  const q = normalizarTexto(filtro);
+  const coincide = (...campos) => !q || campos.some(c => normalizarTexto(c).includes(q));
+  if (tab === "altas" || tab === "bajas" || tab === "modificados") return r[tab].filter(g => coincide(g.nombre, g.cuit, g.provincia, g.localidad));
+  if (tab === "afiliados") return r.afiliados.filter(p => coincide(p.provincia));
+  return r.cobertura.filter(p => coincide(p.provincia));
+}
+
+function renderTablaComparacion() {
+  const r = comparacionEstado.resultado;
+  if (!r) return;
+  const tab = comparacionEstado.tab;
+  const filtro = document.getElementById("comparacion-buscar")?.value || "";
+  const filas = filasTabComparacion(tab, filtro);
+  const head = document.getElementById("comparacion-table-head");
+  const body = document.getElementById("comparacion-table-body");
+  const empty = document.getElementById("comparacion-empty");
+  const count = document.getElementById("comparacion-count");
+  const { nuevo, anterior } = comparacionEstado.nombres;
+  const e = escaparHtml;
+  const listaDom = g => [...g.domicilios.values()].map(e).join("<br>") || "—";
+
+  if (tab === "altas" || tab === "bajas") {
+    head.innerHTML = `<th>Prestador</th><th>CUIT</th><th>Provincia</th><th>Localidad</th><th>Domicilio</th><th class="num">Especialidades</th>`;
+    body.innerHTML = filas.map(g => `<tr><td>${e(g.nombre)}</td><td>${e(g.cuit || "—")}</td><td>${e(g.provincia)}</td><td>${e(g.localidad)}</td><td>${listaDom(g)}</td><td class="num" title="${e([...g.esp].map(nombreEspecialidadComparacion).join("\n"))}">${g.esp.size}</td></tr>`).join("");
+    count.textContent = tab === "altas"
+      ? `${fmtNum(filas.length)} prestadores que están en ${nuevo} y no estaban en ${anterior}`
+      : `${fmtNum(filas.length)} prestadores que estaban en ${anterior} y ya no están en ${nuevo}`;
+  } else if (tab === "modificados") {
+    head.innerHTML = `<th>Prestador</th><th>CUIT</th><th>Provincia</th><th>Localidad</th><th>Qué cambió</th>`;
+    body.innerHTML = filas.map(g => {
+      const cambios = [
+        ...g.quitadas.map(x => `<span class="cambio quita">− ${e(x)}</span>`),
+        ...g.agregadas.map(x => `<span class="cambio agrega">+ ${e(x)}</span>`),
+        ...g.domQuitados.map(x => `<span class="cambio quita">− Domicilio: ${e(x)}</span>`),
+        ...g.domNuevos.map(x => `<span class="cambio agrega">+ Domicilio: ${e(x)}</span>`)
+      ].join("");
+      return `<tr><td>${e(g.nombre)}</td><td>${e(g.cuit || "—")}</td><td>${e(g.provincia)}</td><td>${e(g.localidad)}</td><td>${cambios}</td></tr>`;
+    }).join("");
+    count.textContent = `${fmtNum(filas.length)} prestadores que siguen pero cambiaron especialidades o domicilio`;
+  } else if (tab === "afiliados") {
+    head.innerHTML = `<th>Provincia</th><th class="num">${e(anterior)}</th><th class="num">${e(nuevo)}</th><th class="num">Diferencia</th><th class="num">Variación</th>`;
+    body.innerHTML = filas.map(p => {
+      const clase = p.dif > 0 ? "dif-sube" : p.dif < 0 ? "dif-baja" : "";
+      const pct = p.anterior ? `${p.dif > 0 ? "+" : ""}${(p.dif / p.anterior * 100).toLocaleString("es-AR", { maximumFractionDigits: 1 })}%` : (p.nuevo ? "nueva" : "—");
+      return `<tr><td>${e(p.provincia)}</td><td class="num">${fmtNum(p.anterior)}</td><td class="num">${fmtNum(p.nuevo)}</td><td class="num ${clase}">${p.dif > 0 ? "+" : ""}${fmtNum(p.dif)}</td><td class="num ${clase}">${pct}</td></tr>`;
+    }).join("");
+    count.textContent = `Beneficiarios por provincia, ${anterior} y ${nuevo}`;
+  } else {
+    head.innerHTML = `<th>Provincia</th><th class="num">Beneficiarios ${e(nuevo)}</th><th>Se perdió</th><th>Se sumó</th><th>Sin cobertura en ${e(nuevo)}</th>`;
+    body.innerHTML = filas.map(p => `<tr><td>${e(p.provincia)}</td><td class="num">${fmtNum(p.beneficiarios)}</td><td>${p.perdidas.map(x => `<span class="cambio quita">${e(x)}</span>`).join("") || "—"}</td><td>${p.ganadas.map(x => `<span class="cambio agrega">${e(x)}</span>`).join("") || "—"}</td><td>${e(p.faltan.join(", ")) || "—"}</td></tr>`).join("");
+    count.textContent = `Especialidades básicas obligatorias por provincia con afiliados: ${fmtNum(r.provinciasConPerdida)} ${r.provinciasConPerdida === 1 ? "provincia perdió" : "provincias perdieron"} cobertura`;
+  }
+  empty.hidden = filas.length > 0;
+  if (!filas.length) empty.textContent = filtro ? "Nada coincide con la búsqueda." : "Sin diferencias en este punto.";
+}
+
+function exportarComparacionExcel() {
+  const r = comparacionEstado.resultado;
+  if (!r || !window.XLSX) return;
+  const { nuevo, anterior } = comparacionEstado.nombres;
+  const os = comparacionEstado.os;
+  const libro = window.XLSX.utils.book_new();
+  const hoja = (nombre, filas) => window.XLSX.utils.book_append_sheet(libro, window.XLSX.utils.aoa_to_sheet(filas), nombre);
+  hoja("Resumen", [
+    ["Obra Social", getObraSocialDisplay(os)], ["Ejercicio", nuevo], ["Comparado con", anterior], [],
+    ["", anterior, nuevo, "Diferencia"],
+    ...[["Prestadores (CUIT)", r.resumen.prestadores], ["Sedes", r.resumen.sedes], ["Beneficiarios", r.resumen.beneficiarios], ["Provincias con afiliados", r.resumen.provincias]].map(([n, [a, b]]) => [n, a, b, b - a]),
+    [], ["Altas", r.altas.length], ["Bajas", r.bajas.length], ["Modificados", r.modificados.length], ["Provincias con cobertura básica perdida", r.provinciasConPerdida]
+  ]);
+  const filaG = g => [g.nombre, g.cuit, g.provincia, g.localidad, [...g.domicilios.values()].join(" | "), [...g.esp].map(nombreEspecialidadComparacion).join("; ")];
+  const cab = ["Prestador", "CUIT", "Provincia", "Localidad", "Domicilio", "Especialidades"];
+  hoja("Altas", [cab, ...r.altas.map(filaG)]);
+  hoja("Bajas", [cab, ...r.bajas.map(filaG)]);
+  hoja("Modificados", [["Prestador", "CUIT", "Provincia", "Localidad", "Especialidades que se quitaron", "Especialidades que se sumaron", "Domicilios que se quitaron", "Domicilios nuevos"],
+    ...r.modificados.map(g => [g.nombre, g.cuit, g.provincia, g.localidad, g.quitadas.join("; "), g.agregadas.join("; "), g.domQuitados.join(" | "), g.domNuevos.join(" | ")])]);
+  hoja("Afiliados", [["Provincia", anterior, nuevo, "Diferencia"], ...r.afiliados.map(p => [p.provincia, p.anterior, p.nuevo, p.dif])]);
+  hoja("Cobertura básica", [["Provincia", `Beneficiarios ${nuevo}`, "Se perdió", "Se sumó", `Sin cobertura en ${nuevo}`],
+    ...r.cobertura.map(p => [p.provincia, p.beneficiarios, p.perdidas.join(", "), p.ganadas.join(", "), p.faltan.join(", ")])]);
+  const archivo = `comparacion_cartilla_${(os?.rnos || "os").replace(/\D/g, "")}_${String(nuevo).replace(/\W+/g, "-")}_vs_${String(anterior).replace(/\W+/g, "-")}.xlsx`;
+  window.XLSX.writeFile(libro, archivo);
 }
 
 // ---------- Cobertura (vista del analista) ----------
@@ -9436,8 +9807,8 @@ async function inicializarVistaPrestadores() {
   const btnImportar = document.getElementById("btn-importar-cartilla");
   if (btnImportar) btnImportar.hidden = false;
   // El auditor/admin consulta la red de prestadores pero no da altas manuales: eso es
-  // exclusivo de la propia Obra Social. "Importar Cartilla histórica" es distinto: es la
-  // herramienta de una sola vez para precargar el historial de una OS nueva en el sistema.
+  // exclusivo de la propia Obra Social. "Importar Cartilla (Excel)" es distinto: carga la
+  // Cartilla de cada ejercicio, guarda su foto y actualiza la red actual.
   const btnNuevoAdmin = document.getElementById("btn-nuevo-prestador");
   if (btnNuevoAdmin) btnNuevoAdmin.hidden = true;
 }
@@ -12682,6 +13053,16 @@ async function initBrowser() {
   });
   document.getElementById("prestadores-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialPrestadores)));
   document.getElementById("cobertura-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionObraSocialCobertura)));
+  document.getElementById("comparacion-os-search")?.addEventListener("change", soloConValor(() => requiereAutenticacion(handleSeleccionOsComparacion)));
+  document.getElementById("comparacion-nuevo")?.addEventListener("change", () => requiereAutenticacion(async () => { poblarSelectAnteriorComparacion(); await calcularYRenderComparacion(); }));
+  document.getElementById("comparacion-anterior")?.addEventListener("change", () => requiereAutenticacion(calcularYRenderComparacion));
+  document.getElementById("comparacion-buscar")?.addEventListener("input", renderTablaComparacion);
+  document.getElementById("btn-export-comparacion")?.addEventListener("click", exportarComparacionExcel);
+  document.querySelectorAll("[data-comparacion-tab]").forEach(btn => btn.addEventListener("click", () => {
+    comparacionEstado.tab = btn.dataset.comparacionTab;
+    document.querySelectorAll("[data-comparacion-tab]").forEach(b => b.classList.toggle("active", b === btn));
+    renderTablaComparacion();
+  }));
   document.getElementById("btn-configurar-basicas")?.addEventListener("click", () => requiereAutenticacion(abrirModalBasicas));
   document.getElementById("btn-anexo-iv-nomenclador-tipo-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("tipo_prestacion", "anexo-iv-nomenclador-tipo-nuevo")));
   document.getElementById("btn-anexo-iv-nomenclador-especialidad-agregar")?.addEventListener("click", () => requiereAutenticacion(() => agregarAnexoIVNomencladorItem("especialidad", "anexo-iv-nomenclador-especialidad-nuevo")));
