@@ -1067,6 +1067,50 @@ const JU_REP_CONFIG = {
   }
 };
 
+const JR_GRAFICOS = [
+  ["trimestre", "Evolución por trimestre"], ["estado", "Estado actual"], ["tiempos", "Tiempo de respuesta"],
+  ["clase1", "Motivo / Tipo"], ["clase2", "Tema"], ["analista", "Analista"], ["demandados", "Más demandados"], ["area", "Área de salida"]
+];
+const JR_TOP = 8;
+let jrGraficos = (() => {
+  try { const v = JSON.parse(localStorage.getItem("gcp-jr-graficos") || "null"); if (Array.isArray(v)) return new Set(v); } catch (e) { /* sin almacenamiento */ }
+  return new Set(["estado", "tiempos"]);
+})();
+
+function jrGuardarGraficos() {
+  try { localStorage.setItem("gcp-jr-graficos", JSON.stringify([...jrGraficos])); } catch (e) { /* sin almacenamiento */ }
+}
+
+function jrRenderSelectorGraficos() {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  const cont = document.getElementById("jr-graficos");
+  if (!cont) return;
+  const disponibles = JR_GRAFICOS.filter(([k]) => k !== "clase2" || cfg.clase2)
+    .map(([k, t]) => [k, k === "clase1" ? cfg.col1 : t]);
+  cont.innerHTML = disponibles.map(([k, t]) => `<button type="button" class="jr-graf-chip${jrGraficos.has(k) ? " active" : ""}" data-jr-graf-btn="${k}">${escaparHtml(t)}</button>`).join("")
+    + `<button type="button" class="jr-graf-chip todos" data-jr-graf-btn="__todos">${disponibles.every(([k]) => jrGraficos.has(k)) ? "Ocultar todos" : "Ver todos"}</button>`;
+  cont.querySelectorAll("[data-jr-graf-btn]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.jrGrafBtn;
+    if (k === "__todos") {
+      const todos = disponibles.every(([x]) => jrGraficos.has(x));
+      disponibles.forEach(([x]) => todos ? jrGraficos.delete(x) : jrGraficos.add(x));
+    } else if (jrGraficos.has(k)) jrGraficos.delete(k); else jrGraficos.add(k);
+    jrGuardarGraficos();
+    jrAplicarVisibilidad();
+    jrRenderSelectorGraficos();
+  }));
+}
+
+function jrAplicarVisibilidad() {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  document.querySelectorAll("[data-jr-graf]").forEach(card => {
+    const k = card.dataset.jrGraf;
+    card.hidden = !jrGraficos.has(k) || (k === "clase2" && !cfg.clase2);
+  });
+  const grid = document.querySelector("#ju-reportes .jr-grid");
+  if (grid) grid.hidden = ![...document.querySelectorAll("[data-jr-graf]")].some(c => !c.hidden);
+}
+
 const jr = { tipo: "oficios", buscar: "", demandado: null, clase1: "", clase2: "", analista: "", estado: "", listado: false, page: 1 };
 let jrEventos = false;
 
@@ -1160,9 +1204,9 @@ function jrBuscarDemandado() {
   }));
 }
 
-function jrFiltrar(items) {
-  const desde = document.getElementById("ju-rep-desde")?.value || "";
-  const hasta = document.getElementById("ju-rep-hasta")?.value || "";
+function jrFiltrar(items, { desde: d0, hasta: h0 } = {}) {
+  const desde = d0 ?? (document.getElementById("ju-rep-desde")?.value || "");
+  const hasta = h0 ?? (document.getElementById("ju-rep-hasta")?.value || "");
   const q = normalizar(jr.buscar.trim());
   const qEe = juClaveEe(jr.buscar);
   return items.filter(i =>
@@ -1205,10 +1249,12 @@ function jrTablaDetalle(filas, col, { conEstados = true } = {}) {
   return `<details class="jr-tabla"><summary>Ver tabla</summary><div class="table-scroll"><table class="data-table ig-tabla"><thead>${cab}</thead><tbody>${cuerpo}</tbody></table></div></details>`;
 }
 
-function jrBarras(id, filas, { col, filtro, segmentos = true, max } = {}) {
+function jrBarras(id, todas, { col, filtro, segmentos = true, max, top = JR_TOP } = {}) {
   const cont = document.getElementById(id);
   if (!cont) return;
-  if (!filas.length) { cont.innerHTML = `<div class="jr-vacio">Sin datos con estos filtros.</div>`; return; }
+  if (!todas.length) { cont.innerHTML = `<div class="jr-vacio">Sin datos con estos filtros.</div>`; return; }
+  const filas = top ? todas.slice(0, top) : todas;
+  const resto = todas.length - filas.length;
   const tope = max || Math.max(...filas.map(f => f.total), 1);
   cont.innerHTML = `<div class="jr-barras">${filas.map((f, n) => {
     const ancho = v => `${Math.max(0, (v / tope) * 100)}%`;
@@ -1219,7 +1265,7 @@ function jrBarras(id, filas, { col, filtro, segmentos = true, max } = {}) {
     return `<${filtro ? "button type=\"button\"" : "div"} class="jr-barra${filtro ? " clic" : ""}" data-jr-n="${n}" title="${escaparHtml(titulo)}">
       <span class="jr-etq">${escaparHtml(f.etiqueta)}</span><span class="jr-pista">${barra}</span><span class="jr-val">${f.total}</span>
     </${filtro ? "button" : "div"}>`;
-  }).join("")}</div>${jrTablaDetalle(filas, col, { conEstados: segmentos })}`;
+  }).join("")}</div>${resto > 0 ? `<div class="jr-resto">y ${resto} más en la tabla</div>` : ""}${jrTablaDetalle(todas, col, { conEstados: segmentos })}`;
   if (filtro) cont.querySelectorAll("[data-jr-n]").forEach(b => b.addEventListener("click", () => { filtro(filas[Number(b.dataset.jrN)]); jr.page = 1; juGenerarReporte(); }));
 }
 
@@ -1327,7 +1373,6 @@ function juGenerarReporte() {
     : [["0 a 2 días", d => d <= 2], ["3 a 5 días", d => d >= 3 && d <= 5], ["6 a 10 días", d => d >= 6 && d <= 10], ["Más de 10 días", d => d > 10]];
   const rangos = cortes.map(([etiqueta, fn]) => ({ etiqueta, total: diasFin.filter(fn).length }));
   const hoy = juHoyIso();
-  const pendientes30 = lista.filter(o => !o.finalizado && juDiasEntre(o.fecha_ingreso, hoy) > 30).length;
 
   const porTrimestre = [...juAgrupar(lista, o => juClaveTrimestre(o.fecha_ingreso)).entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -1352,27 +1397,37 @@ function juGenerarReporte() {
 
   juReporteDatos = { tipo, desde, hasta, reingresos, total, rangos, porTrimestre, porClase1, porClase2, porAnalista, porArea, porDemandado, pendientes, lista };
 
+  // Pastillas: siempre el año en curso (1/1 a hoy), con los demás filtros aplicados.
+  const anio = hoy.slice(0, 4);
+  const listaAnio = jrFiltrar(cfg.items(), { desde: `${anio}-01-01`, hasta: hoy });
+  const totAnio = juResumenGrupo(listaAnio);
+  const reingAnio = listaAnio.filter(i => i.esReingreso).length;
+  const pend30Anio = listaAnio.filter(o => !o.finalizado && juDiasEntre(o.fecha_ingreso, hoy) > 30).length;
   const kpi = (titulo, valor, nota = "", clase = "") => `<div class="ju-kpi ${clase}"><span>${titulo}</span><strong>${valor}</strong>${nota ? `<small>${nota}</small>` : ""}</div>`;
-  const pct = n => total.total ? `${Math.round((n / total.total) * 100)}% del total` : "";
+  const pct = n => totAnio.total ? `${Math.round((n / totAnio.total) * 100)}% del total` : "";
+  document.getElementById("ju-rep-kpis-titulo").textContent = `Año ${anio} · del 01/01 al ${formatearFecha(hoy)}`;
   document.getElementById("ju-rep-kpis").innerHTML =
-    kpi("Ingresos", total.total, reingresos ? `incluye ${reingresos} reingreso${reingresos === 1 ? "" : "s"}` : "") +
+    kpi("Ingresos", totAnio.total, reingAnio ? `incluye ${reingAnio} reingreso${reingAnio === 1 ? "" : "s"}` : "") +
     (tipo === "reclamos"
-      ? kpi("Finalizados", total.finalizados - total.devueltos, pct(total.finalizados - total.devueltos), "ok") + kpi("Devueltos", total.devueltos, pct(total.devueltos)) + kpi("Asignados", total.tramite, "en trámite", "alerta")
-      : kpi("Finalizados", total.finalizados, pct(total.finalizados), "ok") + kpi("En trámite", total.tramite, "", "alerta")) +
-    kpi("Más de 30 días en trámite", pendientes30, "pendientes antiguos", pendientes30 ? "riesgo" : "") +
-    kpi("Tiempo de respuesta", total.mediana ?? "—", total.mediana != null ? `días (mediana) · promedio ${String(total.promedio).replace(".", ",")}` : "");
-  document.getElementById("ju-rep-titulo").textContent = `${cfg.nombre} ingresados entre el ${formatearFecha(desde)} y el ${formatearFecha(hasta)}`;
+      ? kpi("Finalizados", totAnio.finalizados - totAnio.devueltos, pct(totAnio.finalizados - totAnio.devueltos), "ok") + kpi("Devueltos", totAnio.devueltos, pct(totAnio.devueltos)) + kpi("Asignados", totAnio.tramite, "en trámite", "alerta")
+      : kpi("Finalizados", totAnio.finalizados, pct(totAnio.finalizados), "ok") + kpi("En trámite", totAnio.tramite, "", "alerta")) +
+    kpi("Más de 30 días en trámite", pend30Anio, "pendientes antiguos", pend30Anio ? "riesgo" : "") +
+    kpi("Tiempo de respuesta", totAnio.mediana ?? "—", totAnio.mediana != null ? `días (mediana) · promedio ${String(totAnio.promedio).replace(".", ",")}` : "");
+  document.getElementById("ju-rep-titulo").textContent = `${cfg.nombre}`;
+  document.getElementById("ju-rep-graf-titulo").textContent = `Ingresados entre el ${formatearFecha(desde)} y el ${formatearFecha(hasta)}`;
 
   jrColumnas("jr-trimestre", porTrimestre);
   jrEstados("jr-estados", lista);
-  jrBarras("jr-tiempos", rangos, { col: "Tiempo de respuesta", segmentos: false });
+  jrBarras("jr-tiempos", rangos, { col: "Tiempo de respuesta", segmentos: false, top: 0 });
   document.getElementById("jr-clase1-titulo").textContent = cfg.clase1;
   jrBarras("jr-g-clase1", porClase1, { col: cfg.col1, filtro: f => { jr.clase1 = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
   document.getElementById("jr-clase2-card").hidden = !cfg.clase2;
-  if (cfg.clase2) jrBarras("jr-g-clase2", porClase2.slice(0, 15), { col: "Tema", filtro: f => { jr.clase2 = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
+  if (cfg.clase2) jrBarras("jr-g-clase2", porClase2, { col: "Tema", filtro: f => { jr.clase2 = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
   jrBarras("jr-g-analista", porAnalista, { col: "Analista", filtro: f => { jr.analista = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
-  jrBarras("jr-g-demandados", porDemandado.slice(0, 10), { col: "Demandado", filtro: f => { jr.demandado = f.os; } });
+  jrBarras("jr-g-demandados", porDemandado, { col: "Demandado", filtro: f => { jr.demandado = f.os; } });
   jrBarras("jr-g-area", porArea, { col: "Área de salida", segmentos: false });
+  jrRenderSelectorGraficos();
+  jrAplicarVisibilidad();
   jrRenderActivos();
   jrRenderListado(lista);
   document.getElementById("ju-rep-resultado").hidden = false;

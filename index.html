@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=120">
+  <link rel="stylesheet" href="styles.css?v=121">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -175,7 +175,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 184</span>
+        <span>Versión 185</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1312,38 +1312,43 @@
         </div>
 
         <div id="ju-rep-resultado" hidden>
-          <div class="ig-encabezado"><h2 id="ju-rep-titulo"></h2></div>
+          <div class="ig-encabezado"><h2 id="ju-rep-titulo"></h2><p id="ju-rep-kpis-titulo"></p></div>
           <div class="ju-kpis" id="ju-rep-kpis"></div>
+          <div class="ig-encabezado jr-sub"><p id="ju-rep-graf-titulo"></p></div>
+          <div class="jr-selector">
+            <span class="ju-label">Gráficos</span>
+            <div class="jr-chips-graf" id="jr-graficos"></div>
+          </div>
           <div class="jr-grid">
-            <div class="table-card jr-card jr-ancho">
+            <div class="table-card jr-card jr-ancho" data-jr-graf="trimestre">
               <div class="table-meta"><strong>Evolución por trimestre</strong><span class="jr-leyenda"><i class="jr-c1"></i>Ingresados <i class="jr-c2"></i><span data-jr-cerrados>Finalizados</span></span></div>
               <div class="jr-columnas" id="jr-trimestre"></div>
             </div>
-            <div class="table-card jr-card">
+            <div class="table-card jr-card" data-jr-graf="estado">
               <div class="table-meta"><strong>Estado actual</strong></div>
               <div id="jr-estados"></div>
             </div>
-            <div class="table-card jr-card">
+            <div class="table-card jr-card" data-jr-graf="tiempos">
               <div class="table-meta"><strong>Tiempo de respuesta</strong><span>Días hasta la salida</span></div>
               <div id="jr-tiempos"></div>
             </div>
-            <div class="table-card jr-card">
-              <div class="table-meta"><strong id="jr-clase1-titulo">Por motivo</strong><span>Clic para filtrar</span></div>
+            <div class="table-card jr-card" data-jr-graf="clase1">
+              <div class="table-meta"><strong id="jr-clase1-titulo">Por motivo</strong><span>Los 8 primeros · clic para filtrar</span></div>
               <div id="jr-g-clase1"></div>
             </div>
-            <div class="table-card jr-card" id="jr-clase2-card" hidden>
-              <div class="table-meta"><strong>Por tema</strong><span>Los 15 más frecuentes · clic para filtrar</span></div>
+            <div class="table-card jr-card" id="jr-clase2-card" data-jr-graf="clase2" hidden>
+              <div class="table-meta"><strong>Por tema</strong><span>Los 8 más frecuentes · clic para filtrar</span></div>
               <div id="jr-g-clase2"></div>
             </div>
-            <div class="table-card jr-card">
-              <div class="table-meta"><strong>Por analista</strong><span>Clic para filtrar</span></div>
+            <div class="table-card jr-card" data-jr-graf="analista">
+              <div class="table-meta"><strong>Por analista</strong><span>Los 8 primeros · clic para filtrar</span></div>
               <div id="jr-g-analista"></div>
             </div>
-            <div class="table-card jr-card">
-              <div class="table-meta"><strong>Más demandados</strong><span>Los 10 primeros · clic para filtrar</span></div>
+            <div class="table-card jr-card" data-jr-graf="demandados">
+              <div class="table-meta"><strong>Más demandados</strong><span>Los 8 primeros · clic para filtrar</span></div>
               <div id="jr-g-demandados"></div>
             </div>
-            <div class="table-card jr-card">
+            <div class="table-card jr-card" data-jr-graf="area">
               <div class="table-meta"><strong>Por área de salida</strong><span>Con salida registrada</span></div>
               <div id="jr-g-area"></div>
             </div>
@@ -3044,7 +3049,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=99"></script>
-  <script src="juridico.js?v=5"></script>
+  <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
