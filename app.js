@@ -1345,7 +1345,7 @@ async function guardarObraSocialEnSupabase(registro, id, accessToken, fetchImpl 
 
 function buildPatologiasUrl(id = null) {
   const params = new URLSearchParams();
-  params.set("select", "id,nombre,created_at");
+  params.set("select", "id,nombre,pendiente,created_at");
   params.set("order", "nombre.asc");
   params.set("apikey", SUPABASE_PUBLISHABLE_KEY);
   if (id) params.set("id", `eq.${id}`);
@@ -1410,7 +1410,7 @@ function renderPatologias() {
 
   tbody.innerHTML = filtradas.map(p => `
     <tr class="os-row" data-edit-patologia="${p.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
-      <td><strong>${escaparHtml(p.nombre)}</strong></td>
+      <td><strong>${escaparHtml(p.nombre)}</strong>${p.pendiente ? ` <span class="up-pendiente" title="Creada desde un expediente: falta asociarla a las drogas con su fundamentación">Pendiente de completar</span>` : ""}</td>
       <td></td>
     </tr>
   `).join("");
@@ -1484,7 +1484,7 @@ async function handlePatologiaSubmit(event) {
   try {
     if (save) save.disabled = true;
     const session = await asegurarSesionVigente();
-    await guardarPatologiaEnSupabase({ nombre }, id || null, session.access_token);
+    await guardarPatologiaEnSupabase({ nombre, pendiente: false }, id || null, session.access_token);
     cerrarModal("patologia-modal");
     mostrarToast(id ? "Patología actualizada." : "Patología creada.");
     patologiasCargadas = false;
@@ -1545,7 +1545,7 @@ function buildTableUrl(table, params = {}) {
 
 function buildDrogasUrl(id = null) {
   const params = {
-    select: "id,nombre,codigo_atc,descripcion_anmat,es_soporte,fundamentacion_general,created_at," +
+    select: "id,nombre,codigo_atc,descripcion_anmat,es_soporte,fundamentacion_general,pendiente,created_at," +
       "marcas_comerciales(id,nombre_comercial,numero_anmat,laboratorio)," +
       "droga_patologia(id,patologia_id,fundamentacion_texto,patologias(nombre))",
     order: "nombre.asc"
@@ -1598,7 +1598,7 @@ function renderDrogas() {
 
   tbody.innerHTML = filtradas.map(d => `
     <tr class="os-row" data-edit-droga="${d.id}" tabindex="0" role="button" title="Clic para editar o eliminar">
-      <td><strong>${escaparHtml(d.nombre)}</strong></td>
+      <td><strong>${escaparHtml(d.nombre)}</strong>${d.pendiente ? ` <span class="up-pendiente" title="Creada desde un expediente: falta cargar el prospecto y la fundamentación">Pendiente de completar</span>` : ""}</td>
       <td>${escaparHtml(d.codigo_atc || "—")}</td>
       <td>${d.es_soporte ? "Soporte" : "Oncológica"}</td>
       <td>${(d.marcas_comerciales || []).length}</td>
@@ -1779,7 +1779,8 @@ async function handleDrogaSubmit(event) {
     codigo_atc: document.getElementById("droga-atc")?.value.trim() || null,
     descripcion_anmat: document.getElementById("droga-descripcion-anmat")?.value.trim() || null,
     es_soporte: esSoporte,
-    fundamentacion_general: esSoporte ? (document.getElementById("droga-fundamentacion-general")?.value.trim() || null) : null
+    fundamentacion_general: esSoporte ? (document.getElementById("droga-fundamentacion-general")?.value.trim() || null) : null,
+    pendiente: false
   };
 
   try {
@@ -1854,6 +1855,15 @@ async function handleDrogaSubmit(event) {
           if (!r.ok) erroresSync.push((await leerErrorApi(r)) || "No se pudo agregar una fundamentación nueva.");
         }
       }
+    }
+
+    const patologiasCompletas = modalFundamentaciones.filter(f => String(f.fundamentacion_texto || "").trim()).map(f => f.patologia_id)
+      .filter(pid => patologias.find(p => String(p.id) === String(pid))?.pendiente);
+    if (patologiasCompletas.length) {
+      await fetchConTimeout(buildTableUrl("patologias", { id: `in.(${patologiasCompletas.join(",")})` }), {
+        method: "PATCH", headers: authHeaders(session.access_token), body: JSON.stringify({ pendiente: false })
+      }, 10000).catch(() => null);
+      patologias.forEach(p => { if (patologiasCompletas.map(String).includes(String(p.id))) p.pendiente = false; });
     }
 
     cerrarModal("droga-modal");
@@ -2352,6 +2362,186 @@ function agregarDrogaTemporalExpediente() {
   renderDrogasExpedienteSubform();
 }
 
+// ---------- Alta rápida de patología, droga y marca desde el expediente ----------
+// Lo que se crea acá queda "pendiente de completar" en el catálogo (prospecto y fundamentación).
+
+function upNombreClave(texto) {
+  return normalizar(String(texto || "")).replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function upBuscarExistente(lista, nombre, campo = "nombre") {
+  const clave = upNombreClave(nombre);
+  const exacto = lista.find(x => upNombreClave(x[campo]) === clave);
+  if (exacto) return { exacto };
+  const parecido = clave.length >= 4 ? lista.find(x => {
+    const k = upNombreClave(x[campo]);
+    return k && (k.includes(clave) || clave.includes(k));
+  }) : null;
+  return { parecido };
+}
+
+function upMostrarPanel(id, mostrar) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  panel.hidden = !mostrar;
+  if (mostrar) panel.querySelector("input")?.focus();
+}
+
+async function upCrearPatologiaDesdeExpediente() {
+  const input = document.getElementById("expediente-patologia-nueva-nombre");
+  const nombre = (input?.value || "").replace(/\s+/g, " ").trim();
+  if (!nombre) { mostrarToast("Escribí el nombre de la patología.", "error"); return; }
+  const select = document.getElementById("expediente-patologia");
+  const { exacto, parecido } = upBuscarExistente(patologias, nombre);
+  if (exacto) {
+    select.value = exacto.id;
+    input.value = "";
+    upMostrarPanel("expediente-patologia-nueva-panel", false);
+    mostrarToast(`“${exacto.nombre}” ya estaba cargada: quedó elegida.`);
+    return;
+  }
+  if (parecido) {
+    if (window.confirm(`Ya existe la patología “${parecido.nombre}”.\n\n¿Usar “${parecido.nombre}”?`)) {
+      select.value = parecido.id;
+      input.value = "";
+      upMostrarPanel("expediente-patologia-nueva-panel", false);
+      return;
+    }
+    if (!window.confirm(`¿Crear “${nombre}” como patología nueva, distinta de “${parecido.nombre}”?`)) return;
+  }
+  const boton = document.getElementById("expediente-patologia-nueva-crear");
+  boton.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const r = await fetchConTimeout(buildTableUrl("patologias", { select: "id,nombre,pendiente,created_at" }), {
+      method: "POST", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify({ nombre, pendiente: true })
+    }, 10000);
+    if (!r.ok) throw new Error((await leerErrorApi(r)) || `Supabase respondió ${r.status}.`);
+    const [nueva] = await r.json();
+    patologias.push(nueva);
+    patologias.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+    poblarSelectPatologiasExpediente();
+    select.value = nueva.id;
+    input.value = "";
+    upMostrarPanel("expediente-patologia-nueva-panel", false);
+    mostrarToast(`Patología “${nombre}” creada y elegida.`);
+  } catch (error) {
+    mostrarToast(/duplicate|unico/i.test(error.message || "") ? "Esa patología ya existe." : `No se pudo crear la patología. ${error.message || ""}`, "error");
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+let upModoNuevo = "droga"; // "droga" o "marca"
+
+function upAbrirPanelDroga(modo) {
+  upModoNuevo = modo;
+  const nombre = document.getElementById("expediente-droga-nueva-nombre");
+  const titulo = document.getElementById("expediente-droga-nueva-titulo");
+  const nota = document.getElementById("expediente-droga-nueva-nota");
+  if (modo === "marca") {
+    const drogaId = document.getElementById("expediente-droga-select")?.value;
+    const droga = drogas.find(d => String(d.id) === String(drogaId));
+    if (!droga) { mostrarToast("Primero elegí la droga en la lista; después agregás la marca nueva.", "error"); return; }
+    titulo.textContent = `Nueva marca para ${droga.nombre}`;
+    nombre.value = droga.nombre;
+    nombre.disabled = true;
+    nota.textContent = "La marca queda asociada a la droga elegida. La dosis se toma del campo \"Dosis\".";
+  } else {
+    titulo.textContent = "Nueva droga";
+    nombre.value = "";
+    nombre.disabled = false;
+    nota.textContent = "La droga nueva queda pendiente de completar en el catálogo (prospecto y fundamentación). La dosis se toma del campo \"Dosis\".";
+  }
+  document.getElementById("expediente-droga-nueva-marca").value = "";
+  document.getElementById("expediente-droga-nueva-marca").placeholder = modo === "marca" ? "Marca comercial" : "Marca comercial (opcional)";
+  document.getElementById("expediente-droga-nueva-laboratorio").value = "";
+  upMostrarPanel("expediente-droga-nueva-panel", true);
+  (modo === "marca" ? document.getElementById("expediente-droga-nueva-marca") : nombre).focus();
+}
+
+async function upCrearDrogaDesdeExpediente() {
+  const nombre = (document.getElementById("expediente-droga-nueva-nombre")?.value || "").replace(/\s+/g, " ").trim();
+  const marcaNombre = (document.getElementById("expediente-droga-nueva-marca")?.value || "").replace(/\s+/g, " ").trim();
+  const laboratorio = (document.getElementById("expediente-droga-nueva-laboratorio")?.value || "").replace(/\s+/g, " ").trim();
+  if (!nombre) { mostrarToast("Escribí el nombre de la droga.", "error"); return; }
+  if (upModoNuevo === "marca" && !marcaNombre) { mostrarToast("Escribí el nombre de la marca.", "error"); return; }
+  let droga = null;
+  if (upModoNuevo === "marca") {
+    droga = drogas.find(d => String(d.id) === String(document.getElementById("expediente-droga-select")?.value));
+  } else {
+    const { exacto, parecido } = upBuscarExistente(drogas, nombre);
+    if (exacto) droga = exacto;
+    else if (parecido) {
+      if (window.confirm(`Ya existe la droga “${parecido.nombre}”.\n\n¿Usar “${parecido.nombre}”?`)) droga = parecido;
+      else if (!window.confirm(`¿Crear “${nombre}” como droga nueva, distinta de “${parecido.nombre}”?`)) return;
+    }
+  }
+  const boton = document.getElementById("expediente-droga-nueva-crear");
+  boton.disabled = true;
+  try {
+    const session = await asegurarSesionVigente();
+    const headers = { ...authHeaders(session.access_token), Prefer: "return=representation" };
+    let avisos = [];
+    if (!droga) {
+      const r = await fetchConTimeout(buildTableUrl("drogas", { select: "id" }), {
+        method: "POST", headers, body: JSON.stringify({ nombre, es_soporte: false, pendiente: true })
+      }, 10000);
+      if (!r.ok) throw new Error((await leerErrorApi(r)) || `Supabase respondió ${r.status}.`);
+      const [fila] = await r.json();
+      droga = { id: fila.id, nombre, es_soporte: false, pendiente: true, marcas_comerciales: [], droga_patologia: [] };
+      drogas.push(droga);
+      drogas.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+      avisos.push(`droga “${nombre}” creada`);
+    } else if (upModoNuevo === "droga") {
+      avisos.push(`la droga “${droga.nombre}” ya existía`);
+    }
+    let marca = null;
+    if (marcaNombre) {
+      marca = (droga.marcas_comerciales || []).find(m => upNombreClave(m.nombre_comercial) === upNombreClave(marcaNombre));
+      if (!marca) {
+        const r = await fetchConTimeout(buildTableUrl("marcas_comerciales", { select: "id,nombre_comercial,numero_anmat,laboratorio" }), {
+          method: "POST", headers, body: JSON.stringify({ droga_id: droga.id, nombre_comercial: marcaNombre, laboratorio: laboratorio || null })
+        }, 10000);
+        if (!r.ok) throw new Error((await leerErrorApi(r)) || `Supabase respondió ${r.status}.`);
+        [marca] = await r.json();
+        (droga.marcas_comerciales ||= []).push(marca);
+        avisos.push(`marca “${marcaNombre}” creada`);
+      }
+    }
+    poblarSelectDrogasExpediente();
+    document.getElementById("expediente-droga-select").value = droga.id;
+    poblarSelectMarcasParaDroga();
+    if (marca) document.getElementById("expediente-marca-select").value = marca.id;
+    agregarDrogaTemporalExpediente();
+    document.getElementById("expediente-droga-nueva-nombre").disabled = false;
+    upMostrarPanel("expediente-droga-nueva-panel", false);
+    mostrarToast(`Agregada al expediente${avisos.length ? ` (${avisos.join(", ")})` : ""}.`);
+  } catch (error) {
+    mostrarToast(/duplicate|unico/i.test(error.message || "") ? "Esa droga ya existe en el catálogo." : `No se pudo crear. ${error.message || ""}`, "error");
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+// Antes de generar el informe: la patología y cada droga tienen que tener su fundamentación.
+function faltantesParaInforme(expediente) {
+  const faltan = [];
+  const patologia = patologias.find(p => String(p.id) === String(expediente.patologia_id));
+  if (!expediente.patologia_id) faltan.push("El expediente no tiene patología elegida.");
+  (expediente.expediente_medicamentos || []).forEach(m => {
+    const droga = drogas.find(d => String(d.id) === String(m.droga_id));
+    if (!droga) return;
+    if (droga.es_soporte) {
+      if (!String(droga.fundamentacion_general || "").trim()) faltan.push(`${droga.nombre}: falta la fundamentación general (droga de soporte).`);
+    } else if (expediente.patologia_id && !String(fundamentacionParaExpediente(droga.id, expediente.patologia_id) || "").trim()) {
+      faltan.push(`${droga.nombre}: falta la fundamentación para la patología “${patologia?.nombre || "elegida"}”.`);
+    }
+  });
+  return faltan;
+}
+
 function actualizarVisibilidadDenunciante() {
   const esDenunciante = document.getElementById("expediente-es-denunciante")?.checked;
   document.getElementById("expediente-denunciante-nombre-wrap")?.toggleAttribute("hidden", esDenunciante);
@@ -2807,6 +2997,11 @@ async function handleGenerarInforme(tipo) {
   const expediente = expedientes.find(e => String(e.id) === String(id));
   if (!expediente) { setFormMessage("expediente-form-message", "Guardá el expediente antes de generar el informe."); return; }
   setFormMessage("expediente-form-message");
+  const faltan = faltantesParaInforme(expediente);
+  if (faltan.length) {
+    setFormMessage("expediente-form-message", `No se puede generar el informe todavía. Completá en el catálogo de Drogas: ${faltan.join(" ")}`);
+    return;
+  }
   try {
     const session = await asegurarSesionVigente();
     const blob = await generarInformeDocx(expediente, tipo);
@@ -12254,6 +12449,14 @@ async function initBrowser() {
   document.getElementById("expediente-es-denunciante")?.addEventListener("change", actualizarVisibilidadDenunciante);
   document.getElementById("expediente-droga-select")?.addEventListener("change", poblarSelectMarcasParaDroga);
   document.getElementById("expediente-droga-agregar")?.addEventListener("click", agregarDrogaTemporalExpediente);
+  document.getElementById("expediente-patologia-nueva")?.addEventListener("click", () => upMostrarPanel("expediente-patologia-nueva-panel", true));
+  document.getElementById("expediente-patologia-nueva-cancelar")?.addEventListener("click", () => upMostrarPanel("expediente-patologia-nueva-panel", false));
+  document.getElementById("expediente-patologia-nueva-crear")?.addEventListener("click", upCrearPatologiaDesdeExpediente);
+  document.getElementById("expediente-patologia-nueva-nombre")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); upCrearPatologiaDesdeExpediente(); } });
+  document.getElementById("expediente-droga-nueva")?.addEventListener("click", () => upAbrirPanelDroga("droga"));
+  document.getElementById("expediente-marca-nueva")?.addEventListener("click", () => upAbrirPanelDroga("marca"));
+  document.getElementById("expediente-droga-nueva-cancelar")?.addEventListener("click", () => { document.getElementById("expediente-droga-nueva-nombre").disabled = false; upMostrarPanel("expediente-droga-nueva-panel", false); });
+  document.getElementById("expediente-droga-nueva-crear")?.addEventListener("click", upCrearDrogaDesdeExpediente);
   document.getElementById("expediente-os-input")?.addEventListener("change", soloConValor(event => {
     event.target.dataset.selectedId = obrasSocialesTodasPorEtiqueta.get(event.target.value) || "";
     poblarSelectFiliales(event.target.dataset.selectedId);

@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=121">
+  <link rel="stylesheet" href="styles.css?v=122">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -175,7 +175,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 186</span>
+        <span>Versión 187</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2283,7 +2283,21 @@
                   <button type="button" class="secondary" id="expediente-filial-agregar" style="white-space:nowrap">+ Agregar filial</button>
                 </div>
               </label>
-              <label><span>Patología</span><select id="expediente-patologia"><option value="">Elegir patología...</option></select></label>
+              <label><span>Patología</span>
+                <div style="display:flex;gap:8px">
+                  <select id="expediente-patologia" style="flex:1;min-width:0"><option value="">Elegir patología...</option></select>
+                  <button type="button" class="secondary" id="expediente-patologia-nueva" style="white-space:nowrap">+ Nueva</button>
+                </div>
+              </label>
+              <div class="full up-nuevo" id="expediente-patologia-nueva-panel" hidden>
+                <strong>Nueva patología</strong>
+                <div class="up-nuevo-fila">
+                  <input id="expediente-patologia-nueva-nombre" placeholder="Nombre de la patología">
+                  <button type="button" class="primary small" id="expediente-patologia-nueva-crear">Crear y elegir</button>
+                  <button type="button" class="secondary small" id="expediente-patologia-nueva-cancelar">Cancelar</button>
+                </div>
+                <small>Queda marcada como pendiente de completar en el catálogo.</small>
+              </div>
               <label><span>Motivo de la denuncia</span><input id="expediente-motivo" type="text" placeholder="Ej: Negativa de cobertura"></label>
               <label class="full"><span>Diagnóstico</span><textarea id="expediente-diagnostico" rows="2" required></textarea></label>
               <label class="full"><span>Resumen de historia clínica</span><textarea id="expediente-resumen-hc" rows="4" class="textarea-grande"></textarea></label>
@@ -2300,6 +2314,24 @@
               <select id="expediente-marca-select"><option value="">Marca (opcional)...</option></select>
               <input id="expediente-dosis-input" type="text" placeholder="Dosis">
               <button type="button" class="secondary" id="expediente-droga-agregar">+ Agregar droga</button>
+            </div>
+            <div class="up-nuevo-links">
+              ¿No está en la lista?
+              <button type="button" class="link-button" id="expediente-droga-nueva">+ Nueva droga</button>
+              <button type="button" class="link-button" id="expediente-marca-nueva">+ Nueva marca para la droga elegida</button>
+            </div>
+            <div class="up-nuevo" id="expediente-droga-nueva-panel" hidden>
+              <strong id="expediente-droga-nueva-titulo">Nueva droga</strong>
+              <div class="up-nuevo-fila">
+                <input id="expediente-droga-nueva-nombre" placeholder="Nombre de la droga (genérico)">
+                <input id="expediente-droga-nueva-marca" placeholder="Marca comercial (opcional)">
+                <input id="expediente-droga-nueva-laboratorio" placeholder="Laboratorio (opcional)">
+              </div>
+              <div class="up-nuevo-fila">
+                <button type="button" class="primary small" id="expediente-droga-nueva-crear">Crear y agregar al expediente</button>
+                <button type="button" class="secondary small" id="expediente-droga-nueva-cancelar">Cancelar</button>
+              </div>
+              <small id="expediente-droga-nueva-nota">La droga nueva queda pendiente de completar en el catálogo (prospecto y fundamentación). La dosis se toma del campo "Dosis".</small>
             </div>
           </div>
         </div>
@@ -3048,7 +3080,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=100"></script>
+  <script src="app.js?v=101"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
