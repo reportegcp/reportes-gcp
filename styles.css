@@ -2347,3 +2347,58 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .re-menor{align-self:end;padding-bottom:8px}
 .ju-ingreso-full{grid-column:1/-1}
 .ju-ingreso-grid textarea{width:100%;resize:vertical;font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:8px}
+/* Jurídico · Reportes con gráficos y filtros */
+.jr-filtros{display:grid;gap:10px;margin-bottom:14px}
+.jr-fila{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.jr-busqueda>*{min-width:0}
+.jr-busqueda .jr-texto{flex:1 1 260px}
+.jr-busqueda .jr-dem{flex:1 1 240px}
+.jr-busqueda select{flex:0 1 190px;height:42px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit;font-size:13px}
+.jr-busqueda .jr-dem input{height:42px;border-radius:10px}
+#jr-ver-listado{height:42px;padding:0 16px}
+.jr-segmento{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:38px}
+.jr-segmento button{border:0;background:transparent;padding:0 18px;font:inherit;font-weight:800;font-size:13px;color:#4d5d70;cursor:pointer}
+.jr-segmento button.active{background:var(--navy);color:#fff}
+.jr-activos{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ju-kpi.ok strong{color:#226d53}
+.ju-kpi.alerta strong{color:#a85d13}
+.ju-kpi.riesgo strong{color:#a33846}
+.jr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start}
+.jr-card{margin:0!important}
+.jr-ancho{grid-column:1/-1}
+.jr-card .table-meta{padding:10px 14px}
+.jr-card>div:not(.table-meta){padding:8px 14px 12px}
+.jr-vacio{color:var(--muted);font-size:13px;padding:10px 0}
+.jr-c1{background:#9cc9cd}.jr-c2{background:var(--navy)}.jr-c3{background:#e2a24a}.jr-c4{background:#c27a7a}
+.jr-leyenda{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.jr-leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:8px}
+.jr-barras{display:grid;gap:4px}
+.jr-barra{display:grid;grid-template-columns:minmax(110px,38%) 1fr 44px;align-items:center;gap:10px;border:0;background:transparent;padding:4px 6px;border-radius:8px;font:inherit;text-align:left;width:100%}
+.jr-barra.clic{cursor:pointer}
+.jr-barra.clic:hover{background:#eef6f6}
+.jr-etq{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jr-pista{display:flex;height:14px;background:#eef2f5;border-radius:7px;overflow:hidden}
+.jr-seg{height:100%}
+.jr-val{font-weight:800;font-size:12.5px;text-align:right}
+.jr-cols{display:flex;align-items:flex-end;gap:10px;height:210px;padding-top:18px;overflow-x:auto}
+.jr-col{flex:1 0 46px;display:flex;flex-direction:column;align-items:center;height:100%}
+.jr-col-barras{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+.jr-col-barras span{width:42%;border-radius:4px 4px 0 0;position:relative;min-height:2px}
+.jr-col-barras b{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap}
+.jr-col small{font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap}
+.jr-apilada{display:flex;height:18px;border-radius:9px;overflow:hidden;background:#eef2f5;margin:6px 0 12px}
+.jr-estados{display:grid;gap:4px}
+.jr-estado-item{display:grid;grid-template-columns:14px 1fr auto 44px;align-items:center;gap:8px;border:0;background:transparent;padding:6px;border-radius:8px;font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.jr-estado-item:hover{background:#eef6f6}
+.jr-estado-item i{width:12px;height:12px;border-radius:3px}
+.jr-estado-item small{color:var(--muted);text-align:right}
+.jr-tabla{margin-top:8px}
+.jr-tabla summary{cursor:pointer;font-size:12px;font-weight:800;color:var(--navy);padding:4px 0;list-style:none}
+.jr-tabla summary::-webkit-details-marker{display:none}
+.jr-tabla summary::before{content:"▸ "}
+.jr-tabla[open] summary::before{content:"▾ "}
+@media print{
+  .jr-filtros .jr-busqueda,#jr-ver-listado,.jr-segmento,#ju-rep-exportar,#ju-rep-imprimir,.jr-activos button{display:none!important}
+  .jr-grid{display:block}.jr-card{margin-bottom:12px!important;break-inside:avoid}
+  .jr-tabla summary{display:none}
+}

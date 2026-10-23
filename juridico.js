@@ -182,8 +182,7 @@ function juVincularEventos() {
     if (!e.target.closest(".ju-combo")) { const l = document.getElementById("ju-dem-lista"); if (l) l.hidden = true; }
   });
   document.querySelector('#ju-modal [data-close-modal="ju-modal"]')?.addEventListener("click", () => { juFicha = null; });
-  on("ju-rep-generar", "click", juGenerarReporte);
-  on("ju-rep-tipo", "change", () => { juReporteDatos = null; juMostrarReportes(); });
+  jrVincularEventos();
   on("ju-rep-exportar", "click", juExportarReporte);
   on("ju-rep-imprimir", "click", () => window.print());
 }
@@ -1030,53 +1029,151 @@ async function reEliminar() {
 }
 
 // ---------------- Reportes (Oficios y Reclamos) ----------------
+// Pastillas y gráficos siempre a la vista; tablas a pedido ("Ver tabla" en cada
+// gráfico y "Ver listado" con los expedientes que cumplen los filtros).
 
 const JU_REP_CONFIG = {
   oficios: {
-    nombre: "Oficios", singular: "oficio", clase1: "Por motivo", col1: "Motivo", clase2: null, texto: "Carátula", areaSalida: "Por área de salida",
+    nombre: "Oficios", clase1: "Por motivo", col1: "Motivo", clase2: null, texto: "Carátula", estados: ["En trámite", "Finalizado"],
+    cerrados: "Finalizados",
     async cargar() { await juCargarOficios(); },
     items() {
       return juTodosLosIngresos().map(i => ({
-        fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_egreso, estado: i.estado, finalizado: i.estado === "Finalizado", devuelto: false,
-        analista: i.analista, area_salida: i.area_salida, clase1: i.oficio.motivo, clase2: null,
-        numero_ee: i.oficio.numero_ee, texto: i.oficio.caratula, demandados: i.oficio.demandados, esReingreso: i.oficio.ingresos[0]?.id !== i.id
+        ref: i.oficio.id, fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_egreso, estado: i.estado,
+        finalizado: i.estado === "Finalizado", devuelto: false, analista: i.analista, area_salida: i.area_salida,
+        clase1: i.oficio.motivo, clase2: null, numero_ee: i.oficio.numero_ee, texto: i.oficio.caratula,
+        demandados: i.oficio.demandados, esReingreso: i.oficio.ingresos[0]?.id !== i.id,
+        buscar: normalizar([i.oficio.numero_ee, i.oficio.caratula, i.descripcion, i.oficio.juzgado, i.oficio.otros_demandados].join(" ")),
+        clave: juClaveEe(i.oficio.numero_ee)
       }));
-    }
+    },
+    abrir: id => juAbrirFicha(id)
   },
   reclamos: {
-    nombre: "Reclamos", singular: "reclamo", clase1: "Por tipo de reclamo", col1: "Tipo", clase2: "Por tema", texto: "Observaciones", areaSalida: "Por área de salida",
+    nombre: "Reclamos", clase1: "Por tipo de reclamo", col1: "Tipo", clase2: "Tema", texto: "Observaciones", estados: ["Asignado", "Devuelto", "Finalizado"],
+    cerrados: "Finalizados y devueltos",
     async cargar() { await reCargarReclamos(); },
     items() {
       return reTodosLosIngresos().map(i => ({
-        fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_salida, estado: i.estado, finalizado: i.estado !== "Asignado", devuelto: i.estado === "Devuelto",
-        analista: i.analista, area_salida: i.area_salida, clase1: i.reclamo.tipo_reclamo, clase2: i.reclamo.tema,
-        numero_ee: i.reclamo.numero_ee, texto: i.observaciones, demandados: i.reclamo.demandados, esReingreso: i.reclamo.ingresos[0]?.id !== i.id
+        ref: i.reclamo.id, fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_salida, estado: i.estado,
+        finalizado: i.estado !== "Asignado", devuelto: i.estado === "Devuelto", analista: i.analista, area_salida: i.area_salida,
+        clase1: i.reclamo.tipo_reclamo, clase2: i.reclamo.tema, numero_ee: i.reclamo.numero_ee, texto: i.observaciones,
+        demandados: i.reclamo.demandados, esReingreso: i.reclamo.ingresos[0]?.id !== i.id,
+        buscar: normalizar([i.reclamo.numero_ee, i.observaciones, i.reclamo.tema, i.reclamo.cuit_beneficiario].join(" ")),
+        clave: juClaveEe(i.reclamo.numero_ee)
       }));
-    }
+    },
+    abrir: id => reAbrirFicha(id)
   }
 };
 
-function juRepTipo() {
-  return document.getElementById("ju-rep-tipo")?.value || "oficios";
+const jr = { tipo: "oficios", buscar: "", demandado: null, clase1: "", clase2: "", analista: "", estado: "", listado: false, page: 1 };
+let jrEventos = false;
+
+function juRepTipo() { return jr.tipo; }
+
+function jrVincularEventos() {
+  if (jrEventos) return;
+  jrEventos = true;
+  const on = (id, ev, fn) => document.getElementById(id)?.addEventListener(ev, fn);
+  document.querySelectorAll("[data-jr-tipo]").forEach(b => b.addEventListener("click", () => {
+    if (jr.tipo === b.dataset.jrTipo) return;
+    jr.tipo = b.dataset.jrTipo;
+    Object.assign(jr, { clase1: "", clase2: "", analista: "", estado: "", page: 1 });
+    document.querySelectorAll("[data-jr-tipo]").forEach(x => x.classList.toggle("active", x === b));
+    document.getElementById("ju-rep-desde").value = "";
+    juMostrarReportes();
+  }));
+  on("ju-rep-desde", "change", () => { jr.page = 1; juGenerarReporte(); });
+  on("ju-rep-hasta", "change", () => { jr.page = 1; juGenerarReporte(); });
+  on("jr-buscar", "input", e => { jr.buscar = e.target.value; jr.page = 1; juGenerarReporte(); });
+  [["jr-clase1", "clase1"], ["jr-clase2", "clase2"], ["jr-analista", "analista"], ["jr-estado", "estado"]].forEach(([id, campo]) =>
+    on(id, "change", e => { jr[campo] = e.target.value; jr.page = 1; juGenerarReporte(); }));
+  on("jr-dem-buscar", "input", jrBuscarDemandado);
+  on("jr-dem-buscar", "focus", jrBuscarDemandado);
+  on("jr-dem-buscar", "keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.querySelector("#jr-dem-lista [data-os-id]")?.click(); }
+    if (e.key === "Escape") document.getElementById("jr-dem-lista").hidden = true;
+  });
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".jr-dem")) { const l = document.getElementById("jr-dem-lista"); if (l) l.hidden = true; }
+  });
+  on("jr-ver-listado", "click", () => { jr.listado = !jr.listado; jr.page = 1; juGenerarReporte(); });
 }
 
 async function juMostrarReportes() {
-  const cfg = JU_REP_CONFIG[juRepTipo()];
+  jrVincularEventos();
+  const cfg = JU_REP_CONFIG[jr.tipo];
   try {
-    await cfg.cargar();
+    await Promise.all([cfg.cargar(), juAsegurarPadron()]);
   } catch (error) {
     mostrarToast(`No se pudieron cargar los ${cfg.nombre.toLowerCase()}.`, "error");
     return;
   }
   const desde = document.getElementById("ju-rep-desde");
   const hasta = document.getElementById("ju-rep-hasta");
-  if (desde && (!desde.value || desde.dataset.tipo !== juRepTipo())) {
+  if (!desde.value) {
     const fechas = cfg.items().map(i => i.fecha_ingreso).filter(Boolean).sort();
     desde.value = fechas[0] || "";
     hasta.value = juHoyIso();
-    desde.dataset.tipo = juRepTipo();
   }
-  if (!juReporteDatos || juReporteDatos.tipo !== juRepTipo()) juGenerarReporte();
+  jrLlenarFiltros();
+  juGenerarReporte();
+}
+
+function jrLlenarFiltros() {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  const items = cfg.items();
+  const llenar = (id, etiqueta, valores, actual) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = `<option value="">${etiqueta}: Todos</option>` + valores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join("");
+    sel.value = valores.includes(actual) ? actual : "";
+  };
+  const unicos = campo => [...new Set(items.map(i => i[campo]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  llenar("jr-clase1", cfg.col1, unicos("clase1"), jr.clase1);
+  const c2 = document.getElementById("jr-clase2");
+  c2.hidden = !cfg.clase2;
+  if (cfg.clase2) llenar("jr-clase2", "Tema", unicos("clase2"), jr.clase2);
+  llenar("jr-analista", "Analista", unicos("analista"), jr.analista);
+  llenar("jr-estado", "Estado", cfg.estados, jr.estado);
+  document.getElementById("jr-buscar").placeholder = jr.tipo === "oficios"
+    ? "Buscar por Nº EE, carátula, juzgado o descripción..." : "Buscar por Nº EE, observaciones, tema o CUIT...";
+  document.querySelectorAll("[data-jr-cerrados]").forEach(el => { el.textContent = cfg.cerrados; });
+}
+
+function jrBuscarDemandado() {
+  const input = document.getElementById("jr-dem-buscar");
+  const lista = document.getElementById("jr-dem-lista");
+  const q = normalizar(input.value.trim());
+  if (q.length < 2) { lista.innerHTML = `<div class="ju-combo-vacio">Escribí al menos 2 letras o números...</div>`; lista.hidden = false; return; }
+  const palabras = q.split(/\s+/);
+  const res = juPadron.filter(o => palabras.every(p => o._busqueda.includes(p))).slice(0, 20);
+  lista.innerHTML = res.map(o => `<button type="button" class="ju-combo-item" data-os-id="${o.id}"><span>${escaparHtml(o.denominacion)}</span><small>${escaparHtml(juCodigoDe(o))}</small></button>`).join("")
+    || `<div class="ju-combo-vacio">No hay coincidencias en el padrón.</div>`;
+  lista.hidden = false;
+  lista.querySelectorAll("[data-os-id]").forEach(b => b.addEventListener("click", () => {
+    jr.demandado = juPadron.find(o => String(o.id) === b.dataset.osId) || null;
+    input.value = "";
+    lista.hidden = true;
+    jr.page = 1;
+    juGenerarReporte();
+  }));
+}
+
+function jrFiltrar(items) {
+  const desde = document.getElementById("ju-rep-desde")?.value || "";
+  const hasta = document.getElementById("ju-rep-hasta")?.value || "";
+  const q = normalizar(jr.buscar.trim());
+  const qEe = juClaveEe(jr.buscar);
+  return items.filter(i =>
+    i.fecha_ingreso && (!desde || i.fecha_ingreso >= desde) && (!hasta || i.fecha_ingreso <= hasta) &&
+    (!q || i.buscar.includes(q) || (qEe.length > 3 && i.clave.includes(qEe))) &&
+    (!jr.demandado || (i.demandados || []).some(d => String(d.id) === String(jr.demandado.id))) &&
+    (!jr.clase1 || i.clase1 === jr.clase1) &&
+    (!jr.clase2 || i.clase2 === jr.clase2) &&
+    (!jr.analista || i.analista === jr.analista) &&
+    (!jr.estado || i.estado === jr.estado)
+  );
 }
 
 function juAgrupar(lista, claveFn) {
@@ -1095,13 +1192,132 @@ function juResumenGrupo(lista) {
   return { total: lista.length, finalizados: fin.length, tramite: lista.length - fin.length, devueltos: lista.filter(o => o.devuelto).length, mediana: juMediana(dias), promedio: juPromedio(dias) };
 }
 
+// --- Dibujo ---
+
+function jrTablaDetalle(filas, col, { conEstados = true } = {}) {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  const cab = conEstados
+    ? `<tr><th>${escaparHtml(col)}</th><th>Ingresados</th><th>${escaparHtml(cfg.cerrados)}</th><th>En trámite</th><th>Días resp.</th></tr>`
+    : `<tr><th>${escaparHtml(col)}</th><th>Cantidad</th></tr>`;
+  const cuerpo = filas.map(f => conEstados
+    ? `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td><td class="ju-num">${f.finalizados}</td><td class="ju-num">${f.tramite}</td><td class="ju-num">${f.mediana ?? "—"}</td></tr>`
+    : `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td></tr>`).join("");
+  return `<details class="jr-tabla"><summary>Ver tabla</summary><div class="table-scroll"><table class="data-table ig-tabla"><thead>${cab}</thead><tbody>${cuerpo}</tbody></table></div></details>`;
+}
+
+function jrBarras(id, filas, { col, filtro, segmentos = true, max } = {}) {
+  const cont = document.getElementById(id);
+  if (!cont) return;
+  if (!filas.length) { cont.innerHTML = `<div class="jr-vacio">Sin datos con estos filtros.</div>`; return; }
+  const tope = max || Math.max(...filas.map(f => f.total), 1);
+  cont.innerHTML = `<div class="jr-barras">${filas.map((f, n) => {
+    const ancho = v => `${Math.max(0, (v / tope) * 100)}%`;
+    const barra = segmentos
+      ? `<span class="jr-seg jr-c2" style="width:${ancho(f.finalizados)}"></span><span class="jr-seg jr-c3" style="width:${ancho(f.tramite)}"></span>`
+      : `<span class="jr-seg jr-c1" style="width:${ancho(f.total)}"></span>`;
+    const titulo = segmentos ? `${f.etiqueta}: ${f.total} (${f.finalizados} cerrados, ${f.tramite} en trámite)` : `${f.etiqueta}: ${f.total}`;
+    return `<${filtro ? "button type=\"button\"" : "div"} class="jr-barra${filtro ? " clic" : ""}" data-jr-n="${n}" title="${escaparHtml(titulo)}">
+      <span class="jr-etq">${escaparHtml(f.etiqueta)}</span><span class="jr-pista">${barra}</span><span class="jr-val">${f.total}</span>
+    </${filtro ? "button" : "div"}>`;
+  }).join("")}</div>${jrTablaDetalle(filas, col, { conEstados: segmentos })}`;
+  if (filtro) cont.querySelectorAll("[data-jr-n]").forEach(b => b.addEventListener("click", () => { filtro(filas[Number(b.dataset.jrN)]); jr.page = 1; juGenerarReporte(); }));
+}
+
+function jrColumnas(id, filas) {
+  const cont = document.getElementById(id);
+  if (!filas.length) { cont.innerHTML = `<div class="jr-vacio">Sin datos con estos filtros.</div>`; return; }
+  const tope = Math.max(...filas.map(f => f.total), 1);
+  cont.innerHTML = `<div class="jr-cols">${filas.map(f => `<div class="jr-col" title="${escaparHtml(f.etiqueta)}: ${f.total} ingresados, ${f.finalizados} cerrados">
+      <div class="jr-col-barras"><span class="jr-c1" style="height:${(f.total / tope) * 100}%"><b>${f.total}</b></span><span class="jr-c2" style="height:${(f.finalizados / tope) * 100}%"></span></div>
+      <small>${escaparHtml(f.corta)}</small></div>`).join("")}</div>${jrTablaDetalle(filas, "Trimestre")}`;
+}
+
+function jrEstados(id, lista) {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  const filas = cfg.estados.map(e => ({ etiqueta: e, total: lista.filter(i => i.estado === e).length }));
+  const total = lista.length || 1;
+  const clase = e => e === "Finalizado" ? "jr-c2" : e === "Devuelto" ? "jr-c4" : "jr-c3";
+  document.getElementById(id).innerHTML = `<div class="jr-apilada">${filas.map(f => `<span class="${clase(f.etiqueta)}" style="width:${(f.total / total) * 100}%" title="${escaparHtml(f.etiqueta)}: ${f.total}"></span>`).join("")}</div>
+    <div class="jr-estados">${filas.map(f => `<button type="button" class="jr-estado-item" data-jr-estado="${escaparHtml(f.etiqueta)}"><i class="${clase(f.etiqueta)}"></i>${escaparHtml(f.etiqueta)}<strong>${f.total}</strong><small>${Math.round((f.total / total) * 100)}%</small></button>`).join("")}</div>
+    ${jrTablaDetalle(filas, "Estado", { conEstados: false })}`;
+  document.querySelectorAll(`#${id} [data-jr-estado]`).forEach(b => b.addEventListener("click", () => { jr.estado = b.dataset.jrEstado; jr.page = 1; jrLlenarFiltros(); juGenerarReporte(); }));
+}
+
+function jrRenderActivos() {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  const activos = [];
+  if (jr.buscar.trim()) activos.push(["buscar", `Texto: “${jr.buscar.trim()}”`]);
+  if (jr.demandado) activos.push(["demandado", `Demandado: ${jr.demandado.denominacion}`]);
+  if (jr.clase1) activos.push(["clase1", `${cfg.col1}: ${jr.clase1}`]);
+  if (jr.clase2) activos.push(["clase2", `Tema: ${jr.clase2}`]);
+  if (jr.analista) activos.push(["analista", `Analista: ${jr.analista}`]);
+  if (jr.estado) activos.push(["estado", `Estado: ${jr.estado}`]);
+  const cont = document.getElementById("jr-activos");
+  cont.hidden = !activos.length;
+  cont.innerHTML = activos.map(([k, t]) => `<span class="ju-chip"><strong>${escaparHtml(t)}</strong><button type="button" data-jr-quitar="${k}" aria-label="Quitar filtro">×</button></span>`).join("")
+    + (activos.length > 1 ? `<button type="button" class="ju-link-danger" id="jr-limpiar">Limpiar filtros</button>` : "");
+  const quitar = k => {
+    if (k === "buscar") { jr.buscar = ""; document.getElementById("jr-buscar").value = ""; }
+    else if (k === "demandado") jr.demandado = null;
+    else jr[k] = "";
+    jr.page = 1;
+    jrLlenarFiltros();
+    juGenerarReporte();
+  };
+  cont.querySelectorAll("[data-jr-quitar]").forEach(b => b.addEventListener("click", () => quitar(b.dataset.jrQuitar)));
+  document.getElementById("jr-limpiar")?.addEventListener("click", () => {
+    Object.assign(jr, { buscar: "", demandado: null, clase1: "", clase2: "", analista: "", estado: "", page: 1 });
+    document.getElementById("jr-buscar").value = "";
+    jrLlenarFiltros();
+    juGenerarReporte();
+  });
+}
+
+function jrRenderListado(lista) {
+  const cfg = JU_REP_CONFIG[jr.tipo];
+  const btn = document.getElementById("jr-ver-listado");
+  btn.textContent = jr.listado ? "Ocultar listado" : `Ver listado (${lista.length})`;
+  const card = document.getElementById("jr-listado-card");
+  card.hidden = !jr.listado;
+  if (!jr.listado) return;
+  const filas = [...lista].sort((a, b) => String(b.fecha_ingreso).localeCompare(String(a.fecha_ingreso)));
+  const pageInfo = paginarRegistros(filas, jr.page);
+  jr.page = pageInfo.page;
+  document.getElementById("jr-listado-titulo").textContent = `${filas.length} ingreso${filas.length === 1 ? "" : "s"} con estos filtros`;
+  document.getElementById("jr-listado-col1").textContent = cfg.col1;
+  document.getElementById("jr-listado-texto").textContent = cfg.texto;
+  const hoy = juHoyIso();
+  document.getElementById("jr-listado-body").innerHTML = pageInfo.items.map(i => {
+    const dias = i.fecha_egreso ? juDiasEntre(i.fecha_ingreso, i.fecha_egreso) : juDiasEntre(i.fecha_ingreso, hoy);
+    const dem = [...new Set((i.demandados || []).map(d => d.denominacion))].join(" · ");
+    const cls = i.estado === "Finalizado" ? "fin" : i.estado === "Devuelto" ? "dev" : "tram";
+    return `<tr class="os-row" data-jr-ref="${i.ref}" tabindex="0" role="button" title="Clic para abrir">
+      <td class="date-cell">${formatearFecha(i.fecha_ingreso)}${i.esReingreso ? `<br><span class="ju-tag">Reingreso</span>` : ""}</td>
+      <td class="ju-ee">${escaparHtml(i.numero_ee || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:240px" title="${escaparHtml(dem)}">${escaparHtml(dem || "—")}</td>
+      <td class="ellipsis-cell" style="max-width:280px" title="${escaparHtml(i.texto || "")}">${escaparHtml(i.texto || "—")}</td>
+      <td>${escaparHtml(i.clase1 || "—")}</td>
+      <td>${escaparHtml(i.analista || "—")}</td>
+      <td class="date-cell">${formatearFecha(i.fecha_egreso)}</td>
+      <td class="ju-num" title="${i.fecha_egreso ? "Días hasta la salida" : "Días en trámite"}">${dias ?? "—"}</td>
+      <td><span class="ju-estado ${cls}">${escaparHtml(i.estado)}</span></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="9" style="color:var(--muted)">No hay ingresos con estos filtros.</td></tr>`;
+  renderPaginacion("jr-listado-paginacion", pageInfo, p => { jr.page = p; juGenerarReporte(); });
+  document.querySelectorAll("#jr-listado-body [data-jr-ref]").forEach(row => {
+    const abrir = () => requiereAutenticacion(() => cfg.abrir(row.dataset.jrRef));
+    row.addEventListener("click", abrir);
+    row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(); } });
+  });
+}
+
 function juGenerarReporte() {
-  const tipo = juRepTipo();
+  const tipo = jr.tipo;
   const cfg = JU_REP_CONFIG[tipo];
   const desde = document.getElementById("ju-rep-desde")?.value || "";
   const hasta = document.getElementById("ju-rep-hasta")?.value || "";
   if (desde && hasta && desde > hasta) { mostrarToast("\"Desde\" tiene que ser anterior a \"Hasta\".", "error"); return; }
-  const lista = cfg.items().filter(i => i.fecha_ingreso && (!desde || i.fecha_ingreso >= desde) && (!hasta || i.fecha_ingreso <= hasta));
+  const lista = jrFiltrar(cfg.items());
   const reingresos = lista.filter(i => i.esReingreso).length;
   const total = juResumenGrupo(lista);
   const fin = lista.filter(o => o.finalizado);
@@ -1109,54 +1325,56 @@ function juGenerarReporte() {
   const cortes = tipo === "reclamos"
     ? [["0 a 7 días", d => d <= 7], ["8 a 15 días", d => d >= 8 && d <= 15], ["16 a 30 días", d => d >= 16 && d <= 30], ["Más de 30 días", d => d > 30]]
     : [["0 a 2 días", d => d <= 2], ["3 a 5 días", d => d >= 3 && d <= 5], ["6 a 10 días", d => d >= 6 && d <= 10], ["Más de 10 días", d => d > 10]];
-  const rangos = cortes.map(([etiqueta, fn]) => ({ etiqueta, valor: diasFin.filter(fn).length }));
+  const rangos = cortes.map(([etiqueta, fn]) => ({ etiqueta, total: diasFin.filter(fn).length }));
+  const hoy = juHoyIso();
+  const pendientes30 = lista.filter(o => !o.finalizado && juDiasEntre(o.fecha_ingreso, hoy) > 30).length;
 
   const porTrimestre = [...juAgrupar(lista, o => juClaveTrimestre(o.fecha_ingreso)).entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([k, l]) => ({ etiqueta: juTrimestre(l[0].fecha_ingreso), ...juResumenGrupo(l) }));
+    .map(([k, l]) => { const [a, t] = k.split("-"); return { etiqueta: juTrimestre(l[0].fecha_ingreso), corta: `${t}T ${String(a).slice(2)}`, ...juResumenGrupo(l) }; });
   const ordenar = arr => arr.sort((a, b) => b.total - a.total || a.etiqueta.localeCompare(b.etiqueta, "es"));
   const porClase1 = ordenar([...juAgrupar(lista, o => o.clase1).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
-  const porClase2 = cfg.clase2 ? ordenar([...juAgrupar(lista, o => o.clase2).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) }))).slice(0, 20) : [];
+  const porClase2 = cfg.clase2 ? ordenar([...juAgrupar(lista, o => o.clase2).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) }))) : [];
   const porAnalista = ordenar([...juAgrupar(lista, o => o.analista).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
-  const porArea = ordenar([...juAgrupar(fin, o => o.area_salida).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
-  const demandados = new Map();
-  lista.forEach(o => new Set((o.demandados || []).map(d => d.denominacion)).forEach(n => demandados.set(n, (demandados.get(n) || 0) + 1)));
-  const porDemandado = [...demandados.entries()].map(([etiqueta, total]) => ({ etiqueta, total })).sort((a, b) => b.total - a.total).slice(0, 15);
+  const porArea = ordenar([...juAgrupar(fin.filter(o => o.area_salida), o => o.area_salida).entries()].map(([k, l]) => ({ etiqueta: k, ...juResumenGrupo(l) })));
+  const dem = new Map();
+  lista.forEach(o => {
+    const vistos = new Set();
+    (o.demandados || []).forEach(d => {
+      if (vistos.has(d.denominacion)) return;
+      vistos.add(d.denominacion);
+      if (!dem.has(d.denominacion)) dem.set(d.denominacion, { os: d, items: [] });
+      dem.get(d.denominacion).items.push(o);
+    });
+  });
+  const porDemandado = [...dem.entries()].map(([etiqueta, v]) => ({ etiqueta, os: v.os, ...juResumenGrupo(v.items) })).sort((a, b) => b.total - a.total);
   const pendientes = lista.filter(o => !o.finalizado).sort((a, b) => String(a.fecha_ingreso).localeCompare(String(b.fecha_ingreso)));
 
-  juReporteDatos = { tipo, desde, hasta, reingresos, total, rangos, porTrimestre, porClase1, porClase2, porAnalista, porArea, porDemandado, pendientes };
+  juReporteDatos = { tipo, desde, hasta, reingresos, total, rangos, porTrimestre, porClase1, porClase2, porAnalista, porArea, porDemandado, pendientes, lista };
 
-  const kpi = (titulo, valor, nota = "") => `<div class="ju-kpi"><span>${titulo}</span><strong>${valor}</strong>${nota ? `<small>${nota}</small>` : ""}</div>`;
+  const kpi = (titulo, valor, nota = "", clase = "") => `<div class="ju-kpi ${clase}"><span>${titulo}</span><strong>${valor}</strong>${nota ? `<small>${nota}</small>` : ""}</div>`;
   const pct = n => total.total ? `${Math.round((n / total.total) * 100)}% del total` : "";
   document.getElementById("ju-rep-kpis").innerHTML =
     kpi("Ingresos", total.total, reingresos ? `incluye ${reingresos} reingreso${reingresos === 1 ? "" : "s"}` : "") +
     (tipo === "reclamos"
-      ? kpi("Finalizados", total.finalizados - total.devueltos, pct(total.finalizados - total.devueltos)) + kpi("Devueltos", total.devueltos, pct(total.devueltos)) + kpi("Asignados", total.tramite, "en trámite")
-      : kpi("Finalizados", total.finalizados, pct(total.finalizados)) + kpi("En trámite", total.tramite)) +
+      ? kpi("Finalizados", total.finalizados - total.devueltos, pct(total.finalizados - total.devueltos), "ok") + kpi("Devueltos", total.devueltos, pct(total.devueltos)) + kpi("Asignados", total.tramite, "en trámite", "alerta")
+      : kpi("Finalizados", total.finalizados, pct(total.finalizados), "ok") + kpi("En trámite", total.tramite, "", "alerta")) +
+    kpi("Más de 30 días en trámite", pendientes30, "pendientes antiguos", pendientes30 ? "riesgo" : "") +
     kpi("Tiempo de respuesta", total.mediana ?? "—", total.mediana != null ? `días (mediana) · promedio ${String(total.promedio).replace(".", ",")}` : "");
   document.getElementById("ju-rep-titulo").textContent = `${cfg.nombre} ingresados entre el ${formatearFecha(desde)} y el ${formatearFecha(hasta)}`;
 
-  const tabla = filas => filas.map(f => `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td><td class="ju-num">${f.finalizados}</td><td class="ju-num">${f.tramite}</td><td class="ju-num">${f.mediana ?? "—"}</td></tr>`).join("");
-  document.getElementById("ju-rep-trimestre").innerHTML = tabla(porTrimestre);
-  document.getElementById("ju-rep-clase1-titulo").textContent = cfg.clase1;
-  document.getElementById("ju-rep-clase1-col").textContent = cfg.col1;
-  document.getElementById("ju-rep-motivo").innerHTML = tabla(porClase1);
-  document.getElementById("ju-rep-clase2-card").hidden = !cfg.clase2;
-  if (cfg.clase2) document.getElementById("ju-rep-tema").innerHTML = tabla(porClase2);
-  document.getElementById("ju-rep-analista").innerHTML = tabla(porAnalista);
-  document.getElementById("ju-rep-area").innerHTML = porArea.map(f => `<tr><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td><td class="ju-num">${f.mediana ?? "—"}</td></tr>`).join("");
-  document.querySelectorAll("[data-ju-rep-cerrados]").forEach(el => { el.textContent = tipo === "reclamos" ? "Finalizados y devueltos" : "Finalizados"; });
-  document.querySelectorAll("[data-ju-rep-unidad]").forEach(el => { el.textContent = cfg.nombre; });
-  document.getElementById("ju-rep-texto-col").textContent = cfg.texto;
-  document.getElementById("ju-rep-clase1-col2").textContent = cfg.col1;
-  renderBarChart("ju-rep-tiempos", rangos);
-  document.getElementById("ju-rep-demandados").innerHTML = porDemandado.map((f, i) => `<tr><td class="ju-num">${i + 1}</td><td>${escaparHtml(f.etiqueta)}</td><td class="ju-num"><strong>${f.total}</strong></td></tr>`).join("");
-  const hoy = juHoyIso();
-  document.getElementById("ju-rep-pendientes-count").textContent = `${pendientes.length} en trámite`;
-  document.getElementById("ju-rep-pendientes").innerHTML = pendientes.map(o => {
-    const dias = juDiasEntre(o.fecha_ingreso, hoy);
-    return `<tr><td class="date-cell">${formatearFecha(o.fecha_ingreso)}</td><td class="ju-ee">${escaparHtml(o.numero_ee || "—")}</td><td class="ellipsis-cell" style="max-width:280px" title="${escaparHtml(o.texto || "")}">${escaparHtml(o.texto || "—")}</td><td>${escaparHtml(o.clase1 || "—")}</td><td>${escaparHtml(o.analista || "—")}</td><td class="ju-num"><span class="ju-dias ${dias > 30 ? "alto" : dias > 10 ? "medio" : ""}">${dias}</span></td></tr>`;
-  }).join("") || `<tr><td colspan="6" style="color:var(--muted)">No hay ${cfg.nombre.toLowerCase()} en trámite en el período.</td></tr>`;
+  jrColumnas("jr-trimestre", porTrimestre);
+  jrEstados("jr-estados", lista);
+  jrBarras("jr-tiempos", rangos, { col: "Tiempo de respuesta", segmentos: false });
+  document.getElementById("jr-clase1-titulo").textContent = cfg.clase1;
+  jrBarras("jr-g-clase1", porClase1, { col: cfg.col1, filtro: f => { jr.clase1 = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
+  document.getElementById("jr-clase2-card").hidden = !cfg.clase2;
+  if (cfg.clase2) jrBarras("jr-g-clase2", porClase2.slice(0, 15), { col: "Tema", filtro: f => { jr.clase2 = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
+  jrBarras("jr-g-analista", porAnalista, { col: "Analista", filtro: f => { jr.analista = f.etiqueta === "(Sin dato)" ? "" : f.etiqueta; jrLlenarFiltros(); } });
+  jrBarras("jr-g-demandados", porDemandado.slice(0, 10), { col: "Demandado", filtro: f => { jr.demandado = f.os; } });
+  jrBarras("jr-g-area", porArea, { col: "Área de salida", segmentos: false });
+  jrRenderActivos();
+  jrRenderListado(lista);
   document.getElementById("ju-rep-resultado").hidden = false;
 }
 
@@ -1168,25 +1386,37 @@ function juExportarReporte() {
   const hoja = (nombre, aoa, cols) => {
     const h = window.XLSX.utils.aoa_to_sheet(aoa);
     h["!cols"] = cols.map(wch => ({ wch }));
-    window.XLSX.utils.book_append_sheet(libro, h, nombre);
+    window.XLSX.utils.book_append_sheet(libro, h, nombre.slice(0, 31));
   };
+  const filtros = [];
+  if (jr.buscar.trim()) filtros.push(`Texto: ${jr.buscar.trim()}`);
+  if (jr.demandado) filtros.push(`Demandado: ${jr.demandado.denominacion}`);
+  if (jr.clase1) filtros.push(`${cfg.col1}: ${jr.clase1}`);
+  if (jr.clase2) filtros.push(`Tema: ${jr.clase2}`);
+  if (jr.analista) filtros.push(`Analista: ${jr.analista}`);
+  if (jr.estado) filtros.push(`Estado: ${jr.estado}`);
   const resumen = [
-    [`${cfg.nombre} ingresados entre el ${formatearFecha(d.desde)} y el ${formatearFecha(d.hasta)}`], [],
+    [`${cfg.nombre} ingresados entre el ${formatearFecha(d.desde)} y el ${formatearFecha(d.hasta)}`],
+    [filtros.length ? `Filtros: ${filtros.join(" · ")}` : "Sin filtros"], [],
     ["Ingresos", d.total.total], ["Reingresos incluidos", d.reingresos]
   ];
   if (d.tipo === "reclamos") resumen.push(["Finalizados", d.total.finalizados - d.total.devueltos], ["Devueltos", d.total.devueltos], ["Asignados (en trámite)", d.total.tramite]);
   else resumen.push(["Finalizados", d.total.finalizados], ["En trámite", d.total.tramite]);
-  resumen.push(["Tiempo de respuesta (mediana, días)", d.total.mediana ?? ""], ["Tiempo de respuesta (promedio, días)", d.total.promedio ?? ""], [], ["Tiempo de respuesta", cfg.nombre], ...d.rangos.map(r => [r.etiqueta, r.valor]));
+  resumen.push(["Tiempo de respuesta (mediana, días)", d.total.mediana ?? ""], ["Tiempo de respuesta (promedio, días)", d.total.promedio ?? ""], [], ["Tiempo de respuesta", cfg.nombre], ...d.rangos.map(r => [r.etiqueta, r.total]));
   hoja("Resumen", resumen, [38, 12]);
-  const cerrados = d.tipo === "reclamos" ? "Finalizados y devueltos" : "Finalizados";
-  const grupo = (titulo, filas) => [[titulo, "Ingresados", cerrados, "En trámite", "Días de respuesta (mediana)"], ...filas.map(f => [f.etiqueta, f.total, f.finalizados, f.tramite, f.mediana ?? ""])];
+  const grupo = (titulo, filas) => [[titulo, "Ingresados", cfg.cerrados, "En trámite", "Días de respuesta (mediana)"], ...filas.map(f => [f.etiqueta, f.total, f.finalizados, f.tramite, f.mediana ?? ""])];
   hoja("Por trimestre", grupo("Trimestre", d.porTrimestre), [20, 12, 14, 12, 26]);
   hoja(cfg.clase1, grupo(cfg.col1, d.porClase1), [24, 12, 14, 12, 26]);
-  if (cfg.clase2) hoja(cfg.clase2, grupo("Tema", d.porClase2), [34, 12, 14, 12, 26]);
+  if (cfg.clase2) hoja("Por tema", grupo("Tema", d.porClase2), [34, 12, 14, 12, 26]);
   hoja("Por analista", grupo("Analista", d.porAnalista), [18, 12, 14, 12, 26]);
-  hoja("Por área de salida", [["Área de salida", cerrados, "Días de respuesta (mediana)"], ...d.porArea.map(f => [f.etiqueta, f.total, f.mediana ?? ""])], [18, 14, 26]);
-  hoja("Más demandados", [["#", "Demandado", cfg.nombre], ...d.porDemandado.map((f, i) => [i + 1, f.etiqueta, f.total])], [5, 60, 10]);
+  hoja("Por demandado", grupo("Demandado", d.porDemandado), [60, 12, 14, 12, 26]);
+  hoja("Por área de salida", [["Área de salida", cfg.cerrados, "Días de respuesta (mediana)"], ...d.porArea.map(f => [f.etiqueta, f.total, f.mediana ?? ""])], [18, 14, 26]);
   const hoy = juHoyIso();
-  hoja("Pendientes", [["Fecha ingreso", "Nº EE", cfg.texto, cfg.col1, "Analista", "Días en trámite"], ...d.pendientes.map(o => [formatearFecha(o.fecha_ingreso), o.numero_ee || "", o.texto || "", o.clase1 || "", o.analista || "", juDiasEntre(o.fecha_ingreso, hoy)])], [12, 32, 70, 20, 14, 14]);
+  hoja("Listado", [["Fecha ingreso", "Nº EE", "Demandados", cfg.texto, cfg.col1, ...(cfg.clase2 ? ["Tema"] : []), "Analista", "Salida", "Días", "Estado", "Reingreso"],
+    ...[...d.lista].sort((a, b) => String(b.fecha_ingreso).localeCompare(String(a.fecha_ingreso))).map(i => [
+      formatearFecha(i.fecha_ingreso), i.numero_ee || "", [...new Set((i.demandados || []).map(x => x.denominacion))].join(" / "), i.texto || "", i.clase1 || "",
+      ...(cfg.clase2 ? [i.clase2 || ""] : []), i.analista || "", i.fecha_egreso ? formatearFecha(i.fecha_egreso) : "",
+      i.fecha_egreso ? juDiasEntre(i.fecha_ingreso, i.fecha_egreso) : juDiasEntre(i.fecha_ingreso, hoy), i.estado, i.esReingreso ? "Sí" : "No"])],
+    [12, 32, 45, 60, 20, ...(cfg.clase2 ? [24] : []), 14, 12, 8, 12, 10]);
   window.XLSX.writeFile(libro, `reporte_${cfg.nombre.toLowerCase()}_${d.desde}_${d.hasta}.xlsx`);
 }

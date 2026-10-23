@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=119">
+  <link rel="stylesheet" href="styles.css?v=120">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -175,7 +175,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 183</span>
+        <span>Versión 184</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1281,56 +1281,84 @@
       </section>
 
       <section id="ju-reportes" class="view">
-        <div class="toolbar ig-toolbar">
-          <label class="ig-anio"><span>Informe</span><select id="ju-rep-tipo"><option value="oficios">Oficios</option><option value="reclamos">Reclamos</option></select></label>
-          <label class="ig-anio"><span>Ingresados desde</span><input id="ju-rep-desde" type="date"></label>
-          <label class="ig-anio"><span>Hasta</span><input id="ju-rep-hasta" type="date"></label>
-          <button class="primary small" id="ju-rep-generar" type="button">Generar</button>
-          <button class="secondary small" id="ju-rep-exportar" type="button">Exportar Excel</button>
-          <button class="secondary small" id="ju-rep-imprimir" type="button">Imprimir / PDF</button>
+        <div class="jr-filtros">
+          <div class="jr-fila">
+            <div class="jr-segmento" role="tablist" aria-label="Informe">
+              <button type="button" class="active" data-jr-tipo="oficios">Oficios</button>
+              <button type="button" data-jr-tipo="reclamos">Reclamos</button>
+            </div>
+            <label class="ig-anio"><span>Ingresados desde</span><input id="ju-rep-desde" type="date"></label>
+            <label class="ig-anio"><span>Hasta</span><input id="ju-rep-hasta" type="date"></label>
+            <span style="flex:1"></span>
+            <button class="secondary small" id="ju-rep-exportar" type="button">Exportar Excel</button>
+            <button class="secondary small" id="ju-rep-imprimir" type="button">Imprimir / PDF</button>
+          </div>
+          <div class="jr-fila jr-busqueda">
+            <div class="search-box jr-texto">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="jr-buscar" type="search" placeholder="Buscar por Nº EE, carátula u observaciones..." autocomplete="off">
+            </div>
+            <div class="ju-combo jr-dem">
+              <input id="jr-dem-buscar" placeholder="Demandado: nombre, RNAS o RNEMP..." autocomplete="off">
+              <div class="ju-combo-list" id="jr-dem-lista" hidden></div>
+            </div>
+            <select id="jr-clase1"><option value="">Motivo: Todos</option></select>
+            <select id="jr-clase2" hidden><option value="">Tema: Todos</option></select>
+            <select id="jr-analista"><option value="">Analista: Todos</option></select>
+            <select id="jr-estado"><option value="">Estado: Todos</option></select>
+            <button class="primary small" id="jr-ver-listado" type="button">Ver listado</button>
+          </div>
+          <div class="jr-activos" id="jr-activos" hidden></div>
         </div>
+
         <div id="ju-rep-resultado" hidden>
           <div class="ig-encabezado"><h2 id="ju-rep-titulo"></h2></div>
           <div class="ju-kpis" id="ju-rep-kpis"></div>
-          <div class="ju-rep-grid">
-            <div class="table-card">
-              <div class="table-meta"><strong>Por trimestre</strong></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Trimestre</th><th>Ingresados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-trimestre"></tbody></table></div>
+          <div class="jr-grid">
+            <div class="table-card jr-card jr-ancho">
+              <div class="table-meta"><strong>Evolución por trimestre</strong><span class="jr-leyenda"><i class="jr-c1"></i>Ingresados <i class="jr-c2"></i><span data-jr-cerrados>Finalizados</span></span></div>
+              <div class="jr-columnas" id="jr-trimestre"></div>
             </div>
-            <div class="table-card">
+            <div class="table-card jr-card">
+              <div class="table-meta"><strong>Estado actual</strong></div>
+              <div id="jr-estados"></div>
+            </div>
+            <div class="table-card jr-card">
               <div class="table-meta"><strong>Tiempo de respuesta</strong><span>Días hasta la salida</span></div>
-              <div class="ju-chart" id="ju-rep-tiempos"></div>
+              <div id="jr-tiempos"></div>
             </div>
-            <div class="table-card">
-              <div class="table-meta"><strong id="ju-rep-clase1-titulo">Por motivo</strong></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th id="ju-rep-clase1-col">Motivo</th><th>Ingresados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-motivo"></tbody></table></div>
+            <div class="table-card jr-card">
+              <div class="table-meta"><strong id="jr-clase1-titulo">Por motivo</strong><span>Clic para filtrar</span></div>
+              <div id="jr-g-clase1"></div>
             </div>
-            <div class="table-card" id="ju-rep-clase2-card" hidden>
-              <div class="table-meta"><strong>Por tema</strong><span>Los 20 más frecuentes</span></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Tema</th><th>Ingresados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-tema"></tbody></table></div>
+            <div class="table-card jr-card" id="jr-clase2-card" hidden>
+              <div class="table-meta"><strong>Por tema</strong><span>Los 15 más frecuentes · clic para filtrar</span></div>
+              <div id="jr-g-clase2"></div>
             </div>
-            <div class="table-card">
-              <div class="table-meta"><strong>Por analista</strong></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Analista</th><th>Asignados</th><th data-ju-rep-cerrados>Finalizados</th><th>En trámite</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-analista"></tbody></table></div>
+            <div class="table-card jr-card">
+              <div class="table-meta"><strong>Por analista</strong><span>Clic para filtrar</span></div>
+              <div id="jr-g-analista"></div>
             </div>
-            <div class="table-card">
-              <div class="table-meta"><strong>Más demandados</strong><span>Obras Sociales y prepagas</span></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>#</th><th>Demandado</th><th data-ju-rep-unidad>Oficios</th></tr></thead><tbody id="ju-rep-demandados"></tbody></table></div>
+            <div class="table-card jr-card">
+              <div class="table-meta"><strong>Más demandados</strong><span>Los 10 primeros · clic para filtrar</span></div>
+              <div id="jr-g-demandados"></div>
             </div>
-            <div class="table-card">
+            <div class="table-card jr-card">
               <div class="table-meta"><strong>Por área de salida</strong><span>Con salida registrada</span></div>
-              <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Área</th><th data-ju-rep-unidad>Oficios</th><th>Días resp.</th></tr></thead><tbody id="ju-rep-area"></tbody></table></div>
+              <div id="jr-g-area"></div>
             </div>
           </div>
-          <div class="table-card" style="margin-top:16px">
-            <div class="table-meta"><strong>Pendientes</strong><span id="ju-rep-pendientes-count"></span></div>
-            <div class="table-scroll"><table class="data-table ig-tabla"><thead><tr><th>Ingreso</th><th>Nº EE</th><th id="ju-rep-texto-col">Carátula</th><th id="ju-rep-clase1-col2">Motivo</th><th>Analista</th><th>Días en trámite</th></tr></thead><tbody id="ju-rep-pendientes"></tbody></table></div>
+          <div class="table-card" id="jr-listado-card" hidden style="margin-top:16px">
+            <div class="table-meta"><strong id="jr-listado-titulo"></strong><span>Clic en una fila para abrir el expediente</span></div>
+            <div class="table-scroll">
+              <table class="data-table ju-tabla">
+                <thead><tr><th>Ingreso</th><th>Nº EE</th><th>Demandado</th><th id="jr-listado-texto">Carátula</th><th id="jr-listado-col1">Motivo</th><th>Analista</th><th>Salida</th><th>Días</th><th>Estado</th></tr></thead>
+                <tbody id="jr-listado-body"></tbody>
+              </table>
+            </div>
+            <div class="table-pagination" id="jr-listado-paginacion"></div>
           </div>
-          <div class="ig-nota">
-            <p><strong>Días resp.:</strong> mediana de días entre la fecha de ingreso y la de egreso (oficios) o de salida GCP (reclamos).</p>
-            <p><strong>Ingresos:</strong> cada ingreso de un expediente, incluidos los reingresos.</p>
-            <p><strong>Más demandados:</strong> cuando se demanda a la Obra Social y a la prepaga con el mismo nombre, se cuenta una sola vez.</p>
-          </div>
+          <p class="ig-nota" style="margin-top:14px"><span class="jr-leyenda"><i class="jr-c2"></i><span data-jr-cerrados>Finalizados</span> <i class="jr-c3"></i>En trámite</span> · Tiempo de respuesta: mediana de días entre el ingreso y la salida. Cada reingreso cuenta como un ingreso.</p>
         </div>
       </section>
 
@@ -3016,7 +3044,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=99"></script>
-  <script src="juridico.js?v=4"></script>
+  <script src="juridico.js?v=5"></script>
   <script src="auditorias.js?v=31"></script>
   <script src="usuarios.js?v=7"></script>
   <script>
