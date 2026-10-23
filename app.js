@@ -25,7 +25,7 @@ const views = {
   "metas-fisicas": { title: "Metas Físicas", subtitle: "Cantidad de trámites de PMA y Cartillas por trimestre calendario" },
   "ju-oficios": { title: "Oficios", subtitle: "Oficios judiciales: ingreso, demandados, analista, respuesta y estado" },
   "ju-reclamos": { title: "Reclamos", subtitle: "Reclamos de beneficiarios: demandados, tipo, tema, analista, salida y estado" },
-  "ju-reportes": { title: "Reportes jurídicos", subtitle: "Indicadores de oficios y reclamos: ingresos, tiempos de respuesta, clasificación, analistas y pendientes" },
+  "ju-reportes": { title: "Reporte Prestaciones", subtitle: "Indicadores de oficios y reclamos: ingresos, tiempos de respuesta, clasificación, analistas y pendientes" },
   "informe-gestion": { title: "Informe de gestión", subtitle: "Expedientes, disposiciones emitidas y estado actual de PMA o de Cartilla, por ejercicio" },
   "up-patologias": { title: "Patologías", subtitle: "Catálogo de patologías para Urgencias Prestacionales" },
   "up-drogas": { title: "Catálogo de drogas", subtitle: "Drogas, marcas comerciales y fundamentación por patología" },
@@ -360,7 +360,7 @@ const MODULOS_ACCESO = [
   { nombre: "Normativa", vistas: [["criticidad", "Criticidad"], ["metas-fisicas", "Metas Físicas"], ["informe-gestion", "Informe de gestión"]] },
   { nombre: "Urgencias Prestacionales", vistas: [["up-expedientes", "Expedientes"], ["up-drogas", "Catálogo de drogas"], ["up-patologias", "Patologías"], ["up-plantillas", "Plantillas"], ["up-reportes", "Reportes"]] },
   { nombre: "Preexistencias", vistas: [["px-preexistencias", "Expedientes"], ["px-patologias", "Patologías"], ["px-plantillas", "Plantillas"], ["px-emp", "Reportes"]] },
-  { nombre: "Jurídico", vistas: [["ju-oficios", "Oficios"], ["ju-reclamos", "Reclamos"], ["ju-reportes", "Reportes"]] },
+  { nombre: "Prestaciones", vistas: [["ju-oficios", "Oficios"], ["ju-reclamos", "Reclamos"], ["ju-reportes", "Reportes"]] },
   { nombre: "Auditorías", vistas: [["au-auditorias", "Expedientes"], ["au-plantilla", "Planilla de requerimientos"], ["au-pendientes", "Pendientes"]] },
   { nombre: "Prototipo 2165", vistas: [["prototipo", "Prototipo 2165"]] }
 ];
