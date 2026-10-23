@@ -280,6 +280,12 @@ function normalizarPerfilAcceso(perfil) {
   return normalizar(perfil).replace(/\s+/g, " ");
 }
 
+// Portal de Cartilla para Obras Sociales (perfil "Cartilla OS": Presentar Cartilla,
+// Anexos I a IV, carga de Afiliados y Prestadores). Suspendido por ahora: la Cartilla la
+// carga la Superintendencia con "Importar Cartilla histórica (Excel)" y la analiza desde
+// Análisis de Cartilla. El código y los datos quedan; para reactivarlo, poner true.
+const PORTAL_OBRA_SOCIAL_HABILITADO = false;
+
 function perfilPuedeVerVista(perfil, vista) {
   const id = Object.prototype.hasOwnProperty.call(views, vista) ? vista : "inicio";
   const p = normalizarPerfilAcceso(perfil);
@@ -308,7 +314,7 @@ function perfilPuedeVerVista(perfil, vista) {
   if (p === "admin presentaciones") return ["obras-sociales", "prestadores", "cobertura", "cartilla-revision", "afiliados", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
   if (p === "carga presentaciones") return ["pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
   if (p === "administrativo") return ["obras-sociales", "pma", "cartillas", "reportes", "criticidad", "metas-fisicas", "informe-gestion"].includes(id);
-  if (p === "cartilla os") return ["cartilla-hub", "prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
+  if (p === "cartilla os") return PORTAL_OBRA_SOCIAL_HABILITADO && ["cartilla-hub", "prestadores", "afiliados", "anexo-i", "anexo-ii", "anexo-iv"].includes(id);
   return false;
 }
 
@@ -5089,6 +5095,14 @@ function abrirLogin() {
 
 function actualizarAuthUI() {
   if (typeof document === "undefined") return;
+  // Portal de Obras Sociales suspendido: si entra un usuario "Cartilla OS", se cierra la sesión.
+  if (authSession?.access_token && !PORTAL_OBRA_SOCIAL_HABILITADO && normalizarPerfilAcceso(perfilSesionActual()) === "cartilla os") {
+    const token = authSession.access_token;
+    authSession = null;
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(SESSION_KEY);
+    authLogout(token).catch(() => {});
+    setFormMessage("login-message", "El ingreso de Obras Sociales no está habilitado por el momento. La Cartilla se presenta por expediente ante la Superintendencia.");
+  }
   const login = document.getElementById("btn-login");
   const sessionBox = document.getElementById("auth-session");
   const nombre = document.getElementById("auth-user-name");
@@ -5165,6 +5179,7 @@ async function handleLoginSubmit(event) {
   try {
     if (submit) submit.disabled = true;
     guardarSesion(await authSignIn(email, password));
+    if (!authSession) return; // usuario sin acceso (por ejemplo, Obra Social con el portal suspendido)
     await refrescarDatosUsuarioSesion();
     document.getElementById("login-form")?.reset();
     await cargarYRenderizarObrasSociales();
