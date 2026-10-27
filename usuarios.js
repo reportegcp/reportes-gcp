@@ -72,6 +72,8 @@ function inicializarVistaUsuarios() {
     document.getElementById("us-form").addEventListener("submit", usGuardar);
     document.getElementById("us-perfil").addEventListener("change", () => { usAccesos = accesosSugeridosPerfil(document.getElementById("us-perfil").value); usActualizarCampoOs(); usRenderAccesos(); });
     document.getElementById("us-accesos-reset").addEventListener("click", () => { usAccesos = accesosSugeridosPerfil(document.getElementById("us-perfil").value); usRenderAccesos(); });
+    document.getElementById("us-tablero-todas").addEventListener("click", () => usTableroTodas(true));
+    document.getElementById("us-tablero-ninguna").addEventListener("click", () => usTableroTodas(false));
     document.getElementById("us-generar").addEventListener("click", () => { document.getElementById("us-password").value = usGenerarPassword(); });
     document.getElementById("us-blanquear").addEventListener("click", usBlanquear);
     document.getElementById("us-bloquear").addEventListener("click", usBloquear);
@@ -150,6 +152,7 @@ function usAbrirModal(id) {
   document.getElementById("us-credenciales").hidden = true;
   setFormMessage("us-message");
   usAccesos = u ? usAccesosEfectivos(u) : {};
+  usTablero = Array.isArray(u?.tablero) ? [...u.tablero] : [];
   usActualizarCampoOs();
   usRenderAccesos();
   abrirModal("us-modal");
@@ -187,12 +190,12 @@ async function usGuardar(event) {
     if (!id) {
       const email = document.getElementById("us-email").value.trim();
       const password = document.getElementById("us-password").value;
-      await usLlamar("crear", { email, password, nombre, perfil, obra_social_id, accesos: usAccesosLimpios() });
+      await usLlamar("crear", { email, password, nombre, perfil, obra_social_id, accesos: usAccesosLimpios(), tablero: usTableroLimpio() });
       usMostrarCredenciales(email.toLowerCase(), password, "Usuario creado. Enviale estos datos:");
       document.getElementById("us-guardar").hidden = true;
       mostrarToast("Usuario creado.");
     } else {
-      await usLlamar("editar", { id, nombre, perfil, obra_social_id, accesos: usAccesosLimpios() });
+      await usLlamar("editar", { id, nombre, perfil, obra_social_id, accesos: usAccesosLimpios(), tablero: usTableroLimpio() });
       mostrarToast("Cambios guardados.");
       cerrarModal("us-modal");
     }
@@ -292,6 +295,11 @@ function usAccesosLimpios() {
 }
 
 function usRenderAccesos() {
+  usRenderAccesosModulos();
+  usRenderTablero();
+}
+
+function usRenderAccesosModulos() {
   const perfil = document.getElementById("us-perfil").value;
   const bloque = document.getElementById("us-accesos-bloque");
   const personalizable = tipoPerfil(perfil) === "interno";

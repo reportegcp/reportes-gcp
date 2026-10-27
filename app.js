@@ -4,6 +4,7 @@ const SESSION_KEY = "gcp-auth-session-v1";
 
 const views = {
   inicio: { title: "", subtitle: "" },
+  tablero: { title: "", subtitle: "" },
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   "cartilla-hub": { title: "Presentar Cartilla", subtitle: "Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV, en una sola presentación" },
   "cartilla-revision": { title: "Cartilla", subtitle: "Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV de una presentación, todo junto" },
@@ -272,6 +273,8 @@ async function cargarYRenderizarEstadisticasInicio() {
   }
 }
 
+let tableroYaMostrado = false;
+
 function getInitialView(hash) {
   const id = String(hash || "").replace(/^#/, "");
   return Object.prototype.hasOwnProperty.call(views, id) ? id : "inicio";
@@ -321,6 +324,7 @@ function perfilPuedeVerVista(perfil, vista) {
 
 function primeraVistaPermitida(perfil) {
   const p = normalizarPerfilAcceso(perfil);
+  if (vistaPermitidaParaSesion("tablero")) return "tablero";
   if (p === "cartilla os") return "cartilla-hub";
   if (tipoPerfil(perfil) === "interno") {
     for (const m of MODULOS_ACCESO) for (const [v] of m.vistas) if (v !== "prototipo" && vistaPermitidaParaSesion(v)) return v;
@@ -451,6 +455,8 @@ function nivelAccesoPerfil(perfil, accesos, vista) {
 }
 
 function nivelAccesoSesion(vista) {
+  // Tablero de inicio: lo ve quien tenga al menos una tarjeta configurada en Usuarios.
+  if (vista === "tablero") return typeof tableroTarjetasSesion === "function" && tableroTarjetasSesion().length ? "editar" : "";
   return nivelAccesoPerfil(perfilSesionActual(), accesosSesionActual(), vista);
 }
 
@@ -539,6 +545,7 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-nav-access="prototipo"]')?.toggleAttribute("hidden", !(esAdministrador || esAdminPrestacional));
   document.querySelector('[data-view="px-patologias"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-view="px-plantillas"]')?.toggleAttribute("hidden", !esAdministrador);
+  document.querySelector('[data-nav-access="tablero"]')?.toggleAttribute("hidden", !vistaPermitidaParaSesion("tablero"));
   aplicarAccesosPersonalizados();
 }
 
@@ -4974,10 +4981,10 @@ function showView(id, updateHistory = true) {
   const title = document.getElementById("page-title");
   const subtitle = document.getElementById("page-subtitle");
 
-  if (resolved === "inicio") {
+  if (resolved === "inicio" || resolved === "tablero") {
     topbar?.classList.add("is-home");
     if (copy) copy.hidden = true;
-    cargarYRenderizarEstadisticasInicio();
+    if (resolved === "inicio") cargarYRenderizarEstadisticasInicio(); else renderTablero();
   } else {
     topbar?.classList.remove("is-home");
     if (copy) copy.hidden = false;
@@ -5321,9 +5328,13 @@ function actualizarAuthUI() {
   }
 
   aplicarPermisosNavegacion();
+  if (!conectado) tableroYaMostrado = false;
   if (conectado) {
     const vistaActiva = document.querySelector(".view.active")?.id || "inicio";
-    if (!vistaPermitidaParaSesion(vistaActiva)) showView(primeraVistaPermitida(perfilSesionActual()), false);
+    // Al ingresar, quien tiene tablero configurado arranca en su tablero.
+    if (!tableroYaMostrado && vistaActiva === "inicio" && vistaPermitidaParaSesion("tablero")) { tableroYaMostrado = true; showView("tablero", false); }
+    else if (!vistaPermitidaParaSesion(vistaActiva)) showView(primeraVistaPermitida(perfilSesionActual()), false);
+    if (vistaPermitidaParaSesion("tablero")) tableroYaMostrado = true;
     renderObrasSociales();
   }
 }
@@ -13420,7 +13431,8 @@ async function initBrowser() {
 
   await restaurarSesion();
   if (authSession?.access_token) {
-    const vistaInicial = recoveryDetected ? "obras-sociales" : getInitialView(location.hash);
+    const sinHash = !location.hash || location.hash === "#tablero";
+    const vistaInicial = recoveryDetected ? "obras-sociales" : (sinHash && vistaPermitidaParaSesion("tablero") ? "tablero" : getInitialView(location.hash));
     showView(vistaInicial, false);
     if (vistaInicial !== "inicio") await cargarYRenderizarObrasSociales();
   } else {

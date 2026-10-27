@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=124">
+  <link rel="stylesheet" href="styles.css?v=125">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -54,6 +54,7 @@
       </div>
 
       <nav class="nav">
+        <button class="nav-item" data-view="tablero" data-nav-access="tablero" hidden>Mi tablero</button>
         <button class="nav-item active" data-view="inicio" data-nav-access="inicio">Inicio</button>
         <button class="nav-item" data-view="obras-sociales" data-nav-access="obras-sociales">Agentes de Seguro</button>
 
@@ -176,7 +177,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 197</span>
+        <span>Versión 198</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -210,6 +211,17 @@
           </div>
         </div>
       </header>
+
+      <section id="tablero" class="view">
+        <div class="tb-cabecera">
+          <div>
+            <h2 id="tablero-saludo">Mi tablero</h2>
+            <p id="tablero-fecha"></p>
+          </div>
+          <button type="button" class="secondary" id="tablero-actualizar">Actualizar</button>
+        </div>
+        <div class="tb-grid" id="tablero-grid"></div>
+      </section>
 
       <section id="inicio" class="view active">
         <div class="hero home-hero">
@@ -2662,6 +2674,14 @@
           <p class="au-hint" style="margin:0 0 8px">Elegí para cada módulo (o para cada pantalla): Sin acceso, Solo mirar o Editar.</p>
           <div id="us-accesos" class="us-accesos-grid"></div>
         </div>
+        <div class="full us-accesos" id="us-tablero-bloque" hidden>
+          <div class="us-accesos-cab">
+            <span class="au-label">Tablero de inicio</span>
+            <span><button type="button" class="au-link" id="us-tablero-todas">Tildar todas</button> · <button type="button" class="au-link" id="us-tablero-ninguna">Ninguna</button></span>
+          </div>
+          <p class="au-hint" style="margin:0 0 8px">Elegí las tarjetas que ve al ingresar. Solo se pueden elegir las de los módulos a los que tiene acceso. Sin tarjetas, entra como siempre.</p>
+          <div id="us-tablero" class="us-tb-grid"></div>
+        </div>
         <div class="full" id="us-pass-bloque">
           <span class="au-label">Contraseña inicial *</span>
           <div class="us-pass-fila">
@@ -3142,10 +3162,11 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=103"></script>
+  <script src="app.js?v=104"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=32"></script>
-  <script src="usuarios.js?v=7"></script>
+  <script src="usuarios.js?v=8"></script>
+  <script src="tablero.js?v=1"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(err => console.warn("Service worker:", err)));
