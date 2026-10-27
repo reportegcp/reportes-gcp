@@ -2553,3 +2553,6 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 #us-tablero .us-tb-item span{display:flex;flex-direction:column;gap:1px;font-weight:500;color:var(--text)}
 #us-tablero .us-tb-item strong{font-weight:700}
 #us-tablero .us-tb-item small{font-weight:400}
+
+.tb-sub{margin:8px 8px 2px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.tb-sub:first-child{margin-top:2px}

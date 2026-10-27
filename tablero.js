@@ -17,7 +17,7 @@ const TABLERO_TARJETAS = [
   { id: "up-alertas", modulo: "Urgencias Prestacionales", titulo: "Urgencias: vencimientos", detalle: "Expedientes abiertos vencidos o que vencen en los próximos 7 días", vista: "up-expedientes", alt: ["up-reportes"] },
   { id: "px", modulo: "Preexistencias", titulo: "Preexistencias", detalle: "Abiertas y cerradas", vista: "px-preexistencias" },
   { id: "au", modulo: "Auditorías", titulo: "Auditorías en curso", detalle: "Cantidad por etapa", vista: "au-auditorias" },
-  { id: "ju", modulo: "Prestaciones", titulo: "Oficios y reclamos", detalle: "Ingresados este mes y en el año", vista: "ju-oficios", alt: ["ju-reclamos"] }
+  { id: "ju", modulo: "Prestaciones", titulo: "Oficios y reclamos", detalle: "Pendientes e ingresados en el mes y en el año", vista: "ju-oficios", alt: ["ju-reclamos"] }
 ];
 
 // Pantalla de la que depende la tarjeta (la primera a la que tenga acceso).
@@ -144,13 +144,29 @@ const TB_RENDER = {
   },
 
   async ju() {
-    const [oficios, reclamos] = await tbDatos("ju", () => Promise.all([tbTraerTodo("oficios", "created_at"), tbTraerTodo("reclamos", "created_at")]));
-    const hoy = tbHoyIso(), mes = hoy.slice(0, 7), anio = hoy.slice(0, 4);
-    const cuenta = (l, pref) => l.filter(x => String(x.created_at || "").startsWith(pref)).length;
+    // Se cuenta por fecha de ingreso de cada movimiento (no por la fecha en que se cargó al sistema).
     const puede = v => vistaPermitidaParaSesion(v);
+    const hoy = tbHoyIso(), mes = hoy.slice(0, 7), anio = hoy.slice(0, 4);
+    const cuenta = (l, pref) => l.filter(x => String(x.fecha_ingreso || "").startsWith(pref)).length;
     let html = "";
-    if (puede("ju-oficios")) html += tbFila("Oficios ingresados este mes", cuenta(oficios, mes), { ir: "ju-oficios" }) + tbFila(`Oficios en ${anio}`, cuenta(oficios, anio), { ir: "ju-oficios" });
-    if (puede("ju-reclamos")) html += tbFila("Reclamos ingresados este mes", cuenta(reclamos, mes), { ir: "ju-reclamos" }) + tbFila(`Reclamos en ${anio}`, cuenta(reclamos, anio), { ir: "ju-reclamos" });
+    if (puede("ju-oficios")) {
+      const of = await tbDatos("ju-of", () => tbTraerTodo("oficio_ingresos", "fecha_ingreso,fecha_vencimiento,estado"));
+      const enTramite = of.filter(x => x.estado === "En trámite");
+      const vencidos = enTramite.filter(x => x.fecha_vencimiento && x.fecha_vencimiento < hoy).length;
+      html += `<p class="tb-sub">Oficios</p>` +
+        tbFila("En trámite", enTramite.length, { ir: "ju-oficios" }) +
+        (vencidos ? tbFila("En trámite con vencimiento pasado", vencidos, { ir: "ju-oficios" }, "alerta") : "") +
+        tbFila("Ingresados este mes", cuenta(of, mes), { ir: "ju-oficios" }) +
+        tbFila(`Ingresados en ${anio}`, cuenta(of, anio), { ir: "ju-oficios" });
+    }
+    if (puede("ju-reclamos")) {
+      const rec = await tbDatos("ju-rec", () => tbTraerTodo("reclamo_ingresos", "fecha_ingreso,estado"));
+      html += `<p class="tb-sub">Reclamos</p>` +
+        tbFila("Asignados (pendientes)", rec.filter(x => x.estado === "Asignado").length, { ir: "ju-reclamos" }) +
+        tbFila("Devueltos", rec.filter(x => x.estado === "Devuelto").length, { ir: "ju-reclamos" }) +
+        tbFila("Ingresados este mes", cuenta(rec, mes), { ir: "ju-reclamos" }) +
+        tbFila(`Ingresados en ${anio}`, cuenta(rec, anio), { ir: "ju-reclamos" });
+    }
     return html;
   }
 };

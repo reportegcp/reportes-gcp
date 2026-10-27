@@ -547,6 +547,8 @@ function aplicarPermisosNavegacion() {
   document.querySelector('[data-view="px-plantillas"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="tablero"]')?.toggleAttribute("hidden", !vistaPermitidaParaSesion("tablero"));
   aplicarAccesosPersonalizados();
+  // Quien tiene tablero no ve "Inicio": el tablero es su pantalla de inicio.
+  if (vistaPermitidaParaSesion("tablero")) document.querySelector('[data-nav-access="inicio"]')?.setAttribute("hidden", "");
 }
 
 function normalizar(texto) {
