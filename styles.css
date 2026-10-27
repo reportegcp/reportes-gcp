@@ -2556,3 +2556,16 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 
 .tb-sub{margin:8px 8px 2px;font-size:11.5px;font-weight:700;color:var(--muted)}
 .tb-sub:first-child{margin-top:2px}
+
+/* Tablero: un color por tema para identificarlos de un vistazo */
+.tb-card.tb-tema-pma{--tema:#2f6ea5;--tema-suave:#eef4fa}
+.tb-card.tb-tema-cartilla{--tema:#7b5ea7;--tema-suave:#f4f0f9}
+.tb-card.tb-tema-oficios{--tema:#a8752a;--tema-suave:#faf4ea}
+.tb-card.tb-tema-reclamos{--tema:#47854d;--tema-suave:#eff6ef}
+.tb-card[class*="tb-tema-"] header{border-top-color:var(--tema);background:var(--tema-suave)}
+.tb-card[class*="tb-tema-"] .tb-modulo{color:var(--tema)}
+.tb-card[class*="tb-tema-"] h3{color:var(--tema)}
+.tb-card[class*="tb-tema-"] .tb-destacado b{color:var(--tema)}
+.tb-card[class*="tb-tema-"] .tb-fila-num{color:var(--tema)}
+.tb-card[class*="tb-tema-"] .tb-fila.alerta .tb-fila-num{color:#9f3747}
+.tb-card[class*="tb-tema-"] .tb-fila:not(:disabled):hover{background:var(--tema-suave)}

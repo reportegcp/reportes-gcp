@@ -8,17 +8,24 @@ const TB_CONDICIONES_EN_TRAMITE = ["S/ASIGNAR", "EN ESTUDIO", "OBSERVADO", "NOTI
 const TB_ETIQUETA_CONDICION = { "S/ASIGNAR": "Sin asignar", "EN ESTUDIO": "En estudio", "OBSERVADO": "Observado", "NOTIFICADO": "Notificado", "PROYECTO DISPO": "Proyecto de disposición", "PROYECTO EN DISPO": "Proyecto de disposición", "PROCESO SUMARIAL": "Proceso sumarial", "PASE A JURIDICO": "Pase a Jurídico" };
 const TB_AU_ESTADOS = ["Orden cargada", "1º visita realizada", "Esperando documentación", "Documentación recibida", "2º visita", "Informe en borrador", "Informe emitido"];
 
+const TB_ANIO = String(new Date().getFullYear());
+
 const TABLERO_TARJETAS = [
-  { id: "pma-estado", modulo: "Presentaciones", titulo: "PMA en trámite", detalle: "Cantidad por condición", vista: "pma" },
-  { id: "pma-analistas", modulo: "Presentaciones", titulo: "PMA en estudio por analista", detalle: "Carga de trabajo de cada analista", vista: "pma" },
-  { id: "cartillas-estado", modulo: "Presentaciones", titulo: "Cartillas en trámite", detalle: "Cantidad por condición", vista: "cartillas" },
-  { id: "cartillas-analistas", modulo: "Presentaciones", titulo: "Cartillas en estudio por analista", detalle: "Carga de trabajo de cada analista", vista: "cartillas" },
+  { id: "pma-estado", modulo: "Presentaciones", tema: "pma", titulo: "PMA", detalle: `Ingresados en ${TB_ANIO}, por condición`, vista: "pma" },
+  { id: "cartillas-estado", modulo: "Presentaciones", tema: "cartilla", titulo: "Cartillas", detalle: `Ingresadas en ${TB_ANIO}, por condición`, vista: "cartillas" },
   { id: "up", modulo: "Urgencias Prestacionales", titulo: "Urgencias Prestacionales", detalle: "Abiertos, vencidos y tiempo de resolución", vista: "up-reportes", alt: ["up-expedientes"] },
   { id: "up-alertas", modulo: "Urgencias Prestacionales", titulo: "Urgencias: vencimientos", detalle: "Expedientes abiertos vencidos o que vencen en los próximos 7 días", vista: "up-expedientes", alt: ["up-reportes"] },
   { id: "px", modulo: "Preexistencias", titulo: "Preexistencias", detalle: "Abiertas y cerradas", vista: "px-preexistencias" },
   { id: "au", modulo: "Auditorías", titulo: "Auditorías en curso", detalle: "Cantidad por etapa", vista: "au-auditorias" },
-  { id: "ju", modulo: "Prestaciones", titulo: "Oficios y reclamos", detalle: "Pendientes e ingresados en el mes y en el año", vista: "ju-oficios", alt: ["ju-reclamos"] }
+  { id: "oficios", modulo: "Prestaciones", tema: "oficios", titulo: "Oficios", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-oficios" },
+  { id: "reclamos", modulo: "Prestaciones", tema: "reclamos", titulo: "Reclamos", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-reclamos" }
 ];
+
+// Tarjetas que cambiaron de nombre: se traducen para no perder lo ya configurado.
+const TB_IDS_ANTERIORES = { ju: ["oficios", "reclamos"] };
+function tbNormalizarIds(ids) {
+  return [...new Set((ids || []).flatMap(id => TB_IDS_ANTERIORES[id] || [id]))];
+}
 
 // Pantalla de la que depende la tarjeta (la primera a la que tenga acceso).
 function tbVistaTarjeta(t, puede) {
@@ -39,7 +46,7 @@ function tableroConfiguradoSesion() {
 }
 
 function tableroTarjetasSesion() {
-  const elegidas = new Set(tableroConfiguradoSesion());
+  const elegidas = new Set(tbNormalizarIds(tableroConfiguradoSesion()));
   if (!elegidas.size) return [];
   return tbTarjetasDisponibles(perfilSesionActual(), accesosSesionActual()).filter(t => elegidas.has(t.id));
 }
@@ -97,8 +104,6 @@ function tbVacio(texto) {
 const TB_RENDER = {
   async "pma-estado"() { return tbRenderCondiciones("pma"); },
   async "cartillas-estado"() { return tbRenderCondiciones("cartillas"); },
-  async "pma-analistas"() { return tbRenderAnalistas("pma"); },
-  async "cartillas-analistas"() { return tbRenderAnalistas("cartillas"); },
 
   async up() {
     const filas = await tbDatos("up", () => tbTraerTodo("expedientes", "estado,fecha_ingreso,fecha_cierre,fecha_limite"));
@@ -143,55 +148,32 @@ const TB_RENDER = {
     return enCurso.map(e => tbFila(e, conteo.get(e), { ir: "au-auditorias" })).join("");
   },
 
-  async ju() {
-    // Se cuenta por fecha de ingreso de cada movimiento (no por la fecha en que se cargó al sistema).
-    const puede = v => vistaPermitidaParaSesion(v);
-    const hoy = tbHoyIso(), mes = hoy.slice(0, 7), anio = hoy.slice(0, 4);
-    const cuenta = (l, pref) => l.filter(x => String(x.fecha_ingreso || "").startsWith(pref)).length;
-    let html = "";
-    if (puede("ju-oficios")) {
-      const of = await tbDatos("ju-of", () => tbTraerTodo("oficio_ingresos", "fecha_ingreso,fecha_vencimiento,estado"));
-      const enTramite = of.filter(x => x.estado === "En trámite");
-      const vencidos = enTramite.filter(x => x.fecha_vencimiento && x.fecha_vencimiento < hoy).length;
-      html += `<p class="tb-sub">Oficios</p>` +
-        tbFila("En trámite", enTramite.length, { ir: "ju-oficios" }) +
-        (vencidos ? tbFila("En trámite con vencimiento pasado", vencidos, { ir: "ju-oficios" }, "alerta") : "") +
-        tbFila("Ingresados este mes", cuenta(of, mes), { ir: "ju-oficios" }) +
-        tbFila(`Ingresados en ${anio}`, cuenta(of, anio), { ir: "ju-oficios" });
-    }
-    if (puede("ju-reclamos")) {
-      const rec = await tbDatos("ju-rec", () => tbTraerTodo("reclamo_ingresos", "fecha_ingreso,estado"));
-      html += `<p class="tb-sub">Reclamos</p>` +
-        tbFila("Asignados (pendientes)", rec.filter(x => x.estado === "Asignado").length, { ir: "ju-reclamos" }) +
-        tbFila("Devueltos", rec.filter(x => x.estado === "Devuelto").length, { ir: "ju-reclamos" }) +
-        tbFila("Ingresados este mes", cuenta(rec, mes), { ir: "ju-reclamos" }) +
-        tbFila(`Ingresados en ${anio}`, cuenta(rec, anio), { ir: "ju-reclamos" });
-    }
-    return html;
+  async oficios() {
+    const filas = (await tbDatos("ju-of", () => tbTraerTodo("oficio_ingresos", "fecha_ingreso,estado"))).filter(x => String(x.fecha_ingreso || "").startsWith(TB_ANIO));
+    return tbRenderPorEstado(filas, "estado", ["En trámite", "Finalizado"], "ju-oficios", `ingresados en ${TB_ANIO}`);
+  },
+
+  async reclamos() {
+    const filas = (await tbDatos("ju-rec", () => tbTraerTodo("reclamo_ingresos", "fecha_ingreso,estado"))).filter(x => String(x.fecha_ingreso || "").startsWith(TB_ANIO));
+    return tbRenderPorEstado(filas, "estado", ["Asignado", "Devuelto", "Finalizado"], "ju-reclamos", `ingresados en ${TB_ANIO}`);
   }
 };
 
-async function tbPresentaciones(tabla) {
-  return tbDatos(tabla, () => tbTraerTodo(tabla, "condicion,analista"));
+const TB_ORDEN_CONDICIONES = ["S/ASIGNAR", "EN ESTUDIO", "OBSERVADO", "NOTIFICADO", "PROYECTO DISPO", "PROYECTO EN DISPO", "PROCESO SUMARIAL", "PASE A JURIDICO", "APROBADO", "ARCHIVO"];
+
+// Total del año y detalle por estado/condición, en el orden dado (los que no figuran van al final).
+function tbRenderPorEstado(filas, campo, orden, vista, leyenda, etiquetas = {}, conFiltro = false) {
+  if (!filas.length) return tbVacio(`No hay registros ${leyenda}.`);
+  const conteo = tbContar(filas, campo);
+  const claves = [...orden.filter(c => conteo.get(c)), ...[...conteo.keys()].filter(c => !orden.includes(c)).sort()];
+  return `<div class="tb-destacado"><b>${filas.length}</b><span>${escaparHtml(leyenda)}</span></div>` +
+    claves.map(c => tbFila(etiquetas[c] || c || "Sin dato", conteo.get(c), conFiltro && c ? { ir: vista, condicion: c } : { ir: vista }, c === "S/ASIGNAR" ? "alerta" : "")).join("");
 }
 
 async function tbRenderCondiciones(tabla) {
-  const filas = await tbPresentaciones(tabla);
-  const conteo = tbContar(filas, "condicion");
-  const enTramite = TB_CONDICIONES_EN_TRAMITE.filter(c => conteo.get(c));
-  if (!enTramite.length) return tbVacio("No hay presentaciones en trámite.");
-  const total = enTramite.reduce((s, c) => s + conteo.get(c), 0);
-  return `<div class="tb-destacado"><b>${total}</b><span>en trámite (todos los ejercicios)</span></div>` +
-    enTramite.map(c => tbFila(TB_ETIQUETA_CONDICION[c] || c, conteo.get(c), { ir: tabla, condicion: c }, c === "S/ASIGNAR" ? "alerta" : "")).join("");
-}
-
-async function tbRenderAnalistas(tabla) {
-  const filas = (await tbPresentaciones(tabla)).filter(f => f.condicion === "EN ESTUDIO");
-  if (!filas.length) return tbVacio("No hay presentaciones en estudio.");
-  const conteo = [...tbContar(filas, "analista").entries()].sort((a, b) => b[1] - a[1]);
-  const max = conteo[0][1];
-  return conteo.map(([analista, n]) => `<div class="tb-barra"><span class="tb-barra-etq">${escaparHtml(analista || "Sin analista")}</span>
-    <span class="tb-barra-pista"><span style="width:${Math.max(4, Math.round(n / max * 100))}%"></span></span><span class="tb-barra-num">${n}</span></div>`).join("");
+  const filas = (await tbDatos(tabla, () => tbTraerTodo(tabla, "condicion,fecha_ingreso"))).filter(x => String(x.fecha_ingreso || "").startsWith(TB_ANIO));
+  const etiquetas = { ...TB_ETIQUETA_CONDICION, APROBADO: "Aprobado", ARCHIVO: "Archivo" };
+  return tbRenderPorEstado(filas, "condicion", TB_ORDEN_CONDICIONES, tabla, `${tabla === "pma" ? "ingresados" : "ingresadas"} en ${TB_ANIO}`, etiquetas, true);
 }
 
 // ---------- Pantalla ----------
@@ -210,7 +192,7 @@ async function renderTablero() {
     cont.innerHTML = tbVacio("Todavía no tenés tarjetas en el tablero. Pedile al Administrador que te las configure desde Usuarios.");
     return;
   }
-  cont.innerHTML = tarjetas.map(t => `<article class="tb-card" data-tb-card="${t.id}">
+  cont.innerHTML = tarjetas.map(t => `<article class="tb-card${t.tema ? ` tb-tema-${t.tema}` : ""}" data-tb-card="${t.id}">
     <header><span class="tb-modulo">${escaparHtml(t.modulo)}</span><h3>${escaparHtml(t.titulo)}</h3></header>
     <div class="tb-cuerpo"><p class="tb-cargando">Cargando...</p></div></article>`).join("");
   await Promise.all(tarjetas.map(async t => {
@@ -260,6 +242,7 @@ async function tbIr(a) {
 let usTablero = [];
 
 function usRenderTablero() {
+  usTablero = tbNormalizarIds(usTablero);
   const bloque = document.getElementById("us-tablero-bloque");
   const cont = document.getElementById("us-tablero");
   if (!bloque || !cont) return;
