@@ -4223,7 +4223,7 @@ async function cargarYRenderizarUpReportes() {
   const count = document.getElementById("up-reportes-count");
   if (count) count.textContent = "Cargando...";
   try {
-    const params = { select: "obra_social_id,obras_sociales(denominacion,tipo,rnos,rnemp),patologias(nombre)" };
+    const params = { select: "numero_ee,nombre_paciente,estado,fecha_ingreso,fecha_cierre,fecha_limite,obra_social_id,obras_sociales(denominacion,tipo,rnos,rnemp),patologias(nombre)" };
     const response = await fetchConTimeout(buildTableUrl("expedientes", params), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 15000);
     if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
     const filas = await response.json();
@@ -4239,6 +4239,15 @@ async function cargarYRenderizarUpReportes() {
       const clave = `${osNombre}\u0001${patologiaNombre}`;
       agrupado.set(clave, (agrupado.get(clave) || 0) + 1);
     });
+
+    upTiemposDatos = filas.map(f => {
+      let os = "(sin Obra Social/EMP asignada)";
+      if (f.obras_sociales) {
+        const codigo = f.obras_sociales.tipo === "Obra Social" ? f.obras_sociales.rnos : f.obras_sociales.rnemp;
+        os = `${f.obras_sociales.denominacion}${codigo ? ` (${codigo})` : ""}`;
+      }
+      return { ee: f.numero_ee || "", paciente: f.nombre_paciente || "", estado: f.estado || "", ingreso: f.fecha_ingreso, cierre: f.fecha_cierre, limite: f.fecha_limite, os, patologia: f.patologias?.nombre || "" };
+    }).filter(f => f.ingreso);
 
     upReportes = [...agrupado.entries()]
       .map(([clave, cantidad]) => {
@@ -4281,7 +4290,166 @@ function agruparUpReportesPor(lista, campo) {
   return [...mapa.entries()].map(([clave, cantidad]) => ({ clave, cantidad })).sort((a, b) => b.cantidad - a.cantidad || a.clave.localeCompare(b.clave));
 }
 
+// ---------- Urgencias Prestacionales: tiempo de resolución por fecha de ingreso ----------
+
+let upTiemposDatos = [];
+
+function upDiasEntre(desde, hasta) {
+  const a = new Date(`${desde}T00:00:00`), b = new Date(`${hasta}T00:00:00`);
+  return Math.round((b - a) / 86400000);
+}
+
+function upHoyIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function upTiemposFiltrados() {
+  const desde = document.getElementById("up-tiempos-desde")?.value || "";
+  const hasta = document.getElementById("up-tiempos-hasta")?.value || "";
+  const hoy = upHoyIso();
+  return upTiemposDatos
+    .filter(f => (!desde || f.ingreso >= desde) && (!hasta || f.ingreso <= hasta))
+    .map(f => {
+      const cerrado = f.estado === "Cerrado";
+      const resuelto = cerrado && !!f.cierre;
+      const dias = resuelto ? upDiasEntre(f.ingreso, f.cierre) : (cerrado ? null : upDiasEntre(f.ingreso, hoy));
+      let tipo = "curso";
+      if (resuelto) tipo = !f.limite ? "sinlim" : (f.cierre <= f.limite ? "ok" : "fuera");
+      if (cerrado && !f.cierre) tipo = "sinfecha";
+      return { ...f, dias, tipo };
+    })
+    .sort((a, b) => a.ingreso.localeCompare(b.ingreso) || a.ee.localeCompare(b.ee));
+}
+
+function renderUpTiemposGrafico(lista) {
+  const cont = document.getElementById("up-tiempos-grafico");
+  if (!cont) return;
+  const puntos = lista.filter(f => f.dias !== null);
+  if (!puntos.length) {
+    cont.innerHTML = `<p style="color:var(--muted);font-size:13px;margin:8px 0">No hay expedientes con fechas suficientes para graficar en este período.</p>`;
+    return;
+  }
+  const W = 760, H = 300, m = { t: 14, r: 18, b: 38, l: 46 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const t = iso => new Date(`${iso}T00:00:00`).getTime();
+  let x0 = Math.min(...puntos.map(p => t(p.ingreso))), x1 = Math.max(...puntos.map(p => t(p.ingreso)));
+  const pad = Math.max(3 * 86400000, (x1 - x0) * 0.05);
+  x0 -= pad; x1 += pad;
+  const maxDias = Math.max(...puntos.map(p => p.dias), 1);
+  const paso = [1, 2, 5, 10, 15, 30, 60, 90, 180].find(s => maxDias / s <= 6) || 365;
+  const yMax = Math.ceil(maxDias / paso) * paso;
+  const sx = v => m.l + ((v - x0) / (x1 - x0)) * iw;
+  const sy = v => m.t + ih - (v / yMax) * ih;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Días hasta la resolución según la fecha de ingreso">`;
+  for (let v = 0; v <= yMax; v += paso) {
+    svg += `<line class="grilla" x1="${m.l}" x2="${W - m.r}" y1="${sy(v)}" y2="${sy(v)}"/>`;
+    svg += `<text class="eje" x="${m.l - 8}" y="${sy(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  svg += `<text class="eje" transform="translate(12 ${m.t + ih / 2}) rotate(-90)" text-anchor="middle">Días</text>`;
+
+  // Marcas del eje X: por semana si el rango es corto, por mes si es largo
+  const rangoDias = (x1 - x0) / 86400000;
+  const marcas = [];
+  if (rangoDias <= 70) {
+    const d = new Date(x0); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + ((8 - d.getDay()) % 7));
+    for (; d.getTime() <= x1; d.setDate(d.getDate() + 7)) marcas.push({ v: d.getTime(), txt: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}` });
+  } else {
+    const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+    const salto = rangoDias > 730 ? 3 : 1;
+    const d = new Date(x0); d.setDate(1); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() + 1);
+    for (; d.getTime() <= x1; d.setMonth(d.getMonth() + salto)) marcas.push({ v: d.getTime(), txt: `${meses[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
+  }
+  marcas.forEach(k => {
+    svg += `<line class="grilla" x1="${sx(k.v)}" x2="${sx(k.v)}" y1="${m.t + ih}" y2="${m.t + ih + 5}"/>`;
+    svg += `<text class="eje" x="${sx(k.v)}" y="${m.t + ih + 18}" text-anchor="middle">${k.txt}</text>`;
+  });
+  svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}" stroke="var(--muted)" stroke-width="1"/>`;
+  svg += `<text class="eje" x="${m.l + iw / 2}" y="${H - 4}" text-anchor="middle">Fecha de ingreso</text>`;
+
+  const resueltos = puntos.filter(p => p.tipo !== "curso");
+  if (resueltos.length) {
+    const prom = resueltos.reduce((s, p) => s + p.dias, 0) / resueltos.length;
+    svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(prom)}" y2="${sy(prom)}" stroke="var(--navy)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+    svg += `<text x="${m.l + 6}" y="${sy(prom) - 6}" text-anchor="start" style="font-size:11px;fill:var(--navy);font-weight:700;paint-order:stroke;stroke:var(--surface);stroke-width:4px">Promedio ${prom.toFixed(1).replace(".", ",")} días</text>`;
+  }
+
+  const colores = { ok: "var(--success)", fuera: "var(--danger)", sinlim: "var(--navy-2)" };
+  // Si varios expedientes caen en el mismo lugar, se separan un poco para que se vean todos
+  const ocupados = new Map();
+  puntos.forEach(p => {
+    const clave = `${p.ingreso}|${p.dias}`;
+    const n = ocupados.get(clave) || 0; ocupados.set(clave, n + 1);
+    const cx = sx(t(p.ingreso)) + (n ? (n % 2 ? 1 : -1) * Math.ceil(n / 2) * 9 : 0), cy = sy(p.dias);
+    const detalle = [`${p.ee}${p.paciente ? ` · ${p.paciente}` : ""}`, p.os, `Ingreso: ${formatearFecha(p.ingreso)}`,
+      p.tipo === "curso" ? `En curso: ${p.dias} días hasta hoy` : `Cierre: ${formatearFecha(p.cierre)} · ${p.dias} días`,
+      p.limite ? `Fecha límite: ${formatearFecha(p.limite)}` : "Sin fecha límite"].join("\n");
+    const estilo = p.tipo === "curso" ? `fill="var(--surface)" stroke="var(--accent)" stroke-width="2.5"` : `fill="${colores[p.tipo]}" stroke="var(--surface)" stroke-width="1.5"`;
+    svg += `<circle cx="${cx}" cy="${cy}" r="6" ${estilo}><title>${escaparHtml(detalle)}</title></circle>`;
+  });
+  svg += `</svg>`;
+  cont.innerHTML = svg;
+}
+
+function renderUpTiempos() {
+  const thead = document.getElementById("up-reportes-thead");
+  const tbody = document.getElementById("up-reportes-table-body");
+  const count = document.getElementById("up-reportes-count");
+  const empty = document.getElementById("up-reportes-empty");
+  const lista = upTiemposFiltrados();
+  const resueltos = lista.filter(f => ["ok", "fuera", "sinlim"].includes(f.tipo));
+  const enCurso = lista.filter(f => f.tipo === "curso");
+  const sinFecha = lista.filter(f => f.tipo === "sinfecha");
+
+  const resumen = document.getElementById("up-tiempos-resumen");
+  if (resumen) {
+    const dias = resueltos.map(f => f.dias).sort((a, b) => a - b);
+    const prom = dias.length ? (dias.reduce((s, d) => s + d, 0) / dias.length).toFixed(1).replace(".", ",") : "—";
+    const med = dias.length ? (dias.length % 2 ? dias[(dias.length - 1) / 2] : ((dias[dias.length / 2 - 1] + dias[dias.length / 2]) / 2).toString().replace(".", ",")) : "—";
+    const fuera = resueltos.filter(f => f.tipo === "fuera").length;
+    resumen.innerHTML = `
+      <span><b>${resueltos.length}</b>resueltos</span>
+      <span><b>${prom}</b>días promedio</span>
+      <span><b>${med}</b>días mediana</span>
+      <span><b>${dias.length ? dias[dias.length - 1] : "—"}</b>días el más largo</span>
+      <span><b>${fuera}</b>después de la fecha límite</span>
+      <span><b>${enCurso.length}</b>en curso</span>`;
+  }
+  const aviso = document.getElementById("up-tiempos-aviso");
+  if (aviso) {
+    aviso.hidden = !sinFecha.length;
+    aviso.textContent = sinFecha.length
+      ? `${sinFecha.length === 1 ? "Hay 1 expediente cerrado" : `Hay ${sinFecha.length} expedientes cerrados`} sin fecha de cierre (${sinFecha.map(f => f.ee).join(", ")}), por eso no ${sinFecha.length === 1 ? "aparece" : "aparecen"} en el gráfico. Completá la fecha de cierre en el expediente para ${sinFecha.length === 1 ? "incluirlo" : "incluirlos"}.`
+      : "";
+  }
+  renderUpTiemposGrafico(lista);
+
+  if (!thead || !tbody) return;
+  const estadoTxt = f => ({ ok: "Resuelto en plazo", fuera: "Resuelto fuera de plazo", sinlim: "Resuelto", curso: "En curso", sinfecha: "Cerrado sin fecha de cierre" }[f.tipo]);
+  thead.innerHTML = `<tr><th>Nº EE</th><th>Obra Social / EMP</th><th>Patología</th><th>F. Ingreso</th><th>F. Límite</th><th>F. Cierre</th><th>Días</th><th>Situación</th></tr>`;
+  tbody.innerHTML = lista.map(f => `
+    <tr>
+      <td>${escaparHtml(f.ee)}</td>
+      <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(f.os)}">${escaparHtml(f.os)}</td>
+      <td class="ellipsis-cell" style="max-width:180px" title="${escaparHtml(f.patologia)}">${escaparHtml(f.patologia || "—")}</td>
+      <td>${formatearFecha(f.ingreso)}</td><td>${formatearFecha(f.limite)}</td><td>${formatearFecha(f.cierre)}</td>
+      <td><strong>${f.dias ?? "—"}</strong></td><td>${estadoTxt(f)}</td>
+    </tr>`).join("");
+  if (count) count.textContent = `${lista.length} expediente${lista.length === 1 ? "" : "s"} por fecha de ingreso`;
+  if (empty) empty.hidden = lista.length !== 0;
+}
+
 function renderUpReportes() {
+  const tiemposPanel = document.getElementById("up-tiempos");
+  const barras = document.getElementById("up-reporte-chart");
+  if (tiemposPanel) tiemposPanel.hidden = upReporteModo !== "tiempos";
+  if (barras) barras.hidden = upReporteModo === "tiempos";
+  if (upReporteModo === "tiempos") {
+    document.getElementById("up-reporte-breadcrumb")?.setAttribute("hidden", "");
+    renderUpTiempos();
+    return;
+  }
   const thead = document.getElementById("up-reportes-thead");
   const tbody = document.getElementById("up-reportes-table-body");
   const count = document.getElementById("up-reportes-count");
@@ -12975,17 +13143,23 @@ async function initBrowser() {
   document.getElementById("px-reporte-volver")?.addEventListener("click", () => { pxReporteDrill = null; renderPxEmp(); });
   document.getElementById("px-reporte-exportar-excel")?.addEventListener("click", exportarPxReporteExcel);
   document.getElementById("px-reporte-exportar-pdf")?.addEventListener("click", exportarPxReportePdf);
-  document.getElementById("up-reporte-tab-os")?.addEventListener("click", () => {
-    upReporteModo = "os"; upReporteDrill = null;
-    document.getElementById("up-reporte-tab-os")?.classList.add("active");
-    document.getElementById("up-reporte-tab-patologia")?.classList.remove("active");
+  [["up-reporte-tab-os", "os"], ["up-reporte-tab-patologia", "patologia"], ["up-reporte-tab-tiempos", "tiempos"]].forEach(([id, modo]) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      upReporteModo = modo; upReporteDrill = null;
+      ["up-reporte-tab-os", "up-reporte-tab-patologia", "up-reporte-tab-tiempos"].forEach(t => document.getElementById(t)?.classList.toggle("active", t === id));
+      renderUpReportes();
+    });
+  });
+  ["up-tiempos-desde", "up-tiempos-hasta"].forEach(id => document.getElementById(id)?.addEventListener("change", renderUpReportes));
+  document.getElementById("up-tiempos-limpiar")?.addEventListener("click", () => {
+    document.getElementById("up-tiempos-desde").value = "";
+    document.getElementById("up-tiempos-hasta").value = "";
     renderUpReportes();
   });
-  document.getElementById("up-reporte-tab-patologia")?.addEventListener("click", () => {
-    upReporteModo = "patologia"; upReporteDrill = null;
-    document.getElementById("up-reporte-tab-patologia")?.classList.add("active");
-    document.getElementById("up-reporte-tab-os")?.classList.remove("active");
-    renderUpReportes();
+  // Al pasar un expediente a "Cerrado", si no tiene fecha de cierre se completa con la de hoy (se puede cambiar)
+  document.getElementById("expediente-estado")?.addEventListener("change", event => {
+    const cierre = document.getElementById("expediente-fecha-cierre");
+    if (event.target.value === "Cerrado" && cierre && !cierre.value) cierre.value = upHoyIso();
   });
   document.getElementById("up-reporte-volver")?.addEventListener("click", () => { upReporteDrill = null; renderUpReportes(); });
   document.getElementById("up-reporte-exportar-excel")?.addEventListener("click", exportarUpReporteExcel);

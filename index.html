@@ -176,7 +176,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 190</span>
+        <span>Versión 191</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1700,6 +1700,7 @@
           <div class="report-tabs">
             <button class="report-tab active" id="up-reporte-tab-os" type="button">Por Obra Social/EMP</button>
             <button class="report-tab" id="up-reporte-tab-patologia" type="button">Por Patología</button>
+            <button class="report-tab" id="up-reporte-tab-tiempos" type="button">Tiempo de resolución</button>
           </div>
           <div style="display:flex;gap:8px">
             <button class="secondary" id="up-reporte-exportar-excel" type="button">Exportar Excel</button>
@@ -1713,6 +1714,30 @@
         </div>
 
         <div id="up-reporte-chart" class="report-chart"></div>
+
+        <div id="up-tiempos" class="report-chart-card up-tiempos" hidden>
+          <div class="report-chart-header">
+            <div>
+              <h3>Días hasta la resolución, según la fecha de ingreso</h3>
+              <p>Cada punto es un expediente. Días corridos desde la fecha de ingreso hasta la fecha de cierre.</p>
+            </div>
+            <div class="up-tiempos-filtros">
+              <label><span>Ingreso desde</span><input id="up-tiempos-desde" type="date"></label>
+              <label><span>hasta</span><input id="up-tiempos-hasta" type="date"></label>
+              <button class="secondary" id="up-tiempos-limpiar" type="button">Limpiar</button>
+            </div>
+          </div>
+          <div class="up-tiempos-resumen" id="up-tiempos-resumen"></div>
+          <div class="up-tiempos-grafico" id="up-tiempos-grafico"></div>
+          <div class="up-tiempos-leyenda">
+            <span><i class="pt pt-ok"></i>Resuelto dentro de la fecha límite</span>
+            <span><i class="pt pt-fuera"></i>Resuelto después de la fecha límite</span>
+            <span><i class="pt pt-sinlim"></i>Resuelto (sin fecha límite)</span>
+            <span><i class="pt pt-curso"></i>En curso: días transcurridos hasta hoy</span>
+            <span><i class="ln"></i>Promedio de los resueltos</span>
+          </div>
+          <p class="up-tiempos-aviso" id="up-tiempos-aviso" hidden></p>
+        </div>
 
         <div class="table-card" id="up-reporte-printable">
           <div class="table-meta"><strong id="up-reportes-count">Cargando...</strong></div>
