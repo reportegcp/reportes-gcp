@@ -502,6 +502,10 @@ function aplicarPermisosNavegacion() {
   const esAdminPreexistencias = p === "admin preexistencias";
   const esCartillaOs = p === "cartilla os";
 
+  // Partir de cero: si antes se ingresó con otro usuario en la misma ventana (por ejemplo un
+  // Coordinador con módulos elegidos), sus ocultamientos no tienen que quedar pegados.
+  document.querySelectorAll(".nav-item[data-view], .nav-subitem[data-view], .nav-group[data-nav-group]").forEach(el => { el.hidden = false; });
+
   document.querySelector('[data-nav-access="inicio"]')?.toggleAttribute("hidden", !esAdminPrestacional);
   document.querySelector('[data-nav-access="usuarios"]')?.toggleAttribute("hidden", !esAdministrador);
   document.querySelector('[data-nav-access="obras-sociales"]')?.toggleAttribute("hidden", !(esAdminPrestacional || esAdminPresentaciones || esAdministrativo));
