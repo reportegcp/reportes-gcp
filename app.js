@@ -3007,8 +3007,12 @@ async function handleGenerarInforme(tipo) {
   setFormMessage("expediente-form-message");
   const faltan = faltantesParaInforme(expediente);
   if (faltan.length) {
-    setFormMessage("expediente-form-message", `No se puede generar el informe todavía. Completá en el catálogo de Drogas: ${faltan.join(" ")}`);
-    return;
+    // Si la información no fue facilitada, se puede generar igual: esas drogas salen sin fundamentación.
+    const seguir = window.confirm(`Falta información para el informe:\n\n• ${faltan.join("\n• ")}\n\n¿Generar el informe igual? Esas drogas van a salir sin fundamentación.`);
+    if (!seguir) {
+      setFormMessage("expediente-form-message", `Informe no generado. Podés completar en el catálogo de Drogas: ${faltan.join(" ")}`);
+      return;
+    }
   }
   try {
     const session = await asegurarSesionVigente();
