@@ -4311,13 +4311,13 @@ function upTiemposFiltrados() {
   return upTiemposDatos
     .filter(f => (!desde || f.ingreso >= desde) && (!hasta || f.ingreso <= hasta))
     .map(f => {
-      const cerrado = f.estado === "Cerrado";
-      const resuelto = cerrado && !!f.cierre;
-      const dias = resuelto ? upDiasEntre(f.ingreso, f.cierre) : (cerrado ? null : upDiasEntre(f.ingreso, hoy));
-      let tipo = "curso";
-      if (resuelto) tipo = !f.limite ? "sinlim" : (f.cierre <= f.limite ? "ok" : "fuera");
-      if (cerrado && !f.cierre) tipo = "sinfecha";
-      return { ...f, dias, tipo };
+      const grupo = f.estado === "Cerrado" ? "cerrado" : "abierto";
+      let plazo;
+      if (grupo === "cerrado" && !f.cierre) plazo = "sindato";
+      else if (!f.limite) plazo = "sindato";
+      else plazo = (grupo === "cerrado" ? f.cierre : hoy) <= f.limite ? "hasta" : "posterior";
+      const dias = grupo === "cerrado" ? (f.cierre ? upDiasEntre(f.ingreso, f.cierre) : null) : upDiasEntre(f.ingreso, hoy);
+      return { ...f, grupo, plazo, dias };
     })
     .sort((a, b) => a.ingreso.localeCompare(b.ingreso) || a.ee.localeCompare(b.ee));
 }
@@ -4325,69 +4325,46 @@ function upTiemposFiltrados() {
 function renderUpTiemposGrafico(lista) {
   const cont = document.getElementById("up-tiempos-grafico");
   if (!cont) return;
-  const puntos = lista.filter(f => f.dias !== null);
-  if (!puntos.length) {
-    cont.innerHTML = `<p style="color:var(--muted);font-size:13px;margin:8px 0">No hay expedientes con fechas suficientes para graficar en este período.</p>`;
+  if (!lista.length) {
+    cont.innerHTML = `<p style="color:var(--muted);font-size:13px;margin:8px 0">No hay expedientes en este período.</p>`;
     return;
   }
-  const W = 760, H = 300, m = { t: 14, r: 18, b: 38, l: 46 };
+  const contar = l => ({ hasta: l.filter(f => f.plazo === "hasta").length, posterior: l.filter(f => f.plazo === "posterior").length, sindato: l.filter(f => f.plazo === "sindato").length, total: l.length });
+  const columnas = [
+    { nombre: "Abiertos", ...contar(lista.filter(f => f.grupo === "abierto")) },
+    { nombre: "Cerrados", ...contar(lista.filter(f => f.grupo === "cerrado")) },
+    { nombre: "Total", ...contar(lista) }
+  ];
+  const W = 640, H = 300, m = { t: 26, r: 16, b: 34, l: 40 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const t = iso => new Date(`${iso}T00:00:00`).getTime();
-  let x0 = Math.min(...puntos.map(p => t(p.ingreso))), x1 = Math.max(...puntos.map(p => t(p.ingreso)));
-  const pad = Math.max(3 * 86400000, (x1 - x0) * 0.05);
-  x0 -= pad; x1 += pad;
-  const maxDias = Math.max(...puntos.map(p => p.dias), 1);
-  const paso = [1, 2, 5, 10, 15, 30, 60, 90, 180].find(s => maxDias / s <= 6) || 365;
-  const yMax = Math.ceil(maxDias / paso) * paso;
-  const sx = v => m.l + ((v - x0) / (x1 - x0)) * iw;
+  const maxV = Math.max(1, ...columnas.map(c => c.total));
+  const paso = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500].find(s => maxV / s <= 6) || 1000;
+  const yMax = Math.ceil(maxV / paso) * paso;
   const sy = v => m.t + ih - (v / yMax) * ih;
+  const ancho = Math.min(110, iw / columnas.length * 0.5);
+  const segmentos = [["hasta", "var(--success)", "hasta la fecha límite"], ["posterior", "var(--danger)", "posterior a la fecha límite"], ["sindato", "#b7c0cc", "sin dato"]];
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Días hasta la resolución según la fecha de ingreso">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Expedientes abiertos y cerrados según la fecha límite">`;
   for (let v = 0; v <= yMax; v += paso) {
     svg += `<line class="grilla" x1="${m.l}" x2="${W - m.r}" y1="${sy(v)}" y2="${sy(v)}"/>`;
     svg += `<text class="eje" x="${m.l - 8}" y="${sy(v) + 4}" text-anchor="end">${v}</text>`;
   }
-  svg += `<text class="eje" transform="translate(12 ${m.t + ih / 2}) rotate(-90)" text-anchor="middle">Días</text>`;
-
-  // Marcas del eje X: por semana si el rango es corto, por mes si es largo
-  const rangoDias = (x1 - x0) / 86400000;
-  const marcas = [];
-  if (rangoDias <= 70) {
-    const d = new Date(x0); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + ((8 - d.getDay()) % 7));
-    for (; d.getTime() <= x1; d.setDate(d.getDate() + 7)) marcas.push({ v: d.getTime(), txt: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}` });
-  } else {
-    const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-    const salto = rangoDias > 730 ? 3 : 1;
-    const d = new Date(x0); d.setDate(1); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() + 1);
-    for (; d.getTime() <= x1; d.setMonth(d.getMonth() + salto)) marcas.push({ v: d.getTime(), txt: `${meses[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
-  }
-  marcas.forEach(k => {
-    svg += `<line class="grilla" x1="${sx(k.v)}" x2="${sx(k.v)}" y1="${m.t + ih}" y2="${m.t + ih + 5}"/>`;
-    svg += `<text class="eje" x="${sx(k.v)}" y="${m.t + ih + 18}" text-anchor="middle">${k.txt}</text>`;
+  columnas.forEach((c, k) => {
+    const cx = m.l + iw / columnas.length * (k + 0.5);
+    const x = cx - ancho / 2;
+    let base = 0;
+    segmentos.forEach(([clave, color, txt]) => {
+      const v = c[clave];
+      if (!v) return;
+      const y = sy(base + v), h = sy(base) - y;
+      svg += `<rect x="${x}" y="${y}" width="${ancho}" height="${h}" fill="${color}"><title>${c.nombre}: ${v} ${txt}</title></rect>`;
+      if (h >= 18) svg += `<text x="${cx}" y="${y + h / 2 + 4}" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#fff;pointer-events:none">${v}</text>`;
+      base += v;
+    });
+    svg += `<text x="${cx}" y="${sy(c.total) - 8}" text-anchor="middle" style="font-size:14px;font-weight:700;fill:var(--navy)">${c.total}</text>`;
+    svg += `<text x="${cx}" y="${m.t + ih + 20}" text-anchor="middle" style="font-size:12.5px;fill:var(--text);font-weight:${c.nombre === "Total" ? 700 : 500}">${c.nombre}</text>`;
   });
   svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}" stroke="var(--muted)" stroke-width="1"/>`;
-  svg += `<text class="eje" x="${m.l + iw / 2}" y="${H - 4}" text-anchor="middle">Fecha de ingreso</text>`;
-
-  const resueltos = puntos.filter(p => p.tipo !== "curso");
-  if (resueltos.length) {
-    const prom = resueltos.reduce((s, p) => s + p.dias, 0) / resueltos.length;
-    svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(prom)}" y2="${sy(prom)}" stroke="var(--navy)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
-    svg += `<text x="${m.l + 6}" y="${sy(prom) - 6}" text-anchor="start" style="font-size:11px;fill:var(--navy);font-weight:700;paint-order:stroke;stroke:var(--surface);stroke-width:4px">Promedio ${prom.toFixed(1).replace(".", ",")} días</text>`;
-  }
-
-  const colores = { ok: "var(--success)", fuera: "var(--danger)", sinlim: "var(--navy-2)" };
-  // Si varios expedientes caen en el mismo lugar, se separan un poco para que se vean todos
-  const ocupados = new Map();
-  puntos.forEach(p => {
-    const clave = `${p.ingreso}|${p.dias}`;
-    const n = ocupados.get(clave) || 0; ocupados.set(clave, n + 1);
-    const cx = sx(t(p.ingreso)) + (n ? (n % 2 ? 1 : -1) * Math.ceil(n / 2) * 9 : 0), cy = sy(p.dias);
-    const detalle = [`${p.ee}${p.paciente ? ` · ${p.paciente}` : ""}`, p.os, `Ingreso: ${formatearFecha(p.ingreso)}`,
-      p.tipo === "curso" ? `En curso: ${p.dias} días hasta hoy` : `Cierre: ${formatearFecha(p.cierre)} · ${p.dias} días`,
-      p.limite ? `Fecha límite: ${formatearFecha(p.limite)}` : "Sin fecha límite"].join("\n");
-    const estilo = p.tipo === "curso" ? `fill="var(--surface)" stroke="var(--accent)" stroke-width="2.5"` : `fill="${colores[p.tipo]}" stroke="var(--surface)" stroke-width="1.5"`;
-    svg += `<circle cx="${cx}" cy="${cy}" r="6" ${estilo}><title>${escaparHtml(detalle)}</title></circle>`;
-  });
   svg += `</svg>`;
   cont.innerHTML = svg;
 }
@@ -4398,35 +4375,36 @@ function renderUpTiempos() {
   const count = document.getElementById("up-reportes-count");
   const empty = document.getElementById("up-reportes-empty");
   const lista = upTiemposFiltrados();
-  const resueltos = lista.filter(f => ["ok", "fuera", "sinlim"].includes(f.tipo));
-  const enCurso = lista.filter(f => f.tipo === "curso");
-  const sinFecha = lista.filter(f => f.tipo === "sinfecha");
+  const abiertos = lista.filter(f => f.grupo === "abierto");
+  const cerrados = lista.filter(f => f.grupo === "cerrado");
+  const sinFecha = cerrados.filter(f => !f.cierre);
 
   const resumen = document.getElementById("up-tiempos-resumen");
   if (resumen) {
-    const dias = resueltos.map(f => f.dias).sort((a, b) => a - b);
+    const dias = cerrados.filter(f => f.dias !== null).map(f => f.dias);
     const prom = dias.length ? (dias.reduce((s, d) => s + d, 0) / dias.length).toFixed(1).replace(".", ",") : "—";
-    const med = dias.length ? (dias.length % 2 ? dias[(dias.length - 1) / 2] : ((dias[dias.length / 2 - 1] + dias[dias.length / 2]) / 2).toString().replace(".", ",")) : "—";
-    const fuera = resueltos.filter(f => f.tipo === "fuera").length;
     resumen.innerHTML = `
-      <span><b>${resueltos.length}</b>resueltos</span>
-      <span><b>${prom}</b>días promedio</span>
-      <span><b>${med}</b>días mediana</span>
-      <span><b>${dias.length ? dias[dias.length - 1] : "—"}</b>días el más largo</span>
-      <span><b>${fuera}</b>después de la fecha límite</span>
-      <span><b>${enCurso.length}</b>en curso</span>`;
+      <span><b>${lista.length}</b>expedientes</span>
+      <span><b>${abiertos.length}</b>abiertos</span>
+      <span><b>${cerrados.length}</b>cerrados</span>
+      <span><b>${lista.filter(f => f.plazo === "hasta").length}</b>hasta la fecha límite</span>
+      <span><b>${lista.filter(f => f.plazo === "posterior").length}</b>posteriores a la fecha límite</span>
+      <span><b>${prom}</b>días promedio de resolución</span>`;
   }
   const aviso = document.getElementById("up-tiempos-aviso");
   if (aviso) {
     aviso.hidden = !sinFecha.length;
     aviso.textContent = sinFecha.length
-      ? `${sinFecha.length === 1 ? "Hay 1 expediente cerrado" : `Hay ${sinFecha.length} expedientes cerrados`} sin fecha de cierre (${sinFecha.map(f => f.ee).join(", ")}), por eso no ${sinFecha.length === 1 ? "aparece" : "aparecen"} en el gráfico. Completá la fecha de cierre en el expediente para ${sinFecha.length === 1 ? "incluirlo" : "incluirlos"}.`
+      ? `${sinFecha.length === 1 ? "Hay 1 expediente cerrado" : `Hay ${sinFecha.length} expedientes cerrados`} sin fecha de cierre (${sinFecha.map(f => f.ee).join(", ")}): no se puede saber si se ${sinFecha.length === 1 ? "cerró" : "cerraron"} antes o después de la fecha límite y ${sinFecha.length === 1 ? "figura" : "figuran"} como "sin dato". Completá la fecha de cierre en el expediente.`
       : "";
   }
   renderUpTiemposGrafico(lista);
 
   if (!thead || !tbody) return;
-  const estadoTxt = f => ({ ok: "Resuelto en plazo", fuera: "Resuelto fuera de plazo", sinlim: "Resuelto", curso: "En curso", sinfecha: "Cerrado sin fecha de cierre" }[f.tipo]);
+  const situacion = f => {
+    if (f.grupo === "cerrado") return !f.cierre ? "Cerrado sin fecha de cierre" : !f.limite ? "Cerrado (sin fecha límite)" : f.plazo === "hasta" ? "Cerrado hasta la fecha límite" : "Cerrado después de la fecha límite";
+    return !f.limite ? "Abierto (sin fecha límite)" : f.plazo === "hasta" ? "Abierto, dentro del plazo" : "Abierto, fecha límite vencida";
+  };
   thead.innerHTML = `<tr><th>Nº EE</th><th>Obra Social / EMP</th><th>Patología</th><th>F. Ingreso</th><th>F. Límite</th><th>F. Cierre</th><th>Días</th><th>Situación</th></tr>`;
   tbody.innerHTML = lista.map(f => `
     <tr>
@@ -4434,9 +4412,9 @@ function renderUpTiempos() {
       <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(f.os)}">${escaparHtml(f.os)}</td>
       <td class="ellipsis-cell" style="max-width:180px" title="${escaparHtml(f.patologia)}">${escaparHtml(f.patologia || "—")}</td>
       <td>${formatearFecha(f.ingreso)}</td><td>${formatearFecha(f.limite)}</td><td>${formatearFecha(f.cierre)}</td>
-      <td><strong>${f.dias ?? "—"}</strong></td><td>${estadoTxt(f)}</td>
+      <td><strong>${f.dias ?? "—"}</strong></td><td>${situacion(f)}</td>
     </tr>`).join("");
-  if (count) count.textContent = `${lista.length} expediente${lista.length === 1 ? "" : "s"} por fecha de ingreso`;
+  if (count) count.textContent = `${lista.length} expediente${lista.length === 1 ? "" : "s"}`;
   if (empty) empty.hidden = lista.length !== 0;
 }
 

@@ -176,7 +176,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 191</span>
+        <span>Versión 192</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1718,8 +1718,8 @@
         <div id="up-tiempos" class="report-chart-card up-tiempos" hidden>
           <div class="report-chart-header">
             <div>
-              <h3>Días hasta la resolución, según la fecha de ingreso</h3>
-              <p>Cada punto es un expediente. Días corridos desde la fecha de ingreso hasta la fecha de cierre.</p>
+              <h3>Expedientes abiertos y cerrados, según la fecha límite</h3>
+              <p>Cerrados: si se cerraron hasta la fecha límite o después. Abiertos: si todavía están dentro del plazo o ya lo pasaron.</p>
             </div>
             <div class="up-tiempos-filtros">
               <label><span>Ingreso desde</span><input id="up-tiempos-desde" type="date"></label>
@@ -1730,11 +1730,9 @@
           <div class="up-tiempos-resumen" id="up-tiempos-resumen"></div>
           <div class="up-tiempos-grafico" id="up-tiempos-grafico"></div>
           <div class="up-tiempos-leyenda">
-            <span><i class="pt pt-ok"></i>Resuelto dentro de la fecha límite</span>
-            <span><i class="pt pt-fuera"></i>Resuelto después de la fecha límite</span>
-            <span><i class="pt pt-sinlim"></i>Resuelto (sin fecha límite)</span>
-            <span><i class="pt pt-curso"></i>En curso: días transcurridos hasta hoy</span>
-            <span><i class="ln"></i>Promedio de los resueltos</span>
+            <span><i class="pt pt-ok"></i>Hasta la fecha límite</span>
+            <span><i class="pt pt-fuera"></i>Posterior a la fecha límite</span>
+            <span><i class="pt pt-sindato"></i>Sin dato (falta fecha límite o fecha de cierre)</span>
           </div>
           <p class="up-tiempos-aviso" id="up-tiempos-aviso" hidden></p>
         </div>
