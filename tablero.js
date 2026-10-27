@@ -16,7 +16,7 @@ const TABLERO_TARJETAS = [
   { id: "up", modulo: "Urgencias Prestacionales", titulo: "Urgencias Prestacionales", detalle: "Abiertos, vencidos y tiempo de resolución", vista: "up-reportes", alt: ["up-expedientes"] },
   { id: "up-alertas", modulo: "Urgencias Prestacionales", titulo: "Urgencias: vencimientos", detalle: "Expedientes abiertos vencidos o que vencen en los próximos 7 días", vista: "up-expedientes", alt: ["up-reportes"] },
   { id: "px", modulo: "Preexistencias", titulo: "Preexistencias", detalle: "Abiertas y cerradas", vista: "px-preexistencias" },
-  { id: "au", modulo: "Auditorías", titulo: "Auditorías en curso", detalle: "Cantidad por etapa", vista: "au-auditorias" },
+  { id: "au", modulo: "Auditorías", tema: "auditorias", titulo: `Auditorías ${TB_ANIO}`, detalle: `Del año ${TB_ANIO}: cantidad por etapa y avance de cada una`, vista: "au-auditorias" },
   { id: "oficios", modulo: "Prestaciones", tema: "oficios", titulo: "Oficios", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-oficios" },
   { id: "reclamos", modulo: "Prestaciones", tema: "reclamos", titulo: "Reclamos", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-reclamos" }
 ];
@@ -141,11 +141,29 @@ const TB_RENDER = {
   },
 
   async au() {
-    const filas = await tbDatos("au", () => tbTraerTodo("auditorias", "estado"));
+    const todas = await tbDatos("au", () => tbTraerTodo("auditorias", "id,numero_ex,estado,fecha_visita_1,created_at,obras_sociales(denominacion,sigla),auditoria_puntos(estado)"));
+    // Año de la auditoría: el de la 1º visita; si todavía no tiene, el de la carga.
+    const filas = todas.filter(a => String(a.fecha_visita_1 || a.created_at || "").startsWith(TB_ANIO));
+    if (!filas.length) return tbVacio(`No hay auditorías de ${TB_ANIO}.`);
     const conteo = tbContar(filas, "estado");
-    const enCurso = TB_AU_ESTADOS.filter(e => conteo.get(e));
-    if (!enCurso.length) return tbVacio("No hay auditorías en curso.");
-    return enCurso.map(e => tbFila(e, conteo.get(e), { ir: "au-auditorias" })).join("");
+    const etapas = [...TB_AU_ESTADOS, "Cerrada"].filter(e => conteo.get(e));
+    const enCurso = filas.filter(a => a.estado !== "Cerrada")
+      .sort((x, y) => TB_AU_ESTADOS.indexOf(x.estado) - TB_AU_ESTADOS.indexOf(y.estado) || String(x.fecha_visita_1 || "").localeCompare(String(y.fecha_visita_1 || "")));
+    const lista = enCurso.slice(0, 10).map(a => {
+      const puntos = a.auditoria_puntos || [];
+      const recibidos = puntos.filter(p => p.estado === "Recibido" || p.estado === "Parcial").length;
+      const os = a.obras_sociales?.sigla || a.obras_sociales?.denominacion || a.numero_ex;
+      return `<button type="button" class="tb-au-item" data-tb-accion='${escaparHtml(JSON.stringify({ ir: "au-auditorias", auId: a.id }))}' title="${escaparHtml(`${a.obras_sociales?.denominacion || ""} · ${a.numero_ex}`)}">
+        <span class="tb-au-os">${escaparHtml(os)}</span>
+        <span class="tb-au-etapa">${escaparHtml(a.estado)}${a.fecha_visita_1 ? ` · 1º visita ${formatearFecha(a.fecha_visita_1)}` : ""}</span>
+        <span class="tb-au-docs">${puntos.length ? `${recibidos} de ${puntos.length} puntos con documentación` : "Sin puntos cargados"}</span>
+        ${puntos.length ? `<span class="tb-au-barra"><i style="width:${Math.round(recibidos / puntos.length * 100)}%"></i></span>` : ""}
+      </button>`;
+    }).join("");
+    return `<div class="tb-destacado"><b>${filas.length}</b><span>auditoría${filas.length === 1 ? "" : "s"} de ${TB_ANIO}</span></div>` +
+      etapas.map(e => tbFila(e, conteo.get(e), { ir: "au-auditorias" })).join("") +
+      (enCurso.length ? `<p class="tb-subtitulo">En curso</p><div class="tb-au-lista">${lista}</div>` : "") +
+      (enCurso.length > 10 ? `<p class="tb-mas">Y ${enCurso.length - 10} más.</p>` : "");
   },
 
   async oficios() {
@@ -225,6 +243,7 @@ async function tbIr(a) {
     return;
   }
   showView(a.ir);
+  if (a.auId) { auAbrirDetalle(a.auId); return; }
   if (a.condicion) {
     const idSel = a.ir === "pma" ? "pma-condicion-filter" : "cartilla-condicion-filter";
     const sel = document.getElementById(idSel);
