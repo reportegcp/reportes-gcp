@@ -397,7 +397,7 @@ async function auAbrirDetalle(id) {
     auEjes = {};
     (ejes || []).forEach(e => { auEjes[e.eje] = e; });
     auEditandoPuntos = false;
-    auPasoActivo = auPrimerPasoPendiente();
+    auPasoActivo = auSoloDatos() ? 1 : auPrimerPasoPendiente();
     document.getElementById("au-lista").hidden = true;
     document.getElementById("au-detalle").hidden = false;
     auRenderDetalle();
@@ -1158,8 +1158,15 @@ function auPrimerPasoPendiente() {
   return AU_PASOS.length;
 }
 
+// El perfil Coordinador solo ve el paso 1 (Datos y orden) de cada auditoría.
+function auSoloDatos() {
+  return getSessionIdentity(authSession).perfil === "Coordinador";
+}
+
 function auRenderPasos() {
   const nav = document.getElementById("au-pasos");
+  if (auSoloDatos()) auPasoActivo = 1;
+  (nav.closest(".au-pasos-wrap") || nav).hidden = auSoloDatos();
   nav.innerHTML = AU_PASOS.map(p => {
     const completo = auPasoCompleto(p.n);
     const habilitado = auPasoHabilitado(p.n);
