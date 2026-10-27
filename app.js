@@ -3008,7 +3008,7 @@ async function handleGenerarInforme(tipo) {
   const faltan = faltantesParaInforme(expediente);
   if (faltan.length) {
     // Si la información no fue facilitada, se puede generar igual: esas drogas salen sin fundamentación.
-    const seguir = window.confirm(`Falta información para el informe:\n\n• ${faltan.join("\n• ")}\n\n¿Generar el informe igual? Esas drogas van a salir sin fundamentación.`);
+    const seguir = await mostrarConfirmacion(`Falta esta información:\n\n• ${faltan.join("\n• ")}\n\nSi la generás igual, esas drogas salen en el informe con nombre, marca y dosis, pero sin fundamentación.`, { titulo: `¿Generar el informe ${tipo} igual?`, textoAceptar: `Generar ${tipo}`, textoCancelar: "No generar" });
     if (!seguir) {
       setFormMessage("expediente-form-message", `Informe no generado. Podés completar en el catálogo de Drogas: ${faltan.join(" ")}`);
       return;
