@@ -4293,6 +4293,7 @@ function agruparUpReportesPor(lista, campo) {
 // ---------- Urgencias Prestacionales: tiempo de resolución por fecha de ingreso ----------
 
 let upTiemposDatos = [];
+let upTiemposSel = null; // { grupo: "abierto"|"cerrado"|null, plazo: "hasta"|"posterior"|"sindato"|null }
 
 function upDiasEntre(desde, hasta) {
   const a = new Date(`${desde}T00:00:00`), b = new Date(`${hasta}T00:00:00`);
@@ -4342,7 +4343,9 @@ function renderUpTiemposGrafico(lista) {
   const yMax = Math.ceil(maxV / paso) * paso;
   const sy = v => m.t + ih - (v / yMax) * ih;
   const ancho = Math.min(110, iw / columnas.length * 0.5);
-  const segmentos = [["hasta", "var(--success)", "hasta la fecha límite"], ["posterior", "var(--danger)", "posterior a la fecha límite"], ["sindato", "#b7c0cc", "sin dato"]];
+  const segmentos = [["hasta", "#93cbb0", "#1c5a40", "hasta la fecha límite"], ["posterior", "#e7a1a9", "#7a2431", "posterior a la fecha límite"], ["sindato", "#cfd6df", "#4a5568", "sin dato"]];
+  const grupos = { Abiertos: "abierto", Cerrados: "cerrado", Total: null };
+  const sel = upTiemposSel;
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Expedientes abiertos y cerrados según la fecha límite">`;
   for (let v = 0; v <= yMax; v += paso) {
@@ -4353,20 +4356,29 @@ function renderUpTiemposGrafico(lista) {
     const cx = m.l + iw / columnas.length * (k + 0.5);
     const x = cx - ancho / 2;
     let base = 0;
-    segmentos.forEach(([clave, color, txt]) => {
+    const g = grupos[c.nombre];
+    segmentos.forEach(([clave, color, colorTxt, txt]) => {
       const v = c[clave];
       if (!v) return;
       const y = sy(base + v), h = sy(base) - y;
-      svg += `<rect x="${x}" y="${y}" width="${ancho}" height="${h}" fill="${color}"><title>${c.nombre}: ${v} ${txt}</title></rect>`;
-      if (h >= 18) svg += `<text x="${cx}" y="${y + h / 2 + 4}" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#fff;pointer-events:none">${v}</text>`;
+      const activo = !sel || ((sel.grupo === null || sel.grupo === g) && (sel.plazo === null || sel.plazo === clave) && (g === null ? sel.grupo === null : true));
+      svg += `<rect class="seg${activo ? "" : " apagado"}" data-grupo="${g || ""}" data-plazo="${clave}" x="${x}" y="${y}" width="${ancho}" height="${h}" fill="${color}"><title>${c.nombre}: ${v} ${txt}. Clic para ver la lista.</title></rect>`;
+      if (h >= 18) svg += `<text x="${cx}" y="${y + h / 2 + 4}" text-anchor="middle" style="font-size:12px;font-weight:700;fill:${colorTxt};pointer-events:none">${v}</text>`;
       base += v;
     });
-    svg += `<text x="${cx}" y="${sy(c.total) - 8}" text-anchor="middle" style="font-size:14px;font-weight:700;fill:var(--navy)">${c.total}</text>`;
-    svg += `<text x="${cx}" y="${m.t + ih + 20}" text-anchor="middle" style="font-size:12.5px;fill:var(--text);font-weight:${c.nombre === "Total" ? 700 : 500}">${c.nombre}</text>`;
+    svg += `<text class="col" data-grupo="${g || ""}" x="${cx}" y="${sy(c.total) - 8}" text-anchor="middle" style="font-size:14px;font-weight:700;fill:var(--navy)">${c.total}<title>Clic para ver los ${c.total} expedientes</title></text>`;
+    svg += `<text class="col" data-grupo="${g || ""}" x="${cx}" y="${m.t + ih + 20}" text-anchor="middle" style="font-size:12.5px;fill:var(--text);font-weight:${c.nombre === "Total" ? 700 : 500}">${c.nombre}<title>Clic para ver los ${c.total} expedientes</title></text>`;
   });
   svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}" stroke="var(--muted)" stroke-width="1"/>`;
   svg += `</svg>`;
   cont.innerHTML = svg;
+  const elegir = (grupo, plazo) => {
+    upTiemposSel = { grupo: grupo || null, plazo: plazo || null };
+    renderUpTiempos();
+    document.getElementById("up-reporte-printable")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  cont.querySelectorAll(".seg").forEach(el => el.addEventListener("click", () => elegir(el.dataset.grupo, el.dataset.plazo)));
+  cont.querySelectorAll(".col").forEach(el => el.addEventListener("click", () => elegir(el.dataset.grupo, null)));
 }
 
 function renderUpTiempos() {
@@ -4401,12 +4413,15 @@ function renderUpTiempos() {
   renderUpTiemposGrafico(lista);
 
   if (!thead || !tbody) return;
+  const sel = upTiemposSel;
+  const visibles = sel ? lista.filter(f => (!sel.grupo || f.grupo === sel.grupo) && (!sel.plazo || f.plazo === sel.plazo)) : lista;
+  const textoPlazo = { hasta: "hasta la fecha límite", posterior: "posteriores a la fecha límite", sindato: "sin dato" };
   const situacion = f => {
     if (f.grupo === "cerrado") return !f.cierre ? "Cerrado sin fecha de cierre" : !f.limite ? "Cerrado (sin fecha límite)" : f.plazo === "hasta" ? "Cerrado hasta la fecha límite" : "Cerrado después de la fecha límite";
     return !f.limite ? "Abierto (sin fecha límite)" : f.plazo === "hasta" ? "Abierto, dentro del plazo" : "Abierto, fecha límite vencida";
   };
   thead.innerHTML = `<tr><th>Nº EE</th><th>Obra Social / EMP</th><th>Patología</th><th>F. Ingreso</th><th>F. Límite</th><th>F. Cierre</th><th>Días</th><th>Situación</th></tr>`;
-  tbody.innerHTML = lista.map(f => `
+  tbody.innerHTML = visibles.map(f => `
     <tr>
       <td>${escaparHtml(f.ee)}</td>
       <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(f.os)}">${escaparHtml(f.os)}</td>
@@ -4414,8 +4429,16 @@ function renderUpTiempos() {
       <td>${formatearFecha(f.ingreso)}</td><td>${formatearFecha(f.limite)}</td><td>${formatearFecha(f.cierre)}</td>
       <td><strong>${f.dias ?? "—"}</strong></td><td>${situacion(f)}</td>
     </tr>`).join("");
-  if (count) count.textContent = `${lista.length} expediente${lista.length === 1 ? "" : "s"}`;
-  if (empty) empty.hidden = lista.length !== 0;
+  if (count) {
+    const n = visibles.length;
+    let txt = `${n} expediente${n === 1 ? "" : "s"}`;
+    const plazoTxt = sel?.plazo === "posterior" ? (n === 1 ? "posterior a la fecha límite" : "posteriores a la fecha límite") : textoPlazo[sel?.plazo];
+    if (sel) txt += ` ${sel.grupo === "abierto" ? (n === 1 ? "abierto" : "abiertos") : sel.grupo === "cerrado" ? (n === 1 ? "cerrado" : "cerrados") : "en total"}${sel.plazo ? `, ${plazoTxt}` : ""}`;
+    count.textContent = txt;
+  }
+  const verTodos = document.getElementById("up-tiempos-vertodos");
+  if (verTodos) verTodos.hidden = !sel;
+  if (empty) empty.hidden = visibles.length !== 0;
 }
 
 function renderUpReportes() {
@@ -13123,12 +13146,13 @@ async function initBrowser() {
   document.getElementById("px-reporte-exportar-pdf")?.addEventListener("click", exportarPxReportePdf);
   [["up-reporte-tab-os", "os"], ["up-reporte-tab-patologia", "patologia"], ["up-reporte-tab-tiempos", "tiempos"]].forEach(([id, modo]) => {
     document.getElementById(id)?.addEventListener("click", () => {
-      upReporteModo = modo; upReporteDrill = null;
+      upReporteModo = modo; upReporteDrill = null; upTiemposSel = null;
       ["up-reporte-tab-os", "up-reporte-tab-patologia", "up-reporte-tab-tiempos"].forEach(t => document.getElementById(t)?.classList.toggle("active", t === id));
       renderUpReportes();
     });
   });
   ["up-tiempos-desde", "up-tiempos-hasta"].forEach(id => document.getElementById(id)?.addEventListener("change", renderUpReportes));
+  document.getElementById("up-tiempos-vertodos")?.addEventListener("click", () => { upTiemposSel = null; renderUpReportes(); });
   document.getElementById("up-tiempos-limpiar")?.addEventListener("click", () => {
     document.getElementById("up-tiempos-desde").value = "";
     document.getElementById("up-tiempos-hasta").value = "";

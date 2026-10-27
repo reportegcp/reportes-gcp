@@ -567,8 +567,14 @@ code{background:#eef2f6;border-radius:6px;padding:2px 6px}
 .up-tiempos-leyenda{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:12px;color:var(--muted)}
 .up-tiempos-leyenda span{display:inline-flex;align-items:center;gap:6px}
 .up-tiempos-leyenda .pt{width:12px;height:12px;border-radius:3px;display:inline-block}
-.pt-ok{background:var(--success)}.pt-fuera{background:var(--danger)}.pt-sinlim{background:var(--navy-2)}
-.pt-sindato{background:#b7c0cc}
+.pt-ok{background:#93cbb0}.pt-fuera{background:#e7a1a9}.pt-sinlim{background:var(--navy-2)}
+.pt-sindato{background:#cfd6df}
+.up-tiempos-grafico .seg,.up-tiempos-grafico .col{cursor:pointer}
+.up-tiempos-grafico .seg:hover{filter:brightness(.93)}
+.up-tiempos-grafico .apagado{opacity:.35}
+.up-tiempos-ayuda{margin:8px 0 0;font-size:12px;color:var(--muted)}
+.up-tiempos-vertodos{margin-left:10px;padding:3px 10px;font-size:12px}
+@media print{.up-tiempos-ayuda,.up-tiempos-vertodos{display:none!important}}
 .up-tiempos-leyenda .ln{width:18px;border-top:2px dashed var(--navy)}
 .up-tiempos-aviso{margin:10px 0 0;padding:8px 12px;border-radius:9px;background:#fbf3e4;color:#7a5a22;font-size:12.5px}
 @media print{.up-tiempos-filtros{display:none}}
