@@ -2563,15 +2563,6 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .tb-card.tb-tema-oficios{--tema:#a8752a;--tema-suave:#faf4ea}
 .tb-card.tb-tema-reclamos{--tema:#47854d;--tema-suave:#eff6ef}
 .tb-card.tb-tema-auditorias{--tema:#b2603a;--tema-suave:#fbf1ec}
-.tb-subtitulo{margin:12px 8px 4px;font-size:12.5px;font-weight:700;color:var(--muted)}
-.tb-au-lista{display:grid;gap:6px}
-.tb-au-item{display:grid;gap:2px;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:none;text-align:left;font-size:13px;color:var(--text);cursor:pointer}
-.tb-au-item:hover{background:var(--tema-suave,var(--surface-soft))}
-.tb-au-item:focus-visible{outline:2px solid var(--tema,var(--navy-2));outline-offset:1px}
-.tb-au-os{font-weight:800;color:var(--tema,var(--navy));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tb-au-etapa,.tb-au-docs{font-size:12.5px;color:var(--muted)}
-.tb-au-barra{display:block;height:5px;margin-top:4px;border-radius:3px;background:var(--line);overflow:hidden}
-.tb-au-barra i{display:block;height:100%;background:var(--tema,var(--navy-2))}
 .tb-card[class*="tb-tema-"] header{border-top-color:var(--tema);background:var(--tema-suave)}
 .tb-card[class*="tb-tema-"] .tb-modulo{color:var(--tema)}
 .tb-card[class*="tb-tema-"] h3{color:var(--tema)}
