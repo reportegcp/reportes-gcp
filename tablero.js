@@ -14,7 +14,6 @@ const TABLERO_TARJETAS = [
   { id: "pma-estado", modulo: "Presentaciones", tema: "pma", titulo: "PMA", detalle: `Ingresados en ${TB_ANIO}, por condición`, vista: "pma" },
   { id: "cartillas-estado", modulo: "Presentaciones", tema: "cartilla", titulo: "Cartillas", detalle: `Ingresadas en ${TB_ANIO}, por condición`, vista: "cartillas" },
   { id: "up", modulo: "Urgencias Prestacionales", titulo: "Urgencias Prestacionales", detalle: "Abiertos, vencidos y tiempo de resolución", vista: "up-reportes", alt: ["up-expedientes"] },
-  { id: "up-alertas", modulo: "Urgencias Prestacionales", titulo: "Urgencias: vencimientos", detalle: "Expedientes abiertos vencidos o que vencen en los próximos 7 días", vista: "up-expedientes", alt: ["up-reportes"] },
   { id: "px", modulo: "Preexistencias", titulo: "Preexistencias", detalle: "Abiertas y cerradas", vista: "px-preexistencias" },
   { id: "au", modulo: "Auditorías", tema: "auditorias", titulo: `Auditorías ${TB_ANIO}`, detalle: `Del año ${TB_ANIO}: abiertas y cerradas`, vista: "au-auditorias" },
   { id: "oficios", modulo: "Prestaciones", tema: "oficios", titulo: "Oficios", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-oficios" },
@@ -119,17 +118,6 @@ const TB_RENDER = {
       tbFila("Abiertos con la fecha límite vencida", vencidos.length, { ir: "up-tiempos", grupo: "abierto", plazo: "posterior" }, vencidos.length ? "alerta" : "") +
       tbFila("Cerrados", filas.length - abiertos.length, { ir: "up-tiempos", grupo: "cerrado" }) +
       tbFila("Cerrados después de la fecha límite", fuera, { ir: "up-tiempos", grupo: "cerrado", plazo: "posterior" });
-  },
-
-  async "up-alertas"() {
-    const filas = await tbDatos("up-alertas", () => tbTraerTodo("expedientes", "numero_ee,nombre_paciente,estado,fecha_limite", { order: "fecha_limite.asc" }));
-    const hoy = tbHoyIso(), en7 = tbSumarDias(hoy, 7);
-    const lista = filas.filter(f => f.estado !== "Cerrado" && f.fecha_limite && f.fecha_limite <= en7);
-    if (!lista.length) return tbVacio("No hay expedientes abiertos vencidos ni que venzan esta semana.");
-    return lista.slice(0, 8).map(f => {
-      const vencido = f.fecha_limite < hoy;
-      return tbFila(`${f.numero_ee}${f.nombre_paciente ? ` · ${f.nombre_paciente}` : ""}`, `${vencido ? "Venció" : "Vence"} ${formatearFecha(f.fecha_limite)}`, { ir: "up-expedientes", buscar: f.numero_ee }, vencido ? "alerta" : "aviso");
-    }).join("") + (lista.length > 8 ? `<p class="tb-mas">Y ${lista.length - 8} más.</p>` : "");
   },
 
   async px() {
