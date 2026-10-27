@@ -2533,6 +2533,15 @@ async function upCrearDrogaDesdeExpediente() {
   }
 }
 
+// El perfil Coordinador no ve "Análisis / Dictamen" ni "Adjuntos" en el expediente de Urgencias Prestacionales.
+// Los datos de esas secciones se conservan al guardar (solo se ocultan).
+function ocultarSeccionesExpedienteSegunPerfil() {
+  const ocultar = getSessionIdentity(authSession).perfil === "Coordinador";
+  ["analisis", "adjuntos"].forEach(sec => {
+    document.querySelector(`#expediente-modal .form-section[data-section="${sec}"]`)?.toggleAttribute("hidden", ocultar);
+  });
+}
+
 // Antes de generar el informe: la patología y cada droga tienen que tener su fundamentación.
 function faltantesParaInforme(expediente) {
   const faltan = [];
@@ -2590,6 +2599,7 @@ async function abrirModalNuevoExpediente() {
   await asegurarCatalogosExpedienteCargados();
   resetFormularioExpediente();
   document.getElementById("expediente-modal-title").textContent = "Nuevo expediente";
+  ocultarSeccionesExpedienteSegunPerfil();
   abrirModal("expediente-modal");
   setTimeout(() => document.getElementById("expediente-numero-ee")?.focus(), 0);
 }
@@ -2640,6 +2650,7 @@ async function abrirModalEdicionExpediente(id) {
   document.getElementById("expediente-adjuntos-hint")?.setAttribute("hidden", "");
   actualizarAdjuntosExpediente(e.id);
   document.getElementById("expediente-modal-title").textContent = "Editar expediente";
+  ocultarSeccionesExpedienteSegunPerfil();
   abrirModal("expediente-modal");
 }
 
