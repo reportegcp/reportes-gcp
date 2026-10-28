@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=129">
+  <link rel="stylesheet" href="styles.css?v=130">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -177,7 +177,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 203</span>
+        <span>Versión 204</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1035,6 +1035,8 @@
           </div>
         </details>
 
+        <div class="alzada-alerta" id="pma-alzada-alerta" hidden></div>
+
         <div class="table-card">
           <div class="table-meta">
             <strong id="pma-count">Cargando presentaciones...</strong>
@@ -1126,6 +1128,8 @@
             </div>
           </div>
         </details>
+
+        <div class="alzada-alerta" id="cartilla-alzada-alerta" hidden></div>
 
         <div class="table-card">
           <div class="table-meta">
@@ -2987,6 +2991,18 @@
             <label><span>Nº Disposición</span><input id="pma-disposicion" type="text" maxlength="300"></label>
           </div>
 
+          <div class="full notificaciones-block plazos-dispo-block" id="pma-plazos-block">
+            <div class="notificaciones-header">
+              <span>Notificación de la Disposición y plazos de recurso</span>
+            </div>
+            <div class="form-inline-grid cols-3">
+              <label><span>Fecha de notificación</span><input id="pma-fecha-notif-dispo" type="date"></label>
+              <label><span>Reconsideración (20 días hábiles)</span><input id="pma-fecha-reconsideracion" type="date" readonly tabindex="-1" class="campo-calculado"></label>
+              <label><span>Recurso de Alzada (30 días hábiles)</span><input id="pma-fecha-alzada" type="date" readonly tabindex="-1" class="campo-calculado"></label>
+            </div>
+            <p class="plazos-dispo-estado" id="pma-plazos-estado"></p>
+          </div>
+
           <div class="full notificaciones-block" id="pma-notificaciones-block">
             <div class="notificaciones-header">
               <span>Notificaciones a la Obra Social</span>
@@ -2999,6 +3015,7 @@
           <label class="full"><span>Observaciones PMA</span><textarea id="pma-observaciones" rows="4" maxlength="2000"></textarea></label>
         </div>
         <div class="form-message" id="pma-form-message" hidden></div>
+        <p class="notificaciones-hint" id="pma-archivo-aviso" hidden>📁 Esta presentación está en Archivo: queda solo como consulta, no se puede editar ni cargar notificaciones nuevas.</p>
         <div class="modal-actions">
           <button type="button" class="secondary" data-close-modal="pma-modal">Cancelar</button>
           <button type="submit" class="primary" id="pma-save" data-edicion>Guardar</button>
@@ -3075,6 +3092,18 @@
           <div class="form-inline-grid cols-3 full">
             <label><span>Fecha Disposición</span><input id="cartilla-fecha-disposicion" type="date"></label>
             <label><span>Nº Disposición</span><input id="cartilla-disposicion" type="text" maxlength="300"></label>
+          </div>
+
+          <div class="full notificaciones-block plazos-dispo-block" id="cartilla-plazos-block">
+            <div class="notificaciones-header">
+              <span>Notificación de la Disposición y plazos de recurso</span>
+            </div>
+            <div class="form-inline-grid cols-3">
+              <label><span>Fecha de notificación</span><input id="cartilla-fecha-notif-dispo" type="date"></label>
+              <label><span>Reconsideración (20 días hábiles)</span><input id="cartilla-fecha-reconsideracion" type="date" readonly tabindex="-1" class="campo-calculado"></label>
+              <label><span>Recurso de Alzada (30 días hábiles)</span><input id="cartilla-fecha-alzada" type="date" readonly tabindex="-1" class="campo-calculado"></label>
+            </div>
+            <p class="plazos-dispo-estado" id="cartilla-plazos-estado"></p>
           </div>
 
           <label class="full"><span>Observaciones</span><textarea id="cartilla-observaciones" rows="4" maxlength="2000"></textarea></label>
@@ -3162,7 +3191,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=105"></script>
+  <script src="app.js?v=106"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=33"></script>
   <script src="usuarios.js?v=8"></script>

@@ -2570,3 +2570,21 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .tb-card[class*="tb-tema-"] .tb-fila-num{color:var(--tema)}
 .tb-card[class*="tb-tema-"] .tb-fila.alerta .tb-fila-num{color:#9f3747}
 .tb-card[class*="tb-tema-"] .tb-fila:not(:disabled):hover{background:var(--tema-suave)}
+
+/* Plazos de recurso (Reconsideración / Alzada) desde la notificación de la Disposición */
+.plazos-dispo-block .campo-calculado{background:#eef2f6;color:#35485e;font-weight:700;cursor:default}
+.plazos-dispo-estado{margin:8px 0 0;font-size:12px;font-weight:700;color:var(--muted)}
+.plazos-dispo-estado:empty{display:none}
+.plazos-dispo-estado.en-plazo{color:#2f6fb0}
+.plazos-dispo-estado.por-vencer{color:#d35400}
+.plazos-dispo-estado.vencido{color:#c0392b}
+.alzada-badge{display:inline-block;margin-left:6px;font-size:13px;cursor:help}
+.alzada-alerta{border:1px solid #f1c27d;background:#fff7ec;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px}
+.alzada-alerta.hay-vencidos{border-color:#e6a5a0;background:#fdf1f0}
+.alzada-alerta-titulo{font-weight:800;color:#8a3b00;margin:0 0 6px}
+.alzada-alerta.hay-vencidos .alzada-alerta-titulo{color:#8e2a2a}
+.alzada-alerta ul{margin:0;padding-left:18px;max-height:160px;overflow-y:auto}
+.alzada-alerta li{margin:2px 0}
+.alzada-alerta li.vencido{color:#c0392b}
+.alzada-alerta li.por-vencer{color:#a04600}
+.alzada-alerta button.link-button{font-size:13px}

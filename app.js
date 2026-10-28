@@ -5695,6 +5695,7 @@ function buildCartillasUrl(offset = 0, limit = 1000, soloVigente = false) {
   const fields = [
     "id","obra_social_id","anio_inicio","ejercicio","fecha_inicio_ejercicio","analista","numero_ee","condicion",
     "fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
+    "fecha_notificacion_dispo","fecha_reconsideracion","fecha_recurso_alzada",
     "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio,domicilio,localidad,provincia)"
   ].join(",");
   const params = new URLSearchParams();
@@ -5728,6 +5729,7 @@ function buildPmaUrl(offset = 0, limit = 1000, soloVigente = false) {
   const fields = [
     "id","obra_social_id","anio_inicio","ejercicio","inicio_periodo","fin_periodo","fecha_inicio_ejercicio","fecha_fin_ejercicio",
     "analista","numero_ee","condicion","fecha_ingreso","res_170_2009","numero_disposicion","fecha_disposicion","observaciones","created_at","updated_at",
+    "fecha_notificacion_dispo","fecha_reconsideracion","fecha_recurso_alzada",
     "obras_sociales(rnos,denominacion,sigla,inicio_ejercicio,domicilio,localidad,provincia)"
   ].join(",");
   const params = new URLSearchParams();
@@ -6261,7 +6263,7 @@ function renderPma() {
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
       <td class="deadline-cell">${notifCelda}</td>
-      <td><strong style="color:${colorCondicion(r.condicion)}">${escaparHtml(r.condicion||"—")}</strong></td>
+      <td><strong style="color:${colorCondicion(r.condicion)}">${escaparHtml(r.condicion||"—")}</strong>${badgeAlzada(r)}</td>
       <td>${escaparHtml(r.numero_ee||"—")}</td>
       <td>${escaparHtml(r.numero_disposicion||"—")}</td>
     </tr>`;
@@ -6343,6 +6345,7 @@ async function cargarYRenderizarPma() {
     if (!pmaCompleta) { pma = await cargarPmaDesdeSupabase(fetch, true); pmaCargadas = true; }
     try { if (!pmaNotificacionesTodasCargadas) await cargarTodasLasNotificacionesPma(); } catch (error) { console.error("No se pudieron cargar las notificaciones de PMA:", error); }
     llenarFiltrosPma();renderPma();actualizarAvisoHistoricoPma();
+    renderAlertaAlzada("pma");
   }
   catch(error){pma=[];pmaCargadas=false;renderPma();if(count)count.textContent="0 presentaciones";if(status)status.textContent="Error de conexión con Supabase";
     const empty=document.getElementById("pma-empty");if(empty){empty.hidden=false;empty.textContent=error?.message||"No se pudieron cargar las presentaciones de PMA.";}}
@@ -6445,7 +6448,7 @@ function renderCartillas() {
       <td class="date-cell">${formatFechaPantalla(plazo.fechaLimite)}</td>
       <td class="deadline-cell"><span class="deadline-icon ${clase}" title="${titulo}" aria-label="${titulo}">${simbolo}</span></td>
       <td class="deadline-cell">${notifCelda}</td>
-      <td><strong style="color:${colorCondicion(c.condicion)}">${escaparHtml(c.condicion || "—")}</strong></td>
+      <td><strong style="color:${colorCondicion(c.condicion)}">${escaparHtml(c.condicion || "—")}</strong>${badgeAlzada(c)}</td>
       <td>${escaparHtml(c.numero_ee || "—")}</td>
       <td>${escaparHtml(c.numero_disposicion || "—")}</td>
     </tr>`;
@@ -6554,6 +6557,7 @@ async function cargarYRenderizarCartillas() {
   llenarFiltroEjercicios();
   renderCartillas();
   actualizarAvisoHistoricoCartillas();
+  renderAlertaAlzada("cartilla");
 }
 
 function actualizarAvisoHistoricoCartillas() {
@@ -7316,11 +7320,13 @@ function limpiarFormularioPma() {
   actualizarMasterInfoPma(null);
   setFormMessage("pma-form-message","");
   actualizarAlertaPma();
+  cargarPlazosDispoEnFicha("pma", null);
 }
 function abrirModalPmaNueva() {
   limpiarFormularioPma();poblarObrasSocialesPma();
   document.getElementById("pma-modal-title").textContent="Nueva presentación de PMA";
   cargarYRenderizarNotificacionesModalPma(null);
+  aplicarModoSoloLecturaPma(false);
   abrirModal("pma-modal");document.getElementById("pma-os-search")?.focus();
 }
 function abrirModalPmaEdicion(id) {
@@ -7344,7 +7350,9 @@ function abrirModalPmaEdicion(id) {
   actualizarMasterInfoPma(resolverObraSocialPma(document.getElementById("pma-os-search").value) || r.obras_sociales);
   setFormMessage("pma-form-message","");
   actualizarAlertaPma();
+  cargarPlazosDispoEnFicha("pma", r);
   cargarYRenderizarNotificacionesModalPma(r.id);
+  aplicarModoSoloLecturaPma(r.condicion === "ARCHIVO");
   abrirModal("pma-modal");
 }
 
@@ -7411,17 +7419,45 @@ async function asegurarNotificacionesPmaCargadas() {
   if (!pmaNotificacionesTodasCargadas) await cargarTodasLasNotificacionesPma();
 }
 
+let pmaModalSoloLectura = false;
+let pmaNotifEditandoId = null;
+
+function aplicarModoSoloLecturaPma(soloLectura) {
+  pmaModalSoloLectura = soloLectura;
+  const form = document.getElementById("pma-form");
+  if (form) form.querySelectorAll("input, select, textarea").forEach(campo => { campo.disabled = soloLectura; });
+  const guardar = document.getElementById("pma-save");
+  if (guardar) guardar.hidden = soloLectura;
+  const addNotif = document.getElementById("pma-notificacion-add");
+  if (addNotif && soloLectura) addNotif.hidden = true;
+  const aviso = document.getElementById("pma-archivo-aviso");
+  if (aviso) aviso.hidden = !soloLectura;
+  pmaNotifEditandoId = null;
+}
+
 function renderNotificacionesPma() {
   const cont = document.getElementById("pma-notificaciones-lista");
   if (!cont) return;
   const hoyISO = hoyLocalISO();
   cont.innerHTML = pmaNotificacionesActuales.map(n => {
+    if (String(n.id) === String(pmaNotifEditandoId)) {
+      return `<div class="notificacion-row notificacion-editar-row">
+        <span class="notificacion-numero">${n.numero}ª notificación</span>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">Fecha
+          <input type="date" id="pma-notif-fecha-editar" value="${n.fecha_notificacion || hoyISO}">
+        </label>
+        <button type="button" class="secondary small" id="pma-notif-guardar-editar" data-notif-id="${n.id}">Guardar</button>
+        <button type="button" class="link-button" id="pma-notif-cancelar-editar">Cancelar</button>
+      </div>`;
+    }
     const color = colorNotificacion(n, hoyISO);
     const clase = n.estado === "RESPONDIO" ? "respondio" : n.estado === "NO_RESPONDIO" ? "no-respondio" : "pendiente";
-    const marcar = n.estado === "PENDIENTE"
+    const marcar = !pmaModalSoloLectura && n.estado === "PENDIENTE"
       ? `<button type="button" class="link-button" data-notif-marcar-pma="RESPONDIO" data-notif-id="${n.id}">Marcar respondida</button>
          <button type="button" class="link-button" data-notif-marcar-pma="NO_RESPONDIO" data-notif-id="${n.id}">No respondió</button>`
       : "";
+    const editar = pmaModalSoloLectura ? "" : `<button type="button" class="link-button" data-notif-editar-pma="${n.id}">Editar fecha</button>`;
+    const borrar = pmaModalSoloLectura ? "" : `<button type="button" class="notificacion-borrar" data-notif-borrar-pma="${n.id}" title="Borrar esta notificación" aria-label="Borrar esta notificación">×</button>`;
     const iconoNotif = n.estado === "RESPONDIO"
       ? `<span class="notificacion-check verde" title="${textoEstadoNotificacion(n)}">✓</span>`
       : n.estado === "NO_RESPONDIO"
@@ -7432,8 +7468,8 @@ function renderNotificacionesPma() {
       <span class="notificacion-numero">${n.numero}ª notificación</span>
       <span class="notificacion-detalle">Notificada: ${formatFechaPantalla(n.fecha_notificacion)} · Vence: ${formatFechaPantalla(n.fecha_limite_respuesta)}</span>
       <span class="notificacion-estado ${clase}">${textoEstadoNotificacion(n)}</span>
-      <div class="notificacion-actions">${marcar}<button type="button" class="notificacion-borrar" data-notif-borrar-pma="${n.id}" title="Borrar esta notificación" aria-label="Borrar esta notificación">×</button></div>
-    </div>`;
+      <div class="notificacion-actions">${marcar}${editar}${borrar}</div>
+    </div>${renderHistorialFechaNotificacion(n.historial_fecha)}`;
   }).join("") || `<p class="notificaciones-hint">Todavía no se cargaron notificaciones.</p>`;
   cont.querySelectorAll("[data-notif-marcar-pma]").forEach(btn => {
     btn.addEventListener("click", () => marcarNotificacionEstadoPma(btn.dataset.notifId, btn.dataset.notifMarcarPma));
@@ -7441,6 +7477,41 @@ function renderNotificacionesPma() {
   cont.querySelectorAll("[data-notif-borrar-pma]").forEach(btn => {
     btn.addEventListener("click", () => borrarNotificacionPma(btn.dataset.notifBorrarPma));
   });
+  cont.querySelectorAll("[data-notif-editar-pma]").forEach(btn => {
+    btn.addEventListener("click", () => { pmaNotifEditandoId = btn.dataset.notifEditarPma; renderNotificacionesPma(); });
+  });
+  document.getElementById("pma-notif-cancelar-editar")?.addEventListener("click", () => { pmaNotifEditandoId = null; renderNotificacionesPma(); });
+  document.getElementById("pma-notif-guardar-editar")?.addEventListener("click", async (ev) => {
+    const id = ev.currentTarget.dataset.notifId;
+    const fecha = document.getElementById("pma-notif-fecha-editar")?.value;
+    if (!fecha) { mostrarToast("Elegí la fecha de la notificación."); return; }
+    await guardarFechaNotificacionPma(id, fecha);
+  });
+}
+
+async function guardarFechaNotificacionPma(id, fecha) {
+  const boton = document.getElementById("pma-notif-guardar-editar");
+  if (boton) { boton.disabled = true; boton.textContent = "Guardando..."; }
+  try {
+    const session = await asegurarSesionVigente();
+    const actual = pmaNotificacionesActuales.find(x => String(x.id) === String(id));
+    const historialPrevio = Array.isArray(actual?.historial_fecha) ? actual.historial_fecha : [];
+    const historial = actual && actual.fecha_notificacion && actual.fecha_notificacion !== fecha
+      ? [...historialPrevio, { fecha_anterior: actual.fecha_notificacion, fecha_nueva: fecha, editado_en: new Date().toISOString(), editado_por: session.user?.email || null }]
+      : historialPrevio;
+    const payload = { fecha_notificacion: fecha, fecha_limite_respuesta: sumarDiasHabiles(fecha, 10), historial_fecha: historial, updated_at: new Date().toISOString() };
+    const response = await fetchConTimeout(buildPmaNotificacionesUrl(null, id), {
+      method: "PATCH", headers: { ...authHeaders(session.access_token), Prefer: "return=representation" }, body: JSON.stringify(payload)
+    }, 10000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    pmaNotifEditandoId = null;
+    await cargarYRenderizarNotificacionesModalPma(pmaNotificacionesPmaId);
+    pmaNotificacionesTodasCargadas = false;
+    mostrarToast("Fecha de notificación actualizada.");
+  } catch (error) {
+    mostrarToast(error.message || "No se pudo actualizar la fecha.");
+    if (boton) { boton.disabled = false; boton.textContent = "Guardar"; }
+  }
 }
 
 async function borrarNotificacionPma(id) {
@@ -7483,7 +7554,7 @@ async function cargarYRenderizarNotificacionesModalPma(pmaId) {
 }
 
 async function agregarNotificacionPma() {
-  if (!pmaNotificacionesPmaId) return;
+  if (!pmaNotificacionesPmaId || pmaModalSoloLectura) return;
   const cont = document.getElementById("pma-notificaciones-lista");
   if (!cont || cont.querySelector(".notificacion-nueva-row")) return;
   const proximoNumero = (pmaNotificacionesActuales.reduce((max, n) => Math.max(max, n.numero || 0), 0)) + 1;
@@ -7564,7 +7635,7 @@ async function handlePmaSubmit(event){
       numero_ee:document.getElementById("pma-ee")?.value.trim()||null,condicion:document.getElementById("pma-condicion")?.value||null,
       fecha_ingreso:document.getElementById("pma-fecha-ingreso")?.value||null,res_170_2009:document.getElementById("pma-res-170")?.value||null,
       numero_disposicion:document.getElementById("pma-disposicion")?.value.trim()||null,fecha_disposicion:document.getElementById("pma-fecha-disposicion")?.value||null,
-      observaciones:document.getElementById("pma-observaciones")?.value.trim()||null};
+      observaciones:document.getElementById("pma-observaciones")?.value.trim()||null,...camposPlazosDispo("pma")};
     const id=document.getElementById("pma-id")?.value||"";await guardarPmaEnSupabase(registro,id||null,session.access_token);
     cerrarModal("pma-modal");mostrarToast(id?"Presentación de PMA actualizada.":"Presentación de PMA creada.");await cargarYRenderizarPma();reportePmaCargado=false;
   }catch(error){setFormMessage("pma-form-message",error.message||"No se pudo guardar la presentación de PMA.");}
@@ -7605,6 +7676,121 @@ function diasHabilesTranscurridos(fechaISO, hastaISO) {
     if (dow !== 0 && dow !== 6) count++;
   }
   return count;
+}
+
+
+// ---------- Plazos de recurso desde la notificación de la Disposición (PMA y Cartillas) ----------
+// Con la fecha de notificación se calculan: Reconsideración (20 días hábiles) y Recurso de
+// Alzada (30 días hábiles). Vencido el Alzada el expediente pasa a Guardado, por eso se avisa.
+const PLAZO_RECONSIDERACION_DIAS = 20;
+const PLAZO_ALZADA_DIAS = 30;
+const AVISO_ALZADA_DIAS_HABILES = 5;
+
+function calcularPlazosDispo(fechaNotif) {
+  if (!fechaNotif) return { reconsideracion: null, alzada: null };
+  return { reconsideracion: sumarDiasHabiles(fechaNotif, PLAZO_RECONSIDERACION_DIAS), alzada: sumarDiasHabiles(fechaNotif, PLAZO_ALZADA_DIAS) };
+}
+
+function camposPlazosDispo(prefijo) {
+  const fecha = document.getElementById(`${prefijo}-fecha-notif-dispo`)?.value || null;
+  const plazos = calcularPlazosDispo(fecha);
+  return { fecha_notificacion_dispo: fecha, fecha_reconsideracion: plazos.reconsideracion, fecha_recurso_alzada: plazos.alzada };
+}
+
+// null si no corresponde avisar (sin fecha o expediente en Archivo).
+function estadoAlzada(registro, hoyISO = hoyLocalISO()) {
+  const alzada = registro?.fecha_recurso_alzada;
+  if (!alzada || registro.condicion === "ARCHIVO") return null;
+  if (alzada < hoyISO) return { nivel: "vencido", dias: 0 };
+  const dias = diasHabilesTranscurridos(hoyISO, alzada);
+  return { nivel: dias <= AVISO_ALZADA_DIAS_HABILES ? "por-vencer" : "en-plazo", dias };
+}
+
+function textoEstadoAlzada(est, fechaAlzada) {
+  if (!est) return "";
+  const f = formatFechaPantalla(fechaAlzada);
+  if (est.nivel === "vencido") return `⚠️ Recurso de Alzada vencido el ${f}: el expediente debe pasar a Guardado.`;
+  if (est.dias === 0) return `⏰ El Recurso de Alzada vence HOY (${f}).`;
+  if (est.nivel === "por-vencer") return `⏰ El Recurso de Alzada vence en ${est.dias} ${est.dias === 1 ? "día hábil" : "días hábiles"} (${f}).`;
+  return `Recurso de Alzada en plazo: faltan ${est.dias} días hábiles (vence el ${f}).`;
+}
+
+function actualizarPlazosDispo(prefijo) {
+  const fecha = document.getElementById(`${prefijo}-fecha-notif-dispo`)?.value || "";
+  const plazos = calcularPlazosDispo(fecha);
+  const rec = document.getElementById(`${prefijo}-fecha-reconsideracion`);
+  const alz = document.getElementById(`${prefijo}-fecha-alzada`);
+  if (rec) rec.value = plazos.reconsideracion || "";
+  if (alz) alz.value = plazos.alzada || "";
+  const estadoEl = document.getElementById(`${prefijo}-plazos-estado`);
+  if (!estadoEl) return;
+  const condicion = document.getElementById(`${prefijo}-condicion`)?.value || "";
+  const est = estadoAlzada({ fecha_recurso_alzada: plazos.alzada, condicion });
+  estadoEl.className = `plazos-dispo-estado ${est ? est.nivel : ""}`;
+  estadoEl.textContent = textoEstadoAlzada(est, plazos.alzada);
+}
+
+function cargarPlazosDispoEnFicha(prefijo, registro) {
+  const input = document.getElementById(`${prefijo}-fecha-notif-dispo`);
+  if (input) input.value = registro?.fecha_notificacion_dispo || "";
+  actualizarPlazosDispo(prefijo);
+}
+
+function badgeAlzada(registro) {
+  const est = estadoAlzada(registro);
+  if (!est || est.nivel === "en-plazo") return "";
+  const icono = est.nivel === "vencido" ? "⚠️" : "⏰";
+  return `<span class="alzada-badge" title="${escaparHtml(textoEstadoAlzada(est, registro.fecha_recurso_alzada))}">${icono}</span>`;
+}
+
+// Aviso arriba del listado. Consulta la base directamente (no solo lo cargado en pantalla),
+// para que también aparezcan expedientes de ejercicios anteriores.
+async function renderAlertaAlzada(tipo) {
+  if (typeof document === "undefined") return;
+  const cont = document.getElementById(`${tipo}-alzada-alerta`);
+  if (!cont) return;
+  const tabla = tipo === "pma" ? "pma" : "cartillas";
+  const hoyISO = hoyLocalISO();
+  const limite = sumarDiasHabiles(hoyISO, AVISO_ALZADA_DIAS_HABILES);
+  try {
+    const url = new URL(tipo === "pma" ? buildPmaUrl(0, 1000) : buildCartillasUrl(0, 1000));
+    url.searchParams.set("fecha_recurso_alzada", `lte.${limite}`);
+    url.searchParams.set("or", "(condicion.is.null,condicion.neq.ARCHIVO)");
+    url.searchParams.set("order", "fecha_recurso_alzada.asc");
+    url.searchParams.delete("offset");
+    const response = await fetchConTimeout(url.toString(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+    const filas = await response.json();
+    if (!Array.isArray(filas) || !filas.length) { cont.hidden = true; cont.innerHTML = ""; return; }
+    const vencidos = filas.filter(f => f.fecha_recurso_alzada < hoyISO).length;
+    const porVencer = filas.length - vencidos;
+    const partes = [];
+    if (vencidos) partes.push(`${vencidos} con Recurso de Alzada vencido (pasar a Guardado)`);
+    if (porVencer) partes.push(`${porVencer} que ${porVencer === 1 ? "vence" : "vencen"} en los próximos ${AVISO_ALZADA_DIAS_HABILES} días hábiles`);
+    cont.className = `alzada-alerta${vencidos ? " hay-vencidos" : ""}`;
+    cont.innerHTML = `<p class="alzada-alerta-titulo">${vencidos ? "⚠️" : "⏰"} ${partes.join(" · ")}</p>
+      <ul>${filas.map(f => {
+        const est = estadoAlzada(f, hoyISO);
+        const os = f.obras_sociales || {};
+        const cuando = est.nivel === "vencido" ? `venció el ${formatFechaPantalla(f.fecha_recurso_alzada)}` : est.dias === 0 ? "vence HOY" : `vence el ${formatFechaPantalla(f.fecha_recurso_alzada)} (${est.dias} ${est.dias === 1 ? "día hábil" : "días hábiles"})`;
+        return `<li class="${est.nivel}"><button type="button" class="link-button" data-alzada-abrir="${f.id}">${escaparHtml(os.rnos || "—")} · ${escaparHtml(os.sigla || os.denominacion || "")} · Ej. ${escaparHtml(f.ejercicio || "—")} · EE ${escaparHtml(f.numero_ee || "—")}</button> — ${cuando}</li>`;
+      }).join("")}</ul>`;
+    cont.hidden = false;
+    cont.querySelectorAll("[data-alzada-abrir]").forEach(btn => {
+      btn.addEventListener("click", () => requiereAutenticacion(() => {
+        const id = Number(btn.dataset.alzadaAbrir);
+        const lista = tipo === "pma" ? pma : cartillas;
+        if (!lista.some(x => Number(x.id) === id)) {
+          const fila = filas.find(x => Number(x.id) === id);
+          if (fila) lista.push(fila);
+        }
+        if (tipo === "pma") abrirModalPmaEdicion(id); else abrirModalCartillaEdicion(id);
+      }));
+    });
+  } catch (error) {
+    console.error("No se pudo cargar la alerta de Recurso de Alzada:", error);
+    cont.hidden = true;
+  }
 }
 
 // Estado visual (color) de UNA notificación puntual, en base a días hábiles transcurridos
@@ -7909,6 +8095,7 @@ function limpiarFormularioCartilla() {
   actualizarMasterInfoCartilla(null);
   setFormMessage("cartilla-form-message", "");
   actualizarAlertaCartilla();
+  cargarPlazosDispoEnFicha("cartilla", null);
 }
 
 function aplicarModoSoloLecturaCartilla(soloLectura) {
@@ -7961,6 +8148,7 @@ function abrirModalCartillaEdicion(id) {
   actualizarMasterInfoCartilla(resolverObraSocialCartilla(document.getElementById("cartilla-os-search").value) || c.obras_sociales);
   setFormMessage("cartilla-form-message", "");
   actualizarAlertaCartilla();
+  cargarPlazosDispoEnFicha("cartilla", c);
   cargarYRenderizarNotificacionesModal(c.id);
   aplicarModoSoloLecturaCartilla(c.condicion === "ARCHIVO");
   abrirModal("cartilla-modal");
@@ -8013,7 +8201,8 @@ async function handleCartillaSubmit(event) {
       res_170_2009:document.getElementById("cartilla-res-170")?.value || null,
       numero_disposicion:document.getElementById("cartilla-disposicion")?.value.trim() || null,
       fecha_disposicion:document.getElementById("cartilla-fecha-disposicion")?.value || null,
-      observaciones:document.getElementById("cartilla-observaciones")?.value.trim() || null
+      observaciones:document.getElementById("cartilla-observaciones")?.value.trim() || null,
+      ...camposPlazosDispo("cartilla")
     };
     const id = document.getElementById("cartilla-id")?.value || "";
     const filaGuardada = await guardarCartillaEnSupabase(registro, id || null, session.access_token);
@@ -13240,6 +13429,10 @@ async function initBrowser() {
     renderPma();
   });
   document.getElementById("pma-notificacion-add")?.addEventListener("click", agregarNotificacionPma);
+  document.getElementById("pma-fecha-notif-dispo")?.addEventListener("input", () => actualizarPlazosDispo("pma"));
+  document.getElementById("cartilla-fecha-notif-dispo")?.addEventListener("input", () => actualizarPlazosDispo("cartilla"));
+  document.getElementById("pma-condicion")?.addEventListener("change", () => actualizarPlazosDispo("pma"));
+  document.getElementById("cartilla-condicion")?.addEventListener("change", () => actualizarPlazosDispo("cartilla"));
   document.getElementById("btn-export-pma")?.addEventListener("click", () => exportarModuloPresentacionesExcel("pma"));
   document.getElementById("btn-export-cartillas")?.addEventListener("click", () => exportarModuloPresentacionesExcel("cartillas"));
   document.getElementById("pma-historico-btn")?.addEventListener("click", cargarHistoricoCompletoPma);
