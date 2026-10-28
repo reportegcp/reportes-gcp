@@ -12391,7 +12391,7 @@ function renderListadoCartillas() {
       : `<span class="excel-estado falta">Falta cargar</span>`;
     return `<tr data-cartilla-id="${e(String(c.id))}">
       <td>${e(c.os.rnos || "—")}</td>
-      <td><span class="os-sigla">${e(c.os.sigla || c.os.denominacion || "—")}</span>${c.os.sigla ? `<span class="os-nombre">${e(c.os.denominacion || "")}</span>` : ""}</td>
+      <td class="os" title="${e(c.os.denominacion || "")}"><b>${e(c.os.sigla || c.os.denominacion || "—")}</b>${c.os.sigla ? ` <span class="os-nombre">${e(c.os.denominacion || "")}</span>` : ""}</td>
       <td>${e(c.ejercicio || "—")}</td>
       <td>${e(formatFechaPantalla(c.fecha_ingreso))}</td>
       <td>${e(c.numero_ee || "—")}</td>
