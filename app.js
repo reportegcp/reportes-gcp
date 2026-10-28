@@ -7,7 +7,7 @@ const views = {
   tablero: { title: "", subtitle: "" },
   "obras-sociales": { title: "Agentes de Seguro", subtitle: "Maestro único de RNAS y denominaciones" },
   "cartilla-hub": { title: "Presentar Cartilla", subtitle: "Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV, en una sola presentación" },
-  "cartilla-revision": { title: "Cartilla", subtitle: "Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV de una presentación, todo junto" },
+  "cartilla-revision": { title: "Cartilla", subtitle: "Presentaciones ingresadas por expediente: cargá el Excel de cada una y revisá su contenido" },
   prestadores: { title: "Prestadores", subtitle: "Red de prestadores de cada Obra Social (Anexo III de Cartilla)" },
   "anexo-i": { title: "Anexo I", subtitle: "Declaración jurada de cobertura del PMO" },
   "anexo-i-admin": { title: "Anexo I · Edición", subtitle: "Edición del texto normativo del Anexo I, por ejercicio" },
@@ -47,7 +47,7 @@ const views = {
 const manualesSeccion = {
   "obras-sociales": `<strong>Qué hacer en Agentes de Seguro</strong><ul><li>Buscá por RNAS, denominación o sigla.</li><li>Usá los filtros de estado e Inicio ejercicio.</li><li>Hacé clic en una fila para consultar o modificar los datos del agente.</li><li>El Inicio ejercicio se utiliza para determinar los períodos de control de las presentaciones.</li></ul>`,
   "cartilla-hub": `<strong>Qué hacer en Presentar Cartilla</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>El listado muestra los 5 componentes de la Cartilla: Afiliados, Anexo I, Anexo II, Anexo III (Prestadores) y Anexo IV. "Completar" te lleva a cargar el que falte.</li><li>"Presentar Cartilla completa" se habilita recién cuando los 5 están listos, y los congela a todos juntos en un solo paso. Ya no hay un botón de Presentar separado en cada anexo.</li><li>Si por algún problema de conexión no se llegan a guardar los 5, volvé a tocar el botón: retoma solo lo que faltó, no duplica lo que ya se guardó.</li></ul>`,
-  "cartilla-revision": `<strong>Qué hacer en Cartilla</strong><ul><li>Buscá la Obra Social y elegí el período una sola vez.</li><li>Vas a ver los 5 componentes de esa presentación (Afiliados, Anexo I, Anexo II, Anexo III y Anexo IV) juntos, uno debajo del otro.</li><li>Es de solo lectura. Para cambiar condición, número de EE, analista o disposición, usá la pantalla "Cartillas" dentro de Presentaciones.</li></ul>`,
+  "cartilla-revision": `<strong>Qué hacer en Cartilla</strong><ul><li>Al entrar ves las presentaciones con expediente ingresado en Presentaciones → Cartillas, del período vigente (o del anterior).</li><li>Con "Falta cargar Excel" ves cuáles todavía no tienen la Cartilla cargada. "Cargar Excel" sube el archivo que envió la Obra Social a esa presentación; si el RNAS de la Carátula no coincide, no deja confirmar.</li><li>Tocando una fila ves los 5 componentes de esa presentación (Afiliados y Anexos I a IV). Para cambiar condición, EE, analista o disposición, usá Presentaciones → Cartillas.</li></ul>`,
   pma: `<strong>Qué hacer en PMA</strong><ul><li>Usá el buscador o seleccioná uno o varios ejercicios.</li><li>Podés filtrar además por Condición, Fecha de ingreso y Fecha límite.</li><li>Hacé clic en una presentación para verla o editarla.</li><li>“Nueva presentación” registra un nuevo trámite. “Exportar Excel” descarga todos los campos de los registros filtrados.</li></ul>`,
   "anexo-i": `<strong>Qué hacer en Anexo I</strong><ul><li>Elegí el período arriba (por defecto el vigente).</li><li>Completá los campos numéricos indicados en algunas secciones y, si querés, agregá una aclaración por sección.</li><li>Adjuntá una foto o captura del Anexo III (Prestadores) ya presentado para este período.</li><li>“Guardar borrador” conserva lo cargado sin presentarlo; podés volver a entrar y seguir editando.</li><li>“Presentar” envía la declaración jurada a la Superintendencia. Una vez presentada queda congelada y no se puede modificar.</li></ul>`,
   "anexo-i-admin": `<strong>Qué hacer en Anexo I · Edición</strong><ul><li>La columna izquierda muestra la versión vigente. Mientras ninguna Obra Social haya presentado todavía con ese texto, se puede editar directamente ahí (por ejemplo para corregir typos o formato). En cuanto la primera OS presente, esa versión queda protegida y pasa a ser de solo lectura.</li><li>Si todavía no existe una próxima versión, creála con el botón, elegí a partir de qué ejercicio entra en vigencia y se clona el contenido vigente para editarlo.</li><li>En la columna derecha corregí título y texto (usá negrita, itálica o viñetas con la barra de herramientas) de la próxima versión. Si corregís algo en la vigente que todavía es idéntico en la próxima versión, se actualiza en las dos a la vez.</li><li>”Guardar cambios” aplica todo lo editado. La próxima versión recién se muestra a las Obras Sociales cuando llega el ejercicio elegido; hasta entonces, sin cambios visibles.</li></ul>`,
@@ -8580,6 +8580,8 @@ function parsearAnexoIIICartilla(workbook) {
 }
 
 let importarCartillaEstado = null;
+// Presentación elegida desde el listado de Cartilla (fila → "Cargar Excel"). null = elegir en el modal.
+let importarCartillaDestino = null;
 
 function matchearEspecialidadesImportacion(prestadores) {
   const lookup = new Map();
@@ -8625,6 +8627,7 @@ async function manejarArchivoImportarCartilla(file) {
   }
 }
 
+
 async function cargarPresentacionesCartillaOs(obraSocialId) {
   const session = await asegurarSesionVigente();
   const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "id,ejercicio,anio_inicio,fecha_ingreso", obra_social_id: `eq.${obraSocialId}`, order: "anio_inicio.desc" });
@@ -8668,7 +8671,10 @@ async function renderPreviewImportarCartilla() {
   }
   importarCartillaEstado.presentaciones = presentaciones;
   importarCartillaEstado.conFoto = conFoto;
-  const sugerida = presentacionSugeridaImportacion(presentaciones, caratula.anio);
+  const destino = importarCartillaDestino;
+  const sugerida = destino
+    ? presentaciones.find(p => Number(p.id) === destino.cartillaId) || null
+    : presentacionSugeridaImportacion(presentaciones, caratula.anio);
 
   resumen.innerHTML = `
     <div class="deadline-card neutral">
@@ -8682,7 +8688,7 @@ async function renderPreviewImportarCartilla() {
     ${presentaciones.length ? `
     <label class="importar-cartilla-presentacion" style="display:flex;flex-direction:column;gap:4px;margin:14px 0 4px;max-width:420px">
       <span>Presentación a la que corresponde este Excel</span>
-      <select id="importar-cartilla-presentacion">
+      <select id="importar-cartilla-presentacion" ${destino && sugerida ? "disabled" : ""}>
         ${presentaciones.map(pr => `<option value="${pr.id}" ${sugerida && pr.id === sugerida.id ? "selected" : ""}>Ejercicio ${escaparHtml(pr.ejercicio || String(pr.anio_inicio))}${pr.fecha_ingreso ? ` · ingresó ${escaparHtml(formatearFecha(pr.fecha_ingreso))}` : ""}${conFoto.has(Number(pr.id)) ? " · ya tiene foto cargada" : ""}</option>`).join("")}
       </select>
     </label>` : ""}`;
@@ -8697,6 +8703,16 @@ function renderAvisosImportarCartilla() {
   const cartillaId = Number(document.getElementById("importar-cartilla-presentacion")?.value || 0);
   const elegida = presentaciones.find(p => Number(p.id) === cartillaId);
   let avisosHtml = "";
+  const destino = importarCartillaDestino;
+  const destinoOs = destino ? obrasSociales.find(o => Number(o.id) === destino.obraSocialId) : null;
+  const osNoCoincide = !!(destino && os && Number(os.id) !== destino.obraSocialId);
+  if (osNoCoincide) avisosHtml += `<p class="notificaciones-hint">⛔ <b>Este Excel no es de esta Obra Social.</b> La Carátula dice RNAS ${escaparHtml(caratula.rnas)} (${escaparHtml(getObraSocialDisplay(os))}), pero estás cargando la Cartilla de ${escaparHtml(destinoOs ? getObraSocialDisplay(destinoOs) : "otra Obra Social")}. Revisá el archivo.</p>`;
+  if (elegida && destino) {
+    const anios = String(caratula.anio || "").match(/\d{4}/g)?.map(Number) || [];
+    if (anios.length && !anios.includes(Number(elegida.anio_inicio)) && !anios.includes(Number(elegida.anio_inicio) + 1)) {
+      avisosHtml += `<p class="notificaciones-hint">⚠️ El período de vigencia de la Carátula (${escaparHtml(String(caratula.anio))}) no parece corresponder al ejercicio ${escaparHtml(elegida.ejercicio || "")}. Verificá que sea el Excel de esta presentación.</p>`;
+    }
+  }
   if (!os) avisosHtml += `<p class="notificaciones-hint">⚠️ No encontré ninguna Obra Social con RNAS ${escaparHtml(caratula.rnas)} en Agentes de Seguro. Dala de alta antes de importar.</p>`;
   else if (!presentaciones.length) avisosHtml += `<p class="notificaciones-hint">⚠️ Esta Obra Social no tiene presentaciones cargadas en Presentaciones → Cartillas. Cargá primero la presentación del ejercicio y después importá el Excel.</p>`;
   if (elegida) {
@@ -8711,7 +8727,7 @@ function renderAvisosImportarCartilla() {
   }
   avisos.innerHTML = avisosHtml;
   const confirmar = document.getElementById("importar-cartilla-confirmar");
-  if (confirmar) confirmar.disabled = !os || !elegida;
+  if (confirmar) confirmar.disabled = !os || !elegida || osNoCoincide;
 }
 
 // "Tipo: esp1, esp2; Tipo2: esp3", el mismo formato que usa la foto de la presentación.
@@ -8756,8 +8772,8 @@ async function confirmarImportarCartilla() {
 
     cerrarModal("importar-cartilla-modal");
     mostrarToast(`Cartilla ${elegida.ejercicio || ""} de ${getObraSocialDisplay(os)} importada: ${resultado.prestadores} sedes.${resultado.red_actualizada ? "" : " La red actual no cambió (ejercicio anterior)."}`);
-    document.getElementById("prestadores-os-search").value = getObraSocialDisplay(os);
-    await handleSeleccionObraSocialPrestadores();
+    importarCartillaDestino = null;
+    await refrescarListadoCartillas();
   } catch (error) {
     setFormMessage("importar-cartilla-message", error.message || "No se pudo completar la importación.");
   } finally {
@@ -10249,11 +10265,8 @@ async function inicializarVistaPrestadores() {
   poblarSelectorMultipleEjercicios("prestadores", ejercicios, () => requiereAutenticacion(handleCambioEjercicioPrestadores), { defaultChecked: false });
   await handleCambioEjercicioPrestadores();
   llenarDatalistsPrestador();
-  const btnImportar = document.getElementById("btn-importar-cartilla");
-  if (btnImportar) btnImportar.hidden = false;
-  // El auditor/admin consulta la red de prestadores pero no da altas manuales: eso es
-  // exclusivo de la propia Obra Social. "Importar Cartilla (Excel)" es distinto: carga la
-  // Cartilla de cada ejercicio, guarda su foto y actualiza la red actual.
+  // El auditor/admin consulta la red de prestadores pero no da altas manuales. El Excel de cada
+  // presentación se carga desde Análisis de Cartilla → Cartilla (fila → "Cargar Excel").
   const btnNuevoAdmin = document.getElementById("btn-nuevo-prestador");
   if (btnNuevoAdmin) btnNuevoAdmin.hidden = true;
 }
@@ -12317,9 +12330,131 @@ async function renderAfiliadosSnapshotCartillaRevision(cartillaId) {
   }
 }
 
+// ---------- Cartilla: listado de presentaciones ingresadas ----------
+// Al entrar a Análisis de Cartilla → Cartilla se listan las presentaciones con expediente
+// ingresado en Presentaciones → Cartillas. Desde cada fila se carga el Excel que envió la
+// Obra Social (queda ligado a esa presentación) o se abre el detalle de la presentación.
+
+const cartillaListadoEstado = { filas: [], fotos: new Map(), filtro: "todas" };
+
+async function cargarListadoCartillas() {
+  const session = await asegurarSesionVigente();
+  // Alcanza con los últimos años: el período vigente y el anterior de cualquier Obra Social.
+  const desde = new Date().getFullYear() - 2;
+  const fotosPromesa = cargarCartillasConFoto().catch(error => { console.error(error); return []; });
+  const filas = [];
+  for (let offset = 0; ; offset += 1000) {
+    const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "id,obra_social_id,ejercicio,anio_inicio,fecha_ingreso,condicion,numero_ee", fecha_ingreso: "not.is.null", anio_inicio: `gte.${desde}`, order: "id", limit: "1000", offset: String(offset) });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { headers: authHeaders(session.access_token), cache: "no-store" }, 15000, fetch);
+    if (!response.ok) throw new Error(await leerErrorApi(response) || `Supabase respondió ${response.status}`);
+    const lote = await response.json();
+    filas.push(...lote);
+    if (lote.length < 1000) break;
+  }
+  filas.sort((a, b) => String(b.fecha_ingreso).localeCompare(String(a.fecha_ingreso)));
+  const fotos = await fotosPromesa;
+  cartillaListadoEstado.filas = filas;
+  cartillaListadoEstado.fotos = new Map(fotos.map(f => [Number(f.cartilla_id), f]));
+}
+
+function filasListadoCartillaFiltradas() {
+  const periodo = document.getElementById("cartilla-listado-periodo")?.value || "vigente";
+  const q = normalizar(document.getElementById("cartilla-listado-buscar")?.value || "");
+  const osPorId = new Map(obrasSociales.map(os => [Number(os.id), os]));
+  const base = cartillaListadoEstado.filas.map(c => ({ ...c, os: osPorId.get(Number(c.obra_social_id)) })).filter(c => {
+    if (!c.os || esRnasExcluidoDelUniverso(c.os.rnos)) return false;
+    const objetivo = periodo === "anterior" ? ejercicioAnteriorParaOs(c.os) : ejercicioVigenteParaOs(c.os);
+    return objetivo && ejercicioCanonico(c.ejercicio) === ejercicioCanonico(objetivo);
+  }).filter(c => !q || [c.os.rnos, c.os.sigla, c.os.denominacion, c.numero_ee].some(v => normalizar(v || "").includes(q)));
+  const conteos = { todas: base.length, falta: base.filter(c => !cartillaListadoEstado.fotos.has(Number(c.id))).length };
+  conteos.con = conteos.todas - conteos.falta;
+  const filtro = cartillaListadoEstado.filtro;
+  const filas = base.filter(c => filtro === "todas" || (filtro === "con") === cartillaListadoEstado.fotos.has(Number(c.id)));
+  return { filas, conteos };
+}
+
+function renderListadoCartillas() {
+  const body = document.getElementById("cartilla-listado-body");
+  if (!body) return;
+  const { filas, conteos } = filasListadoCartillaFiltradas();
+  const e = escaparHtml;
+  document.querySelectorAll("[data-cartilla-listado-filtro]").forEach(btn => {
+    const f = btn.dataset.cartillaListadoFiltro;
+    const base = { todas: "Todas", falta: "Falta cargar Excel", con: "Con Excel" }[f];
+    btn.innerHTML = `${base}<span class="n">${conteos[f]}</span>`;
+    btn.classList.toggle("active", f === cartillaListadoEstado.filtro);
+  });
+  body.innerHTML = filas.map(c => {
+    const foto = cartillaListadoEstado.fotos.get(Number(c.id));
+    const excel = foto
+      ? `<span class="excel-estado cargado" title="${e(String(foto.sedes))} sedes">Cargado el ${e(formatFechaPantalla(String(foto.cargada_en || "").slice(0, 10)))}</span>`
+      : `<span class="excel-estado falta">Falta cargar</span>`;
+    return `<tr data-cartilla-id="${e(String(c.id))}">
+      <td>${e(c.os.rnos || "—")}</td>
+      <td><span class="os-sigla">${e(c.os.sigla || c.os.denominacion || "—")}</span>${c.os.sigla ? `<span class="os-nombre">${e(c.os.denominacion || "")}</span>` : ""}</td>
+      <td>${e(c.ejercicio || "—")}</td>
+      <td>${e(formatFechaPantalla(c.fecha_ingreso))}</td>
+      <td>${e(c.numero_ee || "—")}</td>
+      <td>${e(c.condicion || "—")}</td>
+      <td>${excel}</td>
+      <td class="acciones"><button type="button" class="${foto ? "secondary" : "primary"} small" data-cartilla-cargar-excel="${e(String(c.id))}">${foto ? "Reemplazar Excel" : "Cargar Excel"}</button></td>
+    </tr>`;
+  }).join("");
+  const count = document.getElementById("cartilla-listado-count");
+  const periodo = document.getElementById("cartilla-listado-periodo")?.value === "anterior" ? "del período anterior" : "del período vigente";
+  if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "presentación" : "presentaciones"} con expediente ingresado ${periodo}`;
+  const empty = document.getElementById("cartilla-listado-empty");
+  if (empty) {
+    empty.hidden = filas.length > 0;
+    empty.textContent = cartillaListadoEstado.filtro === "falta" && !document.getElementById("cartilla-listado-buscar")?.value
+      ? "Todas las presentaciones de este período ya tienen el Excel cargado."
+      : "No hay presentaciones con ese criterio.";
+  }
+}
+
+function mostrarListadoCartillas(mostrar) {
+  document.getElementById("cartilla-listado").hidden = !mostrar;
+  document.getElementById("cartilla-detalle").hidden = mostrar;
+  if (mostrar) mostrarOsActualEnCabecera(null);
+}
+
+async function refrescarListadoCartillas() {
+  const count = document.getElementById("cartilla-listado-count");
+  try {
+    await cargarListadoCartillas();
+    renderListadoCartillas();
+  } catch (error) {
+    console.error(error);
+    if (count) count.textContent = error.message || "No se pudo cargar el listado de presentaciones.";
+  }
+}
+
+async function abrirDetalleCartillaDesdeListado(cartillaId) {
+  const c = cartillaListadoEstado.filas.find(x => Number(x.id) === Number(cartillaId));
+  const os = c && obrasSociales.find(o => Number(o.id) === Number(c.obra_social_id));
+  if (!os) return;
+  mostrarListadoCartillas(false);
+  document.getElementById("cartilla-revision-os-search").value = getObraSocialDisplay(os);
+  await handleSeleccionObraSocialCartillaRevision();
+  const select = document.getElementById("cartilla-revision-periodo");
+  if (select && [...select.options].some(o => Number(o.value) === Number(cartillaId)) && Number(select.value) !== Number(cartillaId)) {
+    select.value = String(cartillaId);
+    await handleCambioPeriodoCartillaRevision();
+  }
+}
+
+function cargarExcelDesdeListado(cartillaId) {
+  const c = cartillaListadoEstado.filas.find(x => Number(x.id) === Number(cartillaId));
+  if (!c) return;
+  importarCartillaDestino = { cartillaId: Number(c.id), obraSocialId: Number(c.obra_social_id) };
+  document.getElementById("importar-cartilla-file")?.click();
+}
+
 async function inicializarVistaCartillaRevision() {
   if (typeof document === "undefined") return;
   if (!obrasSociales.length) { try { await cargarYRenderizarObrasSociales(); } catch (error) { console.error(error); } }
+  mostrarListadoCartillas(true);
+  refrescarListadoCartillas();
   const list = document.getElementById("cartilla-revision-os-list");
   if (list) list.innerHTML = obrasSociales
     .slice()
@@ -13577,7 +13712,19 @@ async function initBrowser() {
   document.getElementById("anexo-i-adjunto-agregar")?.addEventListener("click", () => requiereAutenticacion(handleAgregarAnexoIAdjunto));
   document.getElementById("btn-guardar-anexo-i-admin")?.addEventListener("click", () => requiereAutenticacion(guardarCambiosAnexoIAdmin));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
-  document.getElementById("btn-importar-cartilla")?.addEventListener("click", () => document.getElementById("importar-cartilla-file")?.click());
+  document.getElementById("cartilla-listado-buscar")?.addEventListener("input", renderListadoCartillas);
+  document.getElementById("cartilla-listado-periodo")?.addEventListener("change", renderListadoCartillas);
+  document.querySelectorAll("[data-cartilla-listado-filtro]").forEach(btn => btn.addEventListener("click", () => {
+    cartillaListadoEstado.filtro = btn.dataset.cartillaListadoFiltro;
+    renderListadoCartillas();
+  }));
+  document.getElementById("cartilla-listado-body")?.addEventListener("click", event => {
+    const cargar = event.target.closest("[data-cartilla-cargar-excel]");
+    if (cargar) { event.stopPropagation(); requiereAutenticacion(() => cargarExcelDesdeListado(cargar.dataset.cartillaCargarExcel)); return; }
+    const fila = event.target.closest("tr[data-cartilla-id]");
+    if (fila) requiereAutenticacion(() => abrirDetalleCartillaDesdeListado(fila.dataset.cartillaId));
+  });
+  document.getElementById("btn-cartilla-volver")?.addEventListener("click", () => { mostrarListadoCartillas(true); renderListadoCartillas(); });
   document.getElementById("importar-cartilla-file")?.addEventListener("change", event => manejarArchivoImportarCartilla(event.target.files[0]));
   document.getElementById("importar-cartilla-confirmar")?.addEventListener("click", confirmarImportarCartilla);
   document.getElementById("prestador-form")?.addEventListener("submit", handlePrestadorSubmit);

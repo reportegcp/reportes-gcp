@@ -13,8 +13,8 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=132">
-  <link rel="stylesheet" href="dark.css?v=1">
+  <link rel="stylesheet" href="styles.css?v=133">
+  <link rel="stylesheet" href="dark.css?v=2">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 206</span>
+        <span>Versión 207</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -370,6 +370,36 @@
       </section>
 
       <section id="cartilla-revision" class="view">
+        <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
+        <div id="cartilla-listado">
+          <div class="toolbar cartilla-listado-toolbar">
+            <div class="search-box">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="cartilla-listado-buscar" type="search" placeholder="Buscar por RNAS, sigla, nombre o expediente..." autocomplete="off">
+            </div>
+            <select id="cartilla-listado-periodo">
+              <option value="vigente">Período vigente</option>
+              <option value="anterior">Período anterior</option>
+            </select>
+          </div>
+          <div class="report-tabs cartilla-listado-tabs">
+            <button class="report-tab active" type="button" data-cartilla-listado-filtro="todas">Todas</button>
+            <button class="report-tab" type="button" data-cartilla-listado-filtro="falta">Falta cargar Excel</button>
+            <button class="report-tab" type="button" data-cartilla-listado-filtro="con">Con Excel</button>
+          </div>
+          <div class="table-card">
+            <div class="table-meta"><strong id="cartilla-listado-count">Cargando presentaciones...</strong></div>
+            <div class="table-scroll">
+              <table class="data-table cartilla-listado-table">
+                <thead><tr><th>RNAS</th><th>Obra Social</th><th>Ejercicio</th><th>Ingreso</th><th>Expediente</th><th>Condición</th><th>Excel</th><th></th></tr></thead>
+                <tbody id="cartilla-listado-body"></tbody>
+              </table>
+            </div>
+            <div class="table-empty" id="cartilla-listado-empty" hidden></div>
+          </div>
+        </div>
+        <div id="cartilla-detalle" hidden>
+        <button type="button" class="secondary small cartilla-volver" id="btn-cartilla-volver">← Volver al listado</button>
         <div class="toolbar prestadores-toolbar">
           <div class="search-box transaction-agent-search">
             <span class="search-icon" aria-hidden="true">⌕</span>
@@ -415,6 +445,7 @@
             <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Anexo IV</summary>
             <div id="anexo-iv-admin-contenido" style="padding:0 20px 16px"></div>
           </details>
+        </div>
         </div>
       </section>
 
@@ -477,8 +508,6 @@
           </div>
           <div class="prestadores-fila-superior-der" id="prestadores-acciones-editar">
             <button class="secondary small" id="btn-export-prestadores" type="button" disabled>Exportar Excel (Anexo III)</button>
-            <button class="secondary small" id="btn-importar-cartilla" type="button" hidden>Importar Cartilla (Excel)</button>
-            <input type="file" id="importar-cartilla-file" accept=".xlsx" hidden>
             <button class="primary small" id="btn-nuevo-prestador" type="button" disabled>+ Nuevo prestador</button>
           </div>
         </div>
@@ -3194,7 +3223,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=108"></script>
+  <script src="app.js?v=109"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=33"></script>
   <script src="usuarios.js?v=8"></script>

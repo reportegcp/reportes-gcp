@@ -356,6 +356,9 @@ html[data-theme="dark"] .alzada-alerta li.vencido{color:#eca7a0}
 html[data-theme="dark"] .alzada-alerta li.por-vencer{color:#ffa660}
 html[data-theme="dark"] .alzada-alerta.solo-sin-notif{border-color:#385473;background:#162533}
 html[data-theme="dark"] .alerta-sin-notif summary{color:#93b8de}
+html[data-theme="dark"] .cartilla-listado-table tbody tr:hover td{background:#162633}
+html[data-theme="dark"] .excel-estado.cargado{background:#1d3e30;color:#7ddebb}
+html[data-theme="dark"] .excel-estado.falta{background:#3b2b19;color:#f2b774}
 /* Estilos inline */
 html[data-theme="dark"] [style*="background:#9aa7b5"]{background:#53606e !important}
 html[data-theme="dark"] [style*="background: #9aa7b5"]{background:#53606e !important}
