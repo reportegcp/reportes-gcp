@@ -2608,10 +2608,10 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .cartilla-listado-table th:nth-child(1){width:72px}
 .cartilla-listado-table th:nth-child(3){width:78px}
 .cartilla-listado-table th:nth-child(4){width:96px}
-.cartilla-listado-table th:nth-child(5){width:210px}
-.cartilla-listado-table th:nth-child(6){width:130px}
-.cartilla-listado-table th:nth-child(7){width:150px}
-.cartilla-listado-table th:nth-child(8){width:150px}
+.cartilla-listado-table th:nth-child(5){width:245px}
+.cartilla-listado-table th:nth-child(6){width:115px}
+.cartilla-listado-table th:nth-child(7){width:140px}
+.cartilla-listado-table th:nth-child(8){width:140px}
 .cartilla-listado-table td.os b{font-weight:700}
 .cartilla-listado-table .os-nombre{font-size:12px;color:var(--muted)}
 .cartilla-listado-table td.acciones button{padding:3px 10px}
