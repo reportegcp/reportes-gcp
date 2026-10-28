@@ -12,7 +12,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="styles.css?v=131">
+  <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
+  <link rel="stylesheet" href="styles.css?v=132">
+  <link rel="stylesheet" href="dark.css?v=1">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -177,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 205</span>
+        <span>Versión 206</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -199,6 +201,7 @@
 
         <div class="topbar-actions">
           <div class="status-pill"><span class="dot"></span>Sitio en construcción</div>
+          <button type="button" class="tema-toggle" id="btn-tema" title="Modo oscuro" aria-label="Cambiar a modo oscuro">🌙</button>
 
           <div class="auth-area">
             <div class="auth-session" id="auth-session" hidden>
@@ -3191,7 +3194,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=107"></script>
+  <script src="app.js?v=108"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=33"></script>
   <script src="usuarios.js?v=8"></script>

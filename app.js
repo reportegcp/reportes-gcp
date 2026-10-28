@@ -4920,6 +4920,29 @@ function exportarInformeGestionExcel() {
   window.XLSX.writeFile(libro, `informe_gestion_${IG_TIPOS[tipo].archivo}_${desde.replace("/", "-")}_${hasta.replace("/", "-")}.xlsx`);
 }
 
+// ---------- Modo oscuro (botón luna/sol) ----------
+// El tema se aplica en el <head> antes de pintar (ver index.html) para que no parpadee;
+// acá solo se maneja el botón y se guarda la elección en este navegador.
+function aplicarTema(oscuro) {
+  const raiz = document.documentElement;
+  if (oscuro) raiz.dataset.theme = "dark"; else delete raiz.dataset.theme;
+  try { localStorage.setItem("gcp-tema", oscuro ? "dark" : "light"); } catch (e) { /* sin almacenamiento: solo dura esta sesión */ }
+  const btn = document.getElementById("btn-tema");
+  if (btn) {
+    btn.textContent = oscuro ? "☀️" : "🌙";
+    btn.title = oscuro ? "Modo claro" : "Modo oscuro";
+    btn.setAttribute("aria-label", oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
+  }
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", oscuro ? "#0c3a3f" : "#0f5c63");
+}
+
+function inicializarBotonTema() {
+  const btn = document.getElementById("btn-tema");
+  if (!btn) return;
+  aplicarTema(document.documentElement.dataset.theme === "dark");
+  btn.addEventListener("click", () => aplicarTema(document.documentElement.dataset.theme !== "dark"));
+}
+
 function showView(id, updateHistory = true) {
   if (typeof document === "undefined") return;
   const vistaAnteriorActiva = document.querySelector(".view.active")?.id;
@@ -13184,6 +13207,7 @@ async function initBrowser() {
   };
 
   document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => showView(btn.dataset.view)));
+  inicializarBotonTema();
   document.querySelectorAll(".nav-group-toggle").forEach(btn => btn.addEventListener("click", () => {
     const group = btn.closest(".nav-group");
     if (!group) return;

@@ -1,0 +1,17 @@
+/* Paleta base del modo oscuro (variables de styles.css) */
+html[data-theme="dark"]{
+  --bg:#0f141a;--surface:#171e26;--surface-soft:#1d2630;--text:#e3e9f0;--muted:#98a4b5;--line:#2c3744;
+  --navy:#3497a0;--navy-2:#3fa8b1;--accent:#c9a565;--success:#3fae84;--danger:#e07a8a;
+  --shadow:0 10px 30px rgba(0,0,0,.35)
+}
+html[data-theme="dark"] body{background:var(--bg);color:var(--text)}
+html[data-theme="dark"] .sidebar{background:#0c3a3f}
+html[data-theme="dark"] .nav-item.active,html[data-theme="dark"] .nav-group.active>.nav-group-toggle,html[data-theme="dark"] .nav-group:not(.collapsed)>.nav-group-toggle,html[data-theme="dark"] .nav-subitem.active{color:#0c3a3f}
+html[data-theme="dark"] .nav-subitem.active::before{background:#0c3a3f}
+html[data-theme="dark"] ::placeholder{color:#6f7c8d}
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.8)}
+html[data-theme="dark"] img:not([src$=".svg"]){filter:brightness(.9)}
+/* Botón luna/sol */
+.tema-toggle{background:transparent;border:1px solid var(--line);border-radius:999px;width:36px;height:36px;font-size:17px;line-height:1;display:inline-grid;place-items:center;padding:0}
+.tema-toggle:hover{background:var(--surface-soft)}
+html[data-theme="dark"] .login-gate{background:linear-gradient(135deg,#0a2f33,#0f3f45)}
