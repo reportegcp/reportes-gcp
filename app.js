@@ -7743,45 +7743,77 @@ function badgeAlzada(registro) {
   return `<span class="alzada-badge" title="${escaparHtml(textoEstadoAlzada(est, registro.fecha_recurso_alzada))}">${icono}</span>`;
 }
 
+// Fecha de hace 12 meses (corrida, desde hoy) en horario local, para el aviso de disposiciones sin notificar.
+function haceDoceMesesISO() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function consultarAlertaPresentaciones(tipo, filtros, orden) {
+  const url = new URL(tipo === "pma" ? buildPmaUrl(0, 1000) : buildCartillasUrl(0, 1000));
+  Object.entries(filtros).forEach(([k, v]) => url.searchParams.set(k, v));
+  url.searchParams.set("or", "(condicion.is.null,condicion.neq.ARCHIVO)");
+  url.searchParams.set("order", orden);
+  url.searchParams.delete("offset");
+  const response = await fetchConTimeout(url.toString(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
+  if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
+  const filas = await response.json();
+  return Array.isArray(filas) ? filas : [];
+}
+
+function textoExpedienteAlerta(f) {
+  const os = f.obras_sociales || {};
+  return `${escaparHtml(os.rnos || "—")} · ${escaparHtml(os.sigla || os.denominacion || "")} · Ej. ${escaparHtml(f.ejercicio || "—")} · EE ${escaparHtml(f.numero_ee || "—")}`;
+}
+
 // Aviso arriba del listado. Consulta la base directamente (no solo lo cargado en pantalla),
-// para que también aparezcan expedientes de ejercicios anteriores.
+// para que también aparezcan expedientes de ejercicios anteriores. Dos partes:
+// 1) Recurso de Alzada vencido o por vencer (necesita la fecha de notificación cargada).
+// 2) Disposiciones de los últimos 12 meses (corridos desde hoy) sin fecha de notificación,
+//    para que no queden afuera de la alerta por no haber cargado esa fecha.
 async function renderAlertaAlzada(tipo) {
   if (typeof document === "undefined") return;
   const cont = document.getElementById(`${tipo}-alzada-alerta`);
   if (!cont) return;
-  const tabla = tipo === "pma" ? "pma" : "cartillas";
   const hoyISO = hoyLocalISO();
   const limite = sumarDiasHabiles(hoyISO, AVISO_ALZADA_DIAS_HABILES);
   try {
-    const url = new URL(tipo === "pma" ? buildPmaUrl(0, 1000) : buildCartillasUrl(0, 1000));
-    url.searchParams.set("fecha_recurso_alzada", `lte.${limite}`);
-    url.searchParams.set("or", "(condicion.is.null,condicion.neq.ARCHIVO)");
-    url.searchParams.set("order", "fecha_recurso_alzada.asc");
-    url.searchParams.delete("offset");
-    const response = await fetchConTimeout(url.toString(), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000, fetch);
-    if (!response.ok) throw new Error(`Supabase respondió ${response.status}`);
-    const filas = await response.json();
-    if (!Array.isArray(filas) || !filas.length) { cont.hidden = true; cont.innerHTML = ""; return; }
-    const vencidos = filas.filter(f => f.fecha_recurso_alzada < hoyISO).length;
-    const porVencer = filas.length - vencidos;
-    const partes = [];
-    if (vencidos) partes.push(`${vencidos} con Recurso de Alzada vencido (pasar a Guardado)`);
-    if (porVencer) partes.push(`${porVencer} que ${porVencer === 1 ? "vence" : "vencen"} en los próximos ${AVISO_ALZADA_DIAS_HABILES} días hábiles`);
-    cont.className = `alzada-alerta${vencidos ? " hay-vencidos" : ""}`;
-    cont.innerHTML = `<p class="alzada-alerta-titulo">${vencidos ? "⚠️" : "⏰"} ${partes.join(" · ")}</p>
-      <ul>${filas.map(f => {
-        const est = estadoAlzada(f, hoyISO);
-        const os = f.obras_sociales || {};
-        const cuando = est.nivel === "vencido" ? `venció el ${formatFechaPantalla(f.fecha_recurso_alzada)}` : est.dias === 0 ? "vence HOY" : `vence el ${formatFechaPantalla(f.fecha_recurso_alzada)} (${est.dias} ${est.dias === 1 ? "día hábil" : "días hábiles"})`;
-        return `<li class="${est.nivel}"><button type="button" class="link-button" data-alzada-abrir="${f.id}">${escaparHtml(os.rnos || "—")} · ${escaparHtml(os.sigla || os.denominacion || "")} · Ej. ${escaparHtml(f.ejercicio || "—")} · EE ${escaparHtml(f.numero_ee || "—")}</button> — ${cuando}</li>`;
-      }).join("")}</ul>`;
+    const [alzada, sinNotif] = await Promise.all([
+      consultarAlertaPresentaciones(tipo, { fecha_recurso_alzada: `lte.${limite}` }, "fecha_recurso_alzada.asc"),
+      consultarAlertaPresentaciones(tipo, { fecha_disposicion: `gte.${haceDoceMesesISO()}`, fecha_notificacion_dispo: "is.null" }, "fecha_disposicion.asc")
+    ]);
+    if (!alzada.length && !sinNotif.length) { cont.hidden = true; cont.innerHTML = ""; return; }
+    const vencidos = alzada.filter(f => f.fecha_recurso_alzada < hoyISO).length;
+    const porVencer = alzada.length - vencidos;
+    let html = "";
+    if (alzada.length) {
+      const partes = [];
+      if (vencidos) partes.push(`${vencidos} con Recurso de Alzada vencido (pasar a Guardado)`);
+      if (porVencer) partes.push(`${porVencer} que ${porVencer === 1 ? "vence" : "vencen"} en los próximos ${AVISO_ALZADA_DIAS_HABILES} días hábiles`);
+      html += `<p class="alzada-alerta-titulo">${vencidos ? "⚠️" : "⏰"} ${partes.join(" · ")}</p>
+        <ul>${alzada.map(f => {
+          const est = estadoAlzada(f, hoyISO);
+          const cuando = est.nivel === "vencido" ? `venció el ${formatFechaPantalla(f.fecha_recurso_alzada)}` : est.dias === 0 ? "vence HOY" : `vence el ${formatFechaPantalla(f.fecha_recurso_alzada)} (${est.dias} ${est.dias === 1 ? "día hábil" : "días hábiles"})`;
+          return `<li class="${est.nivel}"><button type="button" class="link-button" data-alzada-abrir="${f.id}">${textoExpedienteAlerta(f)}</button> — ${cuando}</li>`;
+        }).join("")}</ul>`;
+    }
+    if (sinNotif.length) {
+      html += `<details class="alerta-sin-notif"${alzada.length ? ' style="margin-top:8px"' : ""}>
+        <summary>📨 ${sinNotif.length} ${sinNotif.length === 1 ? "disposición" : "disposiciones"} de los últimos 12 meses sin fecha de notificación (no se puede controlar el Recurso de Alzada) <span class="alerta-ver-lista">· Ver lista</span></summary>
+        <ul>${sinNotif.map(f => `<li><button type="button" class="link-button" data-alzada-abrir="${f.id}">${textoExpedienteAlerta(f)}</button> — Disposición del ${formatFechaPantalla(f.fecha_disposicion)}${f.numero_disposicion ? ` (Nº ${escaparHtml(f.numero_disposicion)})` : ""}</li>`).join("")}</ul>
+      </details>`;
+    }
+    cont.className = `alzada-alerta${vencidos ? " hay-vencidos" : ""}${!alzada.length ? " solo-sin-notif" : ""}`;
+    cont.innerHTML = html;
     cont.hidden = false;
+    const todas = [...alzada, ...sinNotif];
     cont.querySelectorAll("[data-alzada-abrir]").forEach(btn => {
       btn.addEventListener("click", () => requiereAutenticacion(() => {
         const id = Number(btn.dataset.alzadaAbrir);
         const lista = tipo === "pma" ? pma : cartillas;
         if (!lista.some(x => Number(x.id) === id)) {
-          const fila = filas.find(x => Number(x.id) === id);
+          const fila = todas.find(x => Number(x.id) === id);
           if (fila) lista.push(fila);
         }
         if (tipo === "pma") abrirModalPmaEdicion(id); else abrirModalCartillaEdicion(id);

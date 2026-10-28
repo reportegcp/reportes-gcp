@@ -2588,3 +2588,9 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .alzada-alerta li.vencido{color:#c0392b}
 .alzada-alerta li.por-vencer{color:#a04600}
 .alzada-alerta button.link-button{font-size:13px}
+.alzada-alerta.solo-sin-notif{border-color:#b9cde3;background:#f2f7fc}
+.alerta-sin-notif summary{cursor:pointer;font-weight:800;color:#2f5f8f;list-style:none}
+.alerta-sin-notif summary::-webkit-details-marker{display:none}
+.alerta-sin-notif .alerta-ver-lista{font-weight:600;text-decoration:underline}
+.alerta-sin-notif[open] .alerta-ver-lista{display:none}
+.alerta-sin-notif ul{margin-top:6px;max-height:220px}
