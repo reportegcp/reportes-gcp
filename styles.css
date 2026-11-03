@@ -2648,3 +2648,13 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .au-p3-docs .au-label{margin-bottom:2px}
 .au-hint-inline{font-weight:400;font-size:11.5px}
 .au-p3-docs textarea{min-height:34px;margin-top:2px}
+
+/* Marca "Controlado" en los puntos del paso 3 */
+.au-p3-num{position:relative}
+.au-p3-num.controlado::after{content:"✓";position:absolute;top:-6px;right:-6px;width:15px;height:15px;border-radius:50%;background:#1f6feb;color:#fff;font-size:9.5px;line-height:15px;text-align:center;font-weight:900;box-shadow:0 0 0 2px #fff}
+.au-dot.controlado{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:#1f6feb;color:#fff;font-size:8px;font-style:normal;font-weight:900}
+.au-control-btn{align-self:center;white-space:nowrap;padding:7px 12px;border-radius:9px;border:1px dashed #8aa4c4;background:transparent;color:#1f5fbf;font-size:12.5px;font-weight:800;cursor:pointer}
+.au-control-btn:hover{background:#eef4fd}
+.au-control-btn.hecho{border-style:solid;border-color:#1f6feb;background:#1f6feb;color:#fff}
+.au-control-btn.hecho small{font-weight:600;opacity:.9;margin-left:4px}
+.au-control-btn:disabled{opacity:.6;cursor:wait}

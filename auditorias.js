@@ -215,6 +215,7 @@ function auVincularEventos() {
   on("au-p3-guardar", "click", () => auGuardarPunto3(false));
   on("au-p3-siguiente", "click", () => auGuardarPunto3(true));
   on("au-p3-anterior", "click", () => auAbrirPunto3(auPuntoActivo - 1));
+  on("au-p3-control", "click", auAlternarControl);
   on("au-p3-estado", "change", () => { auP3EstadoTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-fort-check", "change", e => {
     const ta = document.getElementById("au-p3-fort");
@@ -644,11 +645,63 @@ function auResetFormDoc() {}
 function auRenderP3Nums() {
   const cont = document.getElementById("au-p3-nums");
   if (!cont) return;
-  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.fortaleza ? "fortaleza" : ""} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado)}${p.fortaleza ? " · Con fortaleza" : ""}">${p.numero}</button>`).join("");
+  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.fortaleza ? "fortaleza" : ""} ${p.controlado_at ? "controlado" : ""} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado)}${p.fortaleza ? " · Con fortaleza" : ""}${p.controlado_at ? " · Controlado" : ""}">${p.numero}</button>`).join("");
   cont.querySelectorAll("[data-au-p3-num]").forEach(b => b.addEventListener("click", () => auAbrirPunto3(Number(b.dataset.auP3Num))));
   const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
   const faltan = auPuntos.filter(p => p.estado === "Pendiente").length;
-  document.getElementById("au-p3-resumen").textContent = `${recibidos} de ${auPuntos.length} recibidos · ${faltan} pendientes`;
+  const controlados = auPuntos.filter(p => p.controlado_at).length;
+  document.getElementById("au-p3-resumen").textContent = `${recibidos} de ${auPuntos.length} recibidos · ${faltan} pendientes · ${controlados} de ${auPuntos.length} controlados`;
+  auRenderControl();
+}
+
+// ---- Marca "Controlado": el auditor revisó el texto del punto contra sus fuentes ----
+function auRenderControl() {
+  const btn = document.getElementById("au-p3-control");
+  const p = auPuntos.find(x => x.numero === auPuntoActivo);
+  if (!btn || !p) return;
+  btn.classList.toggle("hecho", !!p.controlado_at);
+  btn.innerHTML = p.controlado_at
+    ? `✓ Controlado <small>${escaparHtml(formatearFecha(String(p.controlado_at).slice(0, 10)))}${p.controlado_por ? ` · ${escaparHtml(p.controlado_por)}` : ""}</small>`
+    : "Marcar como controlado";
+}
+
+function auContarFuentes(html) {
+  return (String(html || "").match(/class="au-fuente"/g) || []).length;
+}
+
+async function auAlternarControl() {
+  const p = auPuntos.find(x => x.numero === auPuntoActivo);
+  if (!p || soloLecturaActiva()) return;
+  const btn = document.getElementById("au-p3-control");
+  btn.disabled = true;
+  try {
+    if (p.controlado_at) {
+      await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { controlado_at: null, controlado_por: null } });
+      Object.assign(p, { controlado_at: null, controlado_por: null });
+      mostrarToast(`Punto ${p.numero}: se quitó la marca de controlado.`);
+    } else {
+      const quedan = auEditorPunto ? auContarFuentes(auEditorPunto.getContent()) : 0;
+      if (quedan && await mostrarConfirmacion(`Este punto todavía tiene ${quedan} ${quedan === 1 ? "referencia" : "referencias"} [Fuente: …] en rojo. ¿Las quito al marcarlo como controlado?`, { titulo: "Marcar como controlado", textoAceptar: "Quitar y marcar", textoCancelar: "Dejarlas" })) {
+        auEditorPunto.getBody().querySelectorAll(".au-fuente").forEach(el => {
+          const antes = el.previousSibling;
+          if (antes?.nodeType === 3) antes.textContent = antes.textContent.replace(/\s+$/, "");
+          el.remove();
+        });
+        auEditorPunto.setDirty(true);
+      }
+      await auGuardarPunto3SiHayCambios();
+      const ahora = new Date().toISOString();
+      const quien = getSessionIdentity(authSession).nombre || null;
+      await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { controlado_at: ahora, controlado_por: quien } });
+      Object.assign(p, { controlado_at: ahora, controlado_por: quien });
+      mostrarToast(`Punto ${p.numero} controlado.`);
+    }
+    auRenderP3Nums();
+  } catch (error) {
+    mostrarToast(`No se pudo guardar la marca. ${error.message || ""}`, "error");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function auRenderAdjuntosPunto() {

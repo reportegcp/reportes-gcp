@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=136">
+  <link rel="stylesheet" href="styles.css?v=137">
   <link rel="stylesheet" href="dark.css?v=5">
 </head>
 <body>
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 212</span>
+        <span>Versión 213</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2009,6 +2009,7 @@
                 <span><i class="au-dot noaportado"></i>No aportado</span>
                 <span><i class="au-dot noaplica"></i>No aplica</span>
                 <span><i class="au-dot fortaleza"></i>Con fortaleza</span>
+                <span><i class="au-dot controlado">✓</i>Controlado</span>
               </div>
             </div>
             <div class="au-p3-cuerpo">
@@ -2019,6 +2020,7 @@
                     <option>Pendiente</option><option>Recibido</option><option>Parcial</option><option>No aportado</option><option>No aplica</option>
                   </select>
                 </label>
+                <button type="button" class="au-control-btn" id="au-p3-control" data-edicion-campo title="Marcá el punto cuando hayas revisado el texto contra sus fuentes. No sale en el informe."></button>
               </div>
               <div class="au-p3-docs">
                 <span class="au-label">Documentación aportada <span class="au-hint au-hint-inline">· sale en la tabla del informe; si un documento sirve para varios puntos, escribilo igual en cada uno (aparece una sola vez)</span></span>
@@ -3224,7 +3226,7 @@
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=110"></script>
   <script src="juridico.js?v=6"></script>
-  <script src="auditorias.js?v=35"></script>
+  <script src="auditorias.js?v=36"></script>
   <script src="usuarios.js?v=8"></script>
   <script src="tablero.js?v=5"></script>
   <script>
