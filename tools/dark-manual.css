@@ -15,9 +15,14 @@ html[data-theme="dark"] img:not([src$=".svg"]){filter:brightness(.9)}
 .tema-toggle{background:transparent;border:1px solid var(--line);border-radius:999px;width:36px;height:36px;font-size:17px;line-height:1;display:inline-grid;place-items:center;padding:0}
 .tema-toggle:hover{background:var(--surface-soft)}
 html[data-theme="dark"] .login-gate{background:linear-gradient(135deg,#0a2f33,#0f3f45)}
-/* Tablero: colores por tema en modo oscuro (encabezado oscuro con el tinte del tema, texto más claro) */
-html[data-theme="dark"] .tb-card.tb-tema-pma{--tema:#79acdc;--tema-suave:#17283a}
-html[data-theme="dark"] .tb-card.tb-tema-cartilla{--tema:#ad95d6;--tema-suave:#241d34}
-html[data-theme="dark"] .tb-card.tb-tema-oficios{--tema:#d8a862;--tema-suave:#2b2317}
-html[data-theme="dark"] .tb-card.tb-tema-reclamos{--tema:#82c288;--tema-suave:#18291b}
-html[data-theme="dark"] .tb-card.tb-tema-auditorias{--tema:#e29a76;--tema-suave:#2e1f17}
+/* Tablero en modo oscuro: cabecera clara (como en modo claro), cuerpo oscuro con números en el color del tema
+   y resaltado de fila oscuro para que el texto se lea. Las tarjetas sin tema usan el verde petróleo del sistema. */
+html[data-theme="dark"] .tb-card{--cab-bg:#e3f0f1;--cab-fg:#0f5c63}
+html[data-theme="dark"] .tb-card.tb-tema-pma{--tema:#79acdc;--tema-suave:#17283a;--cab-bg:#eef4fa;--cab-fg:#2f6ea5}
+html[data-theme="dark"] .tb-card.tb-tema-cartilla{--tema:#ad95d6;--tema-suave:#241d34;--cab-bg:#f4f0f9;--cab-fg:#6a4f96}
+html[data-theme="dark"] .tb-card.tb-tema-oficios{--tema:#d8a862;--tema-suave:#2b2317;--cab-bg:#faf4ea;--cab-fg:#94641f}
+html[data-theme="dark"] .tb-card.tb-tema-reclamos{--tema:#82c288;--tema-suave:#18291b;--cab-bg:#eff6ef;--cab-fg:#3d7643}
+html[data-theme="dark"] .tb-card.tb-tema-auditorias{--tema:#e29a76;--tema-suave:#2e1f17;--cab-bg:#fbf1ec;--cab-fg:#a4532f}
+html[data-theme="dark"] .tb-card header{background:var(--cab-bg);border-bottom-color:transparent}
+html[data-theme="dark"] .tb-card header .tb-modulo,html[data-theme="dark"] .tb-card header h3{color:var(--cab-fg)}
+html[data-theme="dark"] .tb-card:not([class*="tb-tema-"]) header{border-top-color:#3fa8b1}
