@@ -2103,6 +2103,13 @@ async function auProponerObservaciones() {
   for (const [eje, nombre] of Object.entries(AU_EJES)) {
     const h = auEjes[eje]?.hallazgo;
     if (!h || h === "Cumple" || h === "No aportado" || h === "Informativo") continue;
+    if (h === "Información inconsistente") {
+      // Aunque haya observaciones de puntos en el eje, la inconsistencia se observa aparte
+      obs.push({ eje, titulo: `${nombre}: información inconsistente`,
+        texto: "Se observó que la información aportada presenta inconsistencias que impiden evaluar este aspecto: ____.",
+        sugerencia: "Revisar y rectificar la información presentada, asegurando la coherencia de los datos entre los distintos anexos y documentos, y remitirla nuevamente a esta Gerencia." });
+      continue;
+    }
     if (obs.some(o => o.eje === eje)) continue;
     obs.push({ eje, titulo: nombre.charAt(0) + nombre.slice(1).toLowerCase(), texto: "Se observó que ____.", sugerencia: "____" });
   }
@@ -2345,7 +2352,7 @@ function auNombreTemaPunto(p) {
 function auProponerConclusion() {
   const os = auActual.obras_sociales?.denominacion || "la Obra Social";
   const cumple = Object.keys(AU_EJES).filter(e => auEjes[e]?.hallazgo === "Cumple");
-  const noCumple = Object.keys(AU_EJES).filter(e => ["No cumple", "Cumple parcialmente", "No aportado"].includes(auEjes[e]?.hallazgo));
+  const noCumple = Object.keys(AU_EJES).filter(e => ["No cumple", "Cumple parcialmente", "No aportado", "Información inconsistente"].includes(auEjes[e]?.hallazgo));
   // PMA y Cartilla se verifican en los sistemas de la Gerencia: van con lo observado, no con lo no aportado
   const noAportTemas = [...new Set(auPuntos.filter(p => p.estado === "No aportado" || p.estado === "No aplica").map(auNombreTemaPunto))];
   const fortTemas = [...new Set(auPuntos.filter(p => p.fortaleza).map(auNombreTemaPunto))];
