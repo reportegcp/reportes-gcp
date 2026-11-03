@@ -2619,3 +2619,32 @@ button.au-btn-chico,.au-informe-pie button.au-btn-chico{font-size:13px;padding:7
 .excel-estado.cargado{background:#e3f3ec;color:#1f6f52}
 .excel-estado.falta{background:#fdf1e3;color:#9a5a12}
 .cartilla-volver{margin:0 0 12px}
+
+/* Auditorías · detalle compacto: menos encabezado, más espacio para el texto del informe */
+body:has(#au-detalle:not([hidden])) .topbar{margin-bottom:10px}
+body:has(#au-detalle:not([hidden])) .topbar h1{font-size:22px}
+body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
+.au-detalle-header{margin-bottom:8px;gap:10px}
+.au-detalle-header #au-volver{padding:6px 12px;font-size:13px}
+.au-detalle-titulo strong{font-size:15px}
+.au-detalle-titulo span{font-size:12px}
+.au-pasos{padding:4px 6px;margin-bottom:10px;border-radius:12px}
+.au-paso-btn{padding:4px 10px;font-size:12.5px}
+.au-paso-marca{width:20px;height:20px;font-size:11px}
+.au-paso>.table-meta{padding:8px 14px}
+.au-paso>.table-meta strong{font-size:14px}
+.au-p3-nums-caja{display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px;padding:8px 14px}
+.au-p3-nums{gap:4px}
+.au-p3-num{width:30px;height:26px;border-radius:7px;font-size:12px}
+.au-p3-num.activo{outline-width:2px}
+.au-p3-leyenda{margin-top:0;gap:10px;font-size:11px}
+.au-p3-cuerpo{padding:10px 14px}
+.au-p3-cab{margin-bottom:8px;align-items:center}
+.au-p3-titulo{display:flex;gap:8px;align-items:baseline}
+.au-p3-titulo-num{flex:0 0 auto;margin-bottom:0;font-size:11px;padding:1px 7px}
+.au-p3-titulo-texto{font-size:13.5px;line-height:1.35}
+.au-p3-cab .au-hallazgo select{height:34px}
+.au-p3-docs{margin:0 0 8px;padding:6px 10px}
+.au-p3-docs .au-label{margin-bottom:2px}
+.au-hint-inline{font-weight:400;font-size:11.5px}
+.au-p3-docs textarea{min-height:34px;margin-top:2px}

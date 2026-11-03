@@ -698,7 +698,7 @@ async function auAbrirPunto3(numero, forzar = false) {
   const estadoEl = document.getElementById("au-p3-guardado");
   estadoEl.textContent = "Cargando editor...";
   try {
-    if (!auEditorPunto) auEditorPunto = await auCrearEditor("#au-p3-editor", 420, "au-p3-guardado");
+    if (!auEditorPunto) auEditorPunto = await auCrearEditor("#au-p3-editor", Math.max(420, Math.round((window.innerHeight || 900) - 300)), "au-p3-guardado");
     auEditorPunto.mode.set(soloLecturaActiva() ? "readonly" : "design");
     const usaModelo = !p.respuesta_html;
     auEditorPunto.setContent(p.respuesta_html || await auRenderModelo(p.modelo_html));
