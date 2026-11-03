@@ -2087,7 +2087,7 @@ async function auProponerObservaciones() {
   // Ejes con hallazgo desfavorable que no quedaron cubiertos por ninguna observación de punto
   for (const [eje, nombre] of Object.entries(AU_EJES)) {
     const h = auEjes[eje]?.hallazgo;
-    if (!h || h === "Cumple" || h === "No aportado") continue;
+    if (!h || h === "Cumple" || h === "No aportado" || h === "Informativo") continue;
     if (obs.some(o => o.eje === eje)) continue;
     obs.push({ eje, titulo: nombre.charAt(0) + nombre.slice(1).toLowerCase(), texto: "Se observó que ____.", sugerencia: "____" });
   }
@@ -2099,7 +2099,8 @@ async function auProponerObservaciones() {
 
 // Párrafo inicial de las Observaciones, según los hallazgos de los ejes
 function auProponerIntroObs(hayObs) {
-  const hs = Object.keys(AU_EJES).map(e => auEjes[e]?.hallazgo).filter(Boolean);
+  // "Informativo": eje descriptivo (p. ej. población), no se evalúa como cumple / no cumple
+  const hs = Object.keys(AU_EJES).map(e => auEjes[e]?.hallazgo).filter(h => h && h !== "Informativo");
   const cumple = hs.filter(h => h === "Cumple").length;
   if (!hayObs) return "Del análisis realizado surge que el Agente de Salud presenta un adecuado cumplimiento de sus obligaciones prestacionales en los aspectos evaluados.";
   if (hs.length && cumple >= hs.length / 2) return "Del análisis realizado surge que el Agente de Salud presenta, en términos generales, un adecuado cumplimiento de sus obligaciones prestacionales.\n\nNo obstante, se identificaron los siguientes aspectos susceptibles de mejora:";
