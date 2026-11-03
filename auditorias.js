@@ -2417,6 +2417,7 @@ function auDocxRuns(nodo, formato = {}) {
       return;
     }
     if (n.nodeType !== 1) return;
+    if (n.classList.contains("au-fuente")) return; // [Fuente: ...] es solo para revisar: nunca sale en el Word
     const tag = n.tagName.toLowerCase();
     if (tag === "br") { runs.push(new TextRun({ break: 1 })); return; }
     if (tag === "img") { const img = auDocxImagenRun(n); if (img) runs.push(img); return; }
