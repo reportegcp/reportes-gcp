@@ -742,10 +742,12 @@ async function auAbrirPunto3(numero, forzar = false) {
   const nombrePunto = n => { const q = auPuntos.find(x => x.numero === n); if (!q) return ""; const t = auTemaPunto(q); return t ? t.titulo : (() => { const d = auDescripcionPunto(q, anio); return d.charAt(0).toUpperCase() + d.slice(1); })(); };
   const btnAnt = document.getElementById("au-p3-anterior");
   btnAnt.disabled = numero <= 1;
-  btnAnt.textContent = numero > 1 ? `← Volver a ${nombrePunto(numero - 1)}` : "← Punto anterior";
+  btnAnt.textContent = numero > 1 ? `← Punto ${numero - 1}` : "← Punto anterior";
+  btnAnt.title = numero > 1 ? `Volver al punto ${numero - 1}: ${nombrePunto(numero - 1)}` : "";
   const btnSig = document.getElementById("au-p3-siguiente");
   btnSig.hidden = numero >= auPuntos.length;
-  btnSig.textContent = `Guardar e ir a ${nombrePunto(numero + 1)} →`;
+  btnSig.textContent = `Guardar e ir al punto ${numero + 1} →`;
+  btnSig.title = numero < auPuntos.length ? `Punto ${numero + 1}: ${nombrePunto(numero + 1)}` : "";
   auRenderP3Nums();
   auRenderAdjuntosPunto();
   const estadoEl = document.getElementById("au-p3-guardado");
