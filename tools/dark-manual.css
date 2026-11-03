@@ -15,3 +15,9 @@ html[data-theme="dark"] img:not([src$=".svg"]){filter:brightness(.9)}
 .tema-toggle{background:transparent;border:1px solid var(--line);border-radius:999px;width:36px;height:36px;font-size:17px;line-height:1;display:inline-grid;place-items:center;padding:0}
 .tema-toggle:hover{background:var(--surface-soft)}
 html[data-theme="dark"] .login-gate{background:linear-gradient(135deg,#0a2f33,#0f3f45)}
+/* Tablero: colores por tema en modo oscuro (encabezado oscuro con el tinte del tema, texto más claro) */
+html[data-theme="dark"] .tb-card.tb-tema-pma{--tema:#79acdc;--tema-suave:#17283a}
+html[data-theme="dark"] .tb-card.tb-tema-cartilla{--tema:#ad95d6;--tema-suave:#241d34}
+html[data-theme="dark"] .tb-card.tb-tema-oficios{--tema:#d8a862;--tema-suave:#2b2317}
+html[data-theme="dark"] .tb-card.tb-tema-reclamos{--tema:#82c288;--tema-suave:#18291b}
+html[data-theme="dark"] .tb-card.tb-tema-auditorias{--tema:#e29a76;--tema-suave:#2e1f17}
