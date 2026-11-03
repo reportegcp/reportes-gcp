@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=138">
+  <link rel="stylesheet" href="styles.css?v=139">
   <link rel="stylesheet" href="dark.css?v=5">
 </head>
 <body>
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 217</span>
+        <span>Versión 218</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2010,6 +2010,7 @@
                 <span><i class="au-dot noaplica"></i>No aplica</span>
                 <span><i class="au-dot fortaleza"></i>Con fortaleza</span>
                 <span><i class="au-dot controlado">✓</i>Controlado</span>
+                <span><i class="au-dot con-obs">!</i>Con observación</span>
               </div>
             </div>
             <div class="au-p3-cuerpo">
@@ -2031,6 +2032,16 @@
                 <label class="au-check-inline"><input type="checkbox" id="au-p3-fort-check" data-edicion-campo> Este punto presenta una fortaleza</label>
                 <textarea id="au-p3-fort" rows="2" data-edicion-campo placeholder="Describí la fortaleza. Ej.: no aplica coseguros y cubre el 80 % de los medicamentos para patologías crónicas." hidden></textarea>
                 <span class="au-hint">Las fortalezas marcadas salen en el Word en su propio apartado, antes de las Observaciones, y se mencionan en la conclusión.</span>
+              </div>
+              <div class="au-p3-fortaleza au-p3-obs">
+                <label class="au-check-inline"><input type="checkbox" id="au-p3-obs-check" data-edicion-campo> Este punto tiene una observación</label>
+                <div id="au-p3-obs-campos" hidden>
+                  <label class="au-label" for="au-p3-obs">Observación</label>
+                  <textarea id="au-p3-obs" rows="3" data-edicion-campo placeholder="Lo que observaste. Ej.: El detalle de cirugías por especialidad se informó en cero, lo que no resulta consistente con las 97 internaciones quirúrgicas declaradas."></textarea>
+                  <label class="au-label" for="au-p3-obs-sug">Sugerencia</label>
+                  <textarea id="au-p3-obs-sug" rows="2" data-edicion-campo placeholder="Lo que se le pide al Agente. Ej.: Revisar y rectificar la información de los anexos estadísticos y remitirla nuevamente."></textarea>
+                </div>
+                <span class="au-hint">Tus observaciones aparecen en el paso 5 con el número de punto, en lugar de las que propone el sistema.</span>
               </div>
               <div class="au-p3-adjuntos">
                 <span class="au-label">Archivos de este punto (opcional)</span>
@@ -3228,7 +3239,7 @@
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=110"></script>
   <script src="juridico.js?v=6"></script>
-  <script src="auditorias.js?v=40"></script>
+  <script src="auditorias.js?v=41"></script>
   <script src="usuarios.js?v=8"></script>
   <script src="tablero.js?v=5"></script>
   <script>

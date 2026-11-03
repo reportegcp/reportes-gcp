@@ -226,6 +226,12 @@ function auVincularEventos() {
   });
   on("au-p3-docs", "input", () => { auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-fort", "input", () => { auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
+  on("au-p3-obs-check", "change", e => {
+    document.getElementById("au-p3-obs-campos").hidden = !e.target.checked;
+    if (e.target.checked) setTimeout(() => document.getElementById("au-p3-obs").focus(), 30);
+    auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar";
+  });
+  ["au-p3-obs", "au-p3-obs-sug"].forEach(id => on(id, "input", () => { auP3FortTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; }));
   on("au-intro-recepcion", "input", () => { auIntroTocada = true; document.getElementById("au-conc-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-subir", "click", auAdjuntarArchivoPunto);
   on("au-ir-pendientes", "click", async () => { await auGuardarPunto3SiHayCambios(); auPendFiltroAuditoria = auActual.id; showView("au-pendientes"); });
@@ -646,7 +652,7 @@ function auResetFormDoc() {}
 function auRenderP3Nums() {
   const cont = document.getElementById("au-p3-nums");
   if (!cont) return;
-  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.fortaleza ? "fortaleza" : ""} ${p.controlado_at ? "controlado" : ""} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado)}${p.fortaleza ? " · Con fortaleza" : ""}${p.controlado_at ? " · Controlado" : ""}">${p.numero}</button>`).join("");
+  cont.innerHTML = auPuntos.map(p => `<button type="button" class="au-p3-num ${auClaseDot(p.estado)} ${p.fortaleza ? "fortaleza" : ""} ${p.controlado_at ? "controlado" : ""} ${p.observacion ? "con-obs" : ""} ${p.numero === auPuntoActivo ? "activo" : ""}" data-au-p3-num="${p.numero}" title="${escaparHtml(auTituloPunto(p, auTemaPunto(p), auAnioAuditoria(auActual)))} · ${escaparHtml(p.estado)}${p.fortaleza ? " · Con fortaleza" : ""}${p.controlado_at ? " · Controlado" : ""}${p.observacion ? " · Con observación" : ""}">${p.numero}</button>`).join("");
   cont.querySelectorAll("[data-au-p3-num]").forEach(b => b.addEventListener("click", () => auAbrirPunto3(Number(b.dataset.auP3Num))));
   const recibidos = auPuntos.filter(p => p.estado === "Recibido").length;
   const faltan = auPuntos.filter(p => p.estado === "Pendiente").length;
@@ -738,6 +744,10 @@ async function auAbrirPunto3(numero, forzar = false) {
   document.getElementById("au-p3-fort-check").checked = !!p.fortaleza;
   document.getElementById("au-p3-fort").value = p.fortaleza || "";
   document.getElementById("au-p3-fort").hidden = !p.fortaleza;
+  document.getElementById("au-p3-obs-check").checked = !!p.observacion;
+  document.getElementById("au-p3-obs").value = p.observacion || "";
+  document.getElementById("au-p3-obs-sug").value = p.observacion_sugerencia || "";
+  document.getElementById("au-p3-obs-campos").hidden = !p.observacion;
   auP3FortTocado = false;
   // Botones con el nombre del punto, para que el auditor sepa a dónde va
   const nombrePunto = n => { const q = auPuntos.find(x => x.numero === n); if (!q) return ""; const t = auTemaPunto(q); return t ? t.titulo : (() => { const d = auDescripcionPunto(q, anio); return d.charAt(0).toUpperCase() + d.slice(1); })(); };
@@ -780,9 +790,12 @@ async function auPersistirPunto3() {
   const documentacion = document.getElementById("au-p3-docs").value.trim() || null;
   if (!auP3EstadoTocado && !p.estado_manual) estado = (auTieneTexto(html) || documentacion || auDocsDePunto(p.numero).length) ? "Recibido" : "Pendiente";
   const fortaleza = document.getElementById("au-p3-fort-check").checked ? (document.getElementById("au-p3-fort").value.trim() || null) : null;
-  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion } });
+  const conObs = document.getElementById("au-p3-obs-check").checked;
+  const observacion = conObs ? (document.getElementById("au-p3-obs").value.trim() || null) : null;
+  const observacion_sugerencia = observacion ? (document.getElementById("au-p3-obs-sug").value.trim() || null) : null;
+  await auFetch("auditoria_puntos", { method: "PATCH", params: { id: `eq.${p.id}` }, body: { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion, observacion, observacion_sugerencia } });
   if (html !== p.respuesta_html) p.respuesta_actualizada_at = new Date().toISOString();
-  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion });
+  Object.assign(p, { respuesta_html: html, estado, estado_manual: manual, fortaleza, documentacion, observacion, observacion_sugerencia });
   auP3FortTocado = false;
   if (html !== null) auP3ModeloCargado = null;
   auEditorPunto.setDirty(false);
@@ -2068,9 +2081,15 @@ async function auProponerObservaciones() {
   const anio = auAnioAuditoria(auActual);
   const obs = [];
   const temasCubiertos = new Set();
+  // Observaciones escritas por el auditor en cada punto (paso 3): tienen prioridad sobre las automáticas
+  for (const p of auPuntos) {
+    if (!p.observacion) continue;
+    obs.push({ eje: p.eje || "", punto: p.numero, titulo: auTituloPunto(p, auTemaPunto(p), anio), texto: p.observacion, sugerencia: p.observacion_sugerencia || "" });
+  }
   // PMA y Cartilla, según lo registrado en Reportes GCP
   for (const [tabla, nombre, clave] of [["pma", "Programa Médico Asistencial", "PMA extemporáneo"], ["cartillas", "Cartilla Médico Asistencial", "Cartilla extemporánea"]]) {
     const punto = auPuntos.find(p => auTemaPunto(p)?.clave === tabla);
+    if (punto?.observacion) continue;
     const art = tabla === "pma" ? "del" : "de la";
     try {
       const d = await auDatosPresentacion(tabla, anio);
@@ -2089,7 +2108,7 @@ async function auProponerObservaciones() {
   }
   // Una observación por cada punto no aportado o aportado en forma parcial
   for (const p of auPuntos) {
-    if (p.estado !== "Parcial") continue; // lo no aportado no se menciona en el informe
+    if (p.estado !== "Parcial" || p.observacion) continue; // lo no aportado no se menciona en el informe
     const tema = auTemaPunto(p);
     if (tema?.clave && temasCubiertos.has(tema.clave)) continue;
     const desc = auDescripcionPunto(p, anio);
