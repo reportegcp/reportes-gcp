@@ -216,6 +216,7 @@ function auVincularEventos() {
   on("au-p3-siguiente", "click", () => auGuardarPunto3(true));
   on("au-p3-anterior", "click", () => auAbrirPunto3(auPuntoActivo - 1));
   on("au-p3-control", "click", auAlternarControl);
+  document.getElementById("au-informe-ref")?.addEventListener("click", e => { if (e.target.closest("[data-au-ref-toggle]")) auAlternarRef(); });
   on("au-p3-estado", "change", () => { auP3EstadoTocado = true; document.getElementById("au-p3-guardado").textContent = "Cambios sin guardar"; });
   on("au-p3-fort-check", "change", e => {
     const ta = document.getElementById("au-p3-fort");
@@ -1528,10 +1529,24 @@ function auRenderEjesTabs() {
   document.getElementById("au-informe-resumen").textContent = `${hechos} de 6 ejes con hallazgo`;
 }
 
+// Panel "Lo que entregó la Obra Social" del paso 4: se puede plegar hacia la izquierda (se recuerda en este navegador)
+function auRefCerrado() {
+  try { return localStorage.getItem("au-ref-cerrado") === "1"; } catch { return false; }
+}
+function auAplicarRefCerrado() {
+  document.querySelector(".au-informe-grid")?.classList.toggle("ref-cerrado", auRefCerrado());
+}
+function auAlternarRef() {
+  try { localStorage.setItem("au-ref-cerrado", auRefCerrado() ? "0" : "1"); } catch {}
+  auAplicarRefCerrado();
+}
+
 function auRenderRefEje(eje) {
   const anio = auAnioAuditoria(auActual);
   const puntos = auPuntos.filter(p => p.eje === eje);
-  document.getElementById("au-informe-ref").innerHTML = `<div class="au-ref-titulo">Lo que entregó la Obra Social</div>` +
+  auAplicarRefCerrado();
+  document.getElementById("au-informe-ref").innerHTML = `<button type="button" class="au-ref-abrir" data-au-ref-toggle title="Mostrar lo que entregó la Obra Social">»<span>Lo que entregó la Obra Social</span></button>` +
+    `<div class="au-ref-titulo"><span>Lo que entregó la Obra Social</span><button type="button" class="au-ref-cerrar" data-au-ref-toggle title="Ocultar este panel">«</button></div>` +
     (puntos.length ? puntos.map(p => {
       const docs = auDocsDePunto(p.numero);
       return `<div class="au-ref-punto">
