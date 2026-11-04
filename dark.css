@@ -359,6 +359,17 @@ html[data-theme="dark"] .alerta-sin-notif summary{color:#93b8de}
 html[data-theme="dark"] .cartilla-listado-table tbody tr:hover td{background:#162633}
 html[data-theme="dark"] .excel-estado.cargado{background:#1d3e30;color:#7ddebb}
 html[data-theme="dark"] .excel-estado.falta{background:#3b2b19;color:#f2b774}
+html[data-theme="dark"] .au-control-btn{border:1px dashed #496991;color:#94b9f0}
+html[data-theme="dark"] .au-control-btn:hover{background:#162335}
+html[data-theme="dark"] .au-ref-cerrar:hover,html[data-theme="dark"] .au-ref-abrir:hover{background:rgba(127,127,127,0.27)}
+html[data-theme="dark"] .anexo-i-encabezado div{border:1px solid var(--line,#31455c)}
+html[data-theme="dark"] .anexo-i-aviso.aviso{background:#3b2b19;color:#f2b774}
+html[data-theme="dark"] .anexo-i-aviso.error{background:#391b18;color:#f28f87}
+html[data-theme="dark"] .anexo-i-estado.cumple{background:#192836;color:#b2bdca}
+html[data-theme="dark"] .anexo-i-estado.supera{background:#1d3e30;color:#7ddebb}
+html[data-theme="dark"] .anexo-i-estado.debajo{background:#391b18;color:#f28f87}
+html[data-theme="dark"] .anexo-i-estado.nd{background:#3b2b19;color:#f2b774}
+html[data-theme="dark"] .anexo-i-texto{background:rgba(28,127,134,0.09)}
 /* Estilos inline */
 html[data-theme="dark"] [style*="background:#9aa7b5"]{background:#53606e !important}
 html[data-theme="dark"] [style*="background: #9aa7b5"]{background:#53606e !important}

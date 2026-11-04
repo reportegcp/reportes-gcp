@@ -2678,3 +2678,25 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .au-p3-obs .au-hint{display:block;margin-top:6px}
 .au-p3-num.con-obs::before{content:"!";position:absolute;top:-6px;left:-6px;width:15px;height:15px;border-radius:50%;background:#c2410c;color:#fff;font-size:10px;line-height:15px;text-align:center;font-weight:900;box-shadow:0 0 0 2px #fff}
 .au-dot.con-obs{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:#c2410c;color:#fff;font-size:8px;font-style:normal;font-weight:900}
+
+/* Anexo I: lectura del PDF de la Obra Social */
+.anexo-i-pdf-barra{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 8px}
+.anexo-i-pdf-barra a.secondary{text-decoration:none;display:inline-flex;align-items:center}
+.anexo-i-pdf-hint{font-size:12.5px;color:var(--muted)}
+.anexo-i-encabezado{display:grid;grid-template-columns:140px 160px 1fr;gap:10px;margin:6px 0 10px}
+.anexo-i-encabezado div{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border:1px solid var(--line,#dfe6ee);border-radius:10px}
+.anexo-i-encabezado span{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.anexo-i-aviso{margin:4px 0;font-size:13px;padding:6px 10px;border-radius:8px}
+.anexo-i-aviso.aviso{background:#fdf1e3;color:#9a5a12}
+.anexo-i-aviso.error{background:#fde8e6;color:#b42318}
+.anexo-i-subtitulo{margin:16px 0 6px;font-size:14px}
+.anexo-i-subtitulo .n{font-size:12px;font-weight:600;color:var(--muted);margin-left:6px}
+.anexo-i-valores td.num,.anexo-i-valores th.num{text-align:right;font-variant-numeric:tabular-nums}
+.anexo-i-estado{display:inline-flex;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.anexo-i-estado.cumple{background:#eef3f8;color:#4d5d70}
+.anexo-i-estado.supera{background:#e3f3ec;color:#1f6f52}
+.anexo-i-estado.debajo{background:#fde8e6;color:#b42318}
+.anexo-i-estado.nd{background:#fdf1e3;color:#9a5a12}
+.anexo-i-texto{border-left:3px solid var(--accent,#1c7f86);padding:6px 12px;margin:8px 0;background:rgba(28,127,134,.05);border-radius:0 8px 8px 0}
+.anexo-i-texto p{margin:4px 0 0;font-size:13.5px;line-height:1.5;white-space:normal}
+@media (max-width:700px){.anexo-i-encabezado{grid-template-columns:1fr}}

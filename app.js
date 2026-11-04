@@ -12507,6 +12507,210 @@ async function handleSeleccionObraSocialCartillaRevision() {
   await handleCambioPeriodoCartillaRevision();
 }
 
+// ---------- Anexo I (PDF de la Obra Social) ----------
+// El Anexo I llega en el expediente como el PDF con formulario que publica la SSS, completado
+// en la computadora por la Obra Social. Se leen sus campos con pdf.js: encabezado (RNAS,
+// período, entidad), los 5 valores de cobertura con mínimo PMO y los recuadros de texto libre.
+
+const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+// Campo del PDF → qué es y cuál es el mínimo PMO (el valor que el PDF trae por defecto).
+const ANEXO_I_PDF_VALORES = [
+  { campo: "% COBERTURA", clave: "med_materno", etiqueta: "Medicamentos ambulatorios para la madre y el recién nacido", seccion: "1.1.1", minimo: 40, unidad: "%" },
+  { campo: "Kinesioterapia", clave: "kinesio", etiqueta: "Kinesioterapia (sesiones por año)", seccion: "5", minimo: 20, unidad: "" },
+  { campo: "Fonoaudiología", clave: "fono", etiqueta: "Fonoaudiología (sesiones por año)", seccion: "5", minimo: 20, unidad: "" },
+  { campo: "Cobertura40", clave: "med_ambulatorios", etiqueta: "Medicamentos ambulatorios de uso habitual", seccion: "7", minimo: 40, unidad: "%" },
+  { campo: "Cobertura70", clave: "med_cronicos", etiqueta: "Medicamentos para patologías crónicas prevalentes", seccion: "7", minimo: 70, unidad: "%" }
+];
+
+// Recuadros de texto libre: se reconocen por una palabra clave del nombre del campo.
+const ANEXO_I_PDF_TEXTOS = [
+  ["cirugia ambulatoria", "3. Internación"], ["rehabilitacion", "5. Rehabilitación"], ["odontologia", "6. Odontología"],
+  ["medicamentos", "7. Medicamentos"], ["cuidados paliativos", "8.1 Cuidados paliativos"], ["hemodialisis", "8.2 Hemodiálisis y diálisis peritoneal"],
+  ["otoamplifonos", "8.3 Otoamplífonos - audífonos"], ["optica", "8.4 Cobertura en óptica"], ["protesis", "8.5 Prótesis y órtesis"],
+  ["traslados", "8.6 Traslados"], ["discapacidad", "9.1 Discapacidad"], ["tuberculosis", "9.2 VIH, hepatitis virales, ITS y TBC"],
+  ["obesidad", "9.3 Obesidad"], ["celiaquia", "9.4 Celiaquía"], ["poco frecuentes", "9.5 Enfermedades poco frecuentes"],
+  ["identidad de genero", "9.6 Identidad de género"], ["diabetes", "9.7 Diabetes mellitus"], ["reproduccion", "9.8 Reproducción médicamente asistida"],
+  ["reconstructivas", "9.9 Cirugías reconstructivas"], ["autista", "9.10 Trastornos del espectro autista"], ["ostomizados", "9.11 Pacientes ostomizados"],
+  ["aprendizaje", "9.12 Dificultades específicas del aprendizaje"], ["leches", "9.13 Leches medicamentosas"], ["transplantadas", "9.14 Personas trasplantadas"],
+  ["fibrosis", "9.15 Fibrosis quística"], ["interrupcion voluntaria", "9.16 Interrupción voluntaria del embarazo"], ["1.000 dias", "9.17 Ley 27.611 de 1.000 días"],
+  ["27.674", "9.18 Ley 27.674 Niños, niñas y adolescentes con cáncer"], ["27.675", "9.19 Ley 27.675 VIH, hepatitis virales e ITS"],
+  ["otras ampliaciones", "9.21 Otras ampliaciones de cobertura"], ["exclusiones", "10. Exclusiones de cobertura"], ["observaciones", "11. Observaciones"]
+];
+
+let pdfjsCargando = null;
+function cargarPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!pdfjsCargando) pdfjsCargando = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = PDFJS_URL;
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL; resolve(window.pdfjsLib); };
+    s.onerror = () => { pdfjsCargando = null; reject(new Error("No se pudo cargar el lector de PDF. Revisá la conexión y probá de nuevo.")); };
+    document.head.appendChild(s);
+  });
+  return pdfjsCargando;
+}
+
+function valorCampoPdf(objetos) {
+  for (const o of objetos || []) {
+    const v = Array.isArray(o.value) ? o.value[0] : o.value;
+    if (v != null && String(v).trim() !== "" && v !== "Off") return String(v).trim();
+  }
+  return "";
+}
+
+async function leerAnexoIPdf(arrayBuffer) {
+  const pdfjs = await cargarPdfJs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+  const campos = await doc.getFieldObjects();
+  if (!campos || !Object.keys(campos).length) {
+    throw new Error("Este PDF no tiene campos de formulario. Puede que no sea el Anexo I de la SSS o que se haya guardado \"aplanado\" (impreso a PDF).");
+  }
+  const porNombre = Object.entries(campos).map(([nombre, objs]) => ({ nombre, norm: normalizarTexto(nombre), valor: valorCampoPdf(objs), tipo: (objs || []).find(o => o.type)?.type || "" }));
+  const buscar = clave => porNombre.find(c => c.norm === normalizarTexto(clave));
+  const rnas = porNombre.find(c => c.norm.startsWith("rnos") || c.norm.startsWith("rnas"))?.valor || "";
+  const periodo = buscar("PERÍODO")?.valor || "";
+  const entidad = buscar("NOMBRE DE LA ENTIDAD")?.valor || "";
+  const valores = {};
+  ANEXO_I_PDF_VALORES.forEach(v => { valores[v.clave] = buscar(v.campo)?.valor || ""; });
+  if (!Object.values(valores).some(Boolean)) throw new Error("No encontré los campos de cobertura del Anexo I en este PDF. ¿Es el Anexo I de la Resolución 2165/21?");
+  const textos = {};
+  porNombre.filter(c => c.tipo === "text" && c.valor && !["periodo", "nombre de la entidad"].includes(c.norm) && !c.norm.startsWith("rnos") && !c.norm.startsWith("rnas")).forEach(c => {
+    const def = ANEXO_I_PDF_TEXTOS.find(([k]) => c.norm.includes(k));
+    textos[def ? def[1] : c.nombre] = c.valor;
+  });
+  return { rnas, periodo, entidad, valores, textos };
+}
+
+function numeroValorAnexoI(v) {
+  if (/ilimitad/i.test(String(v))) return Infinity;
+  const n = parseFloat(String(v).replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+function controlesEncabezadoAnexoI(registro, os, cartilla) {
+  const avisos = [];
+  const soloDigitos = s => String(s || "").replace(/\D/g, "").replace(/^0+/, "");
+  if (!registro.rnas_pdf) avisos.push({ tipo: "aviso", texto: "El encabezado no tiene RNAS cargado." });
+  else if (os && soloDigitos(registro.rnas_pdf) !== soloDigitos(os.rnos)) avisos.push({ tipo: "error", texto: `El RNAS del PDF (${registro.rnas_pdf}) no coincide con el de la Obra Social (${os.rnos}).` });
+  if (!registro.periodo_pdf) avisos.push({ tipo: "aviso", texto: "El encabezado no tiene período cargado." });
+  else if (cartilla) {
+    const anios = String(registro.periodo_pdf).match(/\d{4}/g)?.map(Number) || [];
+    const ini = Number(cartilla.anio_inicio || String(cartilla.ejercicio || "").slice(0, 4));
+    if (anios.length && ini && !anios.includes(ini) && !anios.includes(ini + 1)) avisos.push({ tipo: "aviso", texto: `El período del PDF (${registro.periodo_pdf}) no parece corresponder al ejercicio ${cartilla.ejercicio}.` });
+  }
+  if (!registro.entidad_pdf) avisos.push({ tipo: "aviso", texto: "El encabezado no tiene el nombre de la entidad." });
+  return avisos;
+}
+
+function renderAnexoIPdf(cont, registro, os, cartilla, declaracionVieja) {
+  const e = escaparHtml;
+  const botonSubir = `<button type="button" class="${registro ? "secondary" : "primary"} small" id="btn-anexo-i-pdf-subir">${registro ? "Reemplazar PDF" : "Subir PDF del Anexo I"}</button>
+    <input type="file" id="anexo-i-pdf-file" accept="application/pdf,.pdf" hidden>`;
+  if (!registro) {
+    cont.innerHTML = `<div class="anexo-i-pdf-barra">${botonSubir}<span class="anexo-i-pdf-hint">Subí el PDF del Anexo I que vino en el expediente. El sistema lee el encabezado, los valores de cobertura y lo que la Obra Social escribió en cada sección.</span></div><p class="form-message" id="anexo-i-pdf-message"></p>`
+      + (declaracionVieja ? `<div id="anexo-i-declaracion-vieja"></div>` : "");
+    return;
+  }
+  const avisos = controlesEncabezadoAnexoI(registro, os, cartilla);
+  const filasValores = ANEXO_I_PDF_VALORES.map(v => {
+    const crudo = registro.valores?.[v.clave] || "";
+    const n = numeroValorAnexoI(crudo);
+    let estado = `<span class="anexo-i-estado nd">No se pudo leer</span>`;
+    if (n != null) estado = n > v.minimo ? `<span class="anexo-i-estado supera">Supera el PMO</span>` : n === v.minimo ? `<span class="anexo-i-estado cumple">Cumple PMO</span>` : `<span class="anexo-i-estado debajo">Por debajo del PMO</span>`;
+    return `<tr><td>${e(v.seccion)}</td><td>${e(v.etiqueta)}</td><td class="num">${e(v.minimo + v.unidad)}</td><td class="num"><b>${e(crudo || "—")}</b></td><td>${estado}</td></tr>`;
+  }).join("");
+  const textos = Object.entries(registro.textos || {});
+  cont.innerHTML = `
+    <div class="anexo-i-pdf-barra">
+      <a class="secondary small" href="${e(registro.archivo_url || "#")}" target="_blank" rel="noopener">Ver PDF</a>
+      ${botonSubir}
+      <span class="anexo-i-pdf-hint">${e(registro.nombre_archivo || "")} · cargado el ${e(formatFechaPantalla(String(registro.cargado_en || "").slice(0, 10)))}</span>
+    </div>
+    <p class="form-message" id="anexo-i-pdf-message"></p>
+    <div class="anexo-i-encabezado">
+      <div><span>RNAS</span><strong>${e(registro.rnas_pdf || "—")}</strong></div>
+      <div><span>Período</span><strong>${e(registro.periodo_pdf || "—")}</strong></div>
+      <div><span>Entidad</span><strong>${e(registro.entidad_pdf || "—")}</strong></div>
+    </div>
+    ${avisos.map(a => `<p class="anexo-i-aviso ${a.tipo}">${a.tipo === "error" ? "⛔" : "⚠️"} ${e(a.texto)}</p>`).join("")}
+    <h4 class="anexo-i-subtitulo">Valores de cobertura</h4>
+    <div class="table-scroll"><table class="data-table anexo-i-valores">
+      <thead><tr><th>Punto</th><th>Cobertura</th><th class="num">Mínimo PMO</th><th class="num">Declarado</th><th></th></tr></thead>
+      <tbody>${filasValores}</tbody>
+    </table></div>
+    <h4 class="anexo-i-subtitulo">Aclaraciones de la Obra Social ${textos.length ? `<span class="n">${textos.length} ${textos.length === 1 ? "sección" : "secciones"}</span>` : ""}</h4>
+    ${textos.length
+      ? textos.map(([seccion, texto]) => `<div class="anexo-i-texto"><strong>${e(seccion)}</strong><p>${e(texto).replace(/\n/g, "<br>")}</p></div>`).join("")
+      : `<p class="anexo-i-pdf-hint">No escribió aclaraciones en ninguna sección: adhiere al texto del Anexo I tal como está.</p>`}`;
+}
+
+async function cargarAnexoIPdf(cartillaId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "*", cartilla_id: `eq.${cartillaId}` });
+  const r = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_anexo_i_pdf?${params.toString()}`, { headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!r.ok) throw new Error(await leerErrorApi(r) || `Supabase respondió ${r.status}`);
+  return (await r.json())[0] || null;
+}
+
+async function subirAnexoIPdf(file, cartilla, os) {
+  const msg = id => setFormMessage("anexo-i-pdf-message", id);
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { msg("El archivo tiene que ser un PDF."); return; }
+  const boton = document.getElementById("btn-anexo-i-pdf-subir");
+  if (boton) { boton.disabled = true; boton.textContent = "Leyendo PDF..."; }
+  try {
+    const buffer = await file.arrayBuffer();
+    const leido = await leerAnexoIPdf(buffer);
+    const registro = { rnas_pdf: leido.rnas, periodo_pdf: leido.periodo, entidad_pdf: leido.entidad };
+    const errores = controlesEncabezadoAnexoI(registro, os, cartilla).filter(a => a.tipo === "error");
+    if (errores.length) { msg(`${errores[0].texto} Revisá que sea el PDF de esta presentación.`); return; }
+    if (boton) boton.textContent = "Guardando...";
+    const session = await asegurarSesionVigente();
+    const path = `cartillas/${cartilla.id}/anexo-i-${Date.now()}.pdf`;
+    const up = await fetchConTimeout(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/pdf" },
+      body: file
+    }, 60000, fetch);
+    if (!up.ok) throw new Error("No se pudo guardar el PDF en el almacenamiento.");
+    const anterior = await cargarAnexoIPdf(cartilla.id).catch(() => null);
+    const fila = {
+      cartilla_id: cartilla.id, nombre_archivo: file.name,
+      archivo_url: `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`,
+      ...registro, valores: leido.valores, textos: leido.textos, cargado_en: new Date().toISOString()
+    };
+    const r = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_anexo_i_pdf?apikey=${SUPABASE_PUBLISHABLE_KEY}&on_conflict=cartilla_id`, {
+      method: "POST",
+      headers: { ...authHeaders(session.access_token), "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(fila)
+    }, 15000, fetch);
+    if (!r.ok) throw new Error(await leerErrorApi(r) || `Supabase respondió ${r.status}`);
+    const pathAnterior = anterior?.archivo_url?.split("/storage/v1/object/public/adjuntos/")[1];
+    if (pathAnterior && pathAnterior !== path) fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${pathAnterior}`, { method: "DELETE", headers: authHeaders(session.access_token) }).catch(() => {});
+    mostrarToast("Anexo I cargado.");
+    await renderAnexoIRevision(cartilla, os);
+  } catch (error) {
+    console.error(error);
+    msg(error.message || "No se pudo leer el PDF.");
+  } finally {
+    if (boton) { boton.disabled = false; }
+  }
+}
+
+async function renderAnexoIRevision(cartilla, os, declaracionVieja = null) {
+  const cont = document.getElementById("cartilla-revision-anexo-i-body");
+  if (!cont) return;
+  let registro = null;
+  try { registro = await cargarAnexoIPdf(cartilla.id); } catch (error) { console.error(error); }
+  renderAnexoIPdf(cont, registro, os, cartilla, declaracionVieja);
+  const input = document.getElementById("anexo-i-pdf-file");
+  document.getElementById("btn-anexo-i-pdf-subir")?.addEventListener("click", () => input?.click());
+  input?.addEventListener("change", () => requiereAutenticacion(() => subirAnexoIPdf(input.files?.[0], cartilla, os)));
+  return registro;
+}
+
 async function handleCambioPeriodoCartillaRevision() {
   const periodoSelect = document.getElementById("cartilla-revision-periodo");
   const id = periodoSelect?.value;
@@ -12525,16 +12729,16 @@ async function handleCambioPeriodoCartillaRevision() {
   await renderPrestadoresDesdeSnapshot(cartilla.id, "cartilla-revision-prestadores");
 
   try {
+    // Anexo I: el PDF del expediente. Si no hay PDF pero la OS lo había cargado en el portal
+    // (presentaciones anteriores), se muestra esa declaración debajo del botón de subir.
     const respI = await fetchConTimeout(buildPmaDeclaracionesUrl({ select: "*", cartilla_id: `eq.${cartilla.id}`, limit: "1" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
     const filasI = respI.ok ? await respI.json() : [];
     const declI = filasI[0] || null;
-    if (declI) {
+    const registroPdf = await renderAnexoIRevision(cartilla, os, declI);
+    if (!registroPdf && declI && document.getElementById("anexo-i-declaracion-vieja")) {
       if (!anexoISeccionesCache.length) { try { await cargarPmaSeccionesActivas(); } catch (error) { console.error(error); } }
       const secciones = resolverSeccionesPorVersion(anexoISeccionesCache, declI.pma_secciones_version);
-      renderAnexoISecciones("cartilla-revision-anexo-i-body", declI, secciones);
-    } else {
-      const cont = document.getElementById("cartilla-revision-anexo-i-body");
-      if (cont) cont.innerHTML = `<p style="color:var(--muted)">Esta presentación no tenía Anexo I.</p>`;
+      renderAnexoISecciones("anexo-i-declaracion-vieja", declI, secciones);
     }
   } catch (error) { console.error(error); }
 
