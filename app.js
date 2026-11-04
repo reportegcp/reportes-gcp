@@ -12786,7 +12786,7 @@ function citaAnexoII(textoOriginal, inicio, fin, desde = null) {
   while (b < textoOriginal.length && b - fin < 220 && !corta(b)) b++;
   if (b < textoOriginal.length && limites.test(textoOriginal[b])) b++;
   if (desde != null && desde < a) a = desde;
-  const limpiar = s => s.replace(/\s+/g, " ");
+  const limpiar = s => s.replace(/[\uE000-\uF8FF\uFFFD]/g, "").replace(/\s+/g, " ");
   return { antes: limpiar(textoOriginal.slice(a, inicio)).trimStart(), match: limpiar(textoOriginal.slice(inicio, fin)), despues: limpiar(textoOriginal.slice(fin, b)).trimEnd() };
 }
 
@@ -12905,7 +12905,9 @@ function renderAnexoIIPdf(cont, registro) {
         </span>
       </div>
       ${r?.encontrado ? citaAnexoIIHtml(r.cita) : ""}
-      ${rev[item.id]?.estado === "observado" || nota ? `<textarea class="anexo-ii-nota" rows="2" placeholder="Observación del analista...">${e(nota)}</textarea>` : ""}
+      ${rev[item.id]?.estado === "observado" || nota
+        ? `<label class="anexo-ii-nota-label">Observación del analista</label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación para este punto...">${e(nota)}</textarea>`
+        : `<button type="button" class="link-button anexo-ii-agregar-nota">+ Agregar observación</button>`}
     </div>`;
   };
   const filaRestr = (r, idx) => {
@@ -12926,7 +12928,7 @@ function renderAnexoIIPdf(cont, registro) {
       </div>
       ${citaAnexoIIHtml(r.cita)}
       <p class="anexo-ii-norma">${e(regla?.norma || "")}</p>
-      ${estado === "confirmada" || rev[`r${idx}`]?.nota ? `<textarea class="anexo-ii-nota" rows="2" placeholder="Observación del analista...">${e(rev[`r${idx}`]?.nota || "")}</textarea>` : ""}
+      ${estado === "descartada" && !rev[`r${idx}`]?.nota ? "" : `<label class="anexo-ii-nota-label">Observación del analista</label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación que se le hará a la Obra Social...">${e(rev[`r${idx}`]?.nota || "")}</textarea>`}
     </div>`;
   };
   cont.innerHTML = `
@@ -12943,7 +12945,35 @@ function renderAnexoIIPdf(cont, registro) {
     </div>
     ${(registro.paginas_sin_texto || []).length ? `<p class="anexo-i-aviso aviso">⚠️ ${registro.paginas_sin_texto.length === 1 ? "La página" : "Las páginas"} ${registro.paginas_sin_texto.join(", ")} casi no ${registro.paginas_sin_texto.length === 1 ? "tiene" : "tienen"} texto: puede ser una imagen (por ejemplo, una tabla de sedes pegada como foto). El sistema no la puede leer; revisala en el PDF.</p>` : ""}
     ${restricciones.length ? `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4>${restricciones.map(filaRestr).join("")}` : `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`}
-    ${grupos.map(g => `<h4 class="anexo-i-subtitulo">${e(g)}</h4>${ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(filaItem).join("")}`).join("")}`;
+    ${grupos.map(g => `<h4 class="anexo-i-subtitulo">${e(g)}</h4>${ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(filaItem).join("")}`).join("")}
+    ${resumenObservacionesAnexoIIHtml(registro)}`;
+}
+
+// Todas las observaciones del analista juntas, para copiarlas al informe.
+function resumenObservacionesAnexoIIHtml(registro) {
+  const e = escaparHtml;
+  const lineas = lineasObservacionesAnexoII(registro);
+  if (!lineas.length) return `<h4 class="anexo-i-subtitulo">Observaciones del Anexo II</h4><div id="anexo-ii-resumen-obs-box"><p class="anexo-i-pdf-hint">Todavía no hay observaciones confirmadas. Las que confirmes o escribas aparecen acá, juntas, para copiarlas al informe.</p></div>`;
+  return `<h4 class="anexo-i-subtitulo">Observaciones del Anexo II</h4><div id="anexo-ii-resumen-obs-box"><ol class="anexo-ii-resumen-obs">${lineas.map(l => `<li>${e(l)}</li>`).join("")}</ol>
+    <button type="button" class="secondary small" id="btn-anexo-ii-copiar-obs">Copiar observaciones</button></div>`;
+}
+
+function lineasObservacionesAnexoII(registro) {
+  const rev = registro.revision || {};
+  const res = registro.resultados || {};
+  const lineas = [];
+  (res.restricciones || []).forEach((r, idx) => {
+    const v = rev[`r${idx}`];
+    if (v?.estado === "confirmada" || (v?.nota && v?.estado !== "descartada")) {
+      const regla = ANEXO_II_RESTRICCIONES.find(x => x.id === r.id);
+      lineas.push(`${regla?.titulo || r.id} (pág. ${r.pagina}): ${v?.nota || `"${r.cita?.match || ""}" — ${regla?.norma || ""}`}`);
+    }
+  });
+  ANEXO_II_CHECKLIST.forEach(item => {
+    const v = rev[item.id];
+    if (v?.estado === "observado" || v?.nota) lineas.push(`${item.titulo}: ${v?.nota || "observado"}`);
+  });
+  return lineas;
 }
 
 async function guardarRevisionAnexoII(cartillaId, revision) {
@@ -12994,6 +13024,8 @@ async function subirAnexoIIPdf(file, cartilla) {
   }
 }
 
+let anexoIIFocoPendiente = null;
+
 async function renderAnexoIIRevision(cartilla) {
   const cont = document.getElementById("cartilla-revision-anexo-ii-pdf");
   if (!cont) return null;
@@ -13014,17 +13046,45 @@ async function renderAnexoIIRevision(cartilla) {
       const estado = btn.dataset.anexoIiMarcar;
       revision[id] = { ...(revision[id] || {}), estado };
       if (!estado) delete revision[id];
+      if (estado === "observado" || estado === "confirmada") anexoIIFocoPendiente = id;
       await guardar();
       registro.revision = revision;
       await renderAnexoIIRevision(cartilla);
     }));
+    cont.querySelectorAll(".anexo-ii-agregar-nota").forEach(btn => btn.addEventListener("click", () => {
+      const ta = document.createElement("textarea");
+      ta.className = "anexo-ii-nota"; ta.rows = 2; ta.placeholder = "Escribí la observación para este punto...";
+      const label = document.createElement("label");
+      label.className = "anexo-ii-nota-label"; label.textContent = "Observación del analista";
+      btn.replaceWith(label, ta);
+      engancharNota(ta);
+      ta.focus();
+    }));
+    const enganharCopiar = () => document.getElementById("btn-anexo-ii-copiar-obs")?.addEventListener("click", async () => {
+      const texto = lineasObservacionesAnexoII({ ...registro, revision }).map((l, i) => `${i + 1}. ${l}`).join("\n");
+      try { await navigator.clipboard.writeText(texto); mostrarToast("Observaciones copiadas."); } catch { mostrarToast("No se pudo copiar.", "error"); }
+    });
+    enganharCopiar();
+    const refrescarResumen = () => {
+      const box = document.getElementById("anexo-ii-resumen-obs-box");
+      if (!box) return;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = resumenObservacionesAnexoIIHtml({ ...registro, revision });
+      box.replaceWith(tmp.querySelector("#anexo-ii-resumen-obs-box"));
+      enganharCopiar();
+    };
     let timer = null;
-    cont.querySelectorAll(".anexo-ii-nota").forEach(ta => ta.addEventListener("input", () => {
+    function engancharNota(ta) { ta.addEventListener("input", () => {
       const id = ta.closest("[data-anexo-ii-item]").dataset.anexoIiItem;
       revision[id] = { ...(revision[id] || { estado: id.startsWith("r") ? "confirmada" : "observado" }), nota: ta.value };
       clearTimeout(timer);
-      timer = setTimeout(guardar, 800);
-    }));
+      timer = setTimeout(() => { guardar(); refrescarResumen(); }, 800);
+    }); }
+    cont.querySelectorAll(".anexo-ii-nota").forEach(engancharNota);
+    if (anexoIIFocoPendiente) {
+      cont.querySelector(`[data-anexo-ii-item="${anexoIIFocoPendiente}"] .anexo-ii-nota`)?.focus();
+      anexoIIFocoPendiente = null;
+    }
   }
   const viejo = document.getElementById("anexo-ii-admin-contenido");
   if (viejo) viejo.hidden = !!registro || !anexoIIAdminDeclaraciones.length;

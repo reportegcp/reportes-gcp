@@ -2722,3 +2722,10 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-ii-cita mark{background:#fff1a8;color:inherit;padding:0 2px;border-radius:3px}
 .anexo-ii-norma{margin:4px 0 0;font-size:12px;color:var(--muted)}
 .anexo-ii-nota{width:100%;margin-top:6px;font-size:13px}
+
+#anexo-i-pdf-message:empty,#anexo-ii-pdf-message:empty{display:none}
+.anexo-ii-nota-label{display:block;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.anexo-ii-nota{display:block;width:100%;margin-top:3px;font-size:13px;box-sizing:border-box}
+.anexo-ii-agregar-nota{margin-top:6px;font-size:12px}
+.anexo-ii-resumen-obs{margin:6px 0 10px 18px;padding:0;font-size:13.5px;line-height:1.55}
+.anexo-ii-resumen-obs li{margin:3px 0}
