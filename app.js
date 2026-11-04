@@ -2548,10 +2548,16 @@ async function upCrearDrogaDesdeExpediente() {
 
 // El perfil Coordinador no ve "Análisis / Dictamen" ni "Adjuntos" en el expediente de Urgencias Prestacionales.
 // Los datos de esas secciones se conservan al guardar (solo se ocultan).
+// El perfil Administrativo solo ve la sección "Expediente" (carga el Nº EE y las fechas).
+const SECCIONES_EXPEDIENTE_OCULTAS_POR_PERFIL = {
+  Coordinador: ["analisis", "adjuntos"],
+  Administrativo: ["afiliado", "solicitud", "drogas", "analisis", "adjuntos"]
+};
+
 function ocultarSeccionesExpedienteSegunPerfil() {
-  const ocultar = getSessionIdentity(authSession).perfil === "Coordinador";
-  ["analisis", "adjuntos"].forEach(sec => {
-    document.querySelector(`#expediente-modal .form-section[data-section="${sec}"]`)?.toggleAttribute("hidden", ocultar);
+  const ocultas = SECCIONES_EXPEDIENTE_OCULTAS_POR_PERFIL[getSessionIdentity(authSession).perfil] || [];
+  document.querySelectorAll("#expediente-modal .form-section[data-section]").forEach(sec => {
+    sec.toggleAttribute("hidden", ocultas.includes(sec.dataset.section));
   });
 }
 
