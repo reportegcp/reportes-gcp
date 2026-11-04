@@ -4966,7 +4966,7 @@ function showView(id, updateHistory = true) {
     const esGrupoDeLaVistaActual =
       (["pma", "cartillas", "reportes"].includes(resolved) && group.dataset.navGroup === "presentaciones") ||
       (["criticidad", "metas-fisicas", "informe-gestion"].includes(resolved) && group.dataset.navGroup === "normativa") ||
-      (["afiliados", "prestadores", "cobertura", "cartilla-comparacion", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
+      (["cartilla-revision", "afiliados", "prestadores", "cobertura", "cartilla-comparacion", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved) && group.dataset.navGroup === "analisis-cartilla") ||
       (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved) && group.dataset.navGroup === "configuracion-cartilla") ||
       (resolved.startsWith("up-") && group.dataset.navGroup === "urgencias-prestacionales") ||
       (resolved.startsWith("px-") && group.dataset.navGroup === "preexistencias") ||
@@ -4981,7 +4981,7 @@ function showView(id, updateHistory = true) {
   if (["criticidad", "metas-fisicas", "informe-gestion"].includes(resolved)) {
     document.querySelector('[data-nav-group="normativa"]')?.classList.add("active");
   }
-  if (["afiliados", "prestadores", "cobertura", "cartilla-comparacion", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved)) {
+  if (["cartilla-revision", "afiliados", "prestadores", "cobertura", "cartilla-comparacion", "anexo-i", "anexo-ii", "anexo-ii-admin", "anexo-iv", "anexo-iv-admin"].includes(resolved)) {
     document.querySelector('[data-nav-group="analisis-cartilla"]')?.classList.add("active");
   }
   if (["anexo-i-admin", "anexo-iv-config", "cobertura-config"].includes(resolved)) {
