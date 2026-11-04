@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 222</span>
+        <span>Versión 223</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1725,7 +1725,7 @@
         <div class="toolbar">
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="expediente-search" type="search" placeholder="Buscar por Nº EE, paciente o DNI..." autocomplete="off">
+            <input id="expediente-search" type="search" placeholder="Buscar por Nº EE, paciente, DNI o analista..." autocomplete="off">
           </div>
         </div>
 
@@ -1735,7 +1735,7 @@
           </div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead><tr><th>Nº EE</th><th>Paciente</th><th>Patología</th><th>Obra Social / EMP</th><th>Estado</th><th>F. Ingreso</th><th>F. Límite</th></tr></thead>
+              <thead><tr><th>Nº EE</th><th>Paciente</th><th>Patología</th><th>Obra Social / EMP</th><th>Analista</th><th>Estado</th><th>F. Ingreso</th><th>F. Límite</th></tr></thead>
               <tbody id="expediente-table-body" class="expediente-tabla-compacta"></tbody>
             </table>
           </div>
@@ -2360,6 +2360,13 @@
               <label><span>Nº EE</span><input id="expediente-numero-ee" type="text" required></label>
               <label><span>Estado</span>
                 <select id="expediente-estado"><option value="Abierto">Abierto</option><option value="Pendiente">Pendiente</option><option value="Cerrado">Cerrado</option></select>
+              </label>
+              <label><span>Analista</span>
+                <select id="expediente-analista">
+                  <option value="">Sin asignar</option>
+                  <option>AGolubicki</option><option>AArto</option><option>NHerscovich</option><option>MLuna</option>
+                  <option>SQuiroga</option><option>FPecoraro</option><option>MAldacourrou</option><option>MRodenas</option>
+                </select>
               </label>
             </div>
             <div class="form-grid form-grid-3">
@@ -3237,7 +3244,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=114"></script>
+  <script src="app.js?v=115"></script>
   <script src="juridico.js?v=6"></script>
   <script src="auditorias.js?v=41"></script>
   <script src="usuarios.js?v=8"></script>

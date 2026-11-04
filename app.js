@@ -2237,7 +2237,7 @@ function buildExpedientesUrl(id = null) {
   const params = {
     select: "id,numero_ee,fecha_ingreso,fecha_cierre,fecha_limite,nombre_paciente,telefono_paciente,email_paciente," +
       "patologia_id,diagnostico_detalle,resumen_hc,obra_social_id,pasos_resolucion,dni_cuit_paciente," +
-      "denunciante_nombre,denunciante_dni_cuit,motivo_denuncia,plantilla_id,estado,filial_id," +
+      "denunciante_nombre,denunciante_dni_cuit,motivo_denuncia,plantilla_id,estado,filial_id,analista," +
       "patologias(nombre)," +
       "expediente_medicamentos(id,droga_id,marca_id,dosis,drogas(nombre),marcas_comerciales(nombre_comercial))",
     order: "fecha_ingreso.desc"
@@ -2277,7 +2277,8 @@ function filtrarExpedientes(lista, busqueda) {
   return porEstado.filter(e =>
     normalizar(e.numero_ee || "").includes(termino) ||
     normalizar(e.nombre_paciente || "").includes(termino) ||
-    normalizar(e.dni_cuit_paciente || "").includes(termino)
+    normalizar(e.dni_cuit_paciente || "").includes(termino) ||
+    normalizar(e.analista || "").includes(termino)
   );
 }
 
@@ -2299,6 +2300,7 @@ function renderExpedientes() {
       <td class="ellipsis-cell" style="max-width:130px" title="${escaparHtml(e.nombre_paciente || "")}">${escaparHtml(e.nombre_paciente || "—")}</td>
       <td class="ellipsis-cell" style="max-width:150px" title="${escaparHtml(e.patologias?.nombre || "")}">${escaparHtml(e.patologias?.nombre || "—")}</td>
       <td class="ellipsis-cell" style="max-width:170px" title="${escaparHtml(etiquetaObraSocial(e.obra_social_id) || "")}">${escaparHtml(etiquetaObraSocial(e.obra_social_id) || "—")}</td>
+      <td>${escaparHtml(e.analista || "—")}</td>
       <td>${escaparHtml(e.estado || "—")}</td>
       <td class="date-cell">${formatearFecha(e.fecha_ingreso)}</td>
       <td class="date-cell">${formatearFecha(e.fecha_limite)}</td>
@@ -2618,6 +2620,8 @@ async function abrirModalNuevoExpediente() {
   await asegurarCatalogosExpedienteCargados();
   resetFormularioExpediente();
   document.getElementById("expediente-modal-title").textContent = "Nuevo expediente";
+  // Fecha de ingreso por defecto: hoy (se puede cambiar).
+  document.getElementById("expediente-fecha-ingreso").value = upHoyIso();
   ocultarSeccionesExpedienteSegunPerfil();
   abrirModal("expediente-modal");
   setTimeout(() => document.getElementById("expediente-numero-ee")?.focus(), 0);
@@ -2632,6 +2636,12 @@ async function abrirModalEdicionExpediente(id) {
   document.getElementById("expediente-id").value = e.id;
   document.getElementById("expediente-numero-ee").value = e.numero_ee || "";
   document.getElementById("expediente-estado").value = e.estado || "Abierto";
+  const selAnalista = document.getElementById("expediente-analista");
+  if (selAnalista) {
+    // Si el expediente tiene un analista que ya no está en la lista, se agrega para no perderlo.
+    if (e.analista && ![...selAnalista.options].some(o => o.value === e.analista)) selAnalista.add(new Option(e.analista, e.analista));
+    selAnalista.value = e.analista || "";
+  }
   document.getElementById("expediente-fecha-ingreso").value = e.fecha_ingreso || "";
   document.getElementById("expediente-fecha-limite").value = e.fecha_limite || "";
   document.getElementById("expediente-fecha-cierre").value = e.fecha_cierre || "";
@@ -2700,6 +2710,7 @@ async function handleExpedienteSubmit(event) {
   const registro = {
     numero_ee: numeroEe,
     estado: document.getElementById("expediente-estado")?.value || "Abierto",
+    analista: document.getElementById("expediente-analista")?.value || null,
     fecha_ingreso: fechaIngreso,
     fecha_limite: document.getElementById("expediente-fecha-limite")?.value || null,
     fecha_cierre: document.getElementById("expediente-fecha-cierre")?.value || null,
