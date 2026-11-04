@@ -2700,3 +2700,4 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-i-texto{border-left:3px solid var(--accent,#1c7f86);padding:6px 12px;margin:8px 0;background:rgba(28,127,134,.05);border-radius:0 8px 8px 0}
 .anexo-i-texto p{margin:4px 0 0;font-size:13.5px;line-height:1.5;white-space:normal}
 @media (max-width:700px){.anexo-i-encabezado{grid-template-columns:1fr}}
+.jr-c5{background:#8a78b5}

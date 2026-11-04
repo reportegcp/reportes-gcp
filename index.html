@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=140">
+  <link rel="stylesheet" href="styles.css?v=141">
   <link rel="stylesheet" href="dark.css?v=6">
 </head>
 <body>
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 223</span>
+        <span>Versión 224</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -1305,7 +1305,7 @@
         </div>
         <div class="report-tabs" style="margin-bottom:10px">
           <button class="report-tab active" data-ju-tab="tramite" type="button">En trámite</button>
-          <button class="report-tab" data-ju-tab="finalizados" type="button">Finalizados</button>
+          <button class="report-tab" data-ju-tab="finalizados" type="button">Con egreso</button>
           <button class="report-tab" data-ju-tab="todos" type="button">Todos</button>
         </div>
         <div class="toolbar ju-toolbar">
@@ -3245,10 +3245,10 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
   <script src="app.js?v=115"></script>
-  <script src="juridico.js?v=6"></script>
+  <script src="juridico.js?v=7"></script>
   <script src="auditorias.js?v=41"></script>
   <script src="usuarios.js?v=8"></script>
-  <script src="tablero.js?v=5"></script>
+  <script src="tablero.js?v=6"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(err => console.warn("Service worker:", err)));

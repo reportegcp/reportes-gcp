@@ -8,7 +8,10 @@
 
 const JU_MOTIVOS = ["Medicación", "Discapacidad", "Prepagas", "Insumos", "PMO", "Internación geriátrica", "Leyes especiales", "Cirugia", "Estudios y prácticas", "Falta de Prestadores", "Fertilidad"];
 const JU_AREAS = ["SAC", "SCEMPF", "GAJ", "GCEF", "SD"];
-const JU_ESTADOS = ["En trámite", "Finalizado"];
+const JU_ESTADOS = ["En trámite", "Finalizado", "Devuelto", "Derivado"];
+// Finalizado, Devuelto y Derivado son salidas: el oficio deja de estar en trámite y lleva fecha de egreso.
+const juEsSalida = estado => !!estado && estado !== "En trámite";
+const juClaseEstado = e => e === "Finalizado" ? "fin" : (e === "Devuelto" || e === "Derivado") ? "dev" : "tram";
 const JU_SELECT = "*,oficio_demandados(obra_social_id,obras_sociales(id,denominacion,rnos,rnemp,tipo)),oficio_ingresos(*)";
 
 let juOficios = [];
@@ -122,7 +125,7 @@ function juDiasRespuesta(ing) {
 }
 
 function juSemaforo(ing) {
-  if (ing.estado === "Finalizado" || !ing.fecha_vencimiento) return "";
+  if (juEsSalida(ing.estado) || !ing.fecha_vencimiento) return "";
   const dias = juDiasEntre(juHoyIso(), ing.fecha_vencimiento);
   if (dias < 0) return "vencido";
   if (dias <= 2) return "por-vencer";
@@ -235,7 +238,7 @@ function juOficiosFiltrados() {
   const area = document.getElementById("ju-area-filter")?.value || "";
   const trimestre = document.getElementById("ju-trimestre-filter")?.value || "";
   return juOficios.filter(o =>
-    (juTab === "todos" || (juTab === "tramite" ? o.estado !== "Finalizado" : o.estado === "Finalizado")) &&
+    (juTab === "todos" || (juTab === "tramite" ? !juEsSalida(o.estado) : juEsSalida(o.estado))) &&
     (!motivo || o.motivo === motivo) &&
     (!analista || o.ultimo.analista === analista) &&
     (!area || o.ultimo.area_salida === area) &&
@@ -257,7 +260,7 @@ function juRenderOficios() {
   tbody.innerHTML = pageInfo.items.map(o => {
     const u = o.ultimo;
     const sem = juSemaforo(u);
-    const fecha2 = o.estado === "Finalizado"
+    const fecha2 = juEsSalida(o.estado)
       ? formatearFecha(u.fecha_egreso)
       : (u.fecha_vencimiento ? `<span class="ju-venc ${sem}">${formatearFecha(u.fecha_vencimiento)}</span>` : "—");
     const demandado = juDemandado(o);
@@ -267,7 +270,7 @@ function juRenderOficios() {
       <td class="ellipsis-cell" style="max-width:340px" title="${escaparHtml(o.caratula || "")}">${escaparHtml(o.caratula || "—")}</td>
       <td class="ellipsis-cell" style="max-width:260px" title="${escaparHtml(demandado)}">${escaparHtml(demandado || "—")}</td>
       <td class="date-cell">${fecha2}</td>
-      <td><span class="ju-estado ${o.estado === "Finalizado" ? "fin" : "tram"}">${escaparHtml(o.estado)}</span></td>
+      <td><span class="ju-estado ${juClaseEstado(o.estado)}">${escaparHtml(o.estado)}</span></td>
     </tr>`;
   }).join("");
   const thFecha = document.getElementById("ju-th-fecha2");
@@ -443,7 +446,7 @@ function juRenderIngresos() {
     const dias = juDiasRespuesta(i);
     const quitar = ed && idx > 0 && (!i.id || esAdmin) ? `<button type="button" class="ju-link-danger" data-quitar-ing="${idx}">Quitar</button>` : "";
     return `<div class="ju-ingreso ${idx > 0 ? "es-reingreso" : ""}" data-ing-idx="${idx}">
-      <div class="ju-ingreso-cab"><strong>${titulo}</strong><span>${i.estado === "Finalizado" ? `Finalizado${dias != null ? ` · ${dias} día${dias === 1 ? "" : "s"} de respuesta` : ""}` : "En trámite"}</span>${quitar}</div>
+      <div class="ju-ingreso-cab"><strong>${titulo}</strong><span>${juEsSalida(i.estado) ? `${escaparHtml(i.estado)}${dias != null ? ` · ${dias} día${dias === 1 ? "" : "s"} de respuesta` : ""}` : "En trámite"}</span>${quitar}</div>
       <div class="ju-ingreso-grid">
         <label><span>Fecha de ingreso *</span><input type="date" data-campo="fecha_ingreso" value="${escaparHtml(i.fecha_ingreso || "")}" required></label>
         <label><span>Vencimiento</span><input type="date" data-campo="fecha_vencimiento" value="${escaparHtml(i.fecha_vencimiento || "")}"></label>
@@ -458,8 +461,8 @@ function juRenderIngresos() {
   cont.querySelectorAll("[data-ing-idx]").forEach(card => {
     const egreso = card.querySelector('[data-campo="fecha_egreso"]');
     const estado = card.querySelector('[data-campo="estado"]');
-    egreso.addEventListener("change", () => { if (egreso.value) estado.value = "Finalizado"; });
-    estado.addEventListener("change", () => { if (estado.value === "Finalizado" && !egreso.value) egreso.value = juHoyIso(); if (estado.value === "En trámite") egreso.value = ""; });
+    egreso.addEventListener("change", () => { if (egreso.value && !juEsSalida(estado.value)) estado.value = "Finalizado"; });
+    estado.addEventListener("change", () => { if (juEsSalida(estado.value) && !egreso.value) egreso.value = juHoyIso(); if (estado.value === "En trámite") egreso.value = ""; });
   });
   cont.querySelectorAll("[data-quitar-ing]").forEach(b => b.addEventListener("click", () => {
     juLeerIngresosDelDom();
@@ -499,7 +502,7 @@ async function juGuardar(event) {
     if (!i.fecha_ingreso) { setFormMessage("ju-message", `Falta la fecha de ingreso en ${nombre}.`); return; }
     if (i.fecha_egreso && i.fecha_egreso < i.fecha_ingreso) { setFormMessage("ju-message", `En ${nombre}, la fecha de egreso es anterior a la de ingreso.`); return; }
     if (n > 0 && i.fecha_ingreso < juFicha.ingresos[n - 1].fecha_ingreso) { setFormMessage("ju-message", `La fecha de ${nombre} es anterior al ingreso previo.`); return; }
-    if (i.fecha_egreso) i.estado = "Finalizado";
+    if (i.fecha_egreso && !juEsSalida(i.estado)) i.estado = "Finalizado";
   }
   const datos = {
     numero_ee: val("ju-ee"),
@@ -1034,13 +1037,13 @@ async function reEliminar() {
 
 const JU_REP_CONFIG = {
   oficios: {
-    nombre: "Oficios", clase1: "Por motivo", col1: "Motivo", clase2: null, texto: "Carátula", estados: ["En trámite", "Finalizado"],
-    cerrados: "Finalizados",
+    nombre: "Oficios", clase1: "Por motivo", col1: "Motivo", clase2: null, texto: "Carátula", estados: ["En trámite", "Finalizado", "Devuelto", "Derivado"],
+    cerrados: "Con egreso",
     async cargar() { await juCargarOficios(); },
     items() {
       return juTodosLosIngresos().map(i => ({
         ref: i.oficio.id, fecha_ingreso: i.fecha_ingreso, fecha_egreso: i.fecha_egreso, estado: i.estado,
-        finalizado: i.estado === "Finalizado", devuelto: false, analista: i.analista, area_salida: i.area_salida,
+        finalizado: juEsSalida(i.estado), devuelto: i.estado === "Devuelto", derivado: i.estado === "Derivado", analista: i.analista, area_salida: i.area_salida,
         clase1: i.oficio.motivo, clase2: null, numero_ee: i.oficio.numero_ee, texto: i.oficio.caratula,
         demandados: i.oficio.demandados, esReingreso: i.oficio.ingresos[0]?.id !== i.id,
         buscar: normalizar([i.oficio.numero_ee, i.oficio.caratula, i.descripcion, i.oficio.juzgado, i.oficio.otros_demandados].join(" ")),
@@ -1282,7 +1285,7 @@ function jrEstados(id, lista) {
   const cfg = JU_REP_CONFIG[jr.tipo];
   const filas = cfg.estados.map(e => ({ etiqueta: e, total: lista.filter(i => i.estado === e).length }));
   const total = lista.length || 1;
-  const clase = e => e === "Finalizado" ? "jr-c2" : e === "Devuelto" ? "jr-c4" : "jr-c3";
+  const clase = e => e === "Finalizado" ? "jr-c2" : e === "Devuelto" ? "jr-c4" : e === "Derivado" ? "jr-c5" : "jr-c3";
   document.getElementById(id).innerHTML = `<div class="jr-apilada">${filas.map(f => `<span class="${clase(f.etiqueta)}" style="width:${(f.total / total) * 100}%" title="${escaparHtml(f.etiqueta)}: ${f.total}"></span>`).join("")}</div>
     <div class="jr-estados">${filas.map(f => `<button type="button" class="jr-estado-item" data-jr-estado="${escaparHtml(f.etiqueta)}"><i class="${clase(f.etiqueta)}"></i>${escaparHtml(f.etiqueta)}<strong>${f.total}</strong><small>${Math.round((f.total / total) * 100)}%</small></button>`).join("")}</div>
     ${jrTablaDetalle(filas, "Estado", { conEstados: false })}`;
@@ -1336,7 +1339,7 @@ function jrRenderListado(lista) {
   document.getElementById("jr-listado-body").innerHTML = pageInfo.items.map(i => {
     const dias = i.fecha_egreso ? juDiasEntre(i.fecha_ingreso, i.fecha_egreso) : juDiasEntre(i.fecha_ingreso, hoy);
     const dem = [...new Set((i.demandados || []).map(d => d.denominacion))].join(" · ");
-    const cls = i.estado === "Finalizado" ? "fin" : i.estado === "Devuelto" ? "dev" : "tram";
+    const cls = i.estado === "Finalizado" ? "fin" : (i.estado === "Devuelto" || i.estado === "Derivado") ? "dev" : "tram";
     return `<tr class="os-row" data-jr-ref="${i.ref}" tabindex="0" role="button" title="Clic para abrir">
       <td class="date-cell">${formatearFecha(i.fecha_ingreso)}${i.esReingreso ? `<br><span class="ju-tag">Reingreso</span>` : ""}</td>
       <td class="ju-ee">${escaparHtml(i.numero_ee || "—")}</td>
@@ -1410,7 +1413,10 @@ function juGenerarReporte() {
     kpi("Ingresos", totAnio.total, reingAnio ? `incluye ${reingAnio} reingreso${reingAnio === 1 ? "" : "s"}` : "") +
     (tipo === "reclamos"
       ? kpi("Finalizados", totAnio.finalizados - totAnio.devueltos, pct(totAnio.finalizados - totAnio.devueltos), "ok") + kpi("Devueltos", totAnio.devueltos, pct(totAnio.devueltos)) + kpi("Asignados", totAnio.tramite, "en trámite", "alerta")
-      : kpi("Finalizados", totAnio.finalizados, pct(totAnio.finalizados), "ok") + kpi("En trámite", totAnio.tramite, "", "alerta")) +
+      : (() => {
+          const dev = listaAnio.filter(i => i.devuelto).length, der = listaAnio.filter(i => i.derivado).length, fin = totAnio.finalizados - dev - der;
+          return kpi("Finalizados", fin, pct(fin), "ok") + kpi("Devueltos", dev, pct(dev)) + kpi("Derivados", der, pct(der)) + kpi("En trámite", totAnio.tramite, "", "alerta");
+        })()) +
     kpi("Más de 30 días en trámite", pend30Anio, "pendientes antiguos", pend30Anio ? "riesgo" : "") +
     kpi("Tiempo de respuesta", totAnio.mediana ?? "—", totAnio.mediana != null ? `días (mediana) · promedio ${String(totAnio.promedio).replace(".", ",")}` : "");
   document.getElementById("ju-rep-titulo").textContent = `${cfg.nombre}`;
@@ -1456,7 +1462,7 @@ function juExportarReporte() {
     ["Ingresos", d.total.total], ["Reingresos incluidos", d.reingresos]
   ];
   if (d.tipo === "reclamos") resumen.push(["Finalizados", d.total.finalizados - d.total.devueltos], ["Devueltos", d.total.devueltos], ["Asignados (en trámite)", d.total.tramite]);
-  else resumen.push(["Finalizados", d.total.finalizados], ["En trámite", d.total.tramite]);
+  else resumen.push(["Con egreso (finalizados, devueltos y derivados)", d.total.finalizados], ["En trámite", d.total.tramite]);
   resumen.push(["Tiempo de respuesta (mediana, días)", d.total.mediana ?? ""], ["Tiempo de respuesta (promedio, días)", d.total.promedio ?? ""], [], ["Tiempo de respuesta", cfg.nombre], ...d.rangos.map(r => [r.etiqueta, r.total]));
   hoja("Resumen", resumen, [38, 12]);
   const grupo = (titulo, filas) => [[titulo, "Ingresados", cfg.cerrados, "En trámite", "Días de respuesta (mediana)"], ...filas.map(f => [f.etiqueta, f.total, f.finalizados, f.tramite, f.mediana ?? ""])];

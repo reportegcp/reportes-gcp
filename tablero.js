@@ -141,7 +141,7 @@ const TB_RENDER = {
 
   async oficios() {
     const filas = (await tbDatos("ju-of", () => tbTraerTodo("oficio_ingresos", "fecha_ingreso,estado"))).filter(x => String(x.fecha_ingreso || "").startsWith(TB_ANIO));
-    return tbRenderPorEstado(filas, "estado", ["En trámite", "Finalizado"], "ju-oficios", `ingresados en ${TB_ANIO}`);
+    return tbRenderPorEstado(filas, "estado", ["En trámite", "Finalizado", "Devuelto", "Derivado"], "ju-oficios", `ingresados en ${TB_ANIO}`);
   },
 
   async reclamos() {
