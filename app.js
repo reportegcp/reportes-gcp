@@ -12855,6 +12855,8 @@ function analizarAnexoII(paginas) {
 function citaAnexoIIHtml(c) {
   if (!c) return "";
   const e = escaparHtml;
+  const l = t => String(t || "").replace(/[\uE000-\uF8FF\uFFFD]/g, "").replace(/^\s+/, "");
+  c = { antes: l(c.antes), match: c.match, despues: c.despues };
   return `<blockquote class="anexo-ii-cita">…${e(c.antes)}<mark>${e(c.match)}</mark>${e(c.despues)}…</blockquote>`;
 }
 
@@ -12868,8 +12870,8 @@ async function cargarAnexoIIPdf(cartillaId) {
 
 function estadoItemAnexoII(item, resultado, revision) {
   const rev = revision?.[item.id]?.estado;
-  if (rev === "cumple") return { clase: "cumple", texto: "Cumple (analista)" };
-  if (rev === "observado") return { clase: "observado", texto: "Observado (analista)" };
+  if (rev === "cumple") return { clase: "cumple", texto: "Cumple (verificado)" };
+  if (rev === "observado") return { clase: "observado", texto: "Se observa" };
   return resultado?.encontrado ? { clase: "encontrado", texto: "Encontrado" } : { clase: "no-encontrado", texto: "No encontrado: revisar" };
 }
 
@@ -12899,14 +12901,14 @@ function renderAnexoIIPdf(cont, registro) {
         <strong>${e(item.titulo)}</strong>
         ${r?.encontrado ? `<span class="anexo-ii-pag">pág. ${r.pagina}</span>` : ""}
         <span class="anexo-ii-acciones">
-          <button type="button" class="link-button" data-anexo-ii-marcar="cumple">Cumple</button>
-          <button type="button" class="link-button" data-anexo-ii-marcar="observado">Observar</button>
-          ${rev[item.id]?.estado ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Deshacer</button>` : ""}
+          ${rev[item.id]?.estado
+            ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Volver a revisar</button>`
+            : (r?.encontrado ? "" : `<button type="button" class="link-button" data-anexo-ii-marcar="cumple" title="Lo encontraste vos en el PDF">Lo encontré: cumple</button>`)}
         </span>
       </div>
       ${r?.encontrado ? citaAnexoIIHtml(r.cita) : ""}
       ${rev[item.id]?.estado === "observado" || nota
-        ? `<label class="anexo-ii-nota-label">Observación del analista</label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación para este punto...">${e(nota)}</textarea>`
+        ? `<label class="anexo-ii-nota-label">Observación para la Obra Social</label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación para este punto...">${e(nota)}</textarea>`
         : `<button type="button" class="link-button anexo-ii-agregar-nota">+ Agregar observación</button>`}
     </div>`;
   };
@@ -12914,21 +12916,21 @@ function renderAnexoIIPdf(cont, registro) {
     const regla = ANEXO_II_RESTRICCIONES.find(x => x.id === r.id);
     const estado = rev[`r${idx}`]?.estado;
     const clase = estado === "confirmada" ? "observado" : estado === "descartada" ? "cumple" : "posible";
-    const txt = estado === "confirmada" ? "Observación confirmada" : estado === "descartada" ? "Descartada" : "Posible observación";
+    const txt = estado === "confirmada" ? "Se observa" : estado === "descartada" ? "No corresponde" : "Para revisar";
     return `<div class="anexo-ii-item ${clase}" data-anexo-ii-item="r${idx}">
       <div class="anexo-ii-item-cab">
         <span class="anexo-ii-estado ${clase}">${txt}</span>
         <strong>${e(regla?.titulo || r.id)}</strong>
         <span class="anexo-ii-pag">pág. ${r.pagina}</span>
         <span class="anexo-ii-acciones">
-          <button type="button" class="link-button" data-anexo-ii-marcar="confirmada">Confirmar</button>
-          <button type="button" class="link-button" data-anexo-ii-marcar="descartada">Descartar</button>
-          ${estado ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Deshacer</button>` : ""}
+          ${estado === "descartada"
+            ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Volver a revisar</button>`
+            : `<button type="button" class="link-button" data-anexo-ii-marcar="descartada" title="El sistema lo detectó pero no es una restricción real">No corresponde</button>`}
         </span>
       </div>
       ${citaAnexoIIHtml(r.cita)}
       <p class="anexo-ii-norma">${e(regla?.norma || "")}</p>
-      ${estado === "descartada" && !rev[`r${idx}`]?.nota ? "" : `<label class="anexo-ii-nota-label">Observación del analista</label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación que se le hará a la Obra Social...">${e(rev[`r${idx}`]?.nota || "")}</textarea>`}
+      ${estado === "descartada" && !rev[`r${idx}`]?.nota ? "" : `<label class="anexo-ii-nota-label">Observación para la Obra Social <span>(al escribirla queda marcada como "Se observa")</span></label><textarea class="anexo-ii-nota" rows="2" placeholder="Si corresponde observarlo, escribí acá la observación. Si no, tocá &quot;No corresponde&quot;.">${e(rev[`r${idx}`]?.nota || "")}</textarea>`}
     </div>`;
   };
   cont.innerHTML = `
@@ -12944,7 +12946,7 @@ function renderAnexoIIPdf(cont, registro) {
       <span class="${restrPendientes ? "alerta" : ""}"><b>${restricciones.length}</b> ${restricciones.length === 1 ? "posible restricción" : "posibles restricciones"}</span>
     </div>
     ${(registro.paginas_sin_texto || []).length ? `<p class="anexo-i-aviso aviso">⚠️ ${registro.paginas_sin_texto.length === 1 ? "La página" : "Las páginas"} ${registro.paginas_sin_texto.join(", ")} casi no ${registro.paginas_sin_texto.length === 1 ? "tiene" : "tienen"} texto: puede ser una imagen (por ejemplo, una tabla de sedes pegada como foto). El sistema no la puede leer; revisala en el PDF.</p>` : ""}
-    ${restricciones.length ? `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4>${restricciones.map(filaRestr).join("")}` : `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`}
+    ${restricciones.length ? `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">Revisá cada una: si corresponde, escribí la observación para la Obra Social; si el sistema se equivocó, tocá "No corresponde".</p>${restricciones.map(filaRestr).join("")}` : `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`}
     ${grupos.map(g => `<h4 class="anexo-i-subtitulo">${e(g)}</h4>${ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(filaItem).join("")}`).join("")}
     ${resumenObservacionesAnexoIIHtml(registro)}`;
 }
@@ -13055,7 +13057,7 @@ async function renderAnexoIIRevision(cartilla) {
       const ta = document.createElement("textarea");
       ta.className = "anexo-ii-nota"; ta.rows = 2; ta.placeholder = "Escribí la observación para este punto...";
       const label = document.createElement("label");
-      label.className = "anexo-ii-nota-label"; label.textContent = "Observación del analista";
+      label.className = "anexo-ii-nota-label"; label.textContent = "Observación para la Obra Social";
       btn.replaceWith(label, ta);
       engancharNota(ta);
       ta.focus();
@@ -13076,7 +13078,15 @@ async function renderAnexoIIRevision(cartilla) {
     let timer = null;
     function engancharNota(ta) { ta.addEventListener("input", () => {
       const id = ta.closest("[data-anexo-ii-item]").dataset.anexoIiItem;
-      revision[id] = { ...(revision[id] || { estado: id.startsWith("r") ? "confirmada" : "observado" }), nota: ta.value };
+      const estadoObs = id.startsWith("r") ? "confirmada" : "observado";
+      revision[id] = { ...(revision[id] || {}), estado: ta.value.trim() ? estadoObs : (revision[id]?.estado === estadoObs ? "" : revision[id]?.estado || ""), nota: ta.value };
+      if (!revision[id].estado && !revision[id].nota) delete revision[id];
+      const caja = ta.closest("[data-anexo-ii-item]");
+      const badge = caja.querySelector(".anexo-ii-estado");
+      const activo = !!ta.value.trim();
+      caja.classList.toggle("observado", activo);
+      badge.className = `anexo-ii-estado ${activo ? "observado" : (id.startsWith("r") ? "posible" : (caja.classList.contains("encontrado") ? "encontrado" : "no-encontrado"))}`;
+      badge.textContent = activo ? "Se observa" : (id.startsWith("r") ? "Para revisar" : (caja.classList.contains("encontrado") ? "Encontrado" : "No encontrado: revisar"));
       clearTimeout(timer);
       timer = setTimeout(() => { guardar(); refrescarResumen(); }, 800);
     }); }
