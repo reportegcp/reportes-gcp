@@ -2677,8 +2677,9 @@ async function handleExpedienteSubmit(event) {
   const fechaIngreso = document.getElementById("expediente-fecha-ingreso")?.value || "";
   const nombrePaciente = document.getElementById("expediente-nombre-paciente")?.value.trim() || "";
   const diagnostico = document.getElementById("expediente-diagnostico")?.value.trim() || "";
-  if (!numeroEe || !fechaIngreso || !nombrePaciente || !diagnostico) {
-    setFormMessage("expediente-form-message", "Nº EE, fecha de ingreso, paciente y diagnóstico son obligatorios.");
+  // Solo el Nº EE y la fecha de ingreso son obligatorios: el resto se puede completar después.
+  if (!numeroEe || !fechaIngreso) {
+    setFormMessage("expediente-form-message", "Nº EE y fecha de ingreso son obligatorios.");
     return;
   }
 
