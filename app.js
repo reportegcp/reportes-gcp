@@ -12729,6 +12729,308 @@ async function renderAnexoIRevision(cartilla, os, declaracionVieja = null) {
   return registro;
 }
 
+// ---------- Anexo II (PDF de la Obra Social) ----------
+// El Anexo II es de redacción propia de cada OS. Sin IA: se extrae el texto del PDF y se
+// controla un checklist armado con la guía de confección de la Res. 2165/21 (Anexo II,
+// IF-2021-120149905-APN-GCP#SSS) más reglas de restricciones conocidas que contradicen el
+// PMO. Lo que el sistema no encuentra queda como observación para que lo revise el analista.
+
+const ANEXO_II_CHECKLIST = [
+  { id: "centros", grupo: "Procedimientos", titulo: "Centros de orientación / coordinación por jurisdicción y zona (domicilio, teléfono, mail)", patrones: [/delegacion/, /sedes? (central|provincial|regional)/, /\bfiliales?\b/, /\bagencias?\b/, /centros? de (orientacion|coordinacion|atencion)/] },
+  { id: "credenciales", grupo: "Procedimientos", titulo: "Credenciales: emisión, entrega y utilización", patrones: [/credencial/] },
+  { id: "credencial_digital", grupo: "Procedimientos", titulo: "Credencial digital y cómo obtenerla", patrones: [/credencial (digital|electronica|virtual|movil)/, /credencial[\s\S]{0,150}\b(app|aplicacion)\b/, /\b(app|aplicacion)\b[\s\S]{0,150}credencial/] },
+  { id: "autorizaciones", grupo: "Procedimientos", titulo: "Régimen de autorizaciones: procedimiento y prestaciones que la requieren", patrones: [/autoriza/] },
+  { id: "autorizaciones_digitales", grupo: "Procedimientos", titulo: "Autorizaciones por medios digitales", patrones: [/autoriza[\s\S]{0,150}\b(app|aplicacion|web|online|en linea|mail|correo|digital|whatsapp)\b/, /\b(app|aplicacion|web|online|digital|whatsapp)\b[\s\S]{0,150}autoriza/] },
+  { id: "bonos", grupo: "Procedimientos", titulo: "Prestaciones con bonos, recetarios u órdenes y lugar de entrega", patrones: [/\bbonos?\b/, /recetario/, /ordenes? (de|medica)/, /\brecetas?\b/] },
+  { id: "ordenes_digitales", grupo: "Procedimientos", titulo: "Órdenes y recetas por medios digitales (Ley 27.553)", patrones: [/receta(s)? electronica/, /27\.553/, /ordenes? (digital|electronica)/, /prescripcion(es)? electronica/] },
+  { id: "turnos", grupo: "Procedimientos", titulo: "Régimen de turnos: procedimiento", patrones: [/\bturnos?\b/] },
+  { id: "turnos_online", grupo: "Procedimientos", titulo: "Turnos online", patrones: [/turnos?[\s\S]{0,120}\b(online|en linea|web|app|aplicacion|whatsapp)\b/, /\b(online|en linea|web|app|aplicacion)\b[\s\S]{0,120}turnos?\b/] },
+  { id: "urgencias", grupo: "Procedimientos", titulo: "Centros de atención de urgencias y emergencias médicas", patrones: [/urgencia/, /emergencia/, /\bguardia\b/] },
+  { id: "urgencias_odonto", grupo: "Procedimientos", titulo: "Urgencias y emergencias odontológicas", patrones: [/(urgencia|emergencia|guardia)[\s\S]{0,150}odontolog/, /odontolog[\s\S]{0,150}(urgencia|emergencia|guardia)/] },
+  { id: "traslados", grupo: "Procedimientos", titulo: "Traslados en ambulancia: urgentes y programados", patrones: [/ambulancia/, /\btraslados?\b/] },
+  { id: "cambios_cartilla", grupo: "Procedimientos", titulo: "Modo y periodicidad de comunicación de cambios en la cartilla", patrones: [/(informa|comunica|notifica|publica)[\s\S]{0,150}(cambio|modificacion|actualizacion|suspension|incorporacion|baja)/, /(cambio|modificacion|actualizacion|suspension|incorporacion)[\s\S]{0,150}(informa|comunica|notifica|publica)/] },
+  { id: "preventivos", grupo: "Procedimientos", titulo: "Cómo se informa el ingreso a los Programas Preventivos", patrones: [/programas? (preventivos?|de prevencion)/] },
+  { id: "coseguros", grupo: "Coseguros", titulo: "Informa si cobra coseguros", patrones: [/coseguro/, /copago/] },
+  { id: "exentos", grupo: "Coseguros", titulo: "Prestaciones exentas de coseguro", patrones: [/exent/, /exceptuad/, /sin coseguro/] },
+  { id: "exento_embarazo", grupo: "Coseguros", titulo: "Exento: embarazo, parto y puerperio (y sus complicaciones)", zona: "exentos", patrones: [/embaraz/, /materno/] },
+  { id: "exento_ninos", grupo: "Coseguros", titulo: "Exento: niños hasta 3 años", zona: "exentos", patrones: [/(3|tres) anos/, /1\.?000 dias/, /27\.611/] },
+  { id: "exento_onco", grupo: "Coseguros", titulo: "Exento: pacientes oncológicos", zona: "exentos", patrones: [/oncolog/] },
+  { id: "exento_preventivos", grupo: "Coseguros", titulo: "Exento: programas preventivos", zona: "exentos", patrones: [/preventiv/] },
+  { id: "exento_hiv", grupo: "Coseguros", titulo: "Exento: HIV", zona: "exentos", patrones: [/\bhiv\b/, /\bvih\b/, /27\.675/] }
+];
+
+// Restricciones que contradicen el PMO: tema + límite en la misma oración.
+const ANEXO_II_RESTRICCIONES = [
+  { id: "psiquiatria_tope", titulo: "Tope en salud mental / internación psiquiátrica", norma: "Ley 26.657 y Anexo I §4: sin limitaciones en número de sesiones ni días de internación.",
+    tema: /psiquiatr|salud mental|adiccion/, limite: /hasta (\d+|un|una|dos|tres)\s*(dias|sesiones|meses)|\d+\s*(dias|sesiones) (por|al|anual)|maximo de \d+|tope/ },
+  { id: "recien_nacido_1_anio", titulo: "Recién nacido / niño cubierto solo hasta el año", norma: "Ley 27.611 y Anexo I §1.1.1: cobertura al 100% hasta los tres (3) años.",
+    tema: /recien nacido|nino|infantil|lactante|primer ano de vida/, limite: /hasta (cumplir |cumplido )?(el|un|1) ano|primer ano de vida|hasta el ano de/ }
+];
+
+function normalizarConMapa(texto) {
+  // Mismo largo que el original, para que los índices coincidan: cada carácter → su versión sin acento en minúscula.
+  let out = "";
+  for (const ch of texto) {
+    const n = ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    out += n.length === 1 ? n : (n[0] || " ");
+    if (ch.length === 2) out += " ";
+  }
+  return out.replace(/\n/g, " ");
+}
+
+function citaAnexoII(textoOriginal, inicio, fin, desde = null) {
+  const limites = /[.!?•]/;
+  let a = inicio, b = fin;
+  const corta = i => limites.test(textoOriginal[i]) && !(textoOriginal[i] === "." && /\d/.test(textoOriginal[i + 1] || "") && /\d/.test(textoOriginal[i - 1] || ""));
+  while (a > 0 && inicio - a < 220 && !corta(a - 1)) a--;
+  while (b < textoOriginal.length && b - fin < 220 && !corta(b)) b++;
+  if (b < textoOriginal.length && limites.test(textoOriginal[b])) b++;
+  if (desde != null && desde < a) a = desde;
+  const limpiar = s => s.replace(/\s+/g, " ");
+  return { antes: limpiar(textoOriginal.slice(a, inicio)).trimStart(), match: limpiar(textoOriginal.slice(inicio, fin)), despues: limpiar(textoOriginal.slice(fin, b)).trimEnd() };
+}
+
+async function extraerTextoPdfPorPagina(arrayBuffer) {
+  const pdfjs = await cargarPdfJs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+  const paginas = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const tc = await page.getTextContent();
+    paginas.push(tc.items.map(it => (it.str || "") + (it.hasEOL ? "\n" : "")).join(""));
+  }
+  return paginas;
+}
+
+function analizarAnexoII(paginas) {
+  const norm = paginas.map(normalizarConMapa);
+  // Zona de exenciones: desde la primera mención de exento/exceptuado hasta el final.
+  let zonaPag = -1, zonaPos = 0;
+  for (let p = 0; p < norm.length && zonaPag < 0; p++) {
+    const m = norm[p].search(/exent|exceptuad/);
+    if (m >= 0) { zonaPag = p; zonaPos = m; }
+  }
+  const items = {};
+  for (const item of ANEXO_II_CHECKLIST) {
+    let hallado = null;
+    for (let p = 0; p < norm.length && !hallado; p++) {
+      if (item.zona === "exentos" && (zonaPag < 0 || p < zonaPag)) continue;
+      const desde = item.zona === "exentos" && p === zonaPag ? zonaPos : 0;
+      for (const re of item.patrones) {
+        const g = new RegExp(re.source, "g");
+        g.lastIndex = desde;
+        const m = g.exec(norm[p]);
+        if (m) { hallado = { pagina: p + 1, cita: citaAnexoII(paginas[p], m.index, m.index + m[0].length) }; break; }
+      }
+    }
+    items[item.id] = hallado ? { encontrado: true, ...hallado } : { encontrado: false };
+  }
+  const restricciones = [];
+  for (const regla of ANEXO_II_RESTRICCIONES) {
+    for (let p = 0; p < norm.length; p++) {
+      // Oraciones: cortes en . ! ? •
+      // El tema puede estar en la oración del límite o en la anterior ("Las internaciones
+      // psiquiátricas se establecen conforme la Ley 26.657. OSPRERA cubre hasta 30 días...").
+      // Los puntos entre dígitos ("26.657") no cortan la oración.
+      const re = /(?:[^.!?•]|\.(?=\d))+[.!?•]?/g;
+      let m, anterior = "", anteriorIdx = 0;
+      while ((m = re.exec(norm[p]))) {
+        const oracion = m[0];
+        const lim = oracion.match(regla.limite);
+        const temaEnOracion = regla.tema.test(oracion);
+        const temaEnAnterior = !temaEnOracion && regla.tema.test(anterior);
+        const idxAnterior = anteriorIdx;
+        anterior = oracion; anteriorIdx = m.index;
+        if (lim && (temaEnOracion || temaEnAnterior)) {
+          const ini = m.index + lim.index;
+          restricciones.push({ id: regla.id, pagina: p + 1, cita: citaAnexoII(paginas[p], ini, ini + lim[0].length, temaEnAnterior ? idxAnterior : null) });
+        }
+      }
+    }
+  }
+  const sinTexto = paginas.map((t, i) => (t.replace(/\s+/g, "").length < 200 ? i + 1 : null)).filter(Boolean);
+  return { items, restricciones, sinTexto };
+}
+
+function citaAnexoIIHtml(c) {
+  if (!c) return "";
+  const e = escaparHtml;
+  return `<blockquote class="anexo-ii-cita">…${e(c.antes)}<mark>${e(c.match)}</mark>${e(c.despues)}…</blockquote>`;
+}
+
+async function cargarAnexoIIPdf(cartillaId) {
+  const session = await asegurarSesionVigente();
+  const params = new URLSearchParams({ apikey: SUPABASE_PUBLISHABLE_KEY, select: "*", cartilla_id: `eq.${cartillaId}` });
+  const r = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_anexo_ii_pdf?${params.toString()}`, { headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
+  if (!r.ok) throw new Error(await leerErrorApi(r) || `Supabase respondió ${r.status}`);
+  return (await r.json())[0] || null;
+}
+
+function estadoItemAnexoII(item, resultado, revision) {
+  const rev = revision?.[item.id]?.estado;
+  if (rev === "cumple") return { clase: "cumple", texto: "Cumple (analista)" };
+  if (rev === "observado") return { clase: "observado", texto: "Observado (analista)" };
+  return resultado?.encontrado ? { clase: "encontrado", texto: "Encontrado" } : { clase: "no-encontrado", texto: "No encontrado: revisar" };
+}
+
+function renderAnexoIIPdf(cont, registro) {
+  const e = escaparHtml;
+  const botonSubir = `<button type="button" class="${registro ? "secondary" : "primary"} small" id="btn-anexo-ii-pdf-subir">${registro ? "Reemplazar PDF" : "Subir PDF del Anexo II"}</button>
+    <input type="file" id="anexo-ii-pdf-file" accept="application/pdf,.pdf" hidden>`;
+  if (!registro) {
+    cont.innerHTML = `<div class="anexo-i-pdf-barra">${botonSubir}<span class="anexo-i-pdf-hint">Subí el PDF del Anexo II. El sistema controla los temas que pide la guía de la Res. 2165/21 y busca restricciones que contradicen el PMO.</span></div><p class="form-message" id="anexo-ii-pdf-message"></p>`;
+    return;
+  }
+  const res = registro.resultados || {};
+  const rev = registro.revision || {};
+  const items = res.items || {};
+  const restricciones = res.restricciones || [];
+  const encontrados = ANEXO_II_CHECKLIST.filter(i => items[i.id]?.encontrado).length;
+  const pendientes = ANEXO_II_CHECKLIST.filter(i => estadoItemAnexoII(i, items[i.id], rev).clase === "no-encontrado").length;
+  const restrPendientes = restricciones.filter((r, idx) => !rev[`r${idx}`]?.estado).length;
+  const grupos = [...new Set(ANEXO_II_CHECKLIST.map(i => i.grupo))];
+  const filaItem = item => {
+    const r = items[item.id];
+    const est = estadoItemAnexoII(item, r, rev);
+    const nota = rev[item.id]?.nota || "";
+    return `<div class="anexo-ii-item ${est.clase}" data-anexo-ii-item="${e(item.id)}">
+      <div class="anexo-ii-item-cab">
+        <span class="anexo-ii-estado ${est.clase}">${e(est.texto)}</span>
+        <strong>${e(item.titulo)}</strong>
+        ${r?.encontrado ? `<span class="anexo-ii-pag">pág. ${r.pagina}</span>` : ""}
+        <span class="anexo-ii-acciones">
+          <button type="button" class="link-button" data-anexo-ii-marcar="cumple">Cumple</button>
+          <button type="button" class="link-button" data-anexo-ii-marcar="observado">Observar</button>
+          ${rev[item.id]?.estado ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Deshacer</button>` : ""}
+        </span>
+      </div>
+      ${r?.encontrado ? citaAnexoIIHtml(r.cita) : ""}
+      ${rev[item.id]?.estado === "observado" || nota ? `<textarea class="anexo-ii-nota" rows="2" placeholder="Observación del analista...">${e(nota)}</textarea>` : ""}
+    </div>`;
+  };
+  const filaRestr = (r, idx) => {
+    const regla = ANEXO_II_RESTRICCIONES.find(x => x.id === r.id);
+    const estado = rev[`r${idx}`]?.estado;
+    const clase = estado === "confirmada" ? "observado" : estado === "descartada" ? "cumple" : "posible";
+    const txt = estado === "confirmada" ? "Observación confirmada" : estado === "descartada" ? "Descartada" : "Posible observación";
+    return `<div class="anexo-ii-item ${clase}" data-anexo-ii-item="r${idx}">
+      <div class="anexo-ii-item-cab">
+        <span class="anexo-ii-estado ${clase}">${txt}</span>
+        <strong>${e(regla?.titulo || r.id)}</strong>
+        <span class="anexo-ii-pag">pág. ${r.pagina}</span>
+        <span class="anexo-ii-acciones">
+          <button type="button" class="link-button" data-anexo-ii-marcar="confirmada">Confirmar</button>
+          <button type="button" class="link-button" data-anexo-ii-marcar="descartada">Descartar</button>
+          ${estado ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Deshacer</button>` : ""}
+        </span>
+      </div>
+      ${citaAnexoIIHtml(r.cita)}
+      <p class="anexo-ii-norma">${e(regla?.norma || "")}</p>
+      ${estado === "confirmada" || rev[`r${idx}`]?.nota ? `<textarea class="anexo-ii-nota" rows="2" placeholder="Observación del analista...">${e(rev[`r${idx}`]?.nota || "")}</textarea>` : ""}
+    </div>`;
+  };
+  cont.innerHTML = `
+    <div class="anexo-i-pdf-barra">
+      <a class="secondary small" href="${e(registro.archivo_url || "#")}" target="_blank" rel="noopener">Ver PDF</a>
+      ${botonSubir}
+      <span class="anexo-i-pdf-hint">${e(registro.nombre_archivo || "")} · ${registro.paginas || "?"} páginas · cargado el ${e(formatFechaPantalla(String(registro.cargado_en || "").slice(0, 10)))}</span>
+    </div>
+    <p class="form-message" id="anexo-ii-pdf-message"></p>
+    <div class="anexo-ii-resumen">
+      <span><b>${encontrados}</b> de ${ANEXO_II_CHECKLIST.length} temas encontrados</span>
+      <span class="${pendientes ? "alerta" : ""}"><b>${pendientes}</b> sin encontrar para revisar</span>
+      <span class="${restrPendientes ? "alerta" : ""}"><b>${restricciones.length}</b> ${restricciones.length === 1 ? "posible restricción" : "posibles restricciones"}</span>
+    </div>
+    ${(registro.paginas_sin_texto || []).length ? `<p class="anexo-i-aviso aviso">⚠️ ${registro.paginas_sin_texto.length === 1 ? "La página" : "Las páginas"} ${registro.paginas_sin_texto.join(", ")} casi no ${registro.paginas_sin_texto.length === 1 ? "tiene" : "tienen"} texto: puede ser una imagen (por ejemplo, una tabla de sedes pegada como foto). El sistema no la puede leer; revisala en el PDF.</p>` : ""}
+    ${restricciones.length ? `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4>${restricciones.map(filaRestr).join("")}` : `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`}
+    ${grupos.map(g => `<h4 class="anexo-i-subtitulo">${e(g)}</h4>${ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(filaItem).join("")}`).join("")}`;
+}
+
+async function guardarRevisionAnexoII(cartillaId, revision) {
+  const session = await asegurarSesionVigente();
+  const r = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_anexo_ii_pdf?apikey=${SUPABASE_PUBLISHABLE_KEY}&cartilla_id=eq.${cartillaId}`, {
+    method: "PATCH", headers: { ...authHeaders(session.access_token), "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ revision })
+  }, 10000, fetch);
+  if (!r.ok) throw new Error(await leerErrorApi(r) || `Supabase respondió ${r.status}`);
+}
+
+async function subirAnexoIIPdf(file, cartilla) {
+  const msg = t => setFormMessage("anexo-ii-pdf-message", t);
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { msg("El archivo tiene que ser un PDF."); return; }
+  const boton = document.getElementById("btn-anexo-ii-pdf-subir");
+  if (boton) { boton.disabled = true; boton.textContent = "Leyendo PDF..."; }
+  try {
+    const paginas = await extraerTextoPdfPorPagina(await file.arrayBuffer());
+    if (!paginas.join("").trim()) throw new Error("El PDF no tiene texto legible (parece escaneado). Hay que revisarlo a mano.");
+    const analisis = analizarAnexoII(paginas);
+    if (boton) boton.textContent = "Guardando...";
+    const session = await asegurarSesionVigente();
+    const path = `cartillas/${cartilla.id}/anexo-ii-${Date.now()}.pdf`;
+    const up = await fetchConTimeout(`${SUPABASE_URL}/storage/v1/object/adjuntos/${path}`, {
+      method: "POST", headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/pdf" }, body: file
+    }, 60000, fetch);
+    if (!up.ok) throw new Error("No se pudo guardar el PDF en el almacenamiento.");
+    const anterior = await cargarAnexoIIPdf(cartilla.id).catch(() => null);
+    const fila = {
+      cartilla_id: cartilla.id, nombre_archivo: file.name, archivo_url: `${SUPABASE_URL}/storage/v1/object/public/adjuntos/${path}`,
+      paginas: paginas.length, paginas_sin_texto: analisis.sinTexto,
+      resultados: { items: analisis.items, restricciones: analisis.restricciones }, revision: {}, cargado_en: new Date().toISOString()
+    };
+    const r = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_anexo_ii_pdf?apikey=${SUPABASE_PUBLISHABLE_KEY}&on_conflict=cartilla_id`, {
+      method: "POST", headers: { ...authHeaders(session.access_token), "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(fila)
+    }, 15000, fetch);
+    if (!r.ok) throw new Error(await leerErrorApi(r) || `Supabase respondió ${r.status}`);
+    const pathAnterior = anterior?.archivo_url?.split("/storage/v1/object/public/adjuntos/")[1];
+    if (pathAnterior && pathAnterior !== path) fetch(`${SUPABASE_URL}/storage/v1/object/adjuntos/${pathAnterior}`, { method: "DELETE", headers: authHeaders(session.access_token) }).catch(() => {});
+    mostrarToast("Anexo II cargado y analizado.");
+    await renderAnexoIIRevision(cartilla);
+  } catch (error) {
+    console.error(error);
+    msg(error.message || "No se pudo leer el PDF.");
+  } finally {
+    if (boton) boton.disabled = false;
+  }
+}
+
+async function renderAnexoIIRevision(cartilla) {
+  const cont = document.getElementById("cartilla-revision-anexo-ii-pdf");
+  if (!cont) return null;
+  let registro = null;
+  try { registro = await cargarAnexoIIPdf(cartilla.id); } catch (error) { console.error(error); }
+  renderAnexoIIPdf(cont, registro);
+  const input = document.getElementById("anexo-ii-pdf-file");
+  document.getElementById("btn-anexo-ii-pdf-subir")?.addEventListener("click", () => input?.click());
+  input?.addEventListener("change", () => requiereAutenticacion(() => subirAnexoIIPdf(input.files?.[0], cartilla)));
+  if (registro) {
+    const revision = { ...(registro.revision || {}) };
+    const guardar = async () => {
+      try { await guardarRevisionAnexoII(cartilla.id, revision); }
+      catch (error) { setFormMessage("anexo-ii-pdf-message", error.message || "No se pudo guardar la revisión."); }
+    };
+    cont.querySelectorAll("[data-anexo-ii-marcar]").forEach(btn => btn.addEventListener("click", async () => {
+      const id = btn.closest("[data-anexo-ii-item]").dataset.anexoIiItem;
+      const estado = btn.dataset.anexoIiMarcar;
+      revision[id] = { ...(revision[id] || {}), estado };
+      if (!estado) delete revision[id];
+      await guardar();
+      registro.revision = revision;
+      await renderAnexoIIRevision(cartilla);
+    }));
+    let timer = null;
+    cont.querySelectorAll(".anexo-ii-nota").forEach(ta => ta.addEventListener("input", () => {
+      const id = ta.closest("[data-anexo-ii-item]").dataset.anexoIiItem;
+      revision[id] = { ...(revision[id] || { estado: id.startsWith("r") ? "confirmada" : "observado" }), nota: ta.value };
+      clearTimeout(timer);
+      timer = setTimeout(guardar, 800);
+    }));
+  }
+  const viejo = document.getElementById("anexo-ii-admin-contenido");
+  if (viejo) viejo.hidden = !!registro || !anexoIIAdminDeclaraciones.length;
+  return registro;
+}
+
 async function handleCambioPeriodoCartillaRevision() {
   const periodoSelect = document.getElementById("cartilla-revision-periodo");
   const id = periodoSelect?.value;
@@ -12765,6 +13067,7 @@ async function handleCambioPeriodoCartillaRevision() {
     anexoIIAdminDeclaraciones = respII.ok ? await respII.json() : [];
     renderAnexoIIAdminSeleccionado();
   } catch (error) { console.error(error); }
+  await renderAnexoIIRevision(cartilla);
 
   try {
     const respIV = await fetchConTimeout(buildPmaAnexoIVUrl({ select: "*", cartilla_id: `eq.${cartilla.id}`, limit: "1" }), { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);

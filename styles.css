@@ -2701,3 +2701,24 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-i-texto p{margin:4px 0 0;font-size:13.5px;line-height:1.5;white-space:normal}
 @media (max-width:700px){.anexo-i-encabezado{grid-template-columns:1fr}}
 .jr-c5{background:#8a78b5}
+
+/* Anexo II: checklist de la guía 2165/21 */
+.anexo-ii-resumen{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.anexo-ii-resumen span{padding:5px 12px;border-radius:999px;background:#eef3f8;color:#4d5d70;font-size:12.5px}
+.anexo-ii-resumen span.alerta{background:#fdf1e3;color:#9a5a12}
+.anexo-ii-item{border:1px solid var(--line,#dfe6ee);border-left-width:4px;border-radius:8px;padding:8px 12px;margin:6px 0}
+.anexo-ii-item.encontrado,.anexo-ii-item.cumple{border-left-color:#2f9e74}
+.anexo-ii-item.no-encontrado,.anexo-ii-item.posible{border-left-color:#d9822b}
+.anexo-ii-item.observado{border-left-color:#c0392b}
+.anexo-ii-item-cab{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.anexo-ii-item-cab strong{font-size:13.5px}
+.anexo-ii-pag{font-size:12px;color:var(--muted)}
+.anexo-ii-acciones{margin-left:auto;display:flex;gap:10px}
+.anexo-ii-estado{display:inline-flex;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.anexo-ii-estado.encontrado,.anexo-ii-estado.cumple{background:#e3f3ec;color:#1f6f52}
+.anexo-ii-estado.no-encontrado,.anexo-ii-estado.posible{background:#fdf1e3;color:#9a5a12}
+.anexo-ii-estado.observado{background:#fde8e6;color:#b42318}
+.anexo-ii-cita{margin:6px 0 0;padding:6px 10px;background:rgba(0,0,0,.03);border-radius:6px;font-size:12.5px;line-height:1.5;color:var(--text)}
+.anexo-ii-cita mark{background:#fff1a8;color:inherit;padding:0 2px;border-radius:3px}
+.anexo-ii-norma{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.anexo-ii-nota{width:100%;margin-top:6px;font-size:13px}

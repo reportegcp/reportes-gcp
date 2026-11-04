@@ -370,6 +370,14 @@ html[data-theme="dark"] .anexo-i-estado.supera{background:#1d3e30;color:#7ddebb}
 html[data-theme="dark"] .anexo-i-estado.debajo{background:#391b18;color:#f28f87}
 html[data-theme="dark"] .anexo-i-estado.nd{background:#3b2b19;color:#f2b774}
 html[data-theme="dark"] .anexo-i-texto{background:rgba(28,127,134,0.09)}
+html[data-theme="dark"] .anexo-ii-resumen span{background:#192836;color:#b2bdca}
+html[data-theme="dark"] .anexo-ii-resumen span.alerta{background:#3b2b19;color:#f2b774}
+html[data-theme="dark"] .anexo-ii-item{border:1px solid var(--line,#31455c)}
+html[data-theme="dark"] .anexo-ii-estado.encontrado,html[data-theme="dark"] .anexo-ii-estado.cumple{background:#1d3e30;color:#7ddebb}
+html[data-theme="dark"] .anexo-ii-estado.no-encontrado,html[data-theme="dark"] .anexo-ii-estado.posible{background:#3b2b19;color:#f2b774}
+html[data-theme="dark"] .anexo-ii-estado.observado{background:#391b18;color:#f28f87}
+html[data-theme="dark"] .anexo-ii-cita{background:rgba(0,0,0,0.054)}
+html[data-theme="dark"] .anexo-ii-cita mark{background:#595126}
 /* Estilos inline */
 html[data-theme="dark"] [style*="background:#9aa7b5"]{background:#53606e !important}
 html[data-theme="dark"] [style*="background: #9aa7b5"]{background:#53606e !important}
