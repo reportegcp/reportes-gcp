@@ -9,6 +9,15 @@
 const JU_MOTIVOS = ["Medicación", "Discapacidad", "Prepagas", "Insumos", "PMO", "Internación geriátrica", "Leyes especiales", "Cirugia", "Estudios y prácticas", "Falta de Prestadores", "Fertilidad"];
 const JU_AREAS = ["SAC", "SCEMPF", "GAJ", "GCEF", "SD"];
 const JU_ESTADOS = ["En trámite", "Finalizado", "Devuelto", "Derivado"];
+// Analistas vigentes de Oficios (lista fija; no se sugieren los de otros módulos ni los que ya no están).
+const JU_ANALISTAS = ["AArto", "CDelgado", "GGiambrone", "MAldacourrou", "MMayorga", "MMoreu", "NHerscovich", "SAndiaz"];
+function juOpcionesAnalista(valor) {
+  const actual = String(valor || "");
+  const vigente = JU_ANALISTAS.find(a => a.toLowerCase() === actual.toLowerCase());
+  const extra = actual && !vigente ? `<option value="${escaparHtml(actual)}" selected>${escaparHtml(actual)} (ya no está)</option>` : "";
+  return `<option value="">Sin asignar</option>${extra}` +
+    JU_ANALISTAS.map(a => `<option value="${escaparHtml(a)}" ${a === vigente ? "selected" : ""}>${escaparHtml(a)}</option>`).join("");
+}
 // Finalizado, Devuelto y Derivado son salidas: el oficio deja de estar en trámite y lleva fecha de egreso.
 const juEsSalida = estado => !!estado && estado !== "En trámite";
 const juClaseEstado = e => e === "Finalizado" ? "fin" : (e === "Devuelto" || e === "Derivado") ? "dev" : "tram";
@@ -450,7 +459,7 @@ function juRenderIngresos() {
       <div class="ju-ingreso-grid">
         <label><span>Fecha de ingreso *</span><input type="date" data-campo="fecha_ingreso" value="${escaparHtml(i.fecha_ingreso || "")}" required></label>
         <label><span>Vencimiento</span><input type="date" data-campo="fecha_vencimiento" value="${escaparHtml(i.fecha_vencimiento || "")}"></label>
-        <label><span>Analista</span><input data-campo="analista" list="ju-analistas-datalist" value="${escaparHtml(i.analista || "")}"></label>
+        <label><span>Analista</span><select data-campo="analista">${juOpcionesAnalista(i.analista)}</select></label>
         <label><span>Estado</span><select data-campo="estado">${opciones(JU_ESTADOS, i.estado)}</select></label>
         <label><span>Fecha de egreso</span><input type="date" data-campo="fecha_egreso" value="${escaparHtml(i.fecha_egreso || "")}"></label>
         <label><span>Área de salida</span><select data-campo="area_salida"><option value=""></option>${opciones(JU_AREAS, i.area_salida)}</select></label>
