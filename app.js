@@ -8624,7 +8624,8 @@ function matchearEspecialidadesImportacion(prestadores) {
 
 async function manejarArchivoImportarCartilla(file) {
   if (!file) return;
-  if (!window.XLSX) { mostrarToast("No se pudo cargar el lector de Excel. Recargá la página."); return; }
+  if (document.getElementById("anexo-iii-excel-message")) setFormMessage("anexo-iii-excel-message", "");
+  if (!window.XLSX) { const t = "No se pudo cargar el lector de Excel. Recargá la página (Ctrl+Shift+R)."; if (document.getElementById("anexo-iii-excel-message")) setFormMessage("anexo-iii-excel-message", t); else mostrarToast(t); return; }
   try {
     const buffer = await file.arrayBuffer();
     const workbook = window.XLSX.read(buffer, { type: "array" });
@@ -8639,7 +8640,11 @@ async function manejarArchivoImportarCartilla(file) {
     await renderPreviewImportarCartilla();
     abrirModal("importar-cartilla-modal");
   } catch (error) {
-    mostrarToast(error.message || "No se pudo leer el archivo.");
+    console.error(error);
+    const texto = error.message || "No se pudo leer el archivo.";
+    // En el detalle el error queda escrito debajo del botón (el aviso flotante se va enseguida).
+    if (document.getElementById("anexo-iii-excel-message")) setFormMessage("anexo-iii-excel-message", texto);
+    else mostrarToast(texto);
   } finally {
     document.getElementById("importar-cartilla-file").value = "";
   }
@@ -13481,7 +13486,8 @@ async function renderBarraExcelAnexoIII(cartilla, os) {
       <span class="anexo-i-pdf-hint">${foto
         ? `${e(String(foto.sedes))} sedes · cargado el ${e(formatFechaPantalla(String(foto.cargada_en || "").slice(0, 10)))}`
         : "Subí el Excel que vino en el expediente (Carátula + Anexo III). Se cargan los prestadores y los afiliados por provincia de esta presentación."}</span>
-    </div>`;
+    </div>
+    <p class="form-message" id="anexo-iii-excel-message"></p>`;
   document.getElementById("btn-anexo-iii-excel")?.addEventListener("click", () => requiereAutenticacion(() => {
     importarCartillaDestino = { cartillaId: Number(cartilla.id), obraSocialId: Number(os.id) };
     document.getElementById("importar-cartilla-file")?.click();
