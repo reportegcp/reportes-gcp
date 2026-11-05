@@ -12761,9 +12761,9 @@ const ANEXO_II_CHECKLIST = [
 
 // Restricciones que contradicen el PMO: tema + límite en la misma oración.
 const ANEXO_II_RESTRICCIONES = [
-  { id: "psiquiatria_tope", titulo: "Tope en salud mental / internación psiquiátrica", norma: "Ley 26.657 y Anexo I §4: sin limitaciones en número de sesiones ni días de internación.",
+  { id: "psiquiatria_tope", titulo: "Tope en salud mental / internación psiquiátrica", norma: "Ley 26.657 y Anexo I, punto 4: sin limitaciones en número de sesiones ni días de internación.",
     tema: /psiquiatr|salud mental|adiccion/, limite: /hasta (\d+|un|una|dos|tres)\s*(dias|sesiones|meses)|\d+\s*(dias|sesiones) (por|al|anual)|maximo de \d+|tope/ },
-  { id: "recien_nacido_1_anio", titulo: "Recién nacido / niño cubierto solo hasta el año", norma: "Ley 27.611 y Anexo I §1.1.1: cobertura al 100% hasta los tres (3) años.",
+  { id: "recien_nacido_1_anio", titulo: "Recién nacido / niño cubierto solo hasta el año", norma: "Ley 27.611 y Anexo I, punto 1.1.1: cobertura al 100% hasta los tres (3) años.",
     tema: /recien nacido|nino|infantil|lactante|primer ano de vida/, limite: /hasta (cumplir |cumplido )?(el|un|1) ano|primer ano de vida|hasta el ano de/ }
 ];
 
