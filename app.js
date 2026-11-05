@@ -12908,7 +12908,7 @@ function renderAnexoIIPdf(cont, registro) {
       </div>
       ${r?.encontrado ? citaAnexoIIHtml(r.cita) : ""}
       ${rev[item.id]?.estado === "observado" || nota
-        ? `<label class="anexo-ii-nota-label">Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span></label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación...">${e(nota)}</textarea>`
+        ? `<label class="anexo-ii-nota-label">Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span><button type="button" class="link-button anexo-ii-cerrar-nota">✕ Quitar observación</button></label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación...">${e(nota)}</textarea>`
         : `<button type="button" class="link-button anexo-ii-agregar-nota">+ Agregar observación</button>`}
     </div>`;
   };
@@ -13053,16 +13053,29 @@ async function renderAnexoIIRevision(cartilla) {
       registro.revision = revision;
       await renderAnexoIIRevision(cartilla);
     }));
+    function engancharCerrar(link) {
+      link?.addEventListener("mousedown", ev => ev.preventDefault());
+      link?.addEventListener("click", async () => {
+        const caja = link.closest("[data-anexo-ii-item]");
+        const id = caja.dataset.anexoIiItem;
+        const ta = caja.querySelector(".anexo-ii-nota");
+        if (ta?.value.trim() && !confirm("¿Quitar esta observación?")) return;
+        if (revision[id]) { delete revision[id]; await guardar(); }
+        await renderAnexoIIRevision(cartilla);
+      });
+    }
+    cont.querySelectorAll(".anexo-ii-cerrar-nota").forEach(engancharCerrar);
     cont.querySelectorAll(".anexo-ii-agregar-nota").forEach(btn => btn.addEventListener("click", () => {
       const ta = document.createElement("textarea");
       ta.className = "anexo-ii-nota"; ta.rows = 2; ta.placeholder = "Escribí la observación...";
       const label = document.createElement("label");
-      label.className = "anexo-ii-nota-label"; label.innerHTML = `Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span>`;
+      label.className = "anexo-ii-nota-label"; label.innerHTML = `Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span><button type="button" class="link-button anexo-ii-cerrar-nota">✕ Cerrar</button>`;
       btn.replaceWith(label, ta);
       engancharNota(ta);
+      engancharCerrar(label.querySelector(".anexo-ii-cerrar-nota"));
       ta.focus();
       // Si sale del recuadro sin escribir nada, vuelve el link: no queda nada guardado.
-      ta.addEventListener("blur", () => { if (!ta.value.trim()) { label.remove(); ta.replaceWith(btn); } }, { once: true });
+      ta.addEventListener("blur", () => setTimeout(() => { if (ta.isConnected && !ta.value.trim() && document.activeElement !== ta) { label.remove(); ta.replaceWith(btn); } }, 150));
     }));
     const enganharCopiar = () => document.getElementById("btn-anexo-ii-copiar-obs")?.addEventListener("click", async () => {
       const texto = lineasObservacionesAnexoII({ ...registro, revision }).map((l, i) => `${i + 1}. ${l}`).join("\n");
