@@ -2757,3 +2757,17 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-ii-extra-texto{display:block;width:100%;margin-top:3px;font-size:15px;line-height:1.5;box-sizing:border-box}
 #btn-anexo-ii-agregar-extra{margin:4px 0 6px}
 .anexo-ii-todo-revisado{margin:4px 0 8px;font-size:15px;font-weight:700;color:#2f9e74}
+
+/* Anexo II: secciones colapsables y saltos a pendientes */
+.anexo-ii-seccion{border:1px solid var(--line,#dfe6ee);border-radius:10px;margin:10px 0;background:var(--panel,#fff)}
+.anexo-ii-seccion>summary{cursor:pointer;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;list-style:revert}
+.anexo-ii-seccion-titulo{font-size:17px;font-weight:800}
+.anexo-ii-seccion>summary .n{font-size:14px;color:var(--muted);font-weight:600}
+.anexo-ii-seccion-alerta{padding:3px 10px;border-radius:999px;background:#fdf1e3;color:#9a5a12;font-size:13px;font-weight:700}
+.anexo-ii-seccion-cuerpo{padding:0 14px 12px}
+.anexo-ii-resumen button{border:none;padding:5px 12px;border-radius:999px;font-size:14.5px;cursor:pointer;font-family:inherit}
+.anexo-ii-resumen button.alerta{background:#fdf1e3;color:#9a5a12}
+.anexo-ii-resumen button.alerta:hover{filter:brightness(.95);text-decoration:underline}
+.anexo-i-aviso .link-button{font-size:inherit}
+@keyframes anexoIIResaltar{0%{box-shadow:0 0 0 4px rgba(217,130,43,.55)}100%{box-shadow:0 0 0 0 rgba(217,130,43,0)}}
+.anexo-ii-item.resaltar{animation:anexoIIResaltar 1.6s ease-out}

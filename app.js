@@ -12888,14 +12888,21 @@ function renderAnexoIIPdf(cont, registro) {
   const items = res.items || {};
   const restricciones = res.restricciones || [];
   const encontrados = ANEXO_II_CHECKLIST.filter(i => items[i.id]?.encontrado).length;
-  const pendientes = ANEXO_II_CHECKLIST.filter(i => estadoItemAnexoII(i, items[i.id], rev).clase === "no-encontrado").length;
-  const restrPendientes = restricciones.filter((r, idx) => !rev[`r${idx}`]?.estado).length;
+  const pend = pendientesAnexoII(registro);
+  const pendientes = pend.temas;
+  const restrPendientes = pend.restricciones;
+  const abierta = sec => anexoIISeccionesAbiertas.has(sec) ? "open" : "";
+  const seccion = (sec, titulo, cuenta, alerta, cuerpo) => `<details class="anexo-ii-seccion" data-anexo-ii-seccion="${sec}" ${abierta(sec)}>
+      <summary><span class="anexo-ii-seccion-titulo">${e(titulo)}</span>${cuenta != null ? `<span class="n">${e(String(cuenta))}</span>` : ""}${alerta ? `<span class="anexo-ii-seccion-alerta">${e(alerta)}</span>` : ""}</summary>
+      <div class="anexo-ii-seccion-cuerpo">${cuerpo}</div>
+    </details>`;
   const grupos = [...new Set(ANEXO_II_CHECKLIST.map(i => i.grupo))];
   const filaItem = item => {
     const r = items[item.id];
     const est = estadoItemAnexoII(item, r, rev);
     const nota = rev[item.id]?.nota || "";
-    return `<div class="anexo-ii-item ${est.clase}" data-anexo-ii-item="${e(item.id)}">
+    const esPendiente = !r?.encontrado && !rev[item.id]?.estado && !String(nota).trim();
+    return `<div class="anexo-ii-item ${est.clase}${esPendiente ? " pendiente" : ""}" data-anexo-ii-item="${e(item.id)}">
       <div class="anexo-ii-item-cab">
         <span class="anexo-ii-estado ${est.clase}">${e(est.texto)}</span>
         <strong>${e(item.titulo)}</strong>
@@ -12917,7 +12924,8 @@ function renderAnexoIIPdf(cont, registro) {
     const estado = rev[`r${idx}`]?.estado;
     const clase = estado === "confirmada" ? "observado" : estado === "descartada" ? "cumple" : "posible";
     const txt = estado === "confirmada" ? "Se observa" : estado === "descartada" ? "No es una restricción" : "Para revisar";
-    return `<div class="anexo-ii-item ${clase}" data-anexo-ii-item="r${idx}">
+    const esPendiente = !estado && !String(rev[`r${idx}`]?.nota || "").trim();
+    return `<div class="anexo-ii-item ${clase}${esPendiente ? " pendiente" : ""}" data-anexo-ii-item="r${idx}">
       <div class="anexo-ii-item-cab">
         <span class="anexo-ii-estado ${clase}">${txt}</span>
         <strong>${e(regla?.titulo || r.id)}</strong>
@@ -12942,16 +12950,24 @@ function renderAnexoIIPdf(cont, registro) {
     <p class="form-message" id="anexo-ii-pdf-message"></p>
     <div class="anexo-ii-resumen">
       <span><b>${encontrados}</b> de ${ANEXO_II_CHECKLIST.length} temas encontrados</span>
-      <span class="${pendientes ? "alerta" : ""}"><b>${pendientes}</b> sin encontrar para revisar</span>
-      <span class="${restrPendientes ? "alerta" : ""}"><b>${restricciones.length}</b> ${restricciones.length === 1 ? "posible restricción" : "posibles restricciones"}</span>
+      ${pendientes ? `<button type="button" class="alerta" data-anexo-ii-ir="temas"><b>${pendientes}</b> sin encontrar para revisar →</button>` : `<span>Temas sin encontrar: revisados</span>`}
+      ${restrPendientes ? `<button type="button" class="alerta" data-anexo-ii-ir="restricciones"><b>${restrPendientes}</b> de ${restricciones.length} ${restricciones.length === 1 ? "posible restricción" : "posibles restricciones"} para revisar →</button>` : `<span><b>${restricciones.length}</b> ${restricciones.length === 1 ? "posible restricción" : "posibles restricciones"}${restricciones.length ? ": revisadas" : ""}</span>`}
     </div>
     ${(registro.paginas_sin_texto || []).length ? `<p class="anexo-i-aviso aviso">⚠️ ${registro.paginas_sin_texto.length === 1 ? "La página" : "Las páginas"} ${registro.paginas_sin_texto.join(", ")} casi no ${registro.paginas_sin_texto.length === 1 ? "tiene" : "tienen"} texto: puede ser una imagen (por ejemplo, una tabla de sedes pegada como foto). El sistema no la puede leer; revisala en el PDF.</p>` : ""}
-    ${restricciones.length ? `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">Si corresponde, escribí la observación. Si no, tocá "No es una restricción". Todo se guarda solo.</p>${restricciones.map(filaRestr).join("")}` : `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`}
-    ${grupos.map(g => `<h4 class="anexo-i-subtitulo">${e(g)}</h4>${ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(filaItem).join("")}`).join("")}
-    <h4 class="anexo-i-subtitulo">Otras observaciones del analista</h4>
-    <p class="anexo-i-pdf-hint">Para lo que el sistema no detecta. Podés agregar todas las que necesites.</p>
-    <div id="anexo-ii-extras">${(rev.extras || []).map(x => filaExtraAnexoIIHtml(x)).join("")}</div>
-    <button type="button" class="secondary small" id="btn-anexo-ii-agregar-extra">+ Agregar observación</button>
+    ${seccion("restricciones", "Posibles restricciones al PMO", restricciones.length, restrPendientes ? `${restrPendientes} para revisar` : "",
+      restricciones.length
+        ? `<p class="anexo-i-pdf-hint">Si corresponde, escribí la observación. Si no, tocá "No es una restricción". Todo se guarda solo.</p>${restricciones.map(filaRestr).join("")}`
+        : `<p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`)}
+    ${grupos.map(g => {
+      const delGrupo = ANEXO_II_CHECKLIST.filter(i => i.grupo === g);
+      const pendG = delGrupo.filter(i => !items[i.id]?.encontrado && !rev[i.id]?.estado && !String(rev[i.id]?.nota || "").trim()).length;
+      const encG = delGrupo.filter(i => items[i.id]?.encontrado).length;
+      return seccion(`grupo-${normalizarTexto(g)}`, g, `${encG} de ${delGrupo.length} encontrados`, pendG ? `${pendG} para revisar` : "", delGrupo.map(filaItem).join(""));
+    }).join("")}
+    ${seccion("extras", "Otras observaciones del analista", (rev.extras || []).filter(x => String(x.texto || "").trim()).length || null, "",
+      `<p class="anexo-i-pdf-hint">Para lo que el sistema no detecta. Podés agregar todas las que necesites.</p>
+      <div id="anexo-ii-extras">${(rev.extras || []).map(x => filaExtraAnexoIIHtml(x)).join("")}</div>
+      <button type="button" class="secondary small" id="btn-anexo-ii-agregar-extra">+ Agregar observación</button>`)}
     ${resumenObservacionesAnexoIIHtml(registro)}`;
 }
 
@@ -12976,8 +12992,8 @@ function resumenObservacionesAnexoIIHtml(registro) {
   const lineas = lineasObservacionesAnexoII(registro);
   const p = pendientesAnexoII(registro);
   const partes = [];
-  if (p.restricciones) partes.push(`${p.restricciones} ${p.restricciones === 1 ? "posible restricción" : "posibles restricciones"}`);
-  if (p.temas) partes.push(`${p.temas} ${p.temas === 1 ? "tema no encontrado" : "temas no encontrados"}`);
+  if (p.restricciones) partes.push(`<button type="button" class="link-button" data-anexo-ii-ir="restricciones">${p.restricciones} ${p.restricciones === 1 ? "posible restricción" : "posibles restricciones"}</button>`);
+  if (p.temas) partes.push(`<button type="button" class="link-button" data-anexo-ii-ir="temas">${p.temas} ${p.temas === 1 ? "tema no encontrado" : "temas no encontrados"}</button>`);
   const aviso = partes.length
     ? `<p class="anexo-i-aviso aviso">⚠️ Falta revisar: ${partes.join(" y ")}. Revisalos antes de copiar las observaciones.</p>`
     : `<p class="anexo-ii-todo-revisado">✓ Todo revisado.</p>`;
@@ -13054,6 +13070,22 @@ async function subirAnexoIIPdf(file, cartilla) {
 }
 
 let anexoIIFocoPendiente = null;
+// Secciones del Anexo II abiertas (se mantienen al refrescar). Arranca abierta solo la de restricciones.
+const anexoIISeccionesAbiertas = new Set(["restricciones"]);
+
+function irAPendienteAnexoII(cont, tipo) {
+  const selector = tipo === "restricciones" ? '.anexo-ii-item.pendiente[data-anexo-ii-item^="r"]' : '.anexo-ii-item.pendiente:not([data-anexo-ii-item^="r"])';
+  const destino = cont.querySelector(selector);
+  if (!destino) return;
+  const det = destino.closest("details.anexo-ii-seccion");
+  if (det && !det.open) det.open = true;
+  destino.scrollIntoView({ behavior: "smooth", block: "center" });
+  destino.classList.remove("resaltar");
+  void destino.offsetWidth;
+  destino.classList.add("resaltar");
+  const ta = destino.querySelector("textarea");
+  if (ta) setTimeout(() => ta.focus({ preventScroll: true }), 400);
+}
 
 async function renderAnexoIIRevision(cartilla) {
   const cont = document.getElementById("cartilla-revision-anexo-ii-pdf");
@@ -13061,6 +13093,13 @@ async function renderAnexoIIRevision(cartilla) {
   let registro = null;
   try { registro = await cargarAnexoIIPdf(cartilla.id); } catch (error) { console.error(error); }
   renderAnexoIIPdf(cont, registro);
+  cont.querySelectorAll("details.anexo-ii-seccion").forEach(d => d.addEventListener("toggle", () => {
+    if (d.open) anexoIISeccionesAbiertas.add(d.dataset.anexoIiSeccion); else anexoIISeccionesAbiertas.delete(d.dataset.anexoIiSeccion);
+  }));
+  cont.onclick = ev => {
+    const ir = ev.target.closest("[data-anexo-ii-ir]");
+    if (ir) irAPendienteAnexoII(cont, ir.dataset.anexoIiIr);
+  };
   const input = document.getElementById("anexo-ii-pdf-file");
   document.getElementById("btn-anexo-ii-pdf-subir")?.addEventListener("click", () => input?.click());
   input?.addEventListener("change", () => requiereAutenticacion(() => subirAnexoIIPdf(input.files?.[0], cartilla)));
@@ -13127,6 +13166,7 @@ async function renderAnexoIIRevision(cartilla) {
       const badge = caja.querySelector(".anexo-ii-estado");
       const activo = !!ta.value.trim();
       caja.classList.toggle("observado", activo);
+      caja.classList.toggle("pendiente", !activo && !revision[id]?.estado && (id.startsWith("r") || caja.classList.contains("no-encontrado")));
       badge.className = `anexo-ii-estado ${activo ? "observado" : (id.startsWith("r") ? "posible" : (caja.classList.contains("encontrado") ? "encontrado" : "no-encontrado"))}`;
       badge.textContent = activo ? "Se observa" : (id.startsWith("r") ? "Para revisar" : (caja.classList.contains("encontrado") ? "Encontrado" : "No encontrado: revisar"));
       clearTimeout(timer);
@@ -13173,6 +13213,7 @@ async function renderAnexoIIRevision(cartilla) {
     };
     cont.querySelectorAll("[data-anexo-ii-extra]").forEach(engancharExtra);
     document.getElementById("btn-anexo-ii-agregar-extra")?.addEventListener("click", () => {
+      anexoIISeccionesAbiertas.add("extras");
       const x = { id: Date.now(), texto: "" };
       revision.extras = [...(revision.extras || []), x];
       const tmp = document.createElement("div");
