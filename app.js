@@ -12868,8 +12868,18 @@ async function cargarAnexoIIPdf(cartillaId) {
   return (await r.json())[0] || null;
 }
 
+// Un tema cuenta como encontrado si el sistema lo encontró y el analista no marcó la cita como incorrecta.
+function temaEncontradoAnexoII(id, items, rev) {
+  return !!items?.[id]?.encontrado && !rev?.[id]?.incorrecta;
+}
+function temaPendienteAnexoII(id, items, rev) {
+  const est = rev?.[id]?.estado;
+  return !temaEncontradoAnexoII(id, items, rev) && est !== "cumple" && est !== "observado" && !String(rev?.[id]?.nota || "").trim();
+}
+
 function estadoItemAnexoII(item, resultado, revision) {
   const rev = revision?.[item.id]?.estado;
+  if (revision?.[item.id]?.incorrecta && !rev) return { clase: "no-encontrado", texto: "Mal identificado: revisar" };
   if (rev === "cumple") return { clase: "cumple", texto: "Cumple (verificado)" };
   if (rev === "observado") return { clase: "observado", texto: "Se observa" };
   return resultado?.encontrado ? { clase: "encontrado", texto: "Encontrado" } : { clase: "no-encontrado", texto: "No encontrado: revisar" };
@@ -12887,7 +12897,7 @@ function renderAnexoIIPdf(cont, registro) {
   const rev = registro.revision || {};
   const items = res.items || {};
   const restricciones = res.restricciones || [];
-  const encontrados = ANEXO_II_CHECKLIST.filter(i => items[i.id]?.encontrado).length;
+  const encontrados = ANEXO_II_CHECKLIST.filter(i => temaEncontradoAnexoII(i.id, items, rev)).length;
   const pend = pendientesAnexoII(registro);
   const pendientes = pend.temas;
   const restrPendientes = pend.restricciones;
@@ -12901,19 +12911,26 @@ function renderAnexoIIPdf(cont, registro) {
     const r = items[item.id];
     const est = estadoItemAnexoII(item, r, rev);
     const nota = rev[item.id]?.nota || "";
-    const esPendiente = !r?.encontrado && !rev[item.id]?.estado && !String(nota).trim();
+    const esPendiente = temaPendienteAnexoII(item.id, items, rev);
+    const estadoRev = rev[item.id]?.estado;
+    const incorrecta = !!rev[item.id]?.incorrecta;
+    const muestraCita = r?.encontrado && !incorrecta;
     return `<div class="anexo-ii-item ${est.clase}${esPendiente ? " pendiente" : ""}" data-anexo-ii-item="${e(item.id)}">
       <div class="anexo-ii-item-cab">
         <span class="anexo-ii-estado ${est.clase}">${e(est.texto)}</span>
         <strong>${e(item.titulo)}</strong>
-        ${r?.encontrado ? `<span class="anexo-ii-pag">pág. ${r.pagina}</span>` : ""}
+        ${muestraCita ? `<span class="anexo-ii-pag">pág. ${r.pagina}</span>` : ""}
         <span class="anexo-ii-acciones">
-          ${rev[item.id]?.estado
-            ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Volver a revisar</button>`
-            : (r?.encontrado ? "" : `<button type="button" class="link-button" data-anexo-ii-marcar="cumple" title="Lo encontraste vos en el PDF">Lo encontré: cumple</button>`)}
+          ${incorrecta && !estadoRev
+            ? `<button type="button" class="link-button" data-anexo-ii-marcar="cumple">Lo encontré: cumple</button><button type="button" class="link-button" data-anexo-ii-marcar="">Deshacer</button>`
+            : estadoRev
+              ? `<button type="button" class="link-button" data-anexo-ii-marcar="">Volver a revisar</button>`
+              : (r?.encontrado
+                ? `<button type="button" class="link-button" data-anexo-ii-marcar="cita_incorrecta" title="La frase que muestra el sistema no corresponde a este tema">Mal identificado</button>`
+                : `<button type="button" class="link-button" data-anexo-ii-marcar="cumple" title="Lo encontraste vos en el PDF">Lo encontré: cumple</button>`)}
         </span>
       </div>
-      ${r?.encontrado ? citaAnexoIIHtml(r.cita) : ""}
+      ${muestraCita ? citaAnexoIIHtml(r.cita) : ""}
       ${rev[item.id]?.estado === "observado" || nota
         ? `<label class="anexo-ii-nota-label">Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span><button type="button" class="link-button anexo-ii-cerrar-nota">✕ Quitar observación</button></label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación...">${e(nota)}</textarea>`
         : `<button type="button" class="link-button anexo-ii-agregar-nota">+ Agregar observación</button>`}
@@ -12972,8 +12989,8 @@ function renderAnexoIIPdf(cont, registro) {
         : `<p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`)}
     ${grupos.map(g => {
       const delGrupo = ANEXO_II_CHECKLIST.filter(i => i.grupo === g);
-      const pendG = delGrupo.filter(i => !items[i.id]?.encontrado && !rev[i.id]?.estado && !String(rev[i.id]?.nota || "").trim()).length;
-      const encG = delGrupo.filter(i => items[i.id]?.encontrado).length;
+      const pendG = delGrupo.filter(i => temaPendienteAnexoII(i.id, items, rev)).length;
+      const encG = delGrupo.filter(i => temaEncontradoAnexoII(i.id, items, rev)).length;
       return seccion(`grupo-${normalizarTexto(g)}`, g, `${encG} de ${delGrupo.length} encontrados`, pendG ? `${pendG} para revisar` : "", delGrupo.map(filaItem).join(""));
     }).join("")}
     ${seccion("extras", "Otras observaciones del analista", (rev.extras || []).filter(x => String(x.texto || "").trim()).length || null, "",
@@ -12995,7 +13012,7 @@ function pendientesAnexoII(registro) {
   const rev = registro.revision || {};
   const res = registro.resultados || {};
   const restricciones = (res.restricciones || []).filter((r, idx) => !rev[`r${idx}`]?.estado && !String(rev[`r${idx}`]?.nota || "").trim()).length;
-  const temas = ANEXO_II_CHECKLIST.filter(i => !res.items?.[i.id]?.encontrado && !rev[i.id]?.estado && !String(rev[i.id]?.nota || "").trim()).length;
+  const temas = ANEXO_II_CHECKLIST.filter(i => temaPendienteAnexoII(i.id, res.items, rev)).length;
   return { restricciones, temas };
 }
 
@@ -13124,8 +13141,9 @@ async function renderAnexoIIRevision(cartilla) {
     cont.querySelectorAll("[data-anexo-ii-marcar]").forEach(btn => btn.addEventListener("click", async () => {
       const id = btn.closest("[data-anexo-ii-item]").dataset.anexoIiItem;
       const estado = btn.dataset.anexoIiMarcar;
-      revision[id] = { ...(revision[id] || {}), estado };
-      if (!estado) delete revision[id];
+      if (estado === "cita_incorrecta") revision[id] = { ...(revision[id] || {}), incorrecta: true };
+      else if (!estado) delete revision[id];
+      else revision[id] = { ...(revision[id] || {}), estado };
       if (estado === "observado" || estado === "confirmada") anexoIIFocoPendiente = id;
       await guardar();
       registro.revision = revision;
@@ -13173,7 +13191,7 @@ async function renderAnexoIIRevision(cartilla) {
       const id = ta.closest("[data-anexo-ii-item]").dataset.anexoIiItem;
       const estadoObs = id.startsWith("r") ? "confirmada" : "observado";
       revision[id] = { ...(revision[id] || {}), estado: ta.value.trim() ? estadoObs : (revision[id]?.estado === estadoObs ? "" : revision[id]?.estado || ""), nota: ta.value };
-      if (!revision[id].estado && !revision[id].nota) delete revision[id];
+      if (!revision[id].estado && !revision[id].nota && !revision[id].incorrecta) delete revision[id];
       const caja = ta.closest("[data-anexo-ii-item]");
       const badge = caja.querySelector(".anexo-ii-estado");
       const activo = !!ta.value.trim();
