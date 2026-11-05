@@ -12948,7 +12948,18 @@ function renderAnexoIIPdf(cont, registro) {
     ${(registro.paginas_sin_texto || []).length ? `<p class="anexo-i-aviso aviso">⚠️ ${registro.paginas_sin_texto.length === 1 ? "La página" : "Las páginas"} ${registro.paginas_sin_texto.join(", ")} casi no ${registro.paginas_sin_texto.length === 1 ? "tiene" : "tienen"} texto: puede ser una imagen (por ejemplo, una tabla de sedes pegada como foto). El sistema no la puede leer; revisala en el PDF.</p>` : ""}
     ${restricciones.length ? `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">Si corresponde, escribí la observación. Si no, tocá "No es una restricción". Todo se guarda solo.</p>${restricciones.map(filaRestr).join("")}` : `<h4 class="anexo-i-subtitulo">Posibles restricciones al PMO</h4><p class="anexo-i-pdf-hint">No se detectaron restricciones del catálogo.</p>`}
     ${grupos.map(g => `<h4 class="anexo-i-subtitulo">${e(g)}</h4>${ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(filaItem).join("")}`).join("")}
+    <h4 class="anexo-i-subtitulo">Otras observaciones del analista</h4>
+    <p class="anexo-i-pdf-hint">Para lo que el sistema no detecta. Podés agregar todas las que necesites.</p>
+    <div id="anexo-ii-extras">${(rev.extras || []).map(x => filaExtraAnexoIIHtml(x)).join("")}</div>
+    <button type="button" class="secondary small" id="btn-anexo-ii-agregar-extra">+ Agregar observación</button>
     ${resumenObservacionesAnexoIIHtml(registro)}`;
+}
+
+function filaExtraAnexoIIHtml(x) {
+  return `<div class="anexo-ii-item observado anexo-ii-extra" data-anexo-ii-extra="${escaparHtml(String(x.id))}">
+    <label class="anexo-ii-nota-label">Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span><button type="button" class="link-button anexo-ii-cerrar-nota anexo-ii-quitar-extra">✕ Quitar</button></label>
+    <textarea class="anexo-ii-extra-texto" rows="2" placeholder="Escribí la observación...">${escaparHtml(x.texto || "")}</textarea>
+  </div>`;
 }
 
 // Todas las observaciones del analista juntas, para copiarlas al informe.
@@ -12975,6 +12986,7 @@ function lineasObservacionesAnexoII(registro) {
     const v = rev[item.id];
     if (v?.estado === "observado" || v?.nota) lineas.push(`${item.titulo}: ${v?.nota || "observado"}`);
   });
+  (rev.extras || []).forEach(x => { if (String(x.texto || "").trim()) lineas.push(x.texto.trim()); });
   return lineas;
 }
 
@@ -13111,6 +13123,50 @@ async function renderAnexoIIRevision(cartilla) {
       }, 800);
     }); }
     cont.querySelectorAll(".anexo-ii-nota").forEach(engancharNota);
+    // Observaciones propias del analista (revision.extras)
+    let timerExtra = null;
+    const engancharExtra = fila => {
+      const id = fila.dataset.anexoIiExtra;
+      const ta = fila.querySelector(".anexo-ii-extra-texto");
+      const marca = fila.querySelector(".anexo-ii-guardado");
+      ta.addEventListener("input", () => {
+        const x = (revision.extras || []).find(z => String(z.id) === id);
+        if (x) x.texto = ta.value;
+        if (marca) { marca.hidden = false; marca.textContent = "Guardando..."; }
+        clearTimeout(timerExtra);
+        timerExtra = setTimeout(async () => {
+          const ok = await guardar(); refrescarResumen();
+          if (marca) marca.textContent = ok ? "✓ Guardado" : "⚠ No se pudo guardar";
+        }, 800);
+      });
+      const quitar = fila.querySelector(".anexo-ii-quitar-extra");
+      quitar.addEventListener("mousedown", ev => ev.preventDefault());
+      quitar.addEventListener("click", async () => {
+        if (ta.value.trim() && !confirm("¿Quitar esta observación?")) return;
+        revision.extras = (revision.extras || []).filter(z => String(z.id) !== id);
+        fila.remove();
+        await guardar(); refrescarResumen();
+      });
+      // Vacía y sin foco: se quita sola.
+      ta.addEventListener("blur", () => setTimeout(async () => {
+        if (fila.isConnected && !ta.value.trim() && document.activeElement !== ta) {
+          revision.extras = (revision.extras || []).filter(z => String(z.id) !== id);
+          fila.remove();
+          await guardar();
+        }
+      }, 150));
+    };
+    cont.querySelectorAll("[data-anexo-ii-extra]").forEach(engancharExtra);
+    document.getElementById("btn-anexo-ii-agregar-extra")?.addEventListener("click", () => {
+      const x = { id: Date.now(), texto: "" };
+      revision.extras = [...(revision.extras || []), x];
+      const tmp = document.createElement("div");
+      tmp.innerHTML = filaExtraAnexoIIHtml(x);
+      const fila = tmp.firstElementChild;
+      document.getElementById("anexo-ii-extras").appendChild(fila);
+      engancharExtra(fila);
+      fila.querySelector("textarea").focus();
+    });
     if (anexoIIFocoPendiente) {
       cont.querySelector(`[data-anexo-ii-item="${anexoIIFocoPendiente}"] .anexo-ii-nota`)?.focus();
       anexoIIFocoPendiente = null;
