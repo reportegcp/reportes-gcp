@@ -9579,7 +9579,7 @@ async function handleSeleccionObraSocialAfiliados() {
   // la foto congelada de ese momento, no el dato en vivo (que puede haber cambiado después).
   try {
     const session = await asegurarSesionVigente();
-    const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
+    const params = new URLSearchParams({ select: "id,ejercicio,anio_inicio,fecha_ingreso,condicion,numero_ee", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
     const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
     const todasLasPresentaciones = response.ok ? await response.json() : [];
     const ejercicioVigente = ejercicioCanonico(ejercicioVigenteParaOs(os));
@@ -12496,7 +12496,7 @@ async function handleSeleccionObraSocialCartillaRevision() {
   }
   try {
     const session = await asegurarSesionVigente();
-    const params = new URLSearchParams({ select: "id,ejercicio,fecha_ingreso,condicion", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
+    const params = new URLSearchParams({ select: "id,ejercicio,anio_inicio,fecha_ingreso,condicion,numero_ee", obra_social_id: `eq.${os.id}`, order: "fecha_ingreso.desc", apikey: SUPABASE_PUBLISHABLE_KEY });
     const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
     const todasLasPresentaciones = response.ok ? await response.json() : [];
     // El auditor revisa el período vigente y el inmediatamente anterior: las presentaciones más
@@ -13263,6 +13263,206 @@ async function renderAnexoIIRevision(cartilla) {
   return registro;
 }
 
+// ---------- Informes de la presentación (Word) ----------
+// "Informe de observaciones": para la Obra Social, solo lo observado.
+// "Análisis completo": interno, con lo que cumple, lo observado y lo descartado.
+// Se arman en el navegador con docx-js (UMD) y se descargan como .docx.
+
+const DOCX_URL = "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js";
+let docxCargando = null;
+function cargarDocxJs() {
+  if (window.docx?.Document) return Promise.resolve(window.docx);
+  if (!docxCargando) docxCargando = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = DOCX_URL;
+    s.onload = () => resolve(window.docx);
+    s.onerror = () => { docxCargando = null; reject(new Error("No se pudo cargar el generador de Word. Revisá la conexión y probá de nuevo.")); };
+    document.head.appendChild(s);
+  });
+  return docxCargando;
+}
+
+function observacionesAnexoIInforme(registro, os, cartilla) {
+  if (!registro) return [];
+  const obs = controlesEncabezadoAnexoI(registro, os, cartilla).map(a => a.texto);
+  ANEXO_I_PDF_VALORES.forEach(v => {
+    const crudo = registro.valores?.[v.clave] || "";
+    const n = numeroValorAnexoI(crudo);
+    if (n == null) obs.push(`Punto ${v.seccion} (${v.etiqueta}): no se pudo leer el valor declarado.`);
+    else if (n < v.minimo) obs.push(`Punto ${v.seccion} (${v.etiqueta}): declara ${crudo}, por debajo del mínimo del PMO (${v.minimo}${v.unidad}).`);
+  });
+  return obs;
+}
+
+function textoEstadoTemaAnexoII(item, items, rev) {
+  const r = items?.[item.id];
+  const v = rev?.[item.id] || {};
+  if (v.estado === "observado" || String(v.nota || "").trim()) return "Se observa";
+  if (v.estado === "cumple") return "Cumple (verificado por el analista)";
+  if (v.incorrecta) return "Mal identificado, sin revisar";
+  return r?.encontrado ? `Encontrado (pág. ${r.pagina})` : "No encontrado, sin revisar";
+}
+
+async function datosInformeCartilla(cartilla, os) {
+  const [anexoI, anexoII] = await Promise.all([
+    cargarAnexoIPdf(cartilla.id).catch(() => null),
+    cargarAnexoIIPdf(cartilla.id).catch(() => null)
+  ]);
+  const identidad = getSessionIdentity(authSession);
+  return { cartilla, os, anexoI, anexoII, analista: identidad?.nombre || "", hoy: new Date() };
+}
+
+function construirInformeDocx(D, datos, completo) {
+  const { Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, AlignmentType, HeadingLevel, LevelFormat } = D;
+  const { cartilla, os, anexoI, anexoII, analista, hoy } = datos;
+  const ANCHO = 9638; // A4 con márgenes de 2 cm (DXA)
+  const borde = { style: BorderStyle.SINGLE, size: 4, color: "BFC8D2" };
+  const bordes = { top: borde, bottom: borde, left: borde, right: borde };
+  // Los subtítulos (en negrita) quedan pegados a lo que sigue, para que no queden solos al pie de página.
+  const p = (texto, opts = {}) => { const { run, ...resto } = opts; return new Paragraph({ spacing: { after: 120 }, keepNext: !!run?.bold, ...resto, children: [new TextRun({ text: String(texto ?? ""), ...(run || {}) })] }); };
+  const h = (texto, nivel = HeadingLevel.HEADING_2) => new Paragraph({ heading: nivel, keepNext: true, spacing: { before: 280, after: 120 }, children: [new TextRun(texto)] });
+  const celda = (texto, ancho, { bold = false, fondo = null } = {}) => new TableCell({
+    borders: bordes, width: { size: ancho, type: WidthType.DXA },
+    shading: fondo ? { fill: fondo, type: ShadingType.CLEAR, color: "auto" } : undefined,
+    margins: { top: 60, bottom: 60, left: 100, right: 100 },
+    children: String(texto ?? "").split("\n").map(l => new Paragraph({ children: [new TextRun({ text: l, bold, size: 20 })] }))
+  });
+  const tabla = (anchos, encabezados, filas) => new Table({
+    width: { size: anchos.reduce((a, b) => a + b, 0), type: WidthType.DXA }, columnWidths: anchos,
+    rows: [
+      new TableRow({ tableHeader: true, children: encabezados.map((t, i) => celda(t, anchos[i], { bold: true, fondo: "E8EEF4" })) }),
+      ...filas.map(f => new TableRow({ children: f.map((t, i) => celda(t, anchos[i])) }))
+    ]
+  });
+  const lista = (ref, textos) => textos.map(t => new Paragraph({ numbering: { reference: ref, level: 0 }, spacing: { after: 100 }, children: [new TextRun(String(t))] }));
+  const fecha = hoy.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const datosTabla = tabla([3000, ANCHO - 3000], ["Dato", "Detalle"], [
+    ["Obra Social", os?.denominacion || ""],
+    ["RNAS", os?.rnos || ""],
+    ["Ejercicio", cartilla?.ejercicio || ""],
+    ["Expediente", cartilla?.numero_ee || "—"],
+    ["Fecha de ingreso", formatFechaPantalla(cartilla?.fecha_ingreso) || "—"],
+    ["Fecha del informe", fecha],
+    ...(completo ? [["Analista", analista || "—"]] : [])
+  ]);
+
+  const hijos = [
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: "CARTILLA PRESTACIONAL", bold: true, size: 30 })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240 }, children: [new TextRun({ text: completo ? "Análisis completo (uso interno)" : "Informe de observaciones", size: 26 })] }),
+    datosTabla
+  ];
+  const numeraciones = [];
+  const nuevaLista = ref => { numeraciones.push({ reference: ref, levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 540, hanging: 360 } } } }] }); return ref; };
+
+  // ----- Anexo I -----
+  const obsI = observacionesAnexoIInforme(anexoI, os, cartilla);
+  // ----- Anexo II -----
+  const obsII = anexoII ? lineasObservacionesAnexoII(anexoII) : [];
+
+  if (!completo) {
+    hijos.push(p("De la revisión de la Cartilla Prestacional presentada surgen las siguientes observaciones:", { spacing: { before: 240, after: 120 } }));
+    hijos.push(h("Anexo I"));
+    hijos.push(...(obsI.length ? lista(nuevaLista("obsI"), obsI) : [p("Sin observaciones.")]));
+    hijos.push(h("Anexo II"));
+    hijos.push(...(obsII.length ? lista(nuevaLista("obsII"), obsII) : [p("Sin observaciones.")]));
+  } else {
+    // Anexo I completo
+    hijos.push(h("Anexo I"));
+    if (!anexoI) hijos.push(p("No se cargó el PDF del Anexo I."));
+    else {
+      hijos.push(p(`Archivo: ${anexoI.nombre_archivo || ""}. Encabezado del PDF: RNAS ${anexoI.rnas_pdf || "—"}, período ${anexoI.periodo_pdf || "—"}, entidad ${anexoI.entidad_pdf || "—"}.`));
+      hijos.push(tabla([900, 4138, 1400, 1400, 1800], ["Punto", "Cobertura", "Mínimo PMO", "Declarado", "Resultado"], ANEXO_I_PDF_VALORES.map(v => {
+        const crudo = anexoI.valores?.[v.clave] || "";
+        const n = numeroValorAnexoI(crudo);
+        const resultado = n == null ? "No se pudo leer" : n > v.minimo ? "Supera el PMO" : n === v.minimo ? "Cumple PMO" : "Por debajo del PMO";
+        return [v.seccion, v.etiqueta, `${v.minimo}${v.unidad}`, crudo || "—", resultado];
+      })));
+      const textos = Object.entries(anexoI.textos || {});
+      hijos.push(p("Aclaraciones de la Obra Social:", { spacing: { before: 200, after: 80 }, run: { bold: true } }));
+      if (textos.length) hijos.push(tabla([3000, ANCHO - 3000], ["Sección", "Texto"], textos));
+      else hijos.push(p("No escribió aclaraciones: adhiere al texto del Anexo I."));
+      hijos.push(p("Observaciones:", { spacing: { before: 200, after: 80 }, run: { bold: true } }));
+      hijos.push(...(obsI.length ? lista(nuevaLista("obsIc"), obsI) : [p("Sin observaciones.")]));
+    }
+    // Anexo II completo
+    hijos.push(h("Anexo II"));
+    if (!anexoII) hijos.push(p("No se cargó el PDF del Anexo II."));
+    else {
+      const rev = anexoII.revision || {};
+      const res = anexoII.resultados || {};
+      const pend = pendientesAnexoII(anexoII);
+      hijos.push(p(`Archivo: ${anexoII.nombre_archivo || ""} (${anexoII.paginas || "?"} páginas).${(anexoII.paginas_sin_texto || []).length ? ` Páginas sin texto (imagen), revisadas a mano: ${anexoII.paginas_sin_texto.join(", ")}.` : ""}`));
+      if (pend.restricciones || pend.temas) hijos.push(p(`Atención: quedan sin revisar ${pend.restricciones} posibles restricciones y ${pend.temas} temas no encontrados.`, { run: { bold: true, color: "9A5A12" } }));
+      hijos.push(p("Posibles restricciones al PMO detectadas por el sistema:", { spacing: { before: 200, after: 80 }, run: { bold: true } }));
+      const restr = res.restricciones || [];
+      if (restr.length) hijos.push(tabla([2300, 700, 3238, 1400, 2000], ["Tema", "Pág.", "Texto del PDF", "Resultado", "Observación"], restr.map((r, idx) => {
+        const v = rev[`r${idx}`] || {};
+        const regla = ANEXO_II_RESTRICCIONES.find(x => x.id === r.id);
+        const resultado = v.estado === "descartada" ? "No es una restricción" : (v.estado === "confirmada" || String(v.nota || "").trim()) ? "Se observa" : "Sin revisar";
+        const cita = `…${r.cita?.antes || ""}${r.cita?.match || ""}${r.cita?.despues || ""}…`.replace(/[\uE000-\uF8FF\uFFFD]/g, "");
+        return [regla?.titulo || r.id, String(r.pagina), cita, resultado, v.nota || ""];
+      })));
+      else hijos.push(p("No se detectaron restricciones del catálogo."));
+      const grupos = [...new Set(ANEXO_II_CHECKLIST.map(i => i.grupo))];
+      grupos.forEach(g => {
+        hijos.push(p(`Checklist de la guía Res. 2165/21: ${g}`, { spacing: { before: 200, after: 80 }, run: { bold: true } }));
+        hijos.push(tabla([4300, 2600, 2738], ["Tema", "Resultado", "Observación"], ANEXO_II_CHECKLIST.filter(i => i.grupo === g).map(i => [i.titulo, textoEstadoTemaAnexoII(i, res.items, rev), rev[i.id]?.nota || ""])));
+      });
+      const extras = (rev.extras || []).map(x => String(x.texto || "").trim()).filter(Boolean);
+      hijos.push(p("Otras observaciones del analista:", { spacing: { before: 200, after: 80 }, run: { bold: true } }));
+      hijos.push(...(extras.length ? lista(nuevaLista("extras"), extras) : [p("Ninguna.")]));
+      hijos.push(p("Observaciones del Anexo II (las que van a la Obra Social):", { spacing: { before: 200, after: 80 }, run: { bold: true } }));
+      hijos.push(...(obsII.length ? lista(nuevaLista("obsIIc"), obsII) : [p("Sin observaciones.")]));
+    }
+    hijos.push(h("Anexos III y IV"));
+    hijos.push(p("Todavía no se analizan en el sistema."));
+  }
+  if (!completo && analista) hijos.push(p(`Analista: ${analista}`, { spacing: { before: 480 } }));
+
+  return new Document({
+    creator: "GCP · Sistema de Reportes",
+    title: completo ? "Análisis completo de Cartilla" : "Informe de observaciones de Cartilla",
+    styles: {
+      default: { document: { run: { font: "Arial", size: 22 } } },
+      paragraphStyles: [
+        { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { size: 26, bold: true, font: "Arial", color: "1C4E63" }, paragraph: { spacing: { before: 280, after: 120 }, outlineLevel: 1 } }
+      ]
+    },
+    numbering: { config: numeraciones.length ? numeraciones : [{ reference: "vacia", levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT }] }] },
+    sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } }, children: hijos }]
+  });
+}
+
+async function generarInformeCartilla(completo) {
+  const cartilla = cartillaRevisionPeriodos.find(p => String(p.id) === String(document.getElementById("cartilla-revision-periodo")?.value)) || cartillaRevisionPeriodos[0];
+  const os = cartillaRevisionObraSocialActual;
+  if (!cartilla || !os) return;
+  const boton = document.getElementById(completo ? "btn-informe-completo" : "btn-informe-observaciones");
+  const textoOriginal = boton?.textContent;
+  try {
+    if (boton) { boton.disabled = true; boton.textContent = "Generando..."; }
+    const [D, datos] = await Promise.all([cargarDocxJs(), datosInformeCartilla(cartilla, os)]);
+    if (!completo && datos.anexoII) {
+      const pend = pendientesAnexoII(datos.anexoII);
+      if ((pend.restricciones || pend.temas) && !confirm(`En el Anexo II falta revisar ${pend.restricciones} posibles restricciones y ${pend.temas} temas. ¿Generar el informe igual?`)) return;
+    }
+    const doc = construirInformeDocx(D, datos, completo);
+    const blob = await D.Packer.toBlob(doc);
+    const nombre = `${completo ? "Analisis_completo" : "Observaciones"}_Cartilla_${String(os.rnos || "").replace(/\D/g, "")}_${String(cartilla.ejercicio || "").replace(/\W+/g, "-")}.docx`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (error) {
+    console.error(error);
+    mostrarToast(error.message || "No se pudo generar el informe.", "error");
+  } finally {
+    if (boton) { boton.disabled = false; boton.textContent = textoOriginal; }
+  }
+}
+
 async function handleCambioPeriodoCartillaRevision() {
   const periodoSelect = document.getElementById("cartilla-revision-periodo");
   const id = periodoSelect?.value;
@@ -13270,8 +13470,14 @@ async function handleCambioPeriodoCartillaRevision() {
   const resumen = document.getElementById("cartilla-revision-resumen");
   if (!cartilla || !cartillaRevisionObraSocialActual) return;
   if (resumen) {
-    resumen.innerHTML = `<span class="stat-pill-inline ok">Cartilla ${escaparHtml(cartilla.ejercicio || "")} · ${escaparHtml(cartilla.condicion || "—")} · presentada el ${escaparHtml(formatFechaPantalla(cartilla.fecha_ingreso))}</span> <button type="button" class="link-button" id="btn-cartilla-revision-editar-condicion">Editar condición / expediente →</button>`;
+    resumen.innerHTML = `<span class="stat-pill-inline ok">Cartilla ${escaparHtml(cartilla.ejercicio || "")} · ${escaparHtml(cartilla.condicion || "—")} · presentada el ${escaparHtml(formatFechaPantalla(cartilla.fecha_ingreso))}</span> <button type="button" class="link-button" id="btn-cartilla-revision-editar-condicion">Editar condición / expediente →</button>
+      <span class="cartilla-informes">
+        <button type="button" class="primary small" id="btn-informe-observaciones" title="Para la Obra Social: solo lo observado">Informe de observaciones (Word)</button>
+        <button type="button" class="secondary small" id="btn-informe-completo" title="Interno: lo que cumple, lo observado y lo descartado">Análisis completo (Word)</button>
+      </span>`;
     document.getElementById("btn-cartilla-revision-editar-condicion")?.addEventListener("click", () => showView("cartillas"));
+    document.getElementById("btn-informe-observaciones")?.addEventListener("click", () => requiereAutenticacion(() => generarInformeCartilla(false)));
+    document.getElementById("btn-informe-completo")?.addEventListener("click", () => requiereAutenticacion(() => generarInformeCartilla(true)));
   }
 
   const session = await asegurarSesionVigente();

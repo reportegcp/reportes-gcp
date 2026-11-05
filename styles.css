@@ -2778,3 +2778,4 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-ii-seccion[open]>summary::before{transform:rotate(90deg)}
 .anexo-ii-descartada{padding:6px 14px;opacity:.85}
 .anexo-ii-descartada-titulo{font-size:15px;color:var(--muted);text-decoration:line-through}
+.cartilla-informes{display:inline-flex;gap:8px;margin-left:12px;vertical-align:middle;flex-wrap:wrap}
