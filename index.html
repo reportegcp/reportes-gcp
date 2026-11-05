@@ -13,8 +13,8 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=155">
-  <link rel="stylesheet" href="dark.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=156">
+  <link rel="stylesheet" href="dark.css?v=21">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 1242</span>
+        <span>Versión 243</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -428,10 +428,15 @@
             <summary style="padding:12px 20px;cursor:pointer;font-weight:800">Anexo III (Prestadores)</summary>
             <div style="padding:0 20px 16px">
               <div id="cartilla-revision-anexo-iii-excel"></div>
+              <div class="anexo-iii-filtros">
+                <select id="anexo-iii-filtro-provincia"><option value="">Todas las provincias</option></select>
+                <select id="anexo-iii-filtro-especialidad"><option value="">Todas las especialidades</option></select>
+                <input id="anexo-iii-buscar" type="search" placeholder="Buscar prestador, CUIT, partido, localidad o domicilio...">
+              </div>
               <div class="table-meta"><strong id="cartilla-revision-prestadores-count">—</strong></div>
               <div class="table-scroll">
-                <table class="data-table">
-                  <thead><tr><th>Prestador</th><th>CUIT</th><th>Tipos</th><th>Especialidades</th><th>Adulto/Ped.</th><th>Localidad</th><th>Contratación</th><th>Contrato</th><th>Estado</th></tr></thead>
+                <table class="data-table anexo-iii-tabla">
+                  <thead><tr><th>Prestador</th><th>Tipo y especialidades</th><th>Provincia</th><th>Partido / Depto.</th><th>Localidad</th><th>Domicilio</th><th>Adulto/Ped.</th></tr></thead>
                   <tbody id="cartilla-revision-prestadores-table-body"></tbody>
                 </table>
               </div>
@@ -3242,7 +3247,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=132"></script>
+  <script src="app.js?v=133"></script>
   <script src="juridico.js?v=8"></script>
   <script src="auditorias.js?v=41"></script>
   <script src="usuarios.js?v=8"></script>

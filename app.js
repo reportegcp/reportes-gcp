@@ -8633,6 +8633,9 @@ async function manejarArchivoImportarCartilla(file) {
     const prestadoresRaw = parsearAnexoIIICartilla(workbook);
     if (!caratula || !caratula.rnas) throw new Error("No encontré la Carátula (RNAS) en el Excel. ¿Es el archivo correcto?");
     if (!prestadoresRaw) throw new Error("No encontré la hoja del Anexo III (con la columna 'Nombre completo del prestador').");
+    // Sin la taxonomía cargada no se reconoce ninguna especialidad (pasaba al importar desde Cartilla).
+    await cargarTaxonomiaPrestador();
+    if (!especialidadesPrestadorCache.length) throw new Error("No se pudo cargar la lista de especialidades del sistema. Recargá la página y probá de nuevo.");
     const rnasNormalizado = caratula.rnas.replace(/\D/g, "");
     const os = obrasSociales.find(o => (o.rnos || "").replace(/\D/g, "").replace(/^0+/, "") === rnasNormalizado.replace(/^0+/, ""));
     const matcheo = matchearEspecialidadesImportacion(prestadoresRaw);
@@ -8750,7 +8753,9 @@ function renderAvisosImportarCartilla() {
   }
   avisos.innerHTML = avisosHtml;
   const confirmar = document.getElementById("importar-cartilla-confirmar");
-  if (confirmar) confirmar.disabled = !os || !elegida || osNoCoincide;
+  const sinEspecialidades = matcheo.paresTotal > 0 && matcheo.paresOk === 0;
+  if (sinEspecialidades) avisos.innerHTML = `<p class="notificaciones-hint">⛔ <b>No se reconoció ninguna especialidad.</b> Revisá que las columnas Tipo y Especialidad del Anexo III usen los nombres del nomenclador.</p>` + avisos.innerHTML;
+  if (confirmar) confirmar.disabled = !os || !elegida || osNoCoincide || sinEspecialidades;
 }
 
 // "Tipo: esp1, esp2; Tipo2: esp3", el mismo formato que usa la foto de la presentación.
@@ -13474,6 +13479,82 @@ async function generarInformeCartilla(completo) {
   }
 }
 
+// Anexo III en el detalle: todas las sedes con tipo, especialidades y ubicación completa,
+// con filtros por provincia, especialidad y texto (se muestran hasta 500 filas a la vez).
+const anexoIIIRevisionEstado = { filas: [] };
+
+async function renderAnexoIIIRevision(cartillaId) {
+  try { await cargarTaxonomiaPrestador(); } catch (error) { console.error(error); }
+  const session = await asegurarSesionVigente();
+  const filas = [];
+  for (let offset = 0; ; offset += 1000) {
+    const params = new URLSearchParams({ select: "nombre_completo,cuit,provincia,partido,localidad,domicilio,telefono,email,adulto_pediatrico,especialidad_ids,tipos_y_especialidades", cartilla_id: `eq.${cartillaId}`, order: "provincia.asc,localidad.asc,nombre_completo.asc,id.asc", limit: "1000", offset: String(offset), apikey: SUPABASE_PUBLISHABLE_KEY });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { headers: authHeaders(session.access_token), cache: "no-store" }, 20000, fetch);
+    const lote = response.ok ? await response.json() : [];
+    filas.push(...lote);
+    if (lote.length < 1000) break;
+  }
+  anexoIIIRevisionEstado.filas = filas;
+  const selProv = document.getElementById("anexo-iii-filtro-provincia");
+  const selEsp = document.getElementById("anexo-iii-filtro-especialidad");
+  if (selProv) {
+    const provs = [...new Set(filas.map(f => f.provincia).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    selProv.innerHTML = `<option value="">Todas las provincias</option>` + provs.map(p => `<option value="${escaparHtml(p)}">${escaparHtml(p)}</option>`).join("");
+  }
+  if (selEsp) {
+    const usadas = new Set(filas.flatMap(f => f.especialidad_ids || []));
+    const opciones = especialidadesPrestadorCache.filter(e => usadas.has(e.id)).map(e => ({ id: e.id, txt: nombreEspecialidadComparacion(e.id) })).sort((a, b) => a.txt.localeCompare(b.txt));
+    selEsp.innerHTML = `<option value="">Todas las especialidades</option>` + opciones.map(o => `<option value="${o.id}">${escaparHtml(o.txt)}</option>`).join("");
+  }
+  const buscar = document.getElementById("anexo-iii-buscar");
+  if (buscar) buscar.value = "";
+  pintarAnexoIIIRevision();
+}
+
+function especialidadesAgrupadasHtml(ids) {
+  const porTipo = new Map();
+  (ids || []).forEach(id => {
+    const e = especialidadesPrestadorCache.find(x => x.id === id);
+    if (!e) return;
+    const t = tiposPrestadorCache.find(x => x.id === e.tipo_prestador_id)?.nombre || "Otros";
+    if (!porTipo.has(t)) porTipo.set(t, []);
+    porTipo.get(t).push(e.nombre);
+  });
+  return [...porTipo.entries()].map(([t, es]) => `<div><b>${escaparHtml(t)}:</b> ${escaparHtml(es.join(", "))}</div>`).join("");
+}
+
+function pintarAnexoIIIRevision() {
+  const filas = anexoIIIRevisionEstado.filas;
+  const prov = document.getElementById("anexo-iii-filtro-provincia")?.value || "";
+  const esp = document.getElementById("anexo-iii-filtro-especialidad")?.value || "";
+  const q = normalizarTexto(document.getElementById("anexo-iii-buscar")?.value || "");
+  const filtradas = filas.filter(f =>
+    (!prov || f.provincia === prov) &&
+    (!esp || (f.especialidad_ids || []).includes(esp)) &&
+    (!q || [f.nombre_completo, f.cuit, f.localidad, f.partido, f.domicilio].some(v => normalizarTexto(v || "").includes(q))));
+  const MAX = 500;
+  const body = document.getElementById("cartilla-revision-prestadores-table-body");
+  const count = document.getElementById("cartilla-revision-prestadores-count");
+  const empty = document.getElementById("cartilla-revision-prestadores-empty");
+  const e = escaparHtml;
+  if (count) count.textContent = filas.length
+    ? `${fmtNum(filtradas.length)} ${filtradas.length === 1 ? "sede" : "sedes"}${filtradas.length !== filas.length ? ` de ${fmtNum(filas.length)}` : ""}${filtradas.length > MAX ? ` · se muestran las primeras ${MAX}: usá los filtros para acotar` : ""}`
+    : "Sin prestadores";
+  if (empty) {
+    empty.hidden = filtradas.length !== 0;
+    empty.textContent = filas.length ? "Ninguna sede coincide con los filtros." : "Todavía no se cargó el Excel del Anexo III de esta presentación.";
+  }
+  if (body) body.innerHTML = filtradas.slice(0, MAX).map(f => `<tr>
+      <td><strong>${e(f.nombre_completo || "—")}</strong><div class="anexo-iii-sub">${e(f.cuit || "")}</div></td>
+      <td class="anexo-iii-esp">${especialidadesAgrupadasHtml(f.especialidad_ids) || `<span class="anexo-iii-sub">${e(f.tipos_y_especialidades || "—")}</span>`}</td>
+      <td>${e(f.provincia || "—")}</td>
+      <td>${e(f.partido || "—")}</td>
+      <td>${e(f.localidad || "—")}</td>
+      <td>${e(f.domicilio || "—")}${f.telefono ? `<div class="anexo-iii-sub">${e(f.telefono)}</div>` : ""}</td>
+      <td>${e(f.adulto_pediatrico || "—")}</td>
+    </tr>`).join("");
+}
+
 // Anexo III: el Excel (Carátula + Anexo III) se sube desde el detalle de la presentación.
 async function renderBarraExcelAnexoIII(cartilla, os) {
   const cont = document.getElementById("cartilla-revision-anexo-iii-excel");
@@ -13515,7 +13596,7 @@ async function handleCambioPeriodoCartillaRevision() {
   const os = cartillaRevisionObraSocialActual;
 
   await renderAfiliadosSnapshotCartillaRevision(cartilla.id);
-  await renderPrestadoresDesdeSnapshot(cartilla.id, "cartilla-revision-prestadores");
+  await renderAnexoIIIRevision(cartilla.id);
   await renderBarraExcelAnexoIII(cartilla, os);
 
   try {
@@ -14708,6 +14789,8 @@ async function initBrowser() {
   document.getElementById("btn-guardar-anexo-i-admin")?.addEventListener("click", () => requiereAutenticacion(guardarCambiosAnexoIAdmin));
   document.getElementById("btn-export-prestadores")?.addEventListener("click", exportarPrestadoresExcel);
   document.getElementById("cartilla-listado-buscar")?.addEventListener("input", renderListadoCartillas);
+  ["anexo-iii-filtro-provincia", "anexo-iii-filtro-especialidad"].forEach(id => document.getElementById(id)?.addEventListener("change", pintarAnexoIIIRevision));
+  document.getElementById("anexo-iii-buscar")?.addEventListener("input", pintarAnexoIIIRevision);
   document.getElementById("cartilla-listado-periodo")?.addEventListener("change", renderListadoCartillas);
   document.querySelectorAll("[data-cartilla-listado-filtro]").forEach(btn => btn.addEventListener("click", () => {
     cartillaListadoEstado.filtro = btn.dataset.cartillaListadoFiltro;
