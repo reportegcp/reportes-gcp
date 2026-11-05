@@ -13061,6 +13061,8 @@ async function renderAnexoIIRevision(cartilla) {
       btn.replaceWith(label, ta);
       engancharNota(ta);
       ta.focus();
+      // Si sale del recuadro sin escribir nada, vuelve el link: no queda nada guardado.
+      ta.addEventListener("blur", () => { if (!ta.value.trim()) { label.remove(); ta.replaceWith(btn); } }, { once: true });
     }));
     const enganharCopiar = () => document.getElementById("btn-anexo-ii-copiar-obs")?.addEventListener("click", async () => {
       const texto = lineasObservacionesAnexoII({ ...registro, revision }).map((l, i) => `${i + 1}. ${l}`).join("\n");
