@@ -8791,7 +8791,8 @@ async function confirmarImportarCartilla() {
     cerrarModal("importar-cartilla-modal");
     mostrarToast(`Cartilla ${elegida.ejercicio || ""} de ${getObraSocialDisplay(os)} importada: ${resultado.prestadores} sedes.${resultado.red_actualizada ? "" : " La red actual no cambió (ejercicio anterior)."}`);
     importarCartillaDestino = null;
-    await refrescarListadoCartillas();
+    if (!document.getElementById("cartilla-detalle")?.hidden) await handleCambioPeriodoCartillaRevision();
+    refrescarListadoCartillas();
   } catch (error) {
     setFormMessage("importar-cartilla-message", error.message || "No se pudo completar la importación.");
   } finally {
@@ -9794,16 +9795,23 @@ function resumenSnapshotTexto(texto) {
 
 async function renderPrestadoresDesdeSnapshot(cartillaId, prefix = "prestadores") {
   const session = await asegurarSesionVigente();
-  const params = new URLSearchParams({ select: "*", cartilla_id: `eq.${cartillaId}`, order: "nombre_completo.asc", apikey: SUPABASE_PUBLISHABLE_KEY });
-  const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 10000, fetch);
-  const filas = response.ok ? await response.json() : [];
+  const filas = [];
+  for (let offset = 0; ; offset += 1000) {
+    const params = new URLSearchParams({ select: "*", cartilla_id: `eq.${cartillaId}`, order: "nombre_completo.asc,id.asc", limit: "1000", offset: String(offset), apikey: SUPABASE_PUBLISHABLE_KEY });
+    const response = await fetchConTimeout(`${SUPABASE_URL}/rest/v1/cartillas_prestadores_snapshot?${params.toString()}`, { method: "GET", headers: authHeaders(session.access_token), cache: "no-store" }, 15000, fetch);
+    const lote = response.ok ? await response.json() : [];
+    filas.push(...lote);
+    if (lote.length < 1000) break;
+  }
   const body = document.getElementById(`${prefix}-table-body`);
   const count = document.getElementById(`${prefix}-count`);
   const empty = document.getElementById(`${prefix}-empty`);
   if (count) count.textContent = `${filas.length} ${filas.length === 1 ? "prestador presentado" : "prestadores presentados"} en esta Cartilla`;
   if (empty) {
     empty.hidden = filas.length !== 0;
-    empty.textContent = "Esta presentación (la foto tomada al momento de enviarla) no tenía prestadores cargados.";
+    empty.textContent = prefix === "cartilla-revision-prestadores"
+      ? "Todavía no se cargó el Excel del Anexo III de esta presentación."
+      : "Esta presentación (la foto tomada al momento de enviarla) no tenía prestadores cargados.";
   }
   if (body) body.innerHTML = filas.map(p => {
     const resumen = resumenSnapshotTexto(p.tipos_y_especialidades);
@@ -12415,7 +12423,6 @@ function renderListadoCartillas() {
       <td>${e(c.numero_ee || "—")}</td>
       <td>${e(c.condicion || "—")}</td>
       <td>${excel}</td>
-      <td class="acciones"><button type="button" class="${foto ? "secondary" : "primary"} small" data-cartilla-cargar-excel="${e(String(c.id))}">${foto ? "Reemplazar Excel" : "Cargar Excel"}</button></td>
     </tr>`;
   }).join("");
   const count = document.getElementById("cartilla-listado-count");
@@ -13463,6 +13470,25 @@ async function generarInformeCartilla(completo) {
   }
 }
 
+// Anexo III: el Excel (Carátula + Anexo III) se sube desde el detalle de la presentación.
+async function renderBarraExcelAnexoIII(cartilla, os) {
+  const cont = document.getElementById("cartilla-revision-anexo-iii-excel");
+  if (!cont) return;
+  let foto = null;
+  try { foto = (await cargarCartillasConFoto()).find(f => Number(f.cartilla_id) === Number(cartilla.id)) || null; } catch (error) { console.error(error); }
+  const e = escaparHtml;
+  cont.innerHTML = `<div class="anexo-i-pdf-barra">
+      <button type="button" class="${foto ? "secondary" : "primary"} small" id="btn-anexo-iii-excel">${foto ? "Reemplazar Excel" : "Subir Excel del Anexo III"}</button>
+      <span class="anexo-i-pdf-hint">${foto
+        ? `${e(String(foto.sedes))} sedes · cargado el ${e(formatFechaPantalla(String(foto.cargada_en || "").slice(0, 10)))}`
+        : "Subí el Excel que vino en el expediente (Carátula + Anexo III). Se cargan los prestadores y los afiliados por provincia de esta presentación."}</span>
+    </div>`;
+  document.getElementById("btn-anexo-iii-excel")?.addEventListener("click", () => requiereAutenticacion(() => {
+    importarCartillaDestino = { cartillaId: Number(cartilla.id), obraSocialId: Number(os.id) };
+    document.getElementById("importar-cartilla-file")?.click();
+  }));
+}
+
 async function handleCambioPeriodoCartillaRevision() {
   const periodoSelect = document.getElementById("cartilla-revision-periodo");
   const id = periodoSelect?.value;
@@ -13485,6 +13511,7 @@ async function handleCambioPeriodoCartillaRevision() {
 
   await renderAfiliadosSnapshotCartillaRevision(cartilla.id);
   await renderPrestadoresDesdeSnapshot(cartilla.id, "cartilla-revision-prestadores");
+  await renderBarraExcelAnexoIII(cartilla, os);
 
   try {
     // Anexo I: el PDF del expediente. Si no hay PDF pero la OS lo había cargado en el portal
