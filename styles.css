@@ -2752,3 +2752,4 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-ii-nota{font-size:15px;line-height:1.5}
 .anexo-ii-agregar-nota{font-size:14px}
 .anexo-ii-resumen-obs{font-size:15.5px}
+.anexo-ii-guardado{font-weight:600;color:#2f9e74;margin-left:8px}
