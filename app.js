@@ -12422,7 +12422,6 @@ function renderListadoCartillas() {
       <td>${e(formatFechaPantalla(c.fecha_ingreso))}</td>
       <td>${e(c.numero_ee || "—")}</td>
       <td>${e(c.condicion || "—")}</td>
-      <td>${excel}</td>
     </tr>`;
   }).join("");
   const count = document.getElementById("cartilla-listado-count");

@@ -13,8 +13,8 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=153">
-  <link rel="stylesheet" href="dark.css?v=18">
+  <link rel="stylesheet" href="styles.css?v=154">
+  <link rel="stylesheet" href="dark.css?v=19">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 240</span>
+        <span>Versión 241</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -382,16 +382,12 @@
               <option value="anterior">Período anterior</option>
             </select>
           </div>
-          <div class="report-tabs cartilla-listado-tabs">
-            <button class="report-tab active" type="button" data-cartilla-listado-filtro="todas">Todas</button>
-            <button class="report-tab" type="button" data-cartilla-listado-filtro="falta">Falta cargar Excel</button>
-            <button class="report-tab" type="button" data-cartilla-listado-filtro="con">Con Excel</button>
-          </div>
+          
           <div class="table-card">
             <div class="table-meta"><strong id="cartilla-listado-count">Cargando presentaciones...</strong></div>
             <div class="table-scroll">
               <table class="data-table cartilla-listado-table">
-                <thead><tr><th>RNAS</th><th>Obra Social</th><th>Ejercicio</th><th>Ingreso</th><th>Expediente</th><th>Condición</th><th>Excel</th></tr></thead>
+                <thead><tr><th>RNAS</th><th>Obra Social</th><th>Ejercicio</th><th>Ingreso</th><th>Expediente</th><th>Condición</th></tr></thead>
                 <tbody id="cartilla-listado-body"></tbody>
               </table>
             </div>
@@ -3246,7 +3242,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=129"></script>
+  <script src="app.js?v=130"></script>
   <script src="juridico.js?v=8"></script>
   <script src="auditorias.js?v=41"></script>
   <script src="usuarios.js?v=8"></script>
