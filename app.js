@@ -12963,11 +12963,26 @@ function filaExtraAnexoIIHtml(x) {
 }
 
 // Todas las observaciones del analista juntas, para copiarlas al informe.
+function pendientesAnexoII(registro) {
+  const rev = registro.revision || {};
+  const res = registro.resultados || {};
+  const restricciones = (res.restricciones || []).filter((r, idx) => !rev[`r${idx}`]?.estado && !String(rev[`r${idx}`]?.nota || "").trim()).length;
+  const temas = ANEXO_II_CHECKLIST.filter(i => !res.items?.[i.id]?.encontrado && !rev[i.id]?.estado && !String(rev[i.id]?.nota || "").trim()).length;
+  return { restricciones, temas };
+}
+
 function resumenObservacionesAnexoIIHtml(registro) {
   const e = escaparHtml;
   const lineas = lineasObservacionesAnexoII(registro);
-  if (!lineas.length) return `<h4 class="anexo-i-subtitulo">Observaciones del Anexo II</h4><div id="anexo-ii-resumen-obs-box"><p class="anexo-i-pdf-hint">Todavía no hay observaciones confirmadas. Las que confirmes o escribas aparecen acá, juntas, para copiarlas al informe.</p></div>`;
-  return `<h4 class="anexo-i-subtitulo">Observaciones del Anexo II</h4><div id="anexo-ii-resumen-obs-box"><ol class="anexo-ii-resumen-obs">${lineas.map(l => `<li>${e(l)}</li>`).join("")}</ol>
+  const p = pendientesAnexoII(registro);
+  const partes = [];
+  if (p.restricciones) partes.push(`${p.restricciones} ${p.restricciones === 1 ? "posible restricción" : "posibles restricciones"}`);
+  if (p.temas) partes.push(`${p.temas} ${p.temas === 1 ? "tema no encontrado" : "temas no encontrados"}`);
+  const aviso = partes.length
+    ? `<p class="anexo-i-aviso aviso">⚠️ Falta revisar: ${partes.join(" y ")}. Revisalos antes de copiar las observaciones.</p>`
+    : `<p class="anexo-ii-todo-revisado">✓ Todo revisado.</p>`;
+  if (!lineas.length) return `<h4 class="anexo-i-subtitulo">Observaciones del Anexo II</h4><div id="anexo-ii-resumen-obs-box">${aviso}<p class="anexo-i-pdf-hint">Todavía no hay observaciones. Las que escribas aparecen acá, juntas, para copiarlas al informe.</p></div>`;
+  return `<h4 class="anexo-i-subtitulo">Observaciones del Anexo II</h4><div id="anexo-ii-resumen-obs-box">${aviso}<ol class="anexo-ii-resumen-obs">${lineas.map(l => `<li>${e(l)}</li>`).join("")}</ol>
     <button type="button" class="secondary small" id="btn-anexo-ii-copiar-obs">Copiar observaciones</button></div>`;
 }
 

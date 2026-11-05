@@ -2756,3 +2756,4 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-ii-nota-label .anexo-ii-cerrar-nota{float:right;font-size:13.5px;color:var(--muted)}
 .anexo-ii-extra-texto{display:block;width:100%;margin-top:3px;font-size:15px;line-height:1.5;box-sizing:border-box}
 #btn-anexo-ii-agregar-extra{margin:4px 0 6px}
+.anexo-ii-todo-revisado{margin:4px 0 8px;font-size:15px;font-weight:700;color:#2f9e74}

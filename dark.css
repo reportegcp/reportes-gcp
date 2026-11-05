@@ -379,6 +379,7 @@ html[data-theme="dark"] .anexo-ii-estado.observado{background:#391b18;color:#f28
 html[data-theme="dark"] .anexo-ii-cita{background:rgba(0,0,0,0.054)}
 html[data-theme="dark"] .anexo-ii-cita mark{background:#595126}
 html[data-theme="dark"] .anexo-ii-guardado{color:#97e3c6}
+html[data-theme="dark"] .anexo-ii-todo-revisado{color:#97e3c6}
 /* Estilos inline */
 html[data-theme="dark"] [style*="background:#9aa7b5"]{background:#53606e !important}
 html[data-theme="dark"] [style*="background: #9aa7b5"]{background:#53606e !important}
