@@ -12925,6 +12925,18 @@ function renderAnexoIIPdf(cont, registro) {
     const clase = estado === "confirmada" ? "observado" : estado === "descartada" ? "cumple" : "posible";
     const txt = estado === "confirmada" ? "Se observa" : estado === "descartada" ? "No es una restricción" : "Para revisar";
     const esPendiente = !estado && !String(rev[`r${idx}`]?.nota || "").trim();
+    const notaR = String(rev[`r${idx}`]?.nota || "");
+    // Descartada: una sola línea, sin cita ni recuadro.
+    if (estado === "descartada" && !notaR.trim()) {
+      return `<div class="anexo-ii-item cumple anexo-ii-descartada" data-anexo-ii-item="r${idx}">
+        <div class="anexo-ii-item-cab">
+          <span class="anexo-ii-estado cumple">No es una restricción</span>
+          <span class="anexo-ii-descartada-titulo">${e(regla?.titulo || r.id)}</span>
+          <span class="anexo-ii-pag">pág. ${r.pagina}</span>
+          <span class="anexo-ii-acciones"><button type="button" class="link-button" data-anexo-ii-marcar="">Volver a revisar</button></span>
+        </div>
+      </div>`;
+    }
     return `<div class="anexo-ii-item ${clase}${esPendiente ? " pendiente" : ""}" data-anexo-ii-item="r${idx}">
       <div class="anexo-ii-item-cab">
         <span class="anexo-ii-estado ${clase}">${txt}</span>
@@ -12938,7 +12950,7 @@ function renderAnexoIIPdf(cont, registro) {
       </div>
       ${citaAnexoIIHtml(r.cita)}
       <p class="anexo-ii-norma">${e(regla?.norma || "")}</p>
-      ${estado === "descartada" && !rev[`r${idx}`]?.nota ? "" : `<label class="anexo-ii-nota-label">Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span></label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación...">${e(rev[`r${idx}`]?.nota || "")}</textarea>`}
+      ${estado === "descartada" && !rev[`r${idx}`]?.nota ? "" : `<label class="anexo-ii-nota-label">Observación <span class="anexo-ii-guardado" hidden>✓ Guardado</span>${notaR.trim() ? `<button type="button" class="link-button anexo-ii-cerrar-nota">✕ Borrar observación</button>` : ""}</label><textarea class="anexo-ii-nota" rows="2" placeholder="Escribí la observación...">${e(notaR)}</textarea>`}
     </div>`;
   };
   cont.innerHTML = `
@@ -13070,8 +13082,8 @@ async function subirAnexoIIPdf(file, cartilla) {
 }
 
 let anexoIIFocoPendiente = null;
-// Secciones del Anexo II abiertas (se mantienen al refrescar). Arranca abierta solo la de restricciones.
-const anexoIISeccionesAbiertas = new Set(["restricciones"]);
+// Secciones del Anexo II abiertas (se mantienen al refrescar). Arrancan todas cerradas.
+const anexoIISeccionesAbiertas = new Set();
 
 function irAPendienteAnexoII(cont, tipo) {
   const selector = tipo === "restricciones" ? '.anexo-ii-item.pendiente[data-anexo-ii-item^="r"]' : '.anexo-ii-item.pendiente:not([data-anexo-ii-item^="r"])';
@@ -13125,7 +13137,7 @@ async function renderAnexoIIRevision(cartilla) {
         const caja = link.closest("[data-anexo-ii-item]");
         const id = caja.dataset.anexoIiItem;
         const ta = caja.querySelector(".anexo-ii-nota");
-        if (ta?.value.trim() && !confirm("¿Quitar esta observación?")) return;
+        if (ta?.value.trim() && !confirm("¿Borrar esta observación?")) return;
         if (revision[id]) { delete revision[id]; await guardar(); }
         await renderAnexoIIRevision(cartilla);
       });

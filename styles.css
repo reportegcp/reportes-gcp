@@ -2771,3 +2771,10 @@ body:has(#au-detalle:not([hidden])) .topbar p{font-size:12.5px;margin-top:2px}
 .anexo-i-aviso .link-button{font-size:inherit}
 @keyframes anexoIIResaltar{0%{box-shadow:0 0 0 4px rgba(217,130,43,.55)}100%{box-shadow:0 0 0 0 rgba(217,130,43,0)}}
 .anexo-ii-item.resaltar{animation:anexoIIResaltar 1.6s ease-out}
+
+.anexo-ii-seccion>summary{list-style:none}
+.anexo-ii-seccion>summary::-webkit-details-marker{display:none}
+.anexo-ii-seccion>summary::before{content:"▸";font-size:16px;color:var(--muted);width:14px;display:inline-block;transition:transform .15s}
+.anexo-ii-seccion[open]>summary::before{transform:rotate(90deg)}
+.anexo-ii-descartada{padding:6px 14px;opacity:.85}
+.anexo-ii-descartada-titulo{font-size:15px;color:var(--muted);text-decoration:line-through}
