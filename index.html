@@ -13,8 +13,8 @@
   <meta name="apple-mobile-web-app-title" content="Reportes GCP">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <script>try{if(localStorage.getItem("gcp-tema")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}</script>
-  <link rel="stylesheet" href="styles.css?v=157">
-  <link rel="stylesheet" href="dark.css?v=22">
+  <link rel="stylesheet" href="styles.css?v=158">
+  <link rel="stylesheet" href="dark.css?v=23">
 </head>
 <body>
   <section class="login-gate" id="login-gate">
@@ -179,7 +179,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <span>Versión 245</span>
+        <span>Versión 246</span>
         <small>GCP · 2026</small>
       </div>
     </aside>
@@ -2847,12 +2847,12 @@
         <div class="form-section" data-section="px-datos">
           <button type="button" class="form-section-toggle"><span>Preexistencia</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
           <div class="form-section-body">
-            <div class="form-grid">
-              <label><span>Nº EX</span><input id="preexistencia-numero-ex" type="text" required></label>
-              <label><span>Estado</span>
+            <div class="px-fila">
+              <label class="px-crece"><span>Nº EX</span><input id="preexistencia-numero-ex" type="text" required></label>
+              <label class="px-s"><span>Fecha de ingreso</span><input id="preexistencia-fecha-ingreso" type="date" required></label>
+              <label class="px-m"><span>Estado</span>
                 <input id="preexistencia-estado" type="text" readonly value="Inicial" title="Se calcula solo según los datos del circuito">
               </label>
-              <label><span>Fecha de ingreso</span><input id="preexistencia-fecha-ingreso" type="date" required></label>
             </div>
           </div>
         </div>
@@ -2861,59 +2861,38 @@
           <button type="button" class="form-section-toggle"><span>Circuito del expediente</span><span class="form-section-chevron" aria-hidden="true">⌄</span></button>
           <div class="form-section-body">
             <h3 class="px-paso-titulo">1. Clasificación (carátula)</h3>
-            <div class="form-grid">
-              <label><span>Resultado de la clasificación</span>
+            <div class="px-fila">
+              <label class="px-m"><span>Resultado de la clasificación</span>
                 <select id="preexistencia-clasificacion"><option value="">Sin clasificar</option><option value="No corresponde">No corresponde</option><option value="Para notificar">Para notificar</option></select>
               </label>
-              <label data-px-paso="causa"><span>Causa</span>
+              <label class="px-m" data-px-paso="causa"><span>Causa</span>
                 <select id="preexistencia-causa"><option value="">Elegir causa...</option><option>DDJJ limpia</option><option>Presentación fuera de término</option><option>No es preexistencia</option><option>Judicializado</option></select>
               </label>
-              <label class="full"><span>Observaciones</span><textarea id="preexistencia-observaciones" rows="2"></textarea></label>
+              <label class="px-crece"><span>Observaciones</span><textarea id="preexistencia-observaciones" rows="1"></textarea></label>
             </div>
 
             <div data-px-paso="notificacion">
               <h3 class="px-paso-titulo">2. Notificación</h3>
-              <div class="form-grid">
-                <label><span>Fecha de notificación</span><input id="preexistencia-fecha-notificacion" type="date"></label>
-                <label><span>Vence el plazo (3 días hábiles)</span><input id="preexistencia-vencimiento" type="text" readonly placeholder="Se calcula al cargar la notificación"></label>
-                <label class="full"><span>Resultado</span>
+              <div class="px-fila">
+                <label class="px-s"><span>Fecha de notificación</span><input id="preexistencia-fecha-notificacion" type="date"></label>
+                <label class="px-s"><span>Vence (3 días hábiles)</span><input id="preexistencia-vencimiento" type="text" readonly placeholder="—"></label>
+                <label class="px-m"><span>Resultado</span>
                   <select id="preexistencia-resultado"><option value="">Esperando respuesta</option><option>Responde afirmativamente</option><option>Se vence el plazo</option><option>Desiste</option></select>
                 </label>
-              </div>
-            </div>
-
-            <div data-px-paso="archivo">
-              <h3 class="px-paso-titulo">Archivo</h3>
-              <div class="form-grid">
-                <label><span>Fecha de giro al archivo</span><input id="preexistencia-fecha-archivo" type="date"></label>
+                <label class="px-s" data-px-paso="archivo"><span>Fecha de giro al archivo</span><input id="preexistencia-fecha-archivo" type="date"></label>
               </div>
             </div>
 
             <div data-px-paso="asignacion">
-              <h3 class="px-paso-titulo">3. Asignación</h3>
-              <div class="form-grid">
-                <label><span>Analista</span>
-                  <div style="display:flex;gap:8px">
-                    <select id="preexistencia-analista" style="flex:1"><option value="">Sin asignar</option></select>
-                    <button type="button" class="secondary" id="preexistencia-analista-agregar" style="white-space:nowrap">+ Analista</button>
-                  </div>
+              <h3 class="px-paso-titulo">3. Asignación y seguimiento</h3>
+              <div class="px-fila">
+                <label class="px-m"><span>Analista <a href="#" class="px-link" id="preexistencia-analista-agregar">+ Nuevo</a></span>
+                  <select id="preexistencia-analista"><option value="">Sin asignar</option></select>
                 </label>
-                <label><span>Fecha de asignación</span><input id="preexistencia-fecha-asignacion" type="date"></label>
-              </div>
-            </div>
-
-            <div data-px-paso="costeo">
-              <h3 class="px-paso-titulo">4. Costeo</h3>
-              <div class="form-grid">
-                <label><span>Fecha de envío a costeo</span><input id="preexistencia-fecha-costeo" type="date"></label>
-              </div>
-            </div>
-
-            <div data-px-paso="disposicion">
-              <h3 class="px-paso-titulo">5. Disposición</h3>
-              <div class="form-grid">
-                <label><span>Nº de disposición</span><input id="preexistencia-numero-disposicion" type="text"></label>
-                <label><span>Fecha de la disposición</span><input id="preexistencia-fecha-disposicion" type="date"></label>
+                <label class="px-s"><span>Fecha de asignación</span><input id="preexistencia-fecha-asignacion" type="date"></label>
+                <label class="px-s" data-px-paso="costeo"><span>Envío a costeo</span><input id="preexistencia-fecha-costeo" type="date"></label>
+                <label class="px-s" data-px-paso="disposicion"><span>Nº de disposición</span><input id="preexistencia-numero-disposicion" type="text"></label>
+                <label class="px-s" data-px-paso="disposicion"><span>Fecha de disposición</span><input id="preexistencia-fecha-disposicion" type="date"></label>
               </div>
             </div>
           </div>
@@ -2930,9 +2909,11 @@
                 </div>
                 <datalist id="preexistencia-emp-datalist"></datalist>
               </label>
-              <label><span>Nombre y apellido del afiliado</span><input id="preexistencia-nombre-afiliado" type="text"></label>
-              <label><span>DNI / CUIT</span><input id="preexistencia-dni-afiliado" type="text"></label>
-              <label class="full"><span>Patología (preexistencia)</span><select id="preexistencia-patologia"><option value="">Elegir patología...</option></select></label>
+            </div>
+            <div class="px-fila">
+              <label class="px-crece"><span>Nombre y apellido del afiliado</span><input id="preexistencia-nombre-afiliado" type="text"></label>
+              <label class="px-s"><span>DNI / CUIT</span><input id="preexistencia-dni-afiliado" type="text"></label>
+              <label class="px-crece"><span>Patología <a href="#" class="px-link" id="preexistencia-patologia-nueva">+ Nueva</a></span><select id="preexistencia-patologia"><option value="">Elegir patología...</option></select></label>
             </div>
           </div>
         </div>
@@ -3312,7 +3293,7 @@
   <div class="toast" id="toast" hidden></div>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
-  <script src="app.js?v=135"></script>
+  <script src="app.js?v=136"></script>
   <script src="juridico.js?v=8"></script>
   <script src="auditorias.js?v=41"></script>
   <script src="usuarios.js?v=8"></script>

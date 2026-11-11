@@ -3336,9 +3336,14 @@ function resetFormularioPxPatologia() {
   setFormMessage("px-patologia-form-message");
 }
 
-async function abrirModalNuevaPxPatologia() {
+let pxPatologiaDesdePreexistencia = false;
+
+async function abrirModalNuevaPxPatologia(desdePreexistencia = false) {
   await asegurarPxPlantillasCargadas();
   resetFormularioPxPatologia();
+  // Abierto desde la ficha de un expediente: se muestra encima y, al guardar, queda elegida en la ficha.
+  pxPatologiaDesdePreexistencia = desdePreexistencia === true;
+  document.getElementById("px-patologia-modal").style.zIndex = pxPatologiaDesdePreexistencia ? "1100" : "";
   document.getElementById("px-patologia-modal-title").textContent = "Nueva patología";
   abrirModal("px-patologia-modal");
   setTimeout(() => document.getElementById("px-patologia-nombre")?.focus(), 0);
@@ -3388,10 +3393,17 @@ async function handlePxPatologiaSubmit(event) {
     }, 10000);
     if (!response.ok) throw new Error((await leerErrorApi(response)) || `Supabase respondió ${response.status}.`);
 
+    const [guardada] = await response.json().catch(() => []);
     cerrarModal("px-patologia-modal");
     mostrarToast(editando ? "Patología actualizada." : "Patología creada.");
     pxPatologiasCargadas = false;
     await cargarYRenderizarPxPatologias();
+    if (pxPatologiaDesdePreexistencia && !editando) {
+      pxPatologiaDesdePreexistencia = false;
+      poblarSelectPxPatologias();
+      const select = document.getElementById("preexistencia-patologia");
+      if (select && guardada?.id) { select.value = String(guardada.id); select.dispatchEvent(new Event("change")); }
+    }
   } catch (error) {
     const mensaje = /duplicate|unique|23505/i.test(error.message || "") ? "Ya existe una patología con ese nombre." : (error.message || "No se pudo guardar la patología.");
     setFormMessage("px-patologia-form-message", mensaje);
@@ -3988,6 +4000,8 @@ function resetFormularioPreexistencia() {
   renderProfesionalesPxSubform();
   document.getElementById("preexistencia-fecha-ingreso").value = isoLocal(new Date());
   pxEstadoGuardado = { estado: "Inicial", legado: false };
+  const linkPatologia = document.getElementById("preexistencia-patologia-nueva");
+  if (linkPatologia) linkPatologia.hidden = !!document.querySelector('[data-view="px-patologias"]')?.hidden;
   poblarSelectPxAnalistas();
   actualizarCircuitoPx();
   poblarSelectPxPatologias();
@@ -14889,7 +14903,7 @@ async function initBrowser() {
   });
 
   document.getElementById("px-patologia-search")?.addEventListener("input", renderPxPatologias);
-  document.getElementById("btn-nueva-px-patologia")?.addEventListener("click", () => requiereAutenticacion(abrirModalNuevaPxPatologia));
+  document.getElementById("btn-nueva-px-patologia")?.addEventListener("click", () => requiereAutenticacion(() => abrirModalNuevaPxPatologia(false)));
   document.getElementById("px-patologia-modal-close")?.addEventListener("click", () => cerrarModal("px-patologia-modal"));
   document.getElementById("px-patologia-cancelar")?.addEventListener("click", () => cerrarModal("px-patologia-modal"));
   document.getElementById("px-patologia-form")?.addEventListener("submit", handlePxPatologiaSubmit);
@@ -14913,7 +14927,8 @@ async function initBrowser() {
     const fecha = document.getElementById("preexistencia-fecha-asignacion");
     if (fecha && document.getElementById("preexistencia-analista").value && !fecha.value) { fecha.value = isoLocal(new Date()); actualizarCircuitoPx(); }
   });
-  document.getElementById("preexistencia-analista-agregar")?.addEventListener("click", () => requiereAutenticacion(agregarPxAnalista));
+  document.getElementById("preexistencia-analista-agregar")?.addEventListener("click", event => { event.preventDefault(); requiereAutenticacion(agregarPxAnalista); });
+  document.getElementById("preexistencia-patologia-nueva")?.addEventListener("click", event => { event.preventDefault(); requiereAutenticacion(() => abrirModalNuevaPxPatologia(true)); });
   document.getElementById("btn-importar-preexistencias")?.addEventListener("click", () => requiereAutenticacion(() => document.getElementById("importar-preexistencias-file").click()));
   document.getElementById("importar-preexistencias-file")?.addEventListener("change", event => {
     const archivo = event.target.files?.[0];

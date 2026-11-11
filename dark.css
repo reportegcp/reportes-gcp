@@ -383,7 +383,8 @@ html[data-theme="dark"] .anexo-ii-todo-revisado{color:#97e3c6}
 html[data-theme="dark"] .anexo-ii-seccion{border:1px solid var(--line,#31455c);background:var(--panel,#181f25)}
 html[data-theme="dark"] .anexo-ii-seccion-alerta{background:#3b2b19;color:#f2b774}
 html[data-theme="dark"] .anexo-ii-resumen button.alerta{background:#3b2b19;color:#f2b774}
-html[data-theme="dark"] .px-paso-titulo{color:#b2bdca}
+html[data-theme="dark"] .px-fila label>span{color:#b2bdca}
+html[data-theme="dark"] .px-fila input,html[data-theme="dark"] .px-fila select,html[data-theme="dark"] .px-fila textarea{background:#181f25}
 html[data-theme="dark"] .px-estado{background:#1f2934;color:#b7bfcc}
 html[data-theme="dark"] .px-estado.inicial{background:#3b2f19;color:#efbb6d}
 html[data-theme="dark"] .px-estado.curso{background:#1c3243;color:#71e0ea}
