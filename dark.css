@@ -383,6 +383,14 @@ html[data-theme="dark"] .anexo-ii-todo-revisado{color:#97e3c6}
 html[data-theme="dark"] .anexo-ii-seccion{border:1px solid var(--line,#31455c);background:var(--panel,#181f25)}
 html[data-theme="dark"] .anexo-ii-seccion-alerta{background:#3b2b19;color:#f2b774}
 html[data-theme="dark"] .anexo-ii-resumen button.alerta{background:#3b2b19;color:#f2b774}
+html[data-theme="dark"] .px-paso-titulo{color:#b2bdca}
+html[data-theme="dark"] .px-estado{background:#1f2934;color:#b7bfcc}
+html[data-theme="dark"] .px-estado.inicial{background:#3b2f19;color:#efbb6d}
+html[data-theme="dark"] .px-estado.curso{background:#1c3243;color:#71e0ea}
+html[data-theme="dark"] .px-estado.fin{background:#1c3e2f;color:#80dabb}
+html[data-theme="dark"] .px-estado.no-corresponde{background:#3b1e25;color:#da96a3}
+html[data-theme="dark"] .px-seguimiento.vencido{color:#f28f87}
+html[data-theme="dark"] .px-seguimiento.por-vencer{color:#f3b77c}
 /* Estilos inline */
 html[data-theme="dark"] [style*="background:#9aa7b5"]{background:#53606e !important}
 html[data-theme="dark"] [style*="background: #9aa7b5"]{background:#53606e !important}

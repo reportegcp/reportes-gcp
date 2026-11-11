@@ -14,7 +14,7 @@ const TABLERO_TARJETAS = [
   { id: "pma-estado", modulo: "Presentaciones", tema: "pma", titulo: "PMA", detalle: `Ingresados en ${TB_ANIO}, por condición`, vista: "pma" },
   { id: "cartillas-estado", modulo: "Presentaciones", tema: "cartilla", titulo: "Cartillas", detalle: `Ingresadas en ${TB_ANIO}, por condición`, vista: "cartillas" },
   { id: "up", modulo: "Urgencias Prestacionales", titulo: "Urgencias Prestacionales", detalle: "Abiertos, vencidos y tiempo de resolución", vista: "up-reportes", alt: ["up-expedientes"] },
-  { id: "px", modulo: "Preexistencias", titulo: "Preexistencias", detalle: "Abiertas y cerradas", vista: "px-preexistencias" },
+  { id: "px", modulo: "Preexistencias", titulo: "Preexistencias", detalle: "En curso por estado y plazos vencidos", vista: "px-preexistencias" },
   { id: "au", modulo: "Auditorías", tema: "auditorias", titulo: `Auditorías ${TB_ANIO}`, detalle: `Del año ${TB_ANIO}: abiertas y cerradas`, vista: "au-auditorias" },
   { id: "oficios", modulo: "Prestaciones", tema: "oficios", titulo: "Oficios", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-oficios" },
   { id: "reclamos", modulo: "Prestaciones", tema: "reclamos", titulo: "Reclamos", detalle: `Ingresados en ${TB_ANIO}, por estado`, vista: "ju-reclamos" }
@@ -121,11 +121,13 @@ const TB_RENDER = {
   },
 
   async px() {
-    const filas = await tbDatos("px", () => tbTraerTodo("preexistencias", "estado"));
-    const abiertas = filas.filter(f => f.estado !== "Cerrado").length;
-    return tbFila("Abiertas", abiertas, { ir: "px-preexistencias" }, abiertas ? "" : "") +
-      tbFila("Cerradas", filas.length - abiertas, { ir: "px-preexistencias" }) +
-      tbFila("Total", filas.length, { ir: "px-preexistencias" });
+    const [filas] = await tbDatos("px", () => Promise.all([tbTraerTodo("preexistencias", "estado,fecha_notificacion,resultado_notificacion,fecha_giro_archivo"), asegurarFeriadosCargados()]));
+    const enCurso = filas.filter(f => !esPxFinalizado(f));
+    const vencidos = enCurso.filter(plazoVencidoPx).length;
+    if (!enCurso.length) return tbVacio("No hay expedientes en curso.");
+    const conteo = tbContar(enCurso, "estado");
+    return (vencidos ? tbFila("Plazo de notificación vencido", vencidos, { ir: "px-preexistencias", pxEstado: "Para notificar" }, "alerta") : "") +
+      PX_ESTADOS.filter(e => conteo.get(e)).map(e => tbFila(e, conteo.get(e), { ir: "px-preexistencias", pxEstado: e }, e === "Inicial" ? "aviso" : "")).join("");
   },
 
   async au() {
@@ -222,6 +224,12 @@ async function tbIr(a) {
     const sel = document.getElementById(idSel);
     const ok = await tbEsperar(() => [...(sel?.options || [])].some(o => o.value === a.condicion));
     if (ok) { sel.value = a.condicion; sel.dispatchEvent(new Event("change")); }
+  }
+  if (a.pxEstado) {
+    const sel = document.getElementById("preexistencia-filtro-estado");
+    const ok = await tbEsperar(() => [...(sel?.options || [])].some(o => o.value === a.pxEstado));
+    document.getElementById("preexistencia-tab-activos")?.click();
+    if (ok) { sel.value = a.pxEstado; sel.dispatchEvent(new Event("change")); }
   }
   if (a.buscar) {
     const input = document.getElementById("expediente-search");

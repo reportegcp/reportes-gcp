@@ -3584,6 +3584,194 @@ let empSoloPorEtiqueta = new Map();
 let modalProfesionalesPx = [];
 let modalProfesionalesPxOriginales = [];
 
+// ---------- Preexistencias: circuito de estados ----------
+
+const PX_ESTADOS = ["Inicial", "No corresponde", "Para notificar", "Para asignar", "En análisis", "En costeo", "Despacho", "Para archivar"];
+const PX_ORDEN_ESTADO = { "Inicial": 0, "Para notificar": 1, "Para asignar": 2, "En análisis": 3, "En costeo": 4, "Despacho": 5, "No corresponde": 5, "Para archivar": 5 };
+const PX_DIAS_HABILES_NOTIFICACION = 3;
+let pxAnalistas = [];
+let pxFeriados = null;
+let pxEstadoGuardado = { estado: "Inicial", legado: false };
+
+async function asegurarFeriadosCargados() {
+  if (pxFeriados) return pxFeriados;
+  try {
+    const r = await fetchConTimeout(buildTableUrl("feriados", { select: "fecha" }), { method: "GET", headers: { Accept: "application/json" } }, 10000);
+    const filas = r.ok ? await r.json() : [];
+    pxFeriados = new Set((filas || []).map(f => f.fecha));
+  } catch (error) {
+    console.error("No se pudieron cargar los feriados:", error);
+    pxFeriados = new Set();
+  }
+  return pxFeriados;
+}
+
+function isoLocal(fecha) {
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+}
+
+// El plazo corre desde el día hábil siguiente a la notificación; devuelve la fecha del último día hábil.
+function sumarDiasHabiles(fechaIso, dias, feriados = pxFeriados || new Set()) {
+  if (!fechaIso) return "";
+  const [a, m, d] = fechaIso.split("-").map(Number);
+  const fecha = new Date(a, m - 1, d);
+  let contados = 0;
+  while (contados < dias) {
+    fecha.setDate(fecha.getDate() + 1);
+    const dow = fecha.getDay();
+    if (dow !== 0 && dow !== 6 && !feriados.has(isoLocal(fecha))) contados++;
+  }
+  return isoLocal(fecha);
+}
+
+function vencimientoNotificacionPx(p) {
+  return p?.fecha_notificacion ? sumarDiasHabiles(p.fecha_notificacion, PX_DIAS_HABILES_NOTIFICACION) : "";
+}
+
+// true si está esperando respuesta y ya pasó el último día hábil del plazo.
+function plazoVencidoPx(p) {
+  if (p?.estado !== "Para notificar" || !p.fecha_notificacion || p.resultado_notificacion) return false;
+  return isoLocal(new Date()) > vencimientoNotificacionPx(p);
+}
+
+function derivarEstadoPx(r, anterior = { estado: "Inicial", legado: false }) {
+  let estado = "Inicial";
+  if (r.clasificacion === "No corresponde") estado = "No corresponde";
+  else if (r.clasificacion === "Para notificar") {
+    if (r.resultado_notificacion === "Se vence el plazo" || r.resultado_notificacion === "Desiste") estado = "Para archivar";
+    else if (r.resultado_notificacion === "Responde afirmativamente") {
+      if (r.numero_disposicion && r.fecha_disposicion) estado = "Despacho";
+      else if (r.fecha_envio_costeo) estado = "En costeo";
+      else if (r.analista_id && r.fecha_asignacion) estado = "En análisis";
+      else estado = "Para asignar";
+    } else estado = "Para notificar";
+  }
+  // Los expedientes que ya existían antes del circuito no retroceden por falta de datos históricos.
+  if (anterior.legado && r.resultado_notificacion === "Responde afirmativamente" && PX_ORDEN_ESTADO[estado] < PX_ORDEN_ESTADO[anterior.estado]) return anterior.estado;
+  return estado;
+}
+
+function esPxFinalizado(p) {
+  return p.estado === "No corresponde" || p.estado === "Despacho" || (p.estado === "Para archivar" && !!p.fecha_giro_archivo);
+}
+
+function clasePxEstado(estado) {
+  if (estado === "Inicial") return "inicial";
+  if (estado === "No corresponde") return "no-corresponde";
+  if (estado === "Despacho" || estado === "Para archivar") return "fin";
+  return "curso";
+}
+
+function seguimientoPx(p) {
+  if (p.estado === "Para notificar") {
+    if (!p.fecha_notificacion) return { texto: "Falta notificar", clase: "" };
+    const vence = vencimientoNotificacionPx(p);
+    if (plazoVencidoPx(p)) return { texto: `Plazo vencido el ${formatearFecha(vence)}`, clase: "vencido" };
+    const hoy = isoLocal(new Date());
+    return { texto: `Vence ${formatearFecha(vence)}`, clase: vence === hoy ? "por-vencer" : "" };
+  }
+  if (p.estado === "No corresponde") return { texto: p.causa_no_corresponde || "", clase: "" };
+  if (p.estado === "Para archivar") return { texto: p.fecha_giro_archivo ? `Girado al archivo ${formatearFecha(p.fecha_giro_archivo)}` : "Falta girar al archivo", clase: "" };
+  if (p.estado === "En análisis") return { texto: p.preexistencias_analistas?.nombre || "", clase: "" };
+  if (p.estado === "En costeo") return { texto: `Enviado ${formatearFecha(p.fecha_envio_costeo)}`, clase: "" };
+  if (p.estado === "Despacho") return { texto: p.numero_disposicion ? `Disp. ${p.numero_disposicion}` : "", clase: "" };
+  return { texto: "", clase: "" };
+}
+
+async function cargarPxAnalistas() {
+  try {
+    const r = await fetchConTimeout(buildTableUrl("preexistencias_analistas", { select: "id,nombre,activo", order: "nombre.asc" }), { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" }, 10000);
+    pxAnalistas = r.ok ? await r.json() : [];
+  } catch (error) {
+    console.error("No se pudieron cargar los analistas:", error);
+    pxAnalistas = [];
+  }
+}
+
+function poblarSelectPxAnalistas(seleccionado = "") {
+  const select = document.getElementById("preexistencia-analista");
+  if (!select) return;
+  select.innerHTML = `<option value="">Sin asignar</option>` + pxAnalistas
+    .filter(a => a.activo || a.id === seleccionado)
+    .map(a => `<option value="${a.id}">${escaparHtml(a.nombre)}</option>`).join("");
+  select.value = seleccionado || "";
+}
+
+async function agregarPxAnalista() {
+  const nombre = (prompt("Nombre y apellido del analista:") || "").trim();
+  if (!nombre) return;
+  try {
+    const session = await asegurarSesionVigente();
+    const r = await fetchConTimeout(buildTableUrl("preexistencias_analistas", {}), {
+      method: "POST",
+      headers: { ...authHeaders(session.access_token), Prefer: "return=representation" },
+      body: JSON.stringify({ nombre })
+    }, 10000);
+    if (!r.ok) {
+      const detalle = await leerErrorApi(r);
+      throw new Error(/duplicate|unique|23505/i.test(detalle || "") ? "Ya existe un analista con ese nombre." : (detalle || `Supabase respondió ${r.status}.`));
+    }
+    const [nuevo] = await r.json();
+    await cargarPxAnalistas();
+    poblarSelectPxAnalistas(nuevo?.id || "");
+    if (!document.getElementById("preexistencia-fecha-asignacion").value) document.getElementById("preexistencia-fecha-asignacion").value = isoLocal(new Date());
+    actualizarCircuitoPx();
+    mostrarToast("Analista agregado.");
+  } catch (error) {
+    setFormMessage("preexistencia-form-message", error.message || "No se pudo agregar el analista.");
+  }
+}
+
+function leerCircuitoPxDelFormulario() {
+  const v = id => document.getElementById(id)?.value || "";
+  const clasificacion = v("preexistencia-clasificacion") || null;
+  const notifica = clasificacion === "Para notificar";
+  const resultado = notifica ? (v("preexistencia-resultado") || null) : null;
+  const afirmativo = resultado === "Responde afirmativamente";
+  const archiva = resultado === "Se vence el plazo" || resultado === "Desiste";
+  const analistaId = afirmativo ? (v("preexistencia-analista") || null) : null;
+  const fechaAsignacion = afirmativo ? (v("preexistencia-fecha-asignacion") || null) : null;
+  const asignado = !!(analistaId && fechaAsignacion);
+  const fechaCosteo = asignado ? (v("preexistencia-fecha-costeo") || null) : null;
+  return {
+    clasificacion,
+    causa_no_corresponde: clasificacion === "No corresponde" ? (v("preexistencia-causa") || null) : null,
+    observaciones: v("preexistencia-observaciones").trim() || null,
+    fecha_notificacion: notifica ? (v("preexistencia-fecha-notificacion") || null) : null,
+    resultado_notificacion: resultado,
+    fecha_giro_archivo: archiva ? (v("preexistencia-fecha-archivo") || null) : null,
+    analista_id: analistaId,
+    fecha_asignacion: fechaAsignacion,
+    fecha_envio_costeo: fechaCosteo,
+    numero_disposicion: fechaCosteo ? (v("preexistencia-numero-disposicion").trim() || null) : null,
+    fecha_disposicion: fechaCosteo ? (v("preexistencia-fecha-disposicion") || null) : null
+  };
+}
+
+// Muestra solo los pasos que corresponden y recalcula el estado y el vencimiento.
+function actualizarCircuitoPx() {
+  const r = leerCircuitoPxDelFormulario();
+  const legado = pxEstadoGuardado.legado;
+  const mostrar = (paso, visible) => document.querySelectorAll(`[data-px-paso="${paso}"]`).forEach(el => { el.hidden = !visible; });
+  const afirmativo = r.resultado_notificacion === "Responde afirmativamente";
+  mostrar("causa", r.clasificacion === "No corresponde");
+  mostrar("notificacion", r.clasificacion === "Para notificar");
+  mostrar("archivo", r.resultado_notificacion === "Se vence el plazo" || r.resultado_notificacion === "Desiste");
+  mostrar("asignacion", afirmativo);
+  mostrar("costeo", afirmativo && (!!(r.analista_id && r.fecha_asignacion) || legado));
+  mostrar("disposicion", afirmativo && (!!r.fecha_envio_costeo || legado));
+  const vence = r.fecha_notificacion ? sumarDiasHabiles(r.fecha_notificacion, PX_DIAS_HABILES_NOTIFICACION) : "";
+  const campoVence = document.getElementById("preexistencia-vencimiento");
+  if (campoVence) campoVence.value = vence ? formatearFecha(vence) : "";
+  document.getElementById("preexistencia-estado").value = derivarEstadoPx(r, pxEstadoGuardado);
+}
+
+function poblarFiltroEstadoPx() {
+  const select = document.getElementById("preexistencia-filtro-estado");
+  if (!select || select.options.length > 1) return;
+  select.innerHTML = `<option value="">Todos los estados</option>` + PX_ESTADOS.map(e => `<option value="${e}">${e}</option>`).join("");
+}
+
 function poblarDatalistEmp() {
   const datalist = document.getElementById("preexistencia-emp-datalist");
   if (!datalist) return;
@@ -3597,7 +3785,10 @@ function poblarDatalistEmp() {
 
 function buildPreexistenciasUrl(id = null) {
   const params = {
-    select: "id,numero_ex,emp_id,nombre_afiliado,dni_cuit_afiliado,patologia_id,fecha_ingreso,estado," +
+    select: "id,numero_ex,emp_id,nombre_afiliado,dni_cuit_afiliado,patologia_id,fecha_ingreso,estado,legado," +
+      "clasificacion,causa_no_corresponde,observaciones,fecha_notificacion,resultado_notificacion,fecha_giro_archivo," +
+      "analista_id,fecha_asignacion,fecha_envio_costeo,numero_disposicion,fecha_disposicion," +
+      "preexistencias_analistas(nombre)," +
       "texto_declaracion_jurada,esquema_propuesto,prestaciones_desestimadas," +
       "preexistencias_patologias(nombre,caracter,texto_desarrollo,referencias)," +
       "preexistencias_profesionales(id,nombre,profesion)," +
@@ -3622,8 +3813,9 @@ async function cargarYRenderizarPreexistencias() {
   const count = document.getElementById("preexistencia-count");
   if (count) count.textContent = "Cargando preexistencias...";
   try {
-    const [filas] = await Promise.all([cargarPreexistenciasDesdeSupabase(), asegurarObrasSocialesTodasCargadas()]);
+    const [filas] = await Promise.all([cargarPreexistenciasDesdeSupabase(), asegurarObrasSocialesTodasCargadas(), asegurarFeriadosCargados()]);
     preexistencias = filas;
+    poblarFiltroEstadoPx();
     preexistenciasCargadas = true;
     renderPreexistencias();
   } catch (error) {
@@ -3633,7 +3825,8 @@ async function cargarYRenderizarPreexistencias() {
 }
 
 function filtrarPreexistencias(lista, busqueda) {
-  const porEstado = lista.filter(p => preexistenciaVistaEstado === "cerrados" ? p.estado === "Cerrado" : p.estado !== "Cerrado");
+  const filtroEstado = document.getElementById("preexistencia-filtro-estado")?.value || "";
+  const porEstado = lista.filter(p => (preexistenciaVistaEstado === "cerrados" ? esPxFinalizado(p) : !esPxFinalizado(p)) && (!filtroEstado || p.estado === filtroEstado));
   const termino = normalizar(busqueda || "");
   if (!termino) return porEstado;
   return porEstado.filter(p =>
@@ -3655,7 +3848,8 @@ function renderPreexistencias() {
       <td class="ellipsis-cell" style="max-width:160px" title="${escaparHtml(etiquetaObraSocial(p.emp_id) || "")}">${escaparHtml(etiquetaObraSocial(p.emp_id) || "—")}</td>
       <td class="ellipsis-cell" style="max-width:130px" title="${escaparHtml(p.nombre_afiliado || "")}">${escaparHtml(p.nombre_afiliado || "—")}</td>
       <td class="ellipsis-cell" style="max-width:150px" title="${escaparHtml(p.preexistencias_patologias?.nombre || "")}">${escaparHtml(p.preexistencias_patologias?.nombre || "—")}</td>
-      <td>${escaparHtml(p.estado || "—")}</td>
+      <td><span class="px-estado ${clasePxEstado(p.estado)}">${escaparHtml(p.estado || "—")}</span></td>
+      <td>${(() => { const s = seguimientoPx(p); return `<span class="px-seguimiento ${s.clase}">${escaparHtml(s.texto || "—")}</span>`; })()}</td>
       <td class="date-cell">${formatearFecha(p.fecha_ingreso)}</td>
     </tr>
   `).join("");
@@ -3699,7 +3893,10 @@ function resetFormularioPreexistencia() {
   modalProfesionalesPx = [];
   modalProfesionalesPxOriginales = [];
   renderProfesionalesPxSubform();
-  document.getElementById("preexistencia-fecha-ingreso").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("preexistencia-fecha-ingreso").value = isoLocal(new Date());
+  pxEstadoGuardado = { estado: "Inicial", legado: false };
+  poblarSelectPxAnalistas();
+  actualizarCircuitoPx();
   poblarSelectPxPatologias();
   poblarSelectPxPlantillasPreexistencia();
   poblarDatalistEmp();
@@ -3711,12 +3908,12 @@ function resetFormularioPreexistencia() {
   document.getElementById("preexistencia-adjuntos-list").innerHTML = "";
   setFormMessage("preexistencia-form-message");
   document.querySelectorAll("#preexistencia-form .form-section").forEach(sec => {
-    sec.classList.toggle("collapsed", sec.dataset.section !== "px-datos");
+    sec.classList.toggle("collapsed", sec.dataset.section !== "px-datos" && sec.dataset.section !== "px-circuito");
   });
 }
 
 async function abrirModalNuevaPreexistencia() {
-  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas(), asegurarPxPlantillasCargadas()]);
+  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas(), asegurarPxPlantillasCargadas(), cargarPxAnalistas(), asegurarFeriadosCargados()]);
   resetFormularioPreexistencia();
   document.getElementById("preexistencia-modal-title").textContent = "Nueva preexistencia";
   abrirModal("preexistencia-modal");
@@ -3724,15 +3921,28 @@ async function abrirModalNuevaPreexistencia() {
 }
 
 async function abrirModalEdicionPreexistencia(id) {
-  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas(), asegurarPxPlantillasCargadas()]);
+  await Promise.all([asegurarPxPatologiasCargadas(), asegurarObrasSocialesTodasCargadas(), asegurarPxPlantillasCargadas(), cargarPxAnalistas(), asegurarFeriadosCargados()]);
   const p = preexistencias.find(item => String(item.id) === String(id));
   if (!p) return;
   resetFormularioPreexistencia();
 
   document.getElementById("preexistencia-id").value = p.id;
   document.getElementById("preexistencia-numero-ex").value = p.numero_ex || "";
-  document.getElementById("preexistencia-estado").value = p.estado || "Abierto";
   document.getElementById("preexistencia-fecha-ingreso").value = p.fecha_ingreso || "";
+  pxEstadoGuardado = { estado: p.estado || "Inicial", legado: !!p.legado };
+  const setv = (campo, valor) => { const el = document.getElementById(campo); if (el) el.value = valor || ""; };
+  setv("preexistencia-clasificacion", p.clasificacion);
+  setv("preexistencia-causa", p.causa_no_corresponde);
+  setv("preexistencia-observaciones", p.observaciones);
+  setv("preexistencia-fecha-notificacion", p.fecha_notificacion);
+  setv("preexistencia-resultado", p.resultado_notificacion);
+  setv("preexistencia-fecha-archivo", p.fecha_giro_archivo);
+  poblarSelectPxAnalistas(p.analista_id || "");
+  setv("preexistencia-fecha-asignacion", p.fecha_asignacion);
+  setv("preexistencia-fecha-costeo", p.fecha_envio_costeo);
+  setv("preexistencia-numero-disposicion", p.numero_disposicion);
+  setv("preexistencia-fecha-disposicion", p.fecha_disposicion);
+  actualizarCircuitoPx();
   document.getElementById("preexistencia-plantilla").value = p.plantilla_id || "";
 
   const empInput = document.getElementById("preexistencia-emp-input");
@@ -3770,8 +3980,22 @@ async function handlePreexistenciaSubmit(event) {
   const numeroEx = document.getElementById("preexistencia-numero-ex")?.value.trim() || "";
   const fechaIngreso = document.getElementById("preexistencia-fecha-ingreso")?.value || "";
   const nombreAfiliado = document.getElementById("preexistencia-nombre-afiliado")?.value.trim() || "";
-  if (!numeroEx || !fechaIngreso || !nombreAfiliado) {
-    setFormMessage("preexistencia-form-message", "Nº EX, fecha de ingreso y nombre del afiliado son obligatorios.");
+  if (!numeroEx || !fechaIngreso) {
+    setFormMessage("preexistencia-form-message", "Nº EX y fecha de ingreso son obligatorios.");
+    return;
+  }
+  const circuito = leerCircuitoPxDelFormulario();
+  const faltante = (() => {
+    if (circuito.clasificacion === "No corresponde" && !circuito.causa_no_corresponde) return "Elegí la causa por la que no corresponde.";
+    if (circuito.resultado_notificacion && !circuito.fecha_notificacion) return "Para cargar el resultado de la notificación tiene que estar la fecha de notificación.";
+    if (circuito.resultado_notificacion === "Se vence el plazo" && circuito.fecha_notificacion && isoLocal(new Date()) <= sumarDiasHabiles(circuito.fecha_notificacion, PX_DIAS_HABILES_NOTIFICACION)) return "Todavía no venció el plazo de 3 días hábiles.";
+    if (circuito.analista_id && !circuito.fecha_asignacion) return "Cargá la fecha de asignación.";
+    if (circuito.fecha_asignacion && !circuito.analista_id) return "Elegí el analista asignado.";
+    if (!!circuito.numero_disposicion !== !!circuito.fecha_disposicion) return "Para la disposición hacen falta el número y la fecha.";
+    return "";
+  })();
+  if (faltante) {
+    setFormMessage("preexistencia-form-message", faltante);
     return;
   }
 
@@ -3784,10 +4008,11 @@ async function handlePreexistenciaSubmit(event) {
 
   const registro = {
     numero_ex: numeroEx,
-    estado: document.getElementById("preexistencia-estado")?.value || "Abierto",
+    ...circuito,
+    estado: derivarEstadoPx(circuito, pxEstadoGuardado),
     fecha_ingreso: fechaIngreso,
     emp_id: empId,
-    nombre_afiliado: nombreAfiliado,
+    nombre_afiliado: nombreAfiliado || null,
     dni_cuit_afiliado: document.getElementById("preexistencia-dni-afiliado")?.value.trim() || null,
     patologia_id: document.getElementById("preexistencia-patologia")?.value || null,
     plantilla_id: document.getElementById("preexistencia-plantilla")?.value || null,
@@ -14584,6 +14809,18 @@ async function initBrowser() {
   document.getElementById("px-plantilla-eliminar")?.addEventListener("click", handleEliminarPxPlantilla);
 
   document.getElementById("preexistencia-search")?.addEventListener("input", renderPreexistencias);
+  document.getElementById("preexistencia-filtro-estado")?.addEventListener("change", renderPreexistencias);
+  ["preexistencia-clasificacion", "preexistencia-causa", "preexistencia-fecha-notificacion", "preexistencia-resultado", "preexistencia-fecha-archivo",
+    "preexistencia-analista", "preexistencia-fecha-asignacion", "preexistencia-fecha-costeo", "preexistencia-numero-disposicion", "preexistencia-fecha-disposicion"]
+    .forEach(id => {
+      document.getElementById(id)?.addEventListener("change", actualizarCircuitoPx);
+      document.getElementById(id)?.addEventListener("input", actualizarCircuitoPx);
+    });
+  document.getElementById("preexistencia-analista")?.addEventListener("change", () => {
+    const fecha = document.getElementById("preexistencia-fecha-asignacion");
+    if (fecha && document.getElementById("preexistencia-analista").value && !fecha.value) { fecha.value = isoLocal(new Date()); actualizarCircuitoPx(); }
+  });
+  document.getElementById("preexistencia-analista-agregar")?.addEventListener("click", () => requiereAutenticacion(agregarPxAnalista));
   document.getElementById("preexistencia-tab-activos")?.addEventListener("click", () => {
     preexistenciaVistaEstado = "activos";
     document.getElementById("preexistencia-tab-activos")?.classList.add("active");
