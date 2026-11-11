@@ -3650,7 +3650,7 @@ function derivarEstadoPx(r, anterior = { estado: "Inicial", legado: false }) {
   let estado = "Inicial";
   if (r.clasificacion === "No corresponde") estado = "No corresponde";
   else if (r.clasificacion === "Para notificar") {
-    if (r.resultado_notificacion === "Se vence el plazo" || r.resultado_notificacion === "Desiste") estado = "Para archivar";
+    if (r.resultado_notificacion === "Plazo vencido" || r.resultado_notificacion === "Desiste") estado = "Para archivar";
     else if (r.resultado_notificacion === "Responde afirmativamente") {
       if (r.numero_disposicion && r.fecha_disposicion) estado = "Despacho";
       else if (r.fecha_envio_costeo) estado = "En costeo";
@@ -3740,7 +3740,7 @@ function leerCircuitoPxDelFormulario() {
   const notifica = clasificacion === "Para notificar";
   const resultado = notifica ? (v("preexistencia-resultado") || null) : null;
   const afirmativo = resultado === "Responde afirmativamente";
-  const archiva = resultado === "Se vence el plazo" || resultado === "Desiste";
+  const archiva = resultado === "Plazo vencido" || resultado === "Desiste";
   const analistaId = afirmativo ? (v("preexistencia-analista") || null) : null;
   const fechaAsignacion = afirmativo ? (v("preexistencia-fecha-asignacion") || null) : null;
   const asignado = !!(analistaId && fechaAsignacion);
@@ -3768,7 +3768,7 @@ function actualizarCircuitoPx() {
   const afirmativo = r.resultado_notificacion === "Responde afirmativamente";
   mostrar("causa", r.clasificacion === "No corresponde");
   mostrar("notificacion", r.clasificacion === "Para notificar");
-  mostrar("archivo", r.resultado_notificacion === "Se vence el plazo" || r.resultado_notificacion === "Desiste");
+  mostrar("archivo", r.resultado_notificacion === "Plazo vencido" || r.resultado_notificacion === "Desiste");
   mostrar("asignacion", afirmativo);
   mostrar("costeo", afirmativo && (!!(r.analista_id && r.fecha_asignacion) || legado));
   mostrar("disposicion", afirmativo && (!!r.fecha_envio_costeo || legado));
@@ -4095,7 +4095,7 @@ async function handlePreexistenciaSubmit(event) {
   const faltante = (() => {
     if (circuito.clasificacion === "No corresponde" && !circuito.causa_no_corresponde) return "Elegí la causa por la que no corresponde.";
     if (circuito.resultado_notificacion && !circuito.fecha_notificacion) return "Para cargar el resultado de la notificación tiene que estar la fecha de notificación.";
-    if (circuito.resultado_notificacion === "Se vence el plazo" && circuito.fecha_notificacion && isoLocal(new Date()) <= sumarDiasHabiles(circuito.fecha_notificacion, PX_DIAS_HABILES_NOTIFICACION)) return "Todavía no venció el plazo de 3 días hábiles.";
+    if (circuito.resultado_notificacion === "Plazo vencido" && circuito.fecha_notificacion && isoLocal(new Date()) <= sumarDiasHabiles(circuito.fecha_notificacion, PX_DIAS_HABILES_NOTIFICACION)) return "Todavía no venció el plazo de 3 días hábiles.";
     if (circuito.analista_id && !circuito.fecha_asignacion) return "Cargá la fecha de asignación.";
     if (circuito.fecha_asignacion && !circuito.analista_id) return "Elegí el analista asignado.";
     if (!!circuito.numero_disposicion !== !!circuito.fecha_disposicion) return "Para la disposición hacen falta el número y la fecha.";
