@@ -3698,7 +3698,7 @@ function poblarSelectPxAnalistas(seleccionado = "") {
 }
 
 async function agregarPxAnalista() {
-  const nombre = (prompt("Nombre y apellido del analista:") || "").trim();
+  const nombre = ((await mostrarPrompt("Nombre y apellido del analista:", "", { titulo: "Agregar analista", textoAceptar: "Agregar" })) || "").trim();
   if (!nombre) return;
   try {
     const session = await asegurarSesionVigente();
@@ -3764,6 +3764,99 @@ function actualizarCircuitoPx() {
   const campoVence = document.getElementById("preexistencia-vencimiento");
   if (campoVence) campoVence.value = vence ? formatearFecha(vence) : "";
   document.getElementById("preexistencia-estado").value = derivarEstadoPx(r, pxEstadoGuardado);
+}
+
+// ---------- Preexistencias: importación diaria del Excel de expedientes ----------
+
+const PX_CODIGO_TRAMITE = "SSSA00081";
+
+function claveNumeroEx(numero) {
+  return String(numero || "").replace(/\s+/g, "").toUpperCase();
+}
+
+// Convierte la celda de fecha (número de serie de Excel, Date o texto dd/mm/aaaa) a "aaaa-mm-dd".
+function fechaIsoDeCeldaExcel(valor) {
+  if (valor === null || valor === undefined || valor === "") return "";
+  if (typeof valor === "number") {
+    const base = new Date(1899, 11, 30);
+    base.setDate(base.getDate() + Math.floor(valor));
+    return isoLocal(base);
+  }
+  if (valor instanceof Date) return isoLocal(valor);
+  const texto = String(valor).trim();
+  let m = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return "";
+}
+
+async function importarPreexistenciasDesdeExcel(archivo) {
+  try {
+    if (!window.XLSX) throw new Error("No se pudo cargar el lector de Excel. Recargá la página e intentá de nuevo.");
+    const libro = window.XLSX.read(await archivo.arrayBuffer(), { type: "array" });
+    const filas = window.XLSX.utils.sheet_to_json(libro.Sheets[libro.SheetNames[0]], { header: 1, raw: true, defval: "" });
+    const encabezado = (filas[0] || []).map(c => String(c).trim().toLowerCase());
+    if (!encabezado[0]?.startsWith("fecha") || !encabezado[3]?.includes("expediente") || !encabezado[4]?.includes("trámite")) {
+      throw new Error("El archivo no tiene el formato esperado: la columna A debe ser Fecha, la D Número Expediente y la E Código Trámite.");
+    }
+
+    const desde = await mostrarPrompt("Cargar los expedientes con fecha desde:", isoLocal(new Date()), { titulo: "Importar expedientes", tipo: "date", textoAceptar: "Continuar" });
+    if (!desde) return;
+
+    const existentes = new Set((await tbTraerTodo("preexistencias", "numero_ex")).map(f => claveNumeroEx(f.numero_ex)));
+    const enArchivo = new Set();
+    const nuevos = [];
+    const descartes = { otroCodigo: 0, anteriores: 0, yaCargados: 0, repetidos: 0, sinDatos: 0 };
+    for (const fila of filas.slice(1)) {
+      const numero = String(fila[3] || "").replace(/\s+/g, " ").trim();
+      const fecha = fechaIsoDeCeldaExcel(fila[0]);
+      if (!numero && !fecha) continue;
+      if (String(fila[4] || "").trim().toUpperCase() !== PX_CODIGO_TRAMITE) { descartes.otroCodigo++; continue; }
+      if (!numero || !fecha) { descartes.sinDatos++; continue; }
+      if (fecha < desde) { descartes.anteriores++; continue; }
+      const clave = claveNumeroEx(numero);
+      if (existentes.has(clave)) { descartes.yaCargados++; continue; }
+      if (enArchivo.has(clave)) { descartes.repetidos++; continue; }
+      enArchivo.add(clave);
+      nuevos.push({ numero_ex: numero, fecha_ingreso: fecha, estado: "Inicial" });
+    }
+
+    const detalle = [
+      descartes.otroCodigo && `${descartes.otroCodigo} con otro código de trámite`,
+      descartes.anteriores && `${descartes.anteriores} anteriores al ${formatearFecha(desde)}`,
+      descartes.yaCargados && `${descartes.yaCargados} ya cargados`,
+      descartes.repetidos && `${descartes.repetidos} repetidos en el archivo`,
+      descartes.sinDatos && `${descartes.sinDatos} sin número o sin fecha`
+    ].filter(Boolean).join(", ");
+    if (!nuevos.length) {
+      await mostrarConfirmacion(`No hay expedientes nuevos para cargar.${detalle ? ` Se descartaron: ${detalle}.` : ""}`, { titulo: "Importar expedientes", textoAceptar: "Entendido" });
+      return;
+    }
+    const ok = await mostrarConfirmacion(
+      `Se van a cargar ${nuevos.length} expediente${nuevos.length === 1 ? "" : "s"} nuevo${nuevos.length === 1 ? "" : "s"} en estado Inicial.${detalle ? ` Se descartan: ${detalle}.` : ""}`,
+      { titulo: "Importar expedientes", textoAceptar: `Cargar ${nuevos.length}` }
+    );
+    if (!ok) return;
+
+    const session = await asegurarSesionVigente();
+    for (let i = 0; i < nuevos.length; i += 200) {
+      const r = await fetchConTimeout(buildTableUrl("preexistencias", {}), {
+        method: "POST",
+        headers: { ...authHeaders(session.access_token), Prefer: "return=minimal" },
+        body: JSON.stringify(nuevos.slice(i, i + 200))
+      }, 20000);
+      if (!r.ok) throw new Error((await leerErrorApi(r)) || `Supabase respondió ${r.status}.`);
+    }
+    mostrarToast(`Se cargaron ${nuevos.length} expediente${nuevos.length === 1 ? "" : "s"}.`);
+    document.getElementById("preexistencia-tab-activos")?.click();
+    const filtro = document.getElementById("preexistencia-filtro-estado");
+    if (filtro) filtro.value = "Inicial";
+    await cargarYRenderizarPreexistencias();
+  } catch (error) {
+    console.error("Error al importar el Excel de preexistencias:", error);
+    await mostrarConfirmacion(error.message || "No se pudo importar el archivo.", { titulo: "Importar expedientes", textoAceptar: "Entendido" });
+  }
 }
 
 function poblarFiltroEstadoPx() {
@@ -14821,6 +14914,12 @@ async function initBrowser() {
     if (fecha && document.getElementById("preexistencia-analista").value && !fecha.value) { fecha.value = isoLocal(new Date()); actualizarCircuitoPx(); }
   });
   document.getElementById("preexistencia-analista-agregar")?.addEventListener("click", () => requiereAutenticacion(agregarPxAnalista));
+  document.getElementById("btn-importar-preexistencias")?.addEventListener("click", () => requiereAutenticacion(() => document.getElementById("importar-preexistencias-file").click()));
+  document.getElementById("importar-preexistencias-file")?.addEventListener("change", event => {
+    const archivo = event.target.files?.[0];
+    event.target.value = "";
+    if (archivo) importarPreexistenciasDesdeExcel(archivo);
+  });
   document.getElementById("preexistencia-tab-activos")?.addEventListener("click", () => {
     preexistenciaVistaEstado = "activos";
     document.getElementById("preexistencia-tab-activos")?.classList.add("active");
